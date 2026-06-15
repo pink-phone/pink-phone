@@ -38,13 +38,32 @@ export const Édition: Story = {
   ),
 };
 
-/** Édition d'un brouillon avec photo déjà jointe : remplacer ou retirer. */
+const DEMO_PHOTO =
+  "https://images.unsplash.com/photo-1519681393784-d120267933ba?w=640&q=70";
+
+/** Édition avec photo normale jointe : aperçu (révélé au press-hold), remplaçable. */
 export const ÉditionAvecPhoto: Story = {
   args: {
     initial: {
       title: "Note pour plus tard…",
       body: "Une idée que je garde au chaud, je la peaufine avant de te l'envoyer.",
-      hasMedia: true,
+      media: { viewOnce: false, loader: () => Promise.resolve(DEMO_PHOTO) },
+    },
+  },
+  render: (args) => (
+    <div className="w-80">
+      <PostComposer {...args} />
+    </div>
+  ),
+};
+
+/** Édition avec photo éphémère jointe : pas d'aperçu (consommé), seulement retirer. */
+export const ÉditionPhotoÉphémère: Story = {
+  args: {
+    initial: {
+      title: "Note pour plus tard…",
+      body: "Une idée que je garde au chaud, je la peaufine avant de te l'envoyer.",
+      media: { viewOnce: true },
     },
   },
   render: (args) => (

@@ -20,11 +20,16 @@ export interface PostComposerProps {
   onSubmit: (draft: PostDraft) => void;
   onCancel?: () => void;
   /**
-   * Valeurs initiales (édition d'un brouillon). `hasMedia` indique qu'une photo
-   * est déjà jointe : on ne l'affiche pas (un média éphémère serait consommé),
-   * mais on permet de la remplacer ou de la retirer.
+   * Valeurs initiales (édition d'un brouillon). `media` décrit la photo déjà
+   * jointe : un média éphémère n'est pas affiché (il serait consommé), un média
+   * normal a un aperçu (révélé au press-hold via `loader`). Dans les deux cas on
+   * peut la remplacer ou la retirer.
    */
-  initial?: { title?: string; body?: string; hasMedia?: boolean };
+  initial?: {
+    title?: string;
+    body?: string;
+    media?: { viewOnce: boolean; loader?: () => Promise<string>; alt?: string };
+  };
 }
 
 /** Formulaire de rédaction d'un post du blog intime. */
@@ -37,7 +42,8 @@ export function PostComposer({ onSubmit, onCancel, initial }: PostComposerProps)
   const [preview, setPreview] = useState<string | null>(null);
   // Photo déjà jointe au brouillon, tant qu'on ne la remplace/retire pas.
   const [removeMedia, setRemoveMedia] = useState(false);
-  const existingMedia = (initial?.hasMedia ?? false) && !file && !removeMedia;
+  const existingMedia =
+    initial?.media && !file && !removeMedia ? initial.media : null;
 
   // Aperçu local (object URL) du fichier choisi.
   useEffect(() => {
@@ -92,19 +98,38 @@ export function PostComposer({ onSubmit, onCancel, initial }: PostComposerProps)
         </span>
 
         {existingMedia ? (
-          /* Une photo est déjà jointe : on ne la ré-affiche pas (un média
-             éphémère serait consommé), on propose de la remplacer ou la retirer. */
-          <div className="flex items-center justify-between gap-2 rounded-2xl border border-charcoal-600/60 bg-charcoal-800 px-3 py-2">
-            <span className="text-xs text-taupe-300">📎 Photo déjà jointe</span>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setRemoveMedia(true)}
-            >
-              Retirer
-            </Button>
-          </div>
+          existingMedia.viewOnce ? (
+            /* Éphémère : pas d'aperçu (la lecture le consommerait). */
+            <div className="flex items-center justify-between gap-2 rounded-2xl border border-charcoal-600/60 bg-charcoal-800 px-3 py-2">
+              <span className="text-xs text-taupe-300">
+                ✦ Photo éphémère déjà jointe
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setRemoveMedia(true)}
+              >
+                Retirer
+              </Button>
+            </div>
+          ) : (
+            /* Média normal : aperçu flouté révélé au press-hold (loader authentifié). */
+            <div className="space-y-2">
+              <SafeMedia
+                loader={existingMedia.loader}
+                alt={existingMedia.alt ?? "Photo jointe"}
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setRemoveMedia(true)}
+              >
+                Retirer la photo
+              </Button>
+            </div>
+          )
         ) : null}
 
         <input

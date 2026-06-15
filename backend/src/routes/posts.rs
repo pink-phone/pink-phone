@@ -133,6 +133,7 @@ async fn enrich(
             title: p.title,
             body: p.body,
             media_id: p.media_id,
+            media_view_once: p.media_view_once,
             draft: p.draft,
             created_at: p.created_at,
         })
@@ -149,9 +150,11 @@ async fn list_posts(
     // Les brouillons ne sont visibles que de leur auteur.
     let rows: Vec<PostRow> = sqlx::query_as(
         "SELECT p.id, p.author_id, u.display_name AS author_name,
-                p.title, p.body, p.media_id, p.draft, p.created_at
+                p.title, p.body, p.media_id, m.view_once AS media_view_once,
+                p.draft, p.created_at
          FROM posts p
          JOIN users u ON u.id = p.author_id
+         LEFT JOIN media m ON m.id = p.media_id
          WHERE p.space_id = $1 AND (p.draft = false OR p.author_id = $2)
          ORDER BY p.created_at DESC",
     )
@@ -195,8 +198,11 @@ async fn create_post(
              RETURNING id, author_id, title, body, media_id, draft, created_at
          )
          SELECT i.id, i.author_id, u.display_name AS author_name,
-                i.title, i.body, i.media_id, i.draft, i.created_at
-         FROM inserted i JOIN users u ON u.id = i.author_id",
+                i.title, i.body, i.media_id, m.view_once AS media_view_once,
+                i.draft, i.created_at
+         FROM inserted i
+         JOIN users u ON u.id = i.author_id
+         LEFT JOIN media m ON m.id = i.media_id",
     )
     .bind(space_id)
     .bind(auth.user_id)
@@ -347,8 +353,11 @@ async fn update_post(
              RETURNING id, author_id, title, body, media_id, draft, created_at
          )
          SELECT up.id, up.author_id, u.display_name AS author_name,
-                up.title, up.body, up.media_id, up.draft, up.created_at
-         FROM updated up JOIN users u ON u.id = up.author_id",
+                up.title, up.body, up.media_id, m.view_once AS media_view_once,
+                up.draft, up.created_at
+         FROM updated up
+         JOIN users u ON u.id = up.author_id
+         LEFT JOIN media m ON m.id = up.media_id",
     )
     .bind(post_id)
     .bind(space_id)

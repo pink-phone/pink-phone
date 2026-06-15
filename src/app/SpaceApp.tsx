@@ -421,7 +421,17 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
               ? {
                   title: editingPost.title ?? undefined,
                   body: editingPost.body,
-                  hasMedia: editingPost.mediaId !== null,
+                  media: editingPost.mediaId
+                    ? {
+                        viewOnce: editingPost.mediaViewOnce ?? false,
+                        alt: "Photo jointe",
+                        loader: () =>
+                          api.fetchMediaObjectUrl(
+                            space.id,
+                            editingPost.mediaId as string,
+                          ),
+                      }
+                    : undefined,
                 }
               : undefined
           }
