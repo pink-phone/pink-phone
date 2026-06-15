@@ -12,16 +12,19 @@ export interface PostDraft {
   viewOnce: boolean;
   /** Enregistré comme brouillon (non publié, non notifié). */
   draft: boolean;
+  /** Édition : retirer la photo déjà jointe (sans en attacher de nouvelle). */
+  removeMedia?: boolean;
 }
 
 export interface PostComposerProps {
   onSubmit: (draft: PostDraft) => void;
   onCancel?: () => void;
   /**
-   * Valeurs initiales (édition d'un brouillon). En mode édition, la photo n'est
-   * pas modifiable : seul le texte est repris.
+   * Valeurs initiales (édition d'un brouillon). `hasMedia` indique qu'une photo
+   * est déjà jointe : on ne l'affiche pas (un média éphémère serait consommé),
+   * mais on permet de la remplacer ou de la retirer.
    */
-  initial?: { title?: string; body?: string };
+  initial?: { title?: string; body?: string; hasMedia?: boolean };
 }
 
 /** Formulaire de rédaction d'un post du blog intime. */
@@ -32,6 +35,9 @@ export function PostComposer({ onSubmit, onCancel, initial }: PostComposerProps)
   const [file, setFile] = useState<File | null>(null);
   const [viewOnce, setViewOnce] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
+  // Photo déjà jointe au brouillon, tant qu'on ne la remplace/retire pas.
+  const [removeMedia, setRemoveMedia] = useState(false);
+  const existingMedia = (initial?.hasMedia ?? false) && !file && !removeMedia;
 
   // Aperçu local (object URL) du fichier choisi.
   useEffect(() => {
@@ -54,6 +60,7 @@ export function PostComposer({ onSubmit, onCancel, initial }: PostComposerProps)
       file: file ?? undefined,
       viewOnce: file ? viewOnce : false,
       draft,
+      removeMedia: removeMedia && !file,
     });
   };
 
@@ -79,21 +86,52 @@ export function PostComposer({ onSubmit, onCancel, initial }: PostComposerProps)
         rows={editing ? 14 : 5}
       />
 
-      {!editing && (
-        <div className="space-y-1.5">
-          <span className="block text-xs font-medium text-taupe-200">
-            Photo (optionnel)
-          </span>
-          <input
-            type="file"
-            accept="image/*"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="block w-full text-xs text-taupe-300 file:mr-3 file:rounded-2xl file:border-0 file:bg-charcoal-700 file:px-3 file:py-2 file:text-xs file:text-taupe-100 hover:file:bg-charcoal-600"
-          />
-        </div>
-      )}
+      <div className="space-y-1.5">
+        <span className="block text-xs font-medium text-taupe-200">
+          {existingMedia ? "Photo (changer)" : "Photo (optionnel)"}
+        </span>
 
-      {!editing && preview && (
+        {existingMedia ? (
+          /* Une photo est déjà jointe : on ne la ré-affiche pas (un média
+             éphémère serait consommé), on propose de la remplacer ou la retirer. */
+          <div className="flex items-center justify-between gap-2 rounded-2xl border border-charcoal-600/60 bg-charcoal-800 px-3 py-2">
+            <span className="text-xs text-taupe-300">📎 Photo déjà jointe</span>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setRemoveMedia(true)}
+            >
+              Retirer
+            </Button>
+          </div>
+        ) : null}
+
+        <input
+          type="file"
+          accept="image/*"
+          onChange={(e) => {
+            setFile(e.target.files?.[0] ?? null);
+            setRemoveMedia(false);
+          }}
+          className="block w-full text-xs text-taupe-300 file:mr-3 file:rounded-2xl file:border-0 file:bg-charcoal-700 file:px-3 file:py-2 file:text-xs file:text-taupe-100 hover:file:bg-charcoal-600"
+        />
+
+        {editing && removeMedia && !file && (
+          <p className="text-[11px] text-taupe-400">
+            La photo sera retirée à l'enregistrement.{" "}
+            <button
+              type="button"
+              onClick={() => setRemoveMedia(false)}
+              className="underline underline-offset-2 hover:text-taupe-200"
+            >
+              Annuler
+            </button>
+          </p>
+        )}
+      </div>
+
+      {preview && (
         <div className="space-y-3">
           <SafeMedia src={preview} alt="Aperçu" viewOnce={viewOnce} />
           <Toggle

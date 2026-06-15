@@ -42,6 +42,12 @@ pub struct UpdatePostBody {
     pub title: Option<String>,
     /// Présent ⇒ remplace le récit. Absent ⇒ inchangé. Réservé aux brouillons.
     pub body: Option<String>,
+    /// Présent ⇒ attache/remplace le média (doit appartenir à l'espace).
+    /// Réservé aux brouillons.
+    pub media_id: Option<Uuid>,
+    /// Détache le média existant. Réservé aux brouillons.
+    #[serde(default)]
+    pub clear_media: bool,
     /// Publication d'un brouillon (`false`) ou remise en brouillon (`true`).
     pub draft: Option<bool>,
 }
@@ -270,20 +276,22 @@ async fn update_post(
 ) -> ApiResult<Json<Post>> {
     ensure_member(&state.pool, auth.user_id, space_id).await?;
 
-    let current: Option<(Uuid, Option<String>, String, bool)> = sqlx::query_as(
-        "SELECT author_id, title, body, draft FROM posts WHERE id = $1 AND space_id = $2",
+    let current: Option<(Uuid, Option<String>, String, Option<Uuid>, bool)> = sqlx::query_as(
+        "SELECT author_id, title, body, media_id, draft FROM posts WHERE id = $1 AND space_id = $2",
     )
     .bind(post_id)
     .bind(space_id)
     .fetch_optional(&state.pool)
     .await?;
-    let (author_id, cur_title, cur_body, was_draft) = current.ok_or(ApiError::NotFound)?;
+    let (author_id, cur_title, cur_body, cur_media, was_draft) =
+        current.ok_or(ApiError::NotFound)?;
     if author_id != auth.user_id {
         return Err(ApiError::Forbidden);
     }
 
-    // Le contenu n'est éditable que tant que le post est un brouillon.
-    let editing_content = body.title.is_some() || body.body.is_some();
+    // Le contenu (texte ET média) n'est éditable que tant que le post est un brouillon.
+    let editing_content =
+        body.title.is_some() || body.body.is_some() || body.media_id.is_some() || body.clear_media;
     if editing_content && !was_draft {
         return Err(ApiError::BadRequest(
             "un post publié ne peut plus être édité".into(),
@@ -308,11 +316,33 @@ async fn update_post(
     if new_body.is_empty() {
         return Err(ApiError::BadRequest("le récit ne peut pas être vide".into()));
     }
+
+    // Média : retrait explicite, remplacement, ou inchangé.
+    let new_media = if body.clear_media {
+        None
+    } else {
+        body.media_id.or(cur_media)
+    };
+    // Un média nouvellement attaché doit appartenir au même espace.
+    if let Some(mid) = body.media_id {
+        if Some(mid) != cur_media {
+            let ok: Option<Uuid> =
+                sqlx::query_scalar("SELECT id FROM media WHERE id = $1 AND space_id = $2")
+                    .bind(mid)
+                    .bind(space_id)
+                    .fetch_optional(&state.pool)
+                    .await?;
+            if ok.is_none() {
+                return Err(ApiError::BadRequest("média introuvable pour cet espace".into()));
+            }
+        }
+    }
+
     let new_draft = body.draft.unwrap_or(was_draft);
 
     let row: PostRow = sqlx::query_as(
         "WITH updated AS (
-             UPDATE posts SET title = $3, body = $4, draft = $5
+             UPDATE posts SET title = $3, body = $4, media_id = $5, draft = $6
              WHERE id = $1 AND space_id = $2
              RETURNING id, author_id, title, body, media_id, draft, created_at
          )
@@ -324,9 +354,25 @@ async fn update_post(
     .bind(space_id)
     .bind(new_title.as_deref())
     .bind(&new_body)
+    .bind(new_media)
     .bind(new_draft)
     .fetch_one(&state.pool)
     .await?;
+
+    // Ancien média remplacé/retiré : nettoyage (ligne + fichier disque).
+    if let Some(old) = cur_media {
+        if Some(old) != new_media {
+            let key: Option<String> =
+                sqlx::query_scalar("DELETE FROM media WHERE id = $1 RETURNING storage_key")
+                    .bind(old)
+                    .fetch_optional(&state.pool)
+                    .await?;
+            if let Some(key) = key {
+                let _ =
+                    tokio::fs::remove_file(FsPath::new(&state.config.media_dir).join(key)).await;
+            }
+        }
+    }
 
     let mut enriched = enrich(&state.pool, vec![row], auth.user_id).await?;
     let post = enriched.remove(0);

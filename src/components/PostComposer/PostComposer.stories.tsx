@@ -23,12 +23,28 @@ export const Standalone: Story = {
   ),
 };
 
-/** Édition d'un brouillon : champs pré-remplis, pas de photo (texte seulement). */
+/** Édition d'un brouillon : champs pré-remplis, photo ajoutable. */
 export const Édition: Story = {
   args: {
     initial: {
       title: "Note pour plus tard…",
       body: "Une idée que je garde au chaud, je la peaufine avant de te l'envoyer.",
+    },
+  },
+  render: (args) => (
+    <div className="w-80">
+      <PostComposer {...args} />
+    </div>
+  ),
+};
+
+/** Édition d'un brouillon avec photo déjà jointe : remplacer ou retirer. */
+export const ÉditionAvecPhoto: Story = {
+  args: {
+    initial: {
+      title: "Note pour plus tard…",
+      body: "Une idée que je garde au chaud, je la peaufine avant de te l'envoyer.",
+      hasMedia: true,
     },
   },
   render: (args) => (

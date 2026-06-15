@@ -163,7 +163,15 @@ export const deletePost = (spaceId: string, postId: string) =>
 export const updatePost = (
   spaceId: string,
   postId: string,
-  body: { title?: string; body?: string; draft?: boolean },
+  body: {
+    title?: string;
+    body?: string;
+    draft?: boolean;
+    /** Attache/remplace le média. */
+    mediaId?: string;
+    /** Détache le média existant. */
+    clearMedia?: boolean;
+  },
 ) =>
   req<ApiPost>(`/api/spaces/${spaceId}/posts/${postId}`, {
     method: "PATCH",

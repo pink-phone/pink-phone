@@ -147,10 +147,20 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
 
   const editPost = async (postId: string, draft: PostDraft) => {
     try {
+      let mediaId: string | undefined;
+      let clearMedia = false;
+      if (draft.file) {
+        const media = await api.uploadMedia(space.id, draft.file, draft.viewOnce);
+        mediaId = media.id;
+      } else if (draft.removeMedia) {
+        clearMedia = true;
+      }
       const updated = await api.updatePost(space.id, postId, {
         title: draft.title ?? "",
         body: draft.body,
         draft: draft.draft,
+        mediaId,
+        clearMedia,
       });
       setPosts((prev) => prev.map((p) => (p.id === postId ? updated : p)));
       setOpenSheet(null);
@@ -408,7 +418,11 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
           key={editingPost?.id ?? "new"}
           initial={
             editingPost
-              ? { title: editingPost.title ?? undefined, body: editingPost.body }
+              ? {
+                  title: editingPost.title ?? undefined,
+                  body: editingPost.body,
+                  hasMedia: editingPost.mediaId !== null,
+                }
               : undefined
           }
           onSubmit={
