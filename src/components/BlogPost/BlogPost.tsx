@@ -40,6 +40,8 @@ export interface BlogPostProps {
   isMine?: boolean;
   onDelete?: () => void;
   onPublish?: () => void;
+  /** Édition d'un brouillon (affiché si `draft` && `isMine`). */
+  onEdit?: () => void;
   className?: string;
 }
 
@@ -61,6 +63,7 @@ export function BlogPost({
   isMine = false,
   onDelete,
   onPublish,
+  onEdit,
   className,
 }: BlogPostProps) {
   return (
@@ -109,12 +112,20 @@ export function BlogPost({
       )}
 
       {draft ? (
-        /* Un brouillon n'a pas encore d'interactions : seul l'auteur peut le publier. */
-        isMine &&
-        onPublish && (
-          <Button className="w-full" onClick={onPublish}>
-            Publier ce brouillon
-          </Button>
+        /* Un brouillon n'a pas encore d'interactions : seul l'auteur l'édite/publie. */
+        isMine && (
+          <div className="flex gap-2">
+            {onPublish && (
+              <Button className="flex-1" onClick={onPublish}>
+                Publier ce brouillon
+              </Button>
+            )}
+            {onEdit && (
+              <Button variant="secondary" onClick={onEdit}>
+                Éditer
+              </Button>
+            )}
+          </div>
         )
       ) : (
         <>

@@ -12,6 +12,7 @@ export interface BlogScreenProps {
   onOpenComments?: (postId: string) => void;
   onDeletePost?: (postId: string) => void;
   onPublishPost?: (postId: string) => void;
+  onEditPost?: (postId: string) => void;
 }
 
 /** Le fil du blog intime ("à tête reposée"). */
@@ -23,6 +24,7 @@ export function BlogScreen({
   onOpenComments,
   onDeletePost,
   onPublishPost,
+  onEditPost,
 }: BlogScreenProps) {
   return (
     <div className="space-y-5">
@@ -59,6 +61,7 @@ export function BlogScreen({
               onOpenComments={() => onOpenComments?.(post.id)}
               onDelete={() => onDeletePost?.(post.id)}
               onPublish={() => onPublishPost?.(post.id)}
+              onEdit={() => onEditPost?.(post.id)}
             />
           ))}
         </div>

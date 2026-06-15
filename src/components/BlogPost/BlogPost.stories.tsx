@@ -32,6 +32,7 @@ const meta = {
     onOpenComments: { action: "commentaires" },
     onDelete: { action: "supprimer" },
     onPublish: { action: "publier" },
+    onEdit: { action: "éditer" },
   },
   args: {
     author: { name: "Camille", glyph: "C" },

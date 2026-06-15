@@ -37,8 +37,13 @@ pub struct CreatePostBody {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct UpdatePostBody {
+    /// Présent ⇒ remplace le titre (vide ⇒ supprime). Absent ⇒ inchangé.
+    /// Réservé aux brouillons.
+    pub title: Option<String>,
+    /// Présent ⇒ remplace le récit. Absent ⇒ inchangé. Réservé aux brouillons.
+    pub body: Option<String>,
     /// Publication d'un brouillon (`false`) ou remise en brouillon (`true`).
-    pub draft: bool,
+    pub draft: Option<bool>,
 }
 
 #[derive(sqlx::FromRow)]
@@ -254,8 +259,9 @@ async fn delete_post(
     Ok(StatusCode::NO_CONTENT)
 }
 
-/// Met à jour le statut brouillon d'un post (auteur uniquement). Publier un
-/// brouillon (draft true -> false) déclenche la notification, comme une création.
+/// Met à jour un post (auteur uniquement) : édition du titre/récit (brouillon
+/// seulement) et/ou changement du statut brouillon. Publier un brouillon
+/// (draft true -> false) déclenche la notification, comme une création.
 async fn update_post(
     State(state): State<AppState>,
     auth: AuthUser,
@@ -264,21 +270,50 @@ async fn update_post(
 ) -> ApiResult<Json<Post>> {
     ensure_member(&state.pool, auth.user_id, space_id).await?;
 
-    let current: Option<(Uuid, bool)> = sqlx::query_as(
-        "SELECT author_id, draft FROM posts WHERE id = $1 AND space_id = $2",
+    let current: Option<(Uuid, Option<String>, String, bool)> = sqlx::query_as(
+        "SELECT author_id, title, body, draft FROM posts WHERE id = $1 AND space_id = $2",
     )
     .bind(post_id)
     .bind(space_id)
     .fetch_optional(&state.pool)
     .await?;
-    let (author_id, was_draft) = current.ok_or(ApiError::NotFound)?;
+    let (author_id, cur_title, cur_body, was_draft) = current.ok_or(ApiError::NotFound)?;
     if author_id != auth.user_id {
         return Err(ApiError::Forbidden);
     }
 
+    // Le contenu n'est éditable que tant que le post est un brouillon.
+    let editing_content = body.title.is_some() || body.body.is_some();
+    if editing_content && !was_draft {
+        return Err(ApiError::BadRequest(
+            "un post publié ne peut plus être édité".into(),
+        ));
+    }
+
+    let new_title = match &body.title {
+        Some(t) => {
+            let t = t.trim();
+            if t.is_empty() {
+                None
+            } else {
+                Some(t.to_string())
+            }
+        }
+        None => cur_title,
+    };
+    let new_body = match &body.body {
+        Some(b) => b.trim().to_string(),
+        None => cur_body,
+    };
+    if new_body.is_empty() {
+        return Err(ApiError::BadRequest("le récit ne peut pas être vide".into()));
+    }
+    let new_draft = body.draft.unwrap_or(was_draft);
+
     let row: PostRow = sqlx::query_as(
         "WITH updated AS (
-             UPDATE posts SET draft = $3 WHERE id = $1 AND space_id = $2
+             UPDATE posts SET title = $3, body = $4, draft = $5
+             WHERE id = $1 AND space_id = $2
              RETURNING id, author_id, title, body, media_id, draft, created_at
          )
          SELECT up.id, up.author_id, u.display_name AS author_name,
@@ -287,7 +322,9 @@ async fn update_post(
     )
     .bind(post_id)
     .bind(space_id)
-    .bind(body.draft)
+    .bind(new_title.as_deref())
+    .bind(&new_body)
+    .bind(new_draft)
     .fetch_one(&state.pool)
     .await?;
 

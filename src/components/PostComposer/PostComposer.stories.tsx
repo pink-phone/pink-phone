@@ -23,6 +23,21 @@ export const Standalone: Story = {
   ),
 };
 
+/** Édition d'un brouillon : champs pré-remplis, pas de photo (texte seulement). */
+export const Édition: Story = {
+  args: {
+    initial: {
+      title: "Note pour plus tard…",
+      body: "Une idée que je garde au chaud, je la peaufine avant de te l'envoyer.",
+    },
+  },
+  render: (args) => (
+    <div className="w-80">
+      <PostComposer {...args} />
+    </div>
+  ),
+};
+
 export const DansUneSheet: Story = {
   name: "Dans une Sheet (contexte réel)",
   render: (args) => {

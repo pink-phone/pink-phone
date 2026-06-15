@@ -47,6 +47,8 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
   const [posts, setPosts] = useState<ApiPost[]>([]);
   const [challenges, setChallenges] = useState<ApiChallenge[]>([]);
   const [openSheet, setOpenSheet] = useState<"post" | "challenge" | null>(null);
+  // Brouillon en cours d'édition (sinon la feuille "post" crée un nouveau post).
+  const [editingPost, setEditingPost] = useState<ApiPost | null>(null);
 
   // Réglages / notifications.
   const [showSettings, setShowSettings] = useState(false);
@@ -140,6 +142,21 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
       setPosts((prev) => prev.map((p) => (p.id === postId ? updated : p)));
     } catch (e) {
       console.error("publication du brouillon échouée", e);
+    }
+  };
+
+  const editPost = async (postId: string, draft: PostDraft) => {
+    try {
+      const updated = await api.updatePost(space.id, postId, {
+        title: draft.title ?? "",
+        body: draft.body,
+        draft: draft.draft,
+      });
+      setPosts((prev) => prev.map((p) => (p.id === postId ? updated : p)));
+      setOpenSheet(null);
+      setEditingPost(null);
+    } catch (e) {
+      console.error("édition du brouillon échouée", e);
     }
   };
 
@@ -356,6 +373,13 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
           onOpenComments={openComments}
           onDeletePost={deletePost}
           onPublishPost={publishPost}
+          onEditPost={(id) => {
+            const p = posts.find((x) => x.id === id);
+            if (p) {
+              setEditingPost(p);
+              setOpenSheet("post");
+            }
+          }}
         />
       )}
 
@@ -372,10 +396,27 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
 
       <Sheet
         open={openSheet === "post"}
-        title="Écrire"
-        onClose={() => setOpenSheet(null)}
+        title={editingPost ? "Modifier le brouillon" : "Écrire"}
+        onClose={() => {
+          setOpenSheet(null);
+          setEditingPost(null);
+        }}
       >
-        <PostComposer onSubmit={addPost} onCancel={() => setOpenSheet(null)} />
+        <PostComposer
+          key={editingPost?.id ?? "new"}
+          initial={
+            editingPost
+              ? { title: editingPost.title ?? undefined, body: editingPost.body }
+              : undefined
+          }
+          onSubmit={
+            editingPost ? (d) => editPost(editingPost.id, d) : addPost
+          }
+          onCancel={() => {
+            setOpenSheet(null);
+            setEditingPost(null);
+          }}
+        />
       </Sheet>
 
       <Sheet

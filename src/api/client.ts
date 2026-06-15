@@ -156,12 +156,23 @@ export const createPost = (
 export const deletePost = (spaceId: string, postId: string) =>
   req<void>(`/api/spaces/${spaceId}/posts/${postId}`, { method: "DELETE" });
 
-/** Publie un brouillon (draft -> false) ; déclenche la notification. */
-export const publishPost = (spaceId: string, postId: string) =>
+/**
+ * Met à jour un post (auteur). Titre/récit éditables uniquement sur un
+ * brouillon ; `draft` change le statut. Champs absents = inchangés.
+ */
+export const updatePost = (
+  spaceId: string,
+  postId: string,
+  body: { title?: string; body?: string; draft?: boolean },
+) =>
   req<ApiPost>(`/api/spaces/${spaceId}/posts/${postId}`, {
     method: "PATCH",
-    json: { draft: false },
+    json: body,
   });
+
+/** Publie un brouillon (draft -> false) ; déclenche la notification. */
+export const publishPost = (spaceId: string, postId: string) =>
+  updatePost(spaceId, postId, { draft: false });
 
 // ---------- Interactions (réactions / verdict / commentaires) ----------
 

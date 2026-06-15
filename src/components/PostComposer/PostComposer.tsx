@@ -17,12 +17,18 @@ export interface PostDraft {
 export interface PostComposerProps {
   onSubmit: (draft: PostDraft) => void;
   onCancel?: () => void;
+  /**
+   * Valeurs initiales (édition d'un brouillon). En mode édition, la photo n'est
+   * pas modifiable : seul le texte est repris.
+   */
+  initial?: { title?: string; body?: string };
 }
 
 /** Formulaire de rédaction d'un post du blog intime. */
-export function PostComposer({ onSubmit, onCancel }: PostComposerProps) {
-  const [title, setTitle] = useState("");
-  const [body, setBody] = useState("");
+export function PostComposer({ onSubmit, onCancel, initial }: PostComposerProps) {
+  const editing = initial !== undefined;
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [body, setBody] = useState(initial?.body ?? "");
   const [file, setFile] = useState<File | null>(null);
   const [viewOnce, setViewOnce] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
@@ -73,19 +79,21 @@ export function PostComposer({ onSubmit, onCancel }: PostComposerProps) {
         rows={5}
       />
 
-      <div className="space-y-1.5">
-        <span className="block text-xs font-medium text-taupe-200">
-          Photo (optionnel)
-        </span>
-        <input
-          type="file"
-          accept="image/*"
-          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          className="block w-full text-xs text-taupe-300 file:mr-3 file:rounded-2xl file:border-0 file:bg-charcoal-700 file:px-3 file:py-2 file:text-xs file:text-taupe-100 hover:file:bg-charcoal-600"
-        />
-      </div>
+      {!editing && (
+        <div className="space-y-1.5">
+          <span className="block text-xs font-medium text-taupe-200">
+            Photo (optionnel)
+          </span>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            className="block w-full text-xs text-taupe-300 file:mr-3 file:rounded-2xl file:border-0 file:bg-charcoal-700 file:px-3 file:py-2 file:text-xs file:text-taupe-100 hover:file:bg-charcoal-600"
+          />
+        </div>
+      )}
 
-      {preview && (
+      {!editing && preview && (
         <div className="space-y-3">
           <SafeMedia src={preview} alt="Aperçu" viewOnce={viewOnce} />
           <Toggle
@@ -115,7 +123,7 @@ export function PostComposer({ onSubmit, onCancel }: PostComposerProps) {
           disabled={!canSubmit}
           onClick={() => submit(true)}
         >
-          Enregistrer le brouillon
+          {editing ? "Enregistrer les modifications" : "Enregistrer le brouillon"}
         </Button>
       </div>
     </form>
