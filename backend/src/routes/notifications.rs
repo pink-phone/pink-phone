@@ -32,7 +32,9 @@ async fn get_settings(
             .fetch_optional(&state.pool)
             .await?;
     Ok(Json(Settings {
-        notif_mode: mode.unwrap_or_else(|| "push".into()),
+        // Sans choix explicite de l'utilisateur, le défaut est "ghost" (discret) :
+        // pas de push tant qu'on ne l'a pas activé.
+        notif_mode: mode.unwrap_or_else(|| "ghost".into()),
     }))
 }
 

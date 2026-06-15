@@ -51,7 +51,7 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
 
   // Réglages / notifications.
   const [showSettings, setShowSettings] = useState(false);
-  const [notifMode, setNotifMode] = useState<NotifMode>("push");
+  const [notifMode, setNotifMode] = useState<NotifMode>("ghost");
   const [settingsBusy, setSettingsBusy] = useState(false);
   const [pushError, setPushError] = useState<string | null>(null);
 
@@ -68,7 +68,7 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
       api.listMoods(space.id),
       api.listPosts(space.id),
       api.listChallenges(space.id),
-      api.getSettings().catch(() => ({ notifMode: "push" as NotifMode })),
+      api.getSettings().catch(() => ({ notifMode: "ghost" as NotifMode })),
     ])
       .then(([m, mo, p, c, s]) => {
         if (!alive) return;

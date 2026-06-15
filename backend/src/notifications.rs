@@ -39,7 +39,7 @@ pub fn notify_members(
              JOIN space_memberships m ON m.user_id = ps.user_id
              LEFT JOIN user_settings s ON s.user_id = ps.user_id
              WHERE m.space_id = $1 AND ps.user_id <> $2
-               AND coalesce(s.notif_mode, 'push') = 'push'",
+               AND coalesce(s.notif_mode, 'ghost') = 'push'",
         )
         .bind(space_id)
         .bind(actor_id)
