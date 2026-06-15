@@ -1,14 +1,12 @@
 import { BlogPost } from "../../components/BlogPost/BlogPost";
 import { Button } from "../../components/Button/Button";
 import type { ReactionId } from "../../components/ReactionBar/ReactionBar";
-import type { Verdict } from "../../components/VerdictPicker/VerdictPicker";
 import type { PostData } from "../../mock/data";
 
 export interface BlogScreenProps {
   posts: PostData[];
   onCompose?: () => void;
   onToggleReaction?: (postId: string, reaction: ReactionId) => void;
-  onVerdictChange?: (postId: string, verdict: Verdict) => void;
   onOpenComments?: (postId: string) => void;
   onDeletePost?: (postId: string) => void;
   onPublishPost?: (postId: string) => void;
@@ -20,7 +18,6 @@ export function BlogScreen({
   posts,
   onCompose,
   onToggleReaction,
-  onVerdictChange,
   onOpenComments,
   onDeletePost,
   onPublishPost,
@@ -51,13 +48,11 @@ export function BlogScreen({
               media={post.media}
               reactionCounts={post.reactionCounts}
               myReactions={post.myReactions}
-              verdict={post.verdict}
               commentCount={post.commentCount}
               draft={post.draft}
               isMine={post.isMine}
               className="max-w-none"
               onToggleReaction={(r) => onToggleReaction?.(post.id, r)}
-              onVerdictChange={(v) => onVerdictChange?.(post.id, v)}
               onOpenComments={() => onOpenComments?.(post.id)}
               onDelete={() => onDeletePost?.(post.id)}
               onPublish={() => onPublishPost?.(post.id)}

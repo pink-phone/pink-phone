@@ -3,7 +3,6 @@ import { Badge } from "../Badge/Badge";
 import { Button } from "../Button/Button";
 import { SafeMedia } from "../SafeMedia/SafeMedia";
 import { ReactionBar, type ReactionId } from "../ReactionBar/ReactionBar";
-import { VerdictPicker, type Verdict } from "../VerdictPicker/VerdictPicker";
 import { cn } from "../../lib/cn";
 
 export interface BlogPostAuthor {
@@ -32,8 +31,6 @@ export interface BlogPostProps {
   reactionCounts?: Partial<Record<ReactionId, number>>;
   myReactions?: ReactionId[];
   onToggleReaction?: (r: ReactionId) => void;
-  verdict?: Verdict | null;
-  onVerdictChange?: (v: Verdict) => void;
   commentCount?: number;
   onOpenComments?: () => void;
   /** Brouillon : affiche une pastille et (si `isMine`) le bouton Publier. */
@@ -57,8 +54,6 @@ export function BlogPost({
   reactionCounts,
   myReactions,
   onToggleReaction,
-  verdict,
-  onVerdictChange,
   commentCount = 0,
   onOpenComments,
   draft = false,
@@ -137,8 +132,6 @@ export function BlogPost({
             mine={myReactions}
             onToggle={onToggleReaction}
           />
-
-          <VerdictPicker value={verdict} onChange={onVerdictChange} />
 
           <button
             type="button"

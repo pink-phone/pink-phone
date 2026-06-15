@@ -33,7 +33,6 @@ import {
 
 import type { MoodId } from "../components/MoodSelector/moods";
 import type { ReactionId } from "../components/ReactionBar/ReactionBar";
-import type { Verdict } from "../components/VerdictPicker/VerdictPicker";
 import type { ChallengeStatus } from "../components/ChallengeCard/challenge";
 import type { ChallengeData, PostData } from "../mock/data";
 
@@ -228,17 +227,6 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
     }
   };
 
-  const setVerdict = async (postId: string, verdict: Verdict) => {
-    try {
-      await api.setVerdict(space.id, postId, verdict);
-      setPosts((prev) =>
-        prev.map((p) => (p.id === postId ? { ...p, verdict } : p)),
-      );
-    } catch (e) {
-      console.error("verdict échoué", e);
-    }
-  };
-
   const openComments = async (postId: string) => {
     setCommentsFor(postId);
     setComments([]);
@@ -381,7 +369,6 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
           posts={postData}
           onCompose={() => setOpenSheet("post")}
           onToggleReaction={toggleReaction}
-          onVerdictChange={setVerdict}
           onOpenComments={openComments}
           onDeletePost={deletePost}
           onPublishPost={publishPost}

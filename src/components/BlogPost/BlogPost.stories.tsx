@@ -22,13 +22,12 @@ const meta = {
     docs: {
       description: {
         component:
-          "La carte d'un post du blog intime : récit, média flouté optionnel, réactions, verdict et commentaires.",
+          "La carte d'un post du blog intime : récit, média flouté optionnel, réactions et commentaires.",
       },
     },
   },
   argTypes: {
     onToggleReaction: { action: "réaction" },
-    onVerdictChange: { action: "verdict" },
     onOpenComments: { action: "commentaires" },
     onDelete: { action: "supprimer" },
     onPublish: { action: "publier" },
@@ -42,7 +41,6 @@ const meta = {
       "Je repensais à ce qu'on s'est murmuré l'autre soir. J'aimerais qu'on prenne le temps, sans précipitation, juste pour explorer.",
     reactionCounts: { fire: 2, smirk: 1 },
     myReactions: ["fire"],
-    verdict: "curious",
     commentCount: 3,
   },
 } satisfies Meta<typeof BlogPost>;
@@ -64,7 +62,6 @@ export const MédiaÉphémère: Story = {
     media: { src: DEMO_SRC, alt: "Photo éphémère", viewOnce: true },
     title: undefined,
     commentCount: 0,
-    verdict: null,
   },
 };
 

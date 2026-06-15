@@ -10,7 +10,6 @@ const meta = {
   argTypes: {
     onCompose: { action: "écrire" },
     onToggleReaction: { action: "réaction" },
-    onVerdictChange: { action: "verdict" },
     onOpenComments: { action: "commentaires" },
   },
   args: { posts: SAMPLE_POSTS },
