@@ -1,6 +1,7 @@
 import { Surface } from "../Surface/Surface";
 import { Badge, type BadgeTone } from "../Badge/Badge";
 import { Button } from "../Button/Button";
+import { FireEmbers } from "../FireEmbers/FireEmbers";
 import { cn } from "../../lib/cn";
 import {
   INTENSITY_LABEL,
@@ -57,44 +58,53 @@ export function ChallengeCard({
   className,
 }: ChallengeCardProps) {
   const meta = STATUS_META[status];
+  // Défi "chaud" (hot/hard) encore en jeu : halo de braise + particules.
+  const showEmber = (intensity === "hot" || intensity === "hard") && status !== "jobDone";
 
   return (
     <Surface
       tone={status === "jobDone" ? "deep" : "velvet"}
-      className={cn("w-full space-y-3", className)}
+      className={cn(
+        "relative w-full overflow-hidden",
+        showEmber && "shadow-ember animate-ember-breathe motion-reduce:animate-none",
+        className,
+      )}
     >
-      <div className="flex items-center justify-between gap-2">
-        <Badge tone={INTENSITY_TONE[intensity]}>{INTENSITY_LABEL[intensity]}</Badge>
-        <div className="flex items-center gap-2">
-          <Badge tone={STATUS_TONE[status]}>{meta.label}</Badge>
-          {perspective === "proposer" && onDelete && (
-            <button
-              type="button"
-              onClick={onDelete}
-              aria-label="Supprimer ce défi"
-              className="rounded-full px-1.5 py-0.5 text-base text-taupe-400 transition-colors duration-300 ease-felt hover:text-bordeaux-300"
-            >
-              🗑
-            </button>
-          )}
+      {showEmber && <FireEmbers count={7} />}
+      <div className="relative z-10 space-y-3">
+        <div className="flex items-center justify-between gap-2">
+          <Badge tone={INTENSITY_TONE[intensity]}>{INTENSITY_LABEL[intensity]}</Badge>
+          <div className="flex items-center gap-2">
+            <Badge tone={STATUS_TONE[status]}>{meta.label}</Badge>
+            {perspective === "proposer" && onDelete && (
+              <button
+                type="button"
+                onClick={onDelete}
+                aria-label="Supprimer ce défi"
+                className="rounded-full px-1.5 py-0.5 text-base text-taupe-400 transition-colors duration-300 ease-felt hover:text-bordeaux-300"
+              >
+                🗑
+              </button>
+            )}
+          </div>
         </div>
+
+        <h3 className="font-serif text-xl text-blush-100">{title}</h3>
+        <p className="text-sm leading-relaxed text-taupe-200">{description}</p>
+
+        <div className="flex items-center justify-between text-xs text-taupe-400">
+          <span>{meta.hint}</span>
+          {deadlineLabel && <span>⏳ {deadlineLabel}</span>}
+        </div>
+
+        <Actions
+          status={status}
+          perspective={perspective}
+          onAccept={onAccept}
+          onNegotiate={onNegotiate}
+          onComplete={onComplete}
+        />
       </div>
-
-      <h3 className="font-serif text-xl text-blush-100">{title}</h3>
-      <p className="text-sm leading-relaxed text-taupe-200">{description}</p>
-
-      <div className="flex items-center justify-between text-xs text-taupe-400">
-        <span>{meta.hint}</span>
-        {deadlineLabel && <span>⏳ {deadlineLabel}</span>}
-      </div>
-
-      <Actions
-        status={status}
-        perspective={perspective}
-        onAccept={onAccept}
-        onNegotiate={onNegotiate}
-        onComplete={onComplete}
-      />
     </Surface>
   );
 }

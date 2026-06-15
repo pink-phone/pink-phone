@@ -57,6 +57,9 @@ export default {
         felt: "0 2px 8px -2px rgba(0,0,0,0.35), 0 8px 28px -8px rgba(0,0,0,0.45)",
         "felt-sm": "0 1px 4px -1px rgba(0,0,0,0.3)",
         glow: "0 0 16px -2px rgba(184,92,114,0.55)", // soft glow (Mood actif)
+        // Braise : halo chaud (états "hot") — spice + bordeaux profond
+        ember:
+          "0 0 18px -2px rgba(201,113,135,0.55), 0 0 36px -6px rgba(122,39,64,0.5)",
       },
       backgroundImage: {
         // Textures subtiles (velours / lin feutré) — bruit doux non agressif
@@ -78,11 +81,31 @@ export default {
           from: { opacity: "0", transform: "translateY(16px)" },
           to: { opacity: "1", transform: "translateY(0)" },
         },
+        // Halo de braise qui respire (états "hot")
+        "ember-breathe": {
+          "0%, 100%": {
+            boxShadow:
+              "0 0 10px -2px rgba(201,113,135,0.35), 0 0 20px -6px rgba(122,39,64,0.35)",
+          },
+          "50%": {
+            boxShadow:
+              "0 0 22px 0px rgba(201,113,135,0.7), 0 0 44px -4px rgba(122,39,64,0.55)",
+          },
+        },
+        // Particule de feu qui s'élève et s'éteint
+        "ember-rise": {
+          "0%": { transform: "translateY(0) scale(1)", opacity: "0" },
+          "20%": { opacity: "0.85" },
+          "100%": { transform: "translateY(-42px) scale(0.3)", opacity: "0" },
+        },
       },
       animation: {
         // Apparitions douces — pas de popups agressifs
         "fade-in": "fade-in 0.35s cubic-bezier(0.22,0.61,0.36,1) both",
         "slide-up": "slide-up 0.4s cubic-bezier(0.22,0.61,0.36,1) both",
+        // Braise (états "hot")
+        "ember-breathe": "ember-breathe 3.6s ease-in-out infinite",
+        "ember-rise": "ember-rise 2.6s ease-out infinite",
       },
     },
   },
