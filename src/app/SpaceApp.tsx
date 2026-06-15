@@ -4,6 +4,7 @@ import type {
   ApiChallenge,
   ApiComment,
   ApiPost,
+  ChallengeSuggestion,
   Member,
   MoodEntry,
   NotifMode,
@@ -45,6 +46,7 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
   const [moods, setMoods] = useState<MoodEntry[]>([]);
   const [posts, setPosts] = useState<ApiPost[]>([]);
   const [challenges, setChallenges] = useState<ApiChallenge[]>([]);
+  const [suggestions, setSuggestions] = useState<ChallengeSuggestion[]>([]);
   const [openSheet, setOpenSheet] = useState<"post" | "challenge" | null>(null);
   // Brouillon en cours d'édition (sinon la feuille "post" crée un nouveau post).
   const [editingPost, setEditingPost] = useState<ApiPost | null>(null);
@@ -93,6 +95,11 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
       alive = false;
     };
   }, [space.id]);
+
+  // Banque de propositions de défis (globale, curée). Chargée une fois.
+  useEffect(() => {
+    api.listChallengeSuggestions().then(setSuggestions).catch(() => {});
+  }, []);
 
   // Applique la préférence "effet braise" globalement (classe sur <html>) + persiste.
   useEffect(() => {
@@ -508,6 +515,7 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
         <ChallengeComposer
           onSubmit={addChallenge}
           onCancel={() => setOpenSheet(null)}
+          suggestions={suggestions}
         />
       </Sheet>
 

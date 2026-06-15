@@ -23,6 +23,26 @@ export const Standalone: Story = {
   ),
 };
 
+/** Banque fournie (≥ 6 idées) : sous-ensemble aléatoire + bouton "Autres idées". */
+export const AvecBanque: Story = {
+  args: {
+    suggestions: [
+      { title: "Le mot interdit", description: "Un seul SMS suggestif aujourd'hui.", intensity: "soft" },
+      { title: "Compliment volé", description: "Glisse-lui à l'oreille ce que tu préfères.", intensity: "soft" },
+      { title: "Massage aux huiles", description: "Une heure rien que pour l'autre.", intensity: "hot" },
+      { title: "Douche à deux", description: "On se savonne, sans se presser.", intensity: "hot" },
+      { title: "Lettre brûlante", description: "Écris une envie jamais avouée.", intensity: "hot" },
+      { title: "Soirée à l'aveugle", description: "Bandeau sur les yeux toute la soirée.", intensity: "hard" },
+      { title: "Mains attachées", description: "Un foulard, l'autre mène en douceur.", intensity: "hard" },
+    ],
+  },
+  render: (args) => (
+    <div className="w-80">
+      <ChallengeComposer {...args} />
+    </div>
+  ),
+};
+
 export const DansUneSheet: Story = {
   name: "Dans une Sheet (contexte réel)",
   render: (args) => {

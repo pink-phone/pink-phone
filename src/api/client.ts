@@ -10,6 +10,7 @@ import type {
   ApiComment,
   ApiPost,
   AuthConfig,
+  ChallengeSuggestion,
   AuthResponse,
   Member,
   MediaCreated,
@@ -234,6 +235,10 @@ export const addComment = (spaceId: string, postId: string, body: string) =>
 
 export const listChallenges = (spaceId: string) =>
   req<ApiChallenge[]>(`/api/spaces/${spaceId}/challenges`);
+
+/** Banque de propositions de défis (globale, curée). */
+export const listChallengeSuggestions = () =>
+  req<ChallengeSuggestion[]>("/api/challenge-suggestions");
 
 export const createChallenge = (
   spaceId: string,

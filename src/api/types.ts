@@ -85,6 +85,13 @@ export interface ApiChallenge {
   updatedAt: string;
 }
 
+export interface ChallengeSuggestion {
+  id: string;
+  title: string;
+  description: string;
+  intensity: Intensity;
+}
+
 export interface MediaCreated {
   id: string;
   mime: string;
