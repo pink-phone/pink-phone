@@ -52,7 +52,7 @@ export function BlogPost({
   className,
 }: BlogPostProps) {
   return (
-    <Surface tone="velvet" className={cn("w-full max-w-md space-y-4", className)}>
+    <Surface tone="velvet" className={cn("w-full space-y-4", className)}>
       <header className="flex items-center gap-3">
         <span
           aria-hidden
