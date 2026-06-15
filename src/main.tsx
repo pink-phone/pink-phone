@@ -9,6 +9,10 @@ import { App } from "./App";
 // l'ancienne PWA en cache).
 registerSW({ immediate: true });
 
+// Bloque le pinch-zoom sur Safari iOS en onglet (où le meta viewport
+// `user-scalable=no` est ignoré). En PWA installée, le meta suffit déjà.
+document.addEventListener("gesturestart", (e) => e.preventDefault());
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />

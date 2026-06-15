@@ -16,6 +16,8 @@
   }
   html {
     -webkit-tap-highlight-color: transparent;
+    /* Coupe le double-tap-to-zoom (garde le défilement). */
+    touch-action: manipulation;
   }
   body {
     @apply bg-charcoal-900 bg-felt-velvet font-sans text-taupe-200 antialiased;
