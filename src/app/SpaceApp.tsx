@@ -397,6 +397,8 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
       <Sheet
         open={openSheet === "post"}
         title={editingPost ? "Modifier le brouillon" : "Écrire"}
+        // En édition, on s'offre de la place pour rédiger (≈ 3/4 d'écran).
+        className={editingPost ? "min-h-[75dvh]" : undefined}
         onClose={() => {
           setOpenSheet(null);
           setEditingPost(null);

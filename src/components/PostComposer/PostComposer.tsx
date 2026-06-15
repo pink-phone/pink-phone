@@ -76,7 +76,7 @@ export function PostComposer({ onSubmit, onCancel, initial }: PostComposerProps)
         value={body}
         onChange={(e) => setBody(e.target.value)}
         placeholder="Raconte, à tête reposée…"
-        rows={5}
+        rows={editing ? 14 : 5}
       />
 
       {!editing && (
