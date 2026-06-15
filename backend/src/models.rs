@@ -28,6 +28,8 @@ pub struct UserPublic {
 pub struct Space {
     pub id: Uuid,
     pub name: String,
+    /// Fuseau IANA (ex: "Europe/Paris") — base du renouvellement du mood à minuit.
+    pub timezone: String,
     pub created_at: DateTime<Utc>,
 }
 

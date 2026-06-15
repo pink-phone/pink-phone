@@ -7,6 +7,15 @@ const meta = {
   title: "Défis/ChallengeCard",
   component: ChallengeCard,
   tags: ["autodocs"],
+  // La carte est désormais pleine largeur (elle s'adapte à l'écran dans l'app) ;
+  // on la contraint ici pour conserver un aperçu "carte" en Storybook.
+  decorators: [
+    (Story) => (
+      <div className="mx-auto max-w-sm">
+        <Story />
+      </div>
+    ),
+  ],
   parameters: {
     layout: "padded",
     docs: {

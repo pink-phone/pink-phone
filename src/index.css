@@ -9,13 +9,20 @@
 @tailwind utilities;
 
 @layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
   html {
     -webkit-tap-highlight-color: transparent;
   }
   body {
     @apply bg-charcoal-900 bg-felt-velvet font-sans text-taupe-200 antialiased;
-    /* Respecte les encoches (PWA plein écran) */
-    padding: env(safe-area-inset-top) env(safe-area-inset-right)
-      env(safe-area-inset-bottom) env(safe-area-inset-left);
+    /* Le scroll vit dans <main> (AppShell), jamais sur le body : évite le
+       rubber-band iOS et la barre du bas qui passe sous l'écran. Les encoches
+       sont gérées localement (AppShell en haut, BottomNav en bas). */
+    overflow: hidden;
+    overscroll-behavior: none;
   }
 }

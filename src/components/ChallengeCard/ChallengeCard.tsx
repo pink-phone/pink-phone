@@ -58,7 +58,7 @@ export function ChallengeCard({
   return (
     <Surface
       tone={status === "jobDone" ? "deep" : "velvet"}
-      className={cn("w-full max-w-sm space-y-3", className)}
+      className={cn("w-full space-y-3", className)}
     >
       <div className="flex items-center justify-between gap-2">
         <Badge tone={INTENSITY_TONE[intensity]}>{INTENSITY_LABEL[intensity]}</Badge>

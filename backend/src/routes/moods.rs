@@ -55,11 +55,17 @@ async fn list_moods(
 ) -> ApiResult<Json<Vec<Mood>>> {
     ensure_member(&state.pool, auth.user_id, space_id).await?;
 
-    // La "météo du jour" : un mood se renouvelle toutes les 24h. Au-delà, il est
-    // considéré périmé et n'est plus renvoyé (l'utilisateur est réinvité à le poser).
+    // La "météo du jour" : un mood se périme au passage de minuit DANS LE FUSEAU
+    // DU SALON (et non après une fenêtre glissante de 24h). On ne renvoie donc que
+    // les humeurs posées le jour calendaire courant ; au-delà, l'utilisateur est
+    // réinvité à la poser.
     let moods: Vec<Mood> = sqlx::query_as(
-        "SELECT user_id, status, updated_at FROM moods
-         WHERE space_id = $1 AND updated_at > now() - interval '24 hours'",
+        "SELECT m.user_id, m.status, m.updated_at
+         FROM moods m
+         JOIN spaces s ON s.id = m.space_id
+         WHERE m.space_id = $1
+           AND (m.updated_at AT TIME ZONE s.timezone)::date
+               = (now() AT TIME ZONE s.timezone)::date",
     )
     .bind(space_id)
     .fetch_all(&state.pool)

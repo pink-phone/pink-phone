@@ -23,6 +23,8 @@ export interface AuthResponse {
 export interface Space {
   id: string;
   name: string;
+  /** Fuseau IANA du salon (renouvellement du mood à minuit). Défaut serveur: Europe/Paris. */
+  timezone: string;
   createdAt: string;
 }
 

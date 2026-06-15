@@ -38,7 +38,7 @@ async fn create_space(
 
     let mut tx = state.pool.begin().await?;
     let space: Space = sqlx::query_as(
-        "INSERT INTO spaces (name) VALUES ($1) RETURNING id, name, created_at",
+        "INSERT INTO spaces (name) VALUES ($1) RETURNING id, name, timezone, created_at",
     )
     .bind(name)
     .fetch_one(&mut *tx)
@@ -61,7 +61,7 @@ async fn my_spaces(
     auth: AuthUser,
 ) -> ApiResult<Json<Vec<Space>>> {
     let spaces: Vec<Space> = sqlx::query_as(
-        "SELECT s.id, s.name, s.created_at
+        "SELECT s.id, s.name, s.timezone, s.created_at
          FROM spaces s
          JOIN space_memberships m ON m.space_id = s.id
          WHERE m.user_id = $1
@@ -81,7 +81,7 @@ async fn join_space(
     let mut tx = state.pool.begin().await?;
 
     let space: Option<Space> =
-        sqlx::query_as("SELECT id, name, created_at FROM spaces WHERE id = $1")
+        sqlx::query_as("SELECT id, name, timezone, created_at FROM spaces WHERE id = $1")
             .bind(space_id)
             .fetch_optional(&mut *tx)
             .await?;
