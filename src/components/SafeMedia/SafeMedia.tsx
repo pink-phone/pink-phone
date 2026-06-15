@@ -15,6 +15,11 @@ export interface SafeMediaProps {
    * rouvert côté client (le backend supprime le fichier de son côté).
    */
   viewOnce?: boolean;
+  /**
+   * Média éphémère déjà consommé côté serveur (persiste l'état "Envolé…" après
+   * un rechargement, sans tenter de charger un fichier qui n'existe plus).
+   */
+  consumed?: boolean;
   /** Appelé la première fois que le média est révélé. */
   onReveal?: () => void;
   className?: string;
@@ -30,11 +35,12 @@ export function SafeMedia({
   loader,
   alt,
   viewOnce = false,
+  consumed = false,
   onReveal,
   className,
 }: SafeMediaProps) {
   const [isRevealed, setIsRevealed] = useState(false);
-  const [isConsumed, setIsConsumed] = useState(false);
+  const [isConsumed, setIsConsumed] = useState(consumed);
   const [resolvedSrc, setResolvedSrc] = useState<string | null>(
     loader ? null : (src ?? null),
   );

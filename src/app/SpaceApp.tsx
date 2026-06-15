@@ -315,6 +315,8 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
     media: p.mediaId
       ? {
           alt: "Photo partagée",
+          viewOnce: p.mediaViewOnce ?? false,
+          consumed: p.mediaConsumed ?? false,
           loader: () => api.fetchMediaObjectUrl(space.id, p.mediaId as string),
         }
       : undefined,

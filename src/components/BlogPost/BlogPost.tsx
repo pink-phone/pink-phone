@@ -18,6 +18,8 @@ export interface BlogPostMedia {
   loader?: () => Promise<string>;
   alt: string;
   viewOnce?: boolean;
+  /** Média éphémère déjà consommé (état "Envolé…" persistant). */
+  consumed?: boolean;
 }
 
 export interface BlogPostProps {
@@ -108,6 +110,7 @@ export function BlogPost({
           loader={media.loader}
           alt={media.alt}
           viewOnce={media.viewOnce}
+          consumed={media.consumed}
         />
       )}
 

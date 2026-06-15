@@ -45,6 +45,19 @@ export const Éphémère: Story = {
   },
 };
 
+export const ÉphémèreConsommé: Story = {
+  name: "Éphémère déjà consommé",
+  args: { viewOnce: true, consumed: true },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "État « envolé » restitué dès le montage (média éphémère consommé côté serveur) : persiste après un rechargement, sans tenter de charger un fichier supprimé.",
+      },
+    },
+  },
+};
+
 export const AuthentifiéLazy: Story = {
   name: "Authentifié (chargement paresseux)",
   args: {

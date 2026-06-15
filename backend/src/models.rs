@@ -64,6 +64,8 @@ pub struct PostRow {
     pub media_id: Option<Uuid>,
     /// Flag éphémère du média joint (null si aucun média).
     pub media_view_once: Option<bool>,
+    /// Média éphémère déjà consommé (null si aucun média).
+    pub media_consumed: Option<bool>,
     pub draft: bool,
     pub created_at: DateTime<Utc>,
 }
@@ -80,6 +82,8 @@ pub struct Post {
     pub media_id: Option<Uuid>,
     /// Flag éphémère du média joint (null si aucun média).
     pub media_view_once: Option<bool>,
+    /// Média éphémère déjà consommé (null si aucun média).
+    pub media_consumed: Option<bool>,
     pub draft: bool,
     pub created_at: DateTime<Utc>,
     pub reaction_counts: std::collections::HashMap<String, i64>,
