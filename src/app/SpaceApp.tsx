@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as api from "../api/client";
 import type {
   ApiChallenge,
@@ -64,6 +64,11 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
   const [comments, setComments] = useState<ApiComment[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
   const [commentBusy, setCommentBusy] = useState(false);
+  // Post dont le fil est ouvert, lu par le WS sans recréer la connexion.
+  const commentsForRef = useRef<string | null>(null);
+  useEffect(() => {
+    commentsForRef.current = commentsFor;
+  }, [commentsFor]);
 
   useEffect(() => {
     let alive = true;
@@ -94,6 +99,55 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
     document.documentElement.classList.toggle("no-hot-anim", !hotAnim);
     localStorage.setItem("pp_hot_anim", hotAnim ? "on" : "off");
   }, [hotAnim]);
+
+  // WebSocket de refresh temps réel : à chaque mutation d'un autre membre, on
+  // refetch la liste concernée. Reconnexion auto si la socket tombe.
+  useEffect(() => {
+    const token = localStorage.getItem("pp_token");
+    if (!token) return;
+    let socket: WebSocket | null = null;
+    let stopped = false;
+    let retry: ReturnType<typeof setTimeout> | undefined;
+
+    const handle = (kind: string) => {
+      if (kind === "post" || kind === "reaction" || kind === "comment") {
+        api.listPosts(space.id).then(setPosts).catch(() => {});
+        if (kind === "comment" && commentsForRef.current) {
+          api
+            .listComments(space.id, commentsForRef.current)
+            .then(setComments)
+            .catch(() => {});
+        }
+      } else if (kind === "challenge") {
+        api.listChallenges(space.id).then(setChallenges).catch(() => {});
+      } else if (kind === "mood") {
+        api.listMoods(space.id).then(setMoods).catch(() => {});
+      }
+    };
+
+    const connect = () => {
+      socket = new WebSocket(api.spaceSocketUrl(space.id, token));
+      socket.onmessage = (e) => {
+        try {
+          const ev = JSON.parse(e.data) as { kind?: string };
+          if (ev.kind) handle(ev.kind);
+        } catch {
+          /* message non-JSON ignoré */
+        }
+      };
+      socket.onclose = () => {
+        if (!stopped) retry = setTimeout(connect, 3000);
+      };
+      socket.onerror = () => socket?.close();
+    };
+    connect();
+
+    return () => {
+      stopped = true;
+      if (retry) clearTimeout(retry);
+      socket?.close();
+    };
+  }, [space.id]);
 
   if (!ready) return <Splash message="Chargement de votre espace…" />;
 

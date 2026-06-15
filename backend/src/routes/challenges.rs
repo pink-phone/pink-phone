@@ -95,6 +95,7 @@ async fn create_challenge(
     .fetch_one(&state.pool)
     .await?;
 
+    state.emit(space_id, auth.user_id, "challenge");
     crate::notifications::notify_members(
         &state,
         space_id,
@@ -142,6 +143,7 @@ async fn transition(
     .fetch_one(&state.pool)
     .await?;
 
+    state.emit(space_id, auth.user_id, "challenge");
     Ok(Json(challenge))
 }
 
@@ -171,5 +173,6 @@ async fn delete_challenge(
         .execute(&state.pool)
         .await?;
 
+    state.emit(space_id, auth.user_id, "challenge");
     Ok(StatusCode::NO_CONTENT)
 }

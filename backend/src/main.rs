@@ -58,6 +58,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let oidc_states = std::sync::Arc::new(std::sync::Mutex::new(
         std::collections::HashMap::new(),
     ));
+    // Bus d'événements temps réel (WebSockets). Le receiver initial est jeté ;
+    // chaque connexion s'abonne via `events.subscribe()`.
+    let (events, _) = tokio::sync::broadcast::channel(256);
 
     let cors = CorsLayer::new()
         .allow_origin(config.cors_origin.parse::<HeaderValue>()?)
@@ -76,6 +79,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         config,
         http,
         oidc_states,
+        events,
     };
 
     let app: Router = routes::api_router()

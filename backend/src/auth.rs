@@ -53,7 +53,7 @@ pub fn issue_token(secret: &str, user_id: Uuid) -> ApiResult<String> {
     .map_err(|_| ApiError::Internal)
 }
 
-fn verify_token(secret: &str, token: &str) -> ApiResult<Uuid> {
+pub fn verify_token(secret: &str, token: &str) -> ApiResult<Uuid> {
     let data = decode::<Claims>(
         token,
         &DecodingKey::from_secret(secret.as_bytes()),

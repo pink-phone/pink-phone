@@ -45,6 +45,7 @@ async fn set_mood(
     .fetch_one(&state.pool)
     .await?;
 
+    state.emit(space_id, auth.user_id, "mood");
     Ok(Json(mood))
 }
 

@@ -5,7 +5,7 @@ edition = "2021"
 description = "API Rust/Axum de PinkPhone — Notre Jardin Secret"
 
 [dependencies]
-axum = { version = "0.8", features = ["multipart", "macros"] }
+axum = { version = "0.8", features = ["multipart", "macros", "ws"] }
 tokio = { version = "1", features = ["full"] }
 tower = "0.5"
 tower-http = { version = "0.6", features = ["cors", "trace"] }

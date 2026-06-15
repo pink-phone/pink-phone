@@ -7,6 +7,7 @@ pub mod notifications;
 pub mod oidc;
 pub mod posts;
 pub mod spaces;
+pub mod ws;
 
 use axum::Router;
 use uuid::Uuid;
@@ -44,4 +45,5 @@ pub fn api_router() -> Router<AppState> {
         .merge(media::router())
         .merge(notifications::router())
         .merge(oidc::router())
+        .merge(ws::router())
 }

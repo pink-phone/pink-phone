@@ -110,6 +110,7 @@ async fn add_reaction(
     .bind(&body.reaction)
     .execute(&state.pool)
     .await?;
+    state.emit(space_id, auth.user_id, "reaction");
     Ok(Json(reaction_summary(&state.pool, post_id, auth.user_id).await?))
 }
 
@@ -127,6 +128,7 @@ async fn remove_reaction(
     .bind(&reaction)
     .execute(&state.pool)
     .await?;
+    state.emit(space_id, auth.user_id, "reaction");
     Ok(Json(reaction_summary(&state.pool, post_id, auth.user_id).await?))
 }
 
@@ -233,6 +235,7 @@ async fn add_comment(
     .fetch_one(&state.pool)
     .await?;
 
+    state.emit(space_id, auth.user_id, "comment");
     let preview: String = comment.body.chars().take(80).collect();
     crate::notifications::notify_members(
         &state,

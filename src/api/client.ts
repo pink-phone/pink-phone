@@ -119,6 +119,17 @@ export const getAuthConfig = () =>
 /** URL de démarrage du flux OIDC (redirection plein écran, pas un fetch). */
 export const oidcLoginUrl = () => `${BASE}/api/auth/oidc/login`;
 
+/**
+ * URL du WebSocket de refresh temps réel d'un espace. Le jeton passe en query
+ * (pas d'en-tête Authorization possible sur un handshake WS navigateur). En prod
+ * `BASE` est relatif ("") → on dérive l'origine de la page.
+ */
+export function spaceSocketUrl(spaceId: string, token: string): string {
+  const origin = BASE || window.location.origin;
+  const wsOrigin = origin.replace(/^http/, "ws"); // http→ws, https→wss
+  return `${wsOrigin}/api/spaces/${spaceId}/ws?token=${encodeURIComponent(token)}`;
+}
+
 // ---------- Espaces ----------
 
 export const createSpace = (name: string) =>

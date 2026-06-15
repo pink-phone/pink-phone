@@ -1,10 +1,12 @@
 import { Surface } from "../../components/Surface/Surface";
 import { MoodSelector } from "../../components/MoodSelector/MoodSelector";
+import { FireEmbers } from "../../components/FireEmbers/FireEmbers";
 import {
   MOODS,
   type MoodId,
   type MoodOption,
 } from "../../components/MoodSelector/moods";
+import { cn } from "../../lib/cn";
 import type { MoodSnapshot, Person } from "../../mock/data";
 
 export interface DashboardScreenProps {
@@ -31,25 +33,34 @@ function MoodCard({
   mood: MoodOption | null;
   timeLabel?: string;
 }) {
+  const hot = mood?.id === "veryHot";
   return (
     <Surface
       tone={mood ? "deep" : "velvet"}
-      className="flex flex-col items-center gap-1 text-center"
-    >
-      <span aria-hidden className="text-4xl">
-        {mood ? mood.emoji : "…"}
-      </span>
-      <p className="font-serif text-base text-blush-100">{name}</p>
-      {mood ? (
-        <>
-          <p className="text-sm text-blush-200">{mood.label}</p>
-          {timeLabel && (
-            <p className="text-xs text-blush-200/70">Mis à jour {timeLabel}</p>
-          )}
-        </>
-      ) : (
-        <p className="text-xs text-taupe-300">Pas encore d'humeur aujourd'hui.</p>
+      className={cn(
+        "relative overflow-hidden",
+        hot && "shadow-ember animate-ember-breathe motion-reduce:animate-none",
       )}
+    >
+      {hot && <FireEmbers count={6} />}
+      <div className="relative z-10 flex flex-col items-center gap-1 text-center">
+        <span aria-hidden className="text-4xl">
+          {mood ? mood.emoji : "…"}
+        </span>
+        <p className="font-serif text-base text-blush-100">{name}</p>
+        {mood ? (
+          <>
+            <p className="text-sm text-blush-200">{mood.label}</p>
+            {timeLabel && (
+              <p className="text-xs text-blush-200/70">Mis à jour {timeLabel}</p>
+            )}
+          </>
+        ) : (
+          <p className="text-xs text-taupe-300">
+            Pas encore d'humeur aujourd'hui.
+          </p>
+        )}
+      </div>
     </Surface>
   );
 }

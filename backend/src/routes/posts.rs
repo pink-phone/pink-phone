@@ -218,6 +218,7 @@ async fn create_post(
     let post = enriched.remove(0);
     // Un brouillon ne fait pas signe au/à la partenaire.
     if !post.draft {
+        state.emit(space_id, auth.user_id, "post");
         crate::notifications::notify_members(
             &state,
             space_id,
@@ -269,6 +270,7 @@ async fn delete_post(
         }
     }
 
+    state.emit(space_id, auth.user_id, "post");
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -386,6 +388,12 @@ async fn update_post(
 
     let mut enriched = enrich(&state.pool, vec![row], auth.user_id).await?;
     let post = enriched.remove(0);
+    // Le statut visible côté partenaire a changé (publication ou remise en
+    // brouillon) : on le notifie pour rafraîchir. L'édition d'un brouillon qui
+    // reste brouillon ne concerne que l'auteur.
+    if post.draft != was_draft {
+        state.emit(space_id, auth.user_id, "post");
+    }
     if was_draft && !post.draft {
         crate::notifications::notify_members(
             &state,
