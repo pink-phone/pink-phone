@@ -1,4 +1,6 @@
 import { Surface } from "../Surface/Surface";
+import { Badge } from "../Badge/Badge";
+import { Button } from "../Button/Button";
 import { SafeMedia } from "../SafeMedia/SafeMedia";
 import { ReactionBar, type ReactionId } from "../ReactionBar/ReactionBar";
 import { VerdictPicker, type Verdict } from "../VerdictPicker/VerdictPicker";
@@ -32,6 +34,12 @@ export interface BlogPostProps {
   onVerdictChange?: (v: Verdict) => void;
   commentCount?: number;
   onOpenComments?: () => void;
+  /** Brouillon : affiche une pastille et (si `isMine`) le bouton Publier. */
+  draft?: boolean;
+  /** Post de l'utilisateur courant : débloque suppression et publication. */
+  isMine?: boolean;
+  onDelete?: () => void;
+  onPublish?: () => void;
   className?: string;
 }
 
@@ -49,6 +57,10 @@ export function BlogPost({
   onVerdictChange,
   commentCount = 0,
   onOpenComments,
+  draft = false,
+  isMine = false,
+  onDelete,
+  onPublish,
   className,
 }: BlogPostProps) {
   return (
@@ -63,6 +75,19 @@ export function BlogPost({
         <div className="leading-tight">
           <p className="font-serif text-lg text-blush-100">{author.name}</p>
           <p className="text-xs text-taupe-400">{timeLabel}</p>
+        </div>
+        <div className="ml-auto flex items-center gap-2">
+          {draft && <Badge tone="neutral">Brouillon</Badge>}
+          {isMine && onDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              aria-label="Supprimer ce post"
+              className="rounded-full px-2 py-1 text-base text-taupe-400 transition-colors duration-300 ease-felt hover:text-bordeaux-300"
+            >
+              🗑
+            </button>
+          )}
         </div>
       </header>
 
@@ -83,21 +108,33 @@ export function BlogPost({
         />
       )}
 
-      <ReactionBar
-        counts={reactionCounts}
-        mine={myReactions}
-        onToggle={onToggleReaction}
-      />
+      {draft ? (
+        /* Un brouillon n'a pas encore d'interactions : seul l'auteur peut le publier. */
+        isMine &&
+        onPublish && (
+          <Button className="w-full" onClick={onPublish}>
+            Publier ce brouillon
+          </Button>
+        )
+      ) : (
+        <>
+          <ReactionBar
+            counts={reactionCounts}
+            mine={myReactions}
+            onToggle={onToggleReaction}
+          />
 
-      <VerdictPicker value={verdict} onChange={onVerdictChange} />
+          <VerdictPicker value={verdict} onChange={onVerdictChange} />
 
-      <button
-        type="button"
-        onClick={onOpenComments}
-        className="text-xs text-taupe-400 transition-colors duration-300 ease-felt hover:text-spice-300"
-      >
-        💬 {commentCount > 0 ? `${commentCount} commentaire${commentCount > 1 ? "s" : ""}` : "Laisser un mot"}
-      </button>
+          <button
+            type="button"
+            onClick={onOpenComments}
+            className="text-xs text-taupe-400 transition-colors duration-300 ease-felt hover:text-spice-300"
+          >
+            💬 {commentCount > 0 ? `${commentCount} commentaire${commentCount > 1 ? "s" : ""}` : "Laisser un mot"}
+          </button>
+        </>
+      )}
     </Surface>
   );
 }

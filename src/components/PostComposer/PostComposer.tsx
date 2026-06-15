@@ -10,6 +10,8 @@ export interface PostDraft {
   body: string;
   file?: File;
   viewOnce: boolean;
+  /** Enregistré comme brouillon (non publié, non notifié). */
+  draft: boolean;
 }
 
 export interface PostComposerProps {
@@ -38,13 +40,14 @@ export function PostComposer({ onSubmit, onCancel }: PostComposerProps) {
 
   const canSubmit = body.trim().length > 0;
 
-  const submit = () => {
+  const submit = (draft: boolean) => {
     if (!canSubmit) return;
     onSubmit({
       title: title.trim() || undefined,
       body: body.trim(),
       file: file ?? undefined,
       viewOnce: file ? viewOnce : false,
+      draft,
     });
   };
 
@@ -53,7 +56,7 @@ export function PostComposer({ onSubmit, onCancel }: PostComposerProps) {
       className="space-y-4"
       onSubmit={(e) => {
         e.preventDefault();
-        submit();
+        submit(false);
       }}
     >
       <TextField
@@ -94,15 +97,26 @@ export function PostComposer({ onSubmit, onCancel }: PostComposerProps) {
         </div>
       )}
 
-      <div className="flex gap-2 pt-1">
-        <Button type="submit" className="flex-1" disabled={!canSubmit}>
-          Publier
-        </Button>
-        {onCancel && (
-          <Button type="button" variant="ghost" onClick={onCancel}>
-            Annuler
+      <div className="space-y-2 pt-1">
+        <div className="flex gap-2">
+          <Button type="submit" className="flex-1" disabled={!canSubmit}>
+            Publier
           </Button>
-        )}
+          {onCancel && (
+            <Button type="button" variant="ghost" onClick={onCancel}>
+              Annuler
+            </Button>
+          )}
+        </div>
+        <Button
+          type="button"
+          variant="secondary"
+          className="w-full"
+          disabled={!canSubmit}
+          onClick={() => submit(true)}
+        >
+          Enregistrer le brouillon
+        </Button>
       </div>
     </form>
   );

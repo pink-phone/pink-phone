@@ -10,6 +10,8 @@ export interface BlogScreenProps {
   onToggleReaction?: (postId: string, reaction: ReactionId) => void;
   onVerdictChange?: (postId: string, verdict: Verdict) => void;
   onOpenComments?: (postId: string) => void;
+  onDeletePost?: (postId: string) => void;
+  onPublishPost?: (postId: string) => void;
 }
 
 /** Le fil du blog intime ("à tête reposée"). */
@@ -19,6 +21,8 @@ export function BlogScreen({
   onToggleReaction,
   onVerdictChange,
   onOpenComments,
+  onDeletePost,
+  onPublishPost,
 }: BlogScreenProps) {
   return (
     <div className="space-y-5">
@@ -47,10 +51,14 @@ export function BlogScreen({
               myReactions={post.myReactions}
               verdict={post.verdict}
               commentCount={post.commentCount}
+              draft={post.draft}
+              isMine={post.isMine}
               className="max-w-none"
               onToggleReaction={(r) => onToggleReaction?.(post.id, r)}
               onVerdictChange={(v) => onVerdictChange?.(post.id, v)}
               onOpenComments={() => onOpenComments?.(post.id)}
+              onDelete={() => onDeletePost?.(post.id)}
+              onPublish={() => onPublishPost?.(post.id)}
             />
           ))}
         </div>

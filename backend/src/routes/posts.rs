@@ -1,7 +1,9 @@
 use std::collections::HashMap;
+use std::path::Path as FsPath;
 
 use axum::extract::{Path, State};
-use axum::routing::get;
+use axum::http::StatusCode;
+use axum::routing::{delete, get};
 use axum::{Json, Router};
 use serde::Deserialize;
 use uuid::Uuid;
@@ -13,10 +15,12 @@ use crate::routes::ensure_member;
 use crate::state::AppState;
 
 pub fn router() -> Router<AppState> {
-    Router::new().route(
-        "/api/spaces/{id}/posts",
-        get(list_posts).post(create_post),
-    )
+    Router::new()
+        .route("/api/spaces/{id}/posts", get(list_posts).post(create_post))
+        .route(
+            "/api/spaces/{id}/posts/{pid}",
+            delete(delete_post).patch(update_post),
+        )
 }
 
 #[derive(Deserialize)]
@@ -25,6 +29,16 @@ pub struct CreatePostBody {
     pub title: Option<String>,
     pub body: String,
     pub media_id: Option<Uuid>,
+    /// Brouillon : visible du seul auteur, sans notification.
+    #[serde(default)]
+    pub draft: bool,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdatePostBody {
+    /// Publication d'un brouillon (`false`) ou remise en brouillon (`true`).
+    pub draft: bool,
 }
 
 #[derive(sqlx::FromRow)]
@@ -108,6 +122,7 @@ async fn enrich(
             title: p.title,
             body: p.body,
             media_id: p.media_id,
+            draft: p.draft,
             created_at: p.created_at,
         })
         .collect())
@@ -120,15 +135,17 @@ async fn list_posts(
 ) -> ApiResult<Json<Vec<Post>>> {
     ensure_member(&state.pool, auth.user_id, space_id).await?;
 
+    // Les brouillons ne sont visibles que de leur auteur.
     let rows: Vec<PostRow> = sqlx::query_as(
         "SELECT p.id, p.author_id, u.display_name AS author_name,
-                p.title, p.body, p.media_id, p.created_at
+                p.title, p.body, p.media_id, p.draft, p.created_at
          FROM posts p
          JOIN users u ON u.id = p.author_id
-         WHERE p.space_id = $1
+         WHERE p.space_id = $1 AND (p.draft = false OR p.author_id = $2)
          ORDER BY p.created_at DESC",
     )
     .bind(space_id)
+    .bind(auth.user_id)
     .fetch_all(&state.pool)
     .await?;
 
@@ -162,12 +179,12 @@ async fn create_post(
 
     let row: PostRow = sqlx::query_as(
         "WITH inserted AS (
-             INSERT INTO posts (space_id, author_id, title, body, media_id)
-             VALUES ($1, $2, $3, $4, $5)
-             RETURNING id, author_id, title, body, media_id, created_at
+             INSERT INTO posts (space_id, author_id, title, body, media_id, draft)
+             VALUES ($1, $2, $3, $4, $5, $6)
+             RETURNING id, author_id, title, body, media_id, draft, created_at
          )
          SELECT i.id, i.author_id, u.display_name AS author_name,
-                i.title, i.body, i.media_id, i.created_at
+                i.title, i.body, i.media_id, i.draft, i.created_at
          FROM inserted i JOIN users u ON u.id = i.author_id",
     )
     .bind(space_id)
@@ -175,19 +192,117 @@ async fn create_post(
     .bind(body.title.as_deref().map(str::trim).filter(|s| !s.is_empty()))
     .bind(body.body.trim())
     .bind(body.media_id)
+    .bind(body.draft)
     .fetch_one(&state.pool)
     .await?;
 
     let mut enriched = enrich(&state.pool, vec![row], auth.user_id).await?;
     let post = enriched.remove(0);
-    crate::notifications::notify_members(
-        &state,
-        space_id,
-        auth.user_id,
-        "Nouveau message".into(),
-        post.title
-            .clone()
-            .unwrap_or_else(|| "Un nouveau récit t'attend".into()),
-    );
+    // Un brouillon ne fait pas signe au/à la partenaire.
+    if !post.draft {
+        crate::notifications::notify_members(
+            &state,
+            space_id,
+            auth.user_id,
+            "Nouveau message".into(),
+            post.title
+                .clone()
+                .unwrap_or_else(|| "Un nouveau récit t'attend".into()),
+        );
+    }
+    Ok(Json(post))
+}
+
+/// Suppression d'un post (auteur uniquement). Les interactions partent en
+/// cascade ; le média joint est nettoyé (ligne + fichier sur disque).
+async fn delete_post(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Path((space_id, post_id)): Path<(Uuid, Uuid)>,
+) -> ApiResult<StatusCode> {
+    ensure_member(&state.pool, auth.user_id, space_id).await?;
+
+    let row: Option<(Uuid, Option<Uuid>)> = sqlx::query_as(
+        "SELECT author_id, media_id FROM posts WHERE id = $1 AND space_id = $2",
+    )
+    .bind(post_id)
+    .bind(space_id)
+    .fetch_optional(&state.pool)
+    .await?;
+    let (author_id, media_id) = row.ok_or(ApiError::NotFound)?;
+    if author_id != auth.user_id {
+        return Err(ApiError::Forbidden);
+    }
+
+    sqlx::query("DELETE FROM posts WHERE id = $1 AND space_id = $2")
+        .bind(post_id)
+        .bind(space_id)
+        .execute(&state.pool)
+        .await?;
+
+    if let Some(mid) = media_id {
+        let key: Option<String> =
+            sqlx::query_scalar("DELETE FROM media WHERE id = $1 RETURNING storage_key")
+                .bind(mid)
+                .fetch_optional(&state.pool)
+                .await?;
+        if let Some(key) = key {
+            let _ = tokio::fs::remove_file(FsPath::new(&state.config.media_dir).join(key)).await;
+        }
+    }
+
+    Ok(StatusCode::NO_CONTENT)
+}
+
+/// Met à jour le statut brouillon d'un post (auteur uniquement). Publier un
+/// brouillon (draft true -> false) déclenche la notification, comme une création.
+async fn update_post(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Path((space_id, post_id)): Path<(Uuid, Uuid)>,
+    Json(body): Json<UpdatePostBody>,
+) -> ApiResult<Json<Post>> {
+    ensure_member(&state.pool, auth.user_id, space_id).await?;
+
+    let current: Option<(Uuid, bool)> = sqlx::query_as(
+        "SELECT author_id, draft FROM posts WHERE id = $1 AND space_id = $2",
+    )
+    .bind(post_id)
+    .bind(space_id)
+    .fetch_optional(&state.pool)
+    .await?;
+    let (author_id, was_draft) = current.ok_or(ApiError::NotFound)?;
+    if author_id != auth.user_id {
+        return Err(ApiError::Forbidden);
+    }
+
+    let row: PostRow = sqlx::query_as(
+        "WITH updated AS (
+             UPDATE posts SET draft = $3 WHERE id = $1 AND space_id = $2
+             RETURNING id, author_id, title, body, media_id, draft, created_at
+         )
+         SELECT up.id, up.author_id, u.display_name AS author_name,
+                up.title, up.body, up.media_id, up.draft, up.created_at
+         FROM updated up JOIN users u ON u.id = up.author_id",
+    )
+    .bind(post_id)
+    .bind(space_id)
+    .bind(body.draft)
+    .fetch_one(&state.pool)
+    .await?;
+
+    let mut enriched = enrich(&state.pool, vec![row], auth.user_id).await?;
+    let post = enriched.remove(0);
+    if was_draft && !post.draft {
+        crate::notifications::notify_members(
+            &state,
+            space_id,
+            auth.user_id,
+            "Nouveau message".into(),
+            post.title
+                .clone()
+                .unwrap_or_else(|| "Un nouveau récit t'attend".into()),
+        );
+    }
     Ok(Json(post))
 }

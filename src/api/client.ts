@@ -150,8 +150,18 @@ export const listPosts = (spaceId: string) =>
 
 export const createPost = (
   spaceId: string,
-  body: { title?: string; body: string; mediaId?: string },
+  body: { title?: string; body: string; mediaId?: string; draft?: boolean },
 ) => req<ApiPost>(`/api/spaces/${spaceId}/posts`, { method: "POST", json: body });
+
+export const deletePost = (spaceId: string, postId: string) =>
+  req<void>(`/api/spaces/${spaceId}/posts/${postId}`, { method: "DELETE" });
+
+/** Publie un brouillon (draft -> false) ; déclenche la notification. */
+export const publishPost = (spaceId: string, postId: string) =>
+  req<ApiPost>(`/api/spaces/${spaceId}/posts/${postId}`, {
+    method: "PATCH",
+    json: { draft: false },
+  });
 
 // ---------- Interactions (réactions / verdict / commentaires) ----------
 
@@ -218,6 +228,11 @@ export const transitionChallenge = (
     `/api/spaces/${spaceId}/challenges/${challengeId}/status`,
     { method: "PATCH", json: { status } },
   );
+
+export const deleteChallenge = (spaceId: string, challengeId: string) =>
+  req<void>(`/api/spaces/${spaceId}/challenges/${challengeId}`, {
+    method: "DELETE",
+  });
 
 // ---------- Médias ----------
 

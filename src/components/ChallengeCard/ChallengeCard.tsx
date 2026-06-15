@@ -37,6 +37,8 @@ export interface ChallengeCardProps {
   onAccept?: () => void;
   onNegotiate?: () => void;
   onComplete?: () => void;
+  /** Suppression du défi (réservée au proposeur ; affichée si `perspective` = "proposer"). */
+  onDelete?: () => void;
   className?: string;
 }
 
@@ -51,6 +53,7 @@ export function ChallengeCard({
   onAccept,
   onNegotiate,
   onComplete,
+  onDelete,
   className,
 }: ChallengeCardProps) {
   const meta = STATUS_META[status];
@@ -62,7 +65,19 @@ export function ChallengeCard({
     >
       <div className="flex items-center justify-between gap-2">
         <Badge tone={INTENSITY_TONE[intensity]}>{INTENSITY_LABEL[intensity]}</Badge>
-        <Badge tone={STATUS_TONE[status]}>{meta.label}</Badge>
+        <div className="flex items-center gap-2">
+          <Badge tone={STATUS_TONE[status]}>{meta.label}</Badge>
+          {perspective === "proposer" && onDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              aria-label="Supprimer ce défi"
+              className="rounded-full px-1.5 py-0.5 text-base text-taupe-400 transition-colors duration-300 ease-felt hover:text-bordeaux-300"
+            >
+              🗑
+            </button>
+          )}
+        </div>
       </div>
 
       <h3 className="font-serif text-xl text-blush-100">{title}</h3>

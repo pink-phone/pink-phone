@@ -35,6 +35,7 @@ const meta = {
     onAccept: { action: "accept" },
     onNegotiate: { action: "negotiate" },
     onComplete: { action: "complete" },
+    onDelete: { action: "delete" },
   },
   args: {
     title: "Un massage aux huiles, sans téléphone",

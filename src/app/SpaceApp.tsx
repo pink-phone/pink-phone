@@ -115,11 +115,31 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
         title: draft.title,
         body: draft.body,
         mediaId,
+        draft: draft.draft,
       });
       setPosts((prev) => [post, ...prev]);
       setOpenSheet(null);
     } catch (e) {
       console.error("publication échouée", e);
+    }
+  };
+
+  const deletePost = async (postId: string) => {
+    if (!window.confirm("Supprimer ce post ? C'est définitif.")) return;
+    try {
+      await api.deletePost(space.id, postId);
+      setPosts((prev) => prev.filter((p) => p.id !== postId));
+    } catch (e) {
+      console.error("suppression du post échouée", e);
+    }
+  };
+
+  const publishPost = async (postId: string) => {
+    try {
+      const updated = await api.publishPost(space.id, postId);
+      setPosts((prev) => prev.map((p) => (p.id === postId ? updated : p)));
+    } catch (e) {
+      console.error("publication du brouillon échouée", e);
     }
   };
 
@@ -145,6 +165,16 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
         setChallenges((prev) => prev.map((c) => (c.id === id ? updated : c))),
       )
       .catch((e) => console.error("transition de défi échouée", e));
+  };
+
+  const deleteChallenge = async (id: string) => {
+    if (!window.confirm("Supprimer ce défi ? C'est définitif.")) return;
+    try {
+      await api.deleteChallenge(space.id, id);
+      setChallenges((prev) => prev.filter((c) => c.id !== id));
+    } catch (e) {
+      console.error("suppression du défi échouée", e);
+    }
   };
 
   const toggleReaction = async (postId: string, reaction: ReactionId) => {
@@ -265,6 +295,8 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
     myReactions: p.myReactions,
     verdict: p.verdict,
     commentCount: p.commentCount,
+    draft: p.draft,
+    isMine: p.authorId === user.id,
   }));
 
   const challengeData: ChallengeData[] = challenges.map((c) => ({
@@ -322,6 +354,8 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
           onToggleReaction={toggleReaction}
           onVerdictChange={setVerdict}
           onOpenComments={openComments}
+          onDeletePost={deletePost}
+          onPublishPost={publishPost}
         />
       )}
 
@@ -332,6 +366,7 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
           onAccept={(id) => transition(id, "challengeAccepted")}
           onNegotiate={(id) => transition(id, "maybeMaybe")}
           onComplete={(id) => transition(id, "jobDone")}
+          onDelete={deleteChallenge}
         />
       )}
 

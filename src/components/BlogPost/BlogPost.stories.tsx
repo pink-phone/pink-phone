@@ -30,6 +30,8 @@ const meta = {
     onToggleReaction: { action: "réaction" },
     onVerdictChange: { action: "verdict" },
     onOpenComments: { action: "commentaires" },
+    onDelete: { action: "supprimer" },
+    onPublish: { action: "publier" },
   },
   args: {
     author: { name: "Camille", glyph: "C" },
@@ -62,5 +64,21 @@ export const MédiaÉphémère: Story = {
     title: undefined,
     commentCount: 0,
     verdict: null,
+  },
+};
+
+/** Mon propre post : la corbeille de suppression apparaît dans l'en-tête. */
+export const Mien: Story = {
+  args: { author: { name: "Toi", glyph: "T" }, isMine: true },
+};
+
+/** Brouillon : pastille + bouton "Publier", pas d'interactions tant qu'il n'est pas publié. */
+export const Brouillon: Story = {
+  args: {
+    author: { name: "Toi", glyph: "T" },
+    title: "Note pour plus tard…",
+    body: "Une idée que je garde au chaud, je la peaufine avant de te l'envoyer.",
+    draft: true,
+    isMine: true,
   },
 };

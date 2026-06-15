@@ -47,6 +47,8 @@ export interface ApiPost {
   title: string | null;
   body: string;
   mediaId: string | null;
+  /** Brouillon : visible du seul auteur, non notifié tant qu'il n'est pas publié. */
+  draft: boolean;
   createdAt: string;
   reactionCounts: Partial<Record<ReactionId, number>>;
   myReactions: ReactionId[];

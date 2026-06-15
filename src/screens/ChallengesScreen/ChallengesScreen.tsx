@@ -9,6 +9,7 @@ export interface ChallengesScreenProps {
   onAccept?: (id: string) => void;
   onNegotiate?: (id: string) => void;
   onComplete?: (id: string) => void;
+  onDelete?: (id: string) => void;
 }
 
 // Ordre et titres des sections (la liste "En cours" vit en haut).
@@ -26,6 +27,7 @@ export function ChallengesScreen({
   onAccept,
   onNegotiate,
   onComplete,
+  onDelete,
 }: ChallengesScreenProps) {
   return (
     <div className="space-y-6">
@@ -58,6 +60,7 @@ export function ChallengesScreen({
                   onAccept={() => onAccept?.(c.id)}
                   onNegotiate={() => onNegotiate?.(c.id)}
                   onComplete={() => onComplete?.(c.id)}
+                  onDelete={() => onDelete?.(c.id)}
                 />
               ))}
             </div>

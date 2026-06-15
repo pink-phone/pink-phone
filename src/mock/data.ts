@@ -42,9 +42,26 @@ export interface PostData {
   myReactions: ReactionId[];
   verdict: Verdict | null;
   commentCount: number;
+  /** Brouillon (visible du seul auteur). */
+  draft?: boolean;
+  /** Le post appartient à l'utilisateur courant (active suppression/publication). */
+  isMine?: boolean;
 }
 
 export const SAMPLE_POSTS: PostData[] = [
+  {
+    id: "p0",
+    author: ME,
+    timeLabel: "À l'instant",
+    title: "Note pour plus tard…",
+    body: "Une idée que je garde au chaud, je la peaufine avant de te l'envoyer.",
+    reactionCounts: {},
+    myReactions: [],
+    verdict: null,
+    commentCount: 0,
+    draft: true,
+    isMine: true,
+  },
   {
     id: "p1",
     author: PARTNER,
@@ -67,6 +84,7 @@ export const SAMPLE_POSTS: PostData[] = [
     myReactions: [],
     verdict: "hot",
     commentCount: 1,
+    isMine: true,
   },
   {
     id: "p3",

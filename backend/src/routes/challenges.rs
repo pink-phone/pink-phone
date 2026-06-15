@@ -1,4 +1,5 @@
 use axum::extract::{Path, State};
+use axum::http::StatusCode;
 use axum::routing::get;
 use axum::{Json, Router};
 use serde::Deserialize;
@@ -19,6 +20,10 @@ pub fn router() -> Router<AppState> {
         .route(
             "/api/spaces/{id}/challenges/{cid}/status",
             axum::routing::patch(transition),
+        )
+        .route(
+            "/api/spaces/{id}/challenges/{cid}",
+            axum::routing::delete(delete_challenge),
         )
 }
 
@@ -138,4 +143,33 @@ async fn transition(
     .await?;
 
     Ok(Json(challenge))
+}
+
+/// Suppression d'un défi (proposeur uniquement).
+async fn delete_challenge(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Path((space_id, challenge_id)): Path<(Uuid, Uuid)>,
+) -> ApiResult<StatusCode> {
+    ensure_member(&state.pool, auth.user_id, space_id).await?;
+
+    let proposer: Option<Uuid> = sqlx::query_scalar(
+        "SELECT proposer_id FROM challenges WHERE id = $1 AND space_id = $2",
+    )
+    .bind(challenge_id)
+    .bind(space_id)
+    .fetch_optional(&state.pool)
+    .await?;
+    let proposer = proposer.ok_or(ApiError::NotFound)?;
+    if proposer != auth.user_id {
+        return Err(ApiError::Forbidden);
+    }
+
+    sqlx::query("DELETE FROM challenges WHERE id = $1 AND space_id = $2")
+        .bind(challenge_id)
+        .bind(space_id)
+        .execute(&state.pool)
+        .await?;
+
+    Ok(StatusCode::NO_CONTENT)
 }
