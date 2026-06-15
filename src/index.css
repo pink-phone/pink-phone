@@ -25,4 +25,13 @@
     overflow: hidden;
     overscroll-behavior: none;
   }
+
+  /* Réglage utilisateur : couper l'effet "braise" des états chauds (même rendu
+     que prefers-reduced-motion : halo figé, plus de particules). */
+  .no-hot-anim .animate-ember-breathe {
+    animation: none;
+  }
+  .no-hot-anim .fire-embers {
+    display: none;
+  }
 }

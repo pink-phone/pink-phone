@@ -9,7 +9,14 @@ const meta = {
   component: SettingsScreen,
   tags: ["autodocs"],
   parameters: { layout: "centered" },
-  args: { notifMode: "push", onModeChange: fn(), onBack: fn(), onLogout: fn() },
+  args: {
+    notifMode: "push",
+    onModeChange: fn(),
+    onHotAnimChange: fn(),
+    hotAnimEnabled: true,
+    onBack: fn(),
+    onLogout: fn(),
+  },
 } satisfies Meta<typeof SettingsScreen>;
 
 export default meta;
@@ -18,6 +25,7 @@ type Story = StoryObj<typeof meta>;
 export const Interactif: Story = {
   render: (args) => {
     const [mode, setMode] = useState<NotifMode>(args.notifMode);
+    const [hotAnim, setHotAnim] = useState(args.hotAnimEnabled ?? true);
     return (
       <div className="w-[380px]">
         <SettingsScreen
@@ -26,6 +34,11 @@ export const Interactif: Story = {
           onModeChange={(m) => {
             setMode(m);
             args.onModeChange(m);
+          }}
+          hotAnimEnabled={hotAnim}
+          onHotAnimChange={(v) => {
+            setHotAnim(v);
+            args.onHotAnimChange?.(v);
           }}
         />
       </div>

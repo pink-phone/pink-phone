@@ -54,6 +54,10 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
   const [notifMode, setNotifMode] = useState<NotifMode>("ghost");
   const [settingsBusy, setSettingsBusy] = useState(false);
   const [pushError, setPushError] = useState<string | null>(null);
+  // Préférence d'apparence (par appareil) : effet "braise" des états chauds.
+  const [hotAnim, setHotAnim] = useState(
+    () => localStorage.getItem("pp_hot_anim") !== "off",
+  );
 
   // Fil de commentaires (chargé à l'ouverture).
   const [commentsFor, setCommentsFor] = useState<string | null>(null);
@@ -84,6 +88,12 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
       alive = false;
     };
   }, [space.id]);
+
+  // Applique la préférence "effet braise" globalement (classe sur <html>) + persiste.
+  useEffect(() => {
+    document.documentElement.classList.toggle("no-hot-anim", !hotAnim);
+    localStorage.setItem("pp_hot_anim", hotAnim ? "on" : "off");
+  }, [hotAnim]);
 
   if (!ready) return <Splash message="Chargement de votre espace…" />;
 
@@ -285,6 +295,8 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
           pushSupported={pushSupported()}
           pushError={pushError}
           busy={settingsBusy}
+          hotAnimEnabled={hotAnim}
+          onHotAnimChange={setHotAnim}
           onBack={() => setShowSettings(false)}
           onLogout={logout}
         />

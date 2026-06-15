@@ -1,5 +1,6 @@
 import { Surface } from "../../components/Surface/Surface";
 import { Button } from "../../components/Button/Button";
+import { Toggle } from "../../components/form/Toggle";
 import { cn } from "../../lib/cn";
 import type { NotifMode } from "../../api/types";
 
@@ -41,17 +42,22 @@ export interface SettingsScreenProps {
   /** Message d'erreur (ex: permission refusée). */
   pushError?: string | null;
   busy?: boolean;
+  /** Effet « braise » des états chauds (halo + particules). */
+  hotAnimEnabled?: boolean;
+  onHotAnimChange?: (enabled: boolean) => void;
   onBack?: () => void;
   onLogout?: () => void;
 }
 
-/** Réglages : mode de notification « à la carte » + déconnexion. */
+/** Réglages : mode de notification « à la carte » + apparence + déconnexion. */
 export function SettingsScreen({
   notifMode,
   onModeChange,
   pushSupported = true,
   pushError,
   busy,
+  hotAnimEnabled = true,
+  onHotAnimChange,
   onBack,
   onLogout,
 }: SettingsScreenProps) {
@@ -148,6 +154,22 @@ export function SettingsScreen({
           </p>
         )}
       </section>
+
+      {onHotAnimChange && (
+        <section className="space-y-3">
+          <h2 className="text-xs uppercase tracking-[0.15em] text-taupe-400">
+            Apparence
+          </h2>
+          <Surface tone="velvet">
+            <Toggle
+              checked={hotAnimEnabled}
+              onChange={onHotAnimChange}
+              label="Effet braise 🔥"
+              hint="Halo et particules animés sur les états chauds. Désactive pour un rendu calme."
+            />
+          </Surface>
+        </section>
+      )}
 
       {onLogout && (
         <section className="pt-2">

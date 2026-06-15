@@ -21,7 +21,7 @@ export function FireEmbers({ count = 6, className }: FireEmbersProps) {
     <span
       aria-hidden
       className={cn(
-        "pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-[inherit]",
+        "fire-embers pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-[inherit]",
         "motion-reduce:hidden",
         className,
       )}
