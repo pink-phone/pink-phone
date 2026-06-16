@@ -85,6 +85,12 @@ export interface ApiChallenge {
   updatedAt: string;
 }
 
+export interface SeenEntry {
+  userId: string;
+  feature: string; // 'blog' | 'challenges'
+  seenAt: string;
+}
+
 export interface ChallengeSuggestion {
   id: string;
   title: string;

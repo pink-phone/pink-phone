@@ -45,6 +45,8 @@ export interface PostData {
   draft?: boolean;
   /** Le post appartient à l'utilisateur courant (active suppression/publication). */
   isMine?: boolean;
+  /** Mon post a été vu par le/la partenaire (accusé de lecture). */
+  seenByPartner?: boolean;
 }
 
 export const SAMPLE_POSTS: PostData[] = [

@@ -20,6 +20,11 @@ export interface DashboardScreenProps {
   myMood: MoodId | null;
   onMoodChange: (mood: MoodId) => void;
   onOpenSettings?: () => void;
+  /** Nouveautés non vues (badges "Du nouveau"). */
+  newPosts?: number;
+  newChallenges?: number;
+  /** Ouvre un fil depuis le dashboard (au clic sur une pastille de nouveauté). */
+  onOpen?: (tab: "blog" | "challenges") => void;
 }
 
 const moodOf = (id: MoodId) => MOODS.find((m) => m.id === id)!;
@@ -76,6 +81,9 @@ export function DashboardScreen({
   myMood,
   onMoodChange,
   onOpenSettings,
+  newPosts = 0,
+  newChallenges = 0,
+  onOpen,
 }: DashboardScreenProps) {
   const { t } = useTranslation();
   const myM = myMood ? moodOf(myMood) : null;
@@ -125,6 +133,34 @@ export function DashboardScreen({
             </code>
           )}
         </Surface>
+      )}
+
+      {(newPosts > 0 || newChallenges > 0) && (
+        <section className="space-y-2">
+          <h2 className="text-xs uppercase tracking-[0.15em] text-taupe-400">
+            {t("dashboard.newHeader")}
+          </h2>
+          <div className="flex flex-wrap gap-2">
+            {newPosts > 0 && (
+              <button
+                type="button"
+                onClick={() => onOpen?.("blog")}
+                className="inline-flex items-center gap-1.5 rounded-full border border-spice-500/70 bg-bordeaux-700 px-3 py-1.5 text-sm text-blush-100 shadow-glow transition-transform duration-300 ease-felt hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+              >
+                📖 {t("dashboard.newPosts", { count: newPosts })}
+              </button>
+            )}
+            {newChallenges > 0 && (
+              <button
+                type="button"
+                onClick={() => onOpen?.("challenges")}
+                className="inline-flex items-center gap-1.5 rounded-full border border-spice-500/70 bg-bordeaux-700 px-3 py-1.5 text-sm text-blush-100 shadow-glow transition-transform duration-300 ease-felt hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+              >
+                🎲 {t("dashboard.newChallenges", { count: newChallenges })}
+              </button>
+            )}
+          </div>
+        </section>
       )}
 
       {/* Mon humeur du jour */}

@@ -7,6 +7,7 @@ import type {
   ApiPost,
   ChallengeSuggestion,
   Member,
+  SeenEntry,
   MoodEntry,
   NotifMode,
   Space,
@@ -56,6 +57,7 @@ export function SpaceApp({
   const [posts, setPosts] = useState<ApiPost[]>([]);
   const [challenges, setChallenges] = useState<ApiChallenge[]>([]);
   const [suggestions, setSuggestions] = useState<ChallengeSuggestion[]>([]);
+  const [seen, setSeen] = useState<SeenEntry[]>([]);
   const [openSheet, setOpenSheet] = useState<"post" | "challenge" | null>(null);
   // Brouillon en cours d'édition (sinon la feuille "post" crée un nouveau post).
   const [editingPost, setEditingPost] = useState<ApiPost | null>(null);
@@ -80,6 +82,34 @@ export function SpaceApp({
   useEffect(() => {
     commentsForRef.current = commentsFor;
   }, [commentsFor]);
+  // Onglet courant lu par le WS (sans recréer la connexion).
+  const tabRef = useRef<TabId>(tab);
+  useEffect(() => {
+    tabRef.current = tab;
+  }, [tab]);
+
+  // Marque un fil comme vu (met à jour le "vu" local de l'utilisateur courant).
+  const markSeen = (feature: "blog" | "challenges") => {
+    api
+      .markSeen(space.id, feature)
+      .then((entry) =>
+        setSeen((prev) => [
+          ...prev.filter(
+            (s) => !(s.userId === user.id && s.feature === feature),
+          ),
+          entry,
+        ]),
+      )
+      .catch(() => {});
+  };
+
+  // En ouvrant le Blog ou les Défis, on marque le fil comme vu.
+  useEffect(() => {
+    if (!ready) return;
+    if (tab === "blog") markSeen("blog");
+    else if (tab === "challenges") markSeen("challenges");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, ready, space.id]);
 
   useEffect(() => {
     let alive = true;
@@ -89,14 +119,16 @@ export function SpaceApp({
       api.listPosts(space.id),
       api.listChallenges(space.id),
       api.getSettings().catch(() => ({ notifMode: "ghost" as NotifMode })),
+      api.listSeen(space.id).catch(() => [] as SeenEntry[]),
     ])
-      .then(([m, mo, p, c, s]) => {
+      .then(([m, mo, p, c, s, sn]) => {
         if (!alive) return;
         setMembers(m);
         setMoods(mo);
         setPosts(p);
         setChallenges(c);
         setNotifMode(s.notifMode);
+        setSeen(sn);
       })
       .catch((e) => console.error("chargement de l'espace échoué", e))
       .finally(() => alive && setReady(true));
@@ -134,10 +166,15 @@ export function SpaceApp({
             .then(setComments)
             .catch(() => {});
         }
+        // Si je regarde déjà le blog, le nouveau contenu est "vu".
+        if (kind === "post" && tabRef.current === "blog") markSeen("blog");
       } else if (kind === "challenge") {
         api.listChallenges(space.id).then(setChallenges).catch(() => {});
+        if (tabRef.current === "challenges") markSeen("challenges");
       } else if (kind === "mood") {
         api.listMoods(space.id).then(setMoods).catch(() => {});
+      } else if (kind === "seen") {
+        api.listSeen(space.id).then(setSeen).catch(() => {});
       } else if (kind === "space") {
         api
           .mySpaces()
@@ -180,6 +217,26 @@ export function SpaceApp({
   const partnerMoodEntry = partner
     ? moods.find((m) => m.userId === partner.id)
     : undefined;
+
+  // ----- "Vu" : badges nouveautés + accusés de lecture -----
+  const seenAt = (userId: string, feature: string) =>
+    seen.find((s) => s.userId === userId && s.feature === feature)?.seenAt;
+  const myBlogSeen = seenAt(user.id, "blog");
+  const myChallSeen = seenAt(user.id, "challenges");
+  const partnerBlogSeen = partner ? seenAt(partner.id, "blog") : undefined;
+
+  // Nouveautés = contenu de l'autre, créé après mon dernier "vu".
+  const newPosts = posts.filter(
+    (p) =>
+      !p.draft &&
+      p.authorId !== user.id &&
+      (!myBlogSeen || p.createdAt > myBlogSeen),
+  ).length;
+  const newChallenges = challenges.filter(
+    (c) =>
+      c.proposerId !== user.id &&
+      (!myChallSeen || c.createdAt > myChallSeen),
+  ).length;
 
   const onMoodChange = (mood: MoodId) => {
     api
@@ -428,6 +485,11 @@ export function SpaceApp({
     commentCount: p.commentCount,
     draft: p.draft,
     isMine: p.authorId === user.id,
+    seenByPartner:
+      p.authorId === user.id &&
+      !p.draft &&
+      !!partnerBlogSeen &&
+      p.createdAt <= partnerBlogSeen,
   }));
 
   const challengeData: ChallengeData[] = challenges.map((c) => ({
@@ -440,8 +502,6 @@ export function SpaceApp({
     perspective: c.proposerId === user.id ? "proposer" : "recipient",
   }));
 
-  const proposedCount = challenges.filter((c) => c.status === "proposed").length;
-
   const commentViews = comments.map((c) => ({
     id: c.id,
     authorName: c.authorName,
@@ -453,7 +513,7 @@ export function SpaceApp({
     <AppShell
       active={tab}
       onTabChange={setTab}
-      badges={{ challenges: proposedCount }}
+      badges={{ blog: newPosts, challenges: newChallenges }}
     >
       {tab === "dashboard" && (
         <DashboardScreen
@@ -475,6 +535,9 @@ export function SpaceApp({
           myMood={myMood}
           onMoodChange={onMoodChange}
           onOpenSettings={() => setShowSettings(true)}
+          newPosts={newPosts}
+          newChallenges={newChallenges}
+          onOpen={setTab}
         />
       )}
 

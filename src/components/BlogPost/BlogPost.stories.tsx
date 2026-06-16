@@ -70,6 +70,11 @@ export const Mien: Story = {
   args: { author: { name: "Toi", glyph: "T" }, isMine: true },
 };
 
+/** Mon post, vu par le/la partenaire : accusé de lecture « ✓✓ Vu ». */
+export const MienVu: Story = {
+  args: { author: { name: "Toi", glyph: "T" }, isMine: true, seenByPartner: true },
+};
+
 /** Brouillon : pastille + bouton "Publier", pas d'interactions tant qu'il n'est pas publié. */
 export const Brouillon: Story = {
   args: {

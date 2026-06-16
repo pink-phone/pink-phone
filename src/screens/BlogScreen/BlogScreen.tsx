@@ -52,6 +52,7 @@ export function BlogScreen({
               commentCount={post.commentCount}
               draft={post.draft}
               isMine={post.isMine}
+              seenByPartner={post.seenByPartner}
               className="max-w-none"
               onToggleReaction={(r) => onToggleReaction?.(post.id, r)}
               onOpenComments={() => onOpenComments?.(post.id)}

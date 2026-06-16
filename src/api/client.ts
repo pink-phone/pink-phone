@@ -15,6 +15,7 @@ import type {
   MediaCreated,
   MoodEntry,
   NotifMode,
+  SeenEntry,
   ReactionSummary,
   Settings,
   Space,
@@ -274,6 +275,14 @@ export const deleteChallenge = (spaceId: string, challengeId: string) =>
   req<void>(`/api/spaces/${spaceId}/challenges/${challengeId}`, {
     method: "DELETE",
   });
+
+// ---------- "Vu" (badges + accusés de lecture) ----------
+
+export const listSeen = (spaceId: string) =>
+  req<SeenEntry[]>(`/api/spaces/${spaceId}/seen`);
+
+export const markSeen = (spaceId: string, feature: "blog" | "challenges") =>
+  req<SeenEntry>(`/api/spaces/${spaceId}/seen/${feature}`, { method: "PUT" });
 
 // ---------- Médias ----------
 

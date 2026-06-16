@@ -42,6 +42,8 @@ export interface BlogPostProps {
   onPublish?: () => void;
   /** Édition d'un brouillon (affiché si `draft` && `isMine`). */
   onEdit?: () => void;
+  /** Mon post a été vu par le/la partenaire (accusé de lecture). */
+  seenByPartner?: boolean;
   className?: string;
 }
 
@@ -62,6 +64,7 @@ export function BlogPost({
   onDelete,
   onPublish,
   onEdit,
+  seenByPartner = false,
   className,
 }: BlogPostProps) {
   const { t } = useTranslation();
@@ -135,16 +138,23 @@ export function BlogPost({
             onToggle={onToggleReaction}
           />
 
-          <button
-            type="button"
-            onClick={onOpenComments}
-            className="text-xs text-taupe-400 transition-colors duration-300 ease-felt hover:text-spice-300"
-          >
-            💬{" "}
-            {commentCount > 0
-              ? t("blog.commentsCount", { count: commentCount })
-              : t("blog.commentsLeave")}
-          </button>
+          <div className="flex items-center justify-between gap-2">
+            <button
+              type="button"
+              onClick={onOpenComments}
+              className="text-xs text-taupe-400 transition-colors duration-300 ease-felt hover:text-spice-300"
+            >
+              💬{" "}
+              {commentCount > 0
+                ? t("blog.commentsCount", { count: commentCount })
+                : t("blog.commentsLeave")}
+            </button>
+            {isMine && seenByPartner && (
+              <span className="text-xs text-spice-300">
+                ✓✓ {t("blog.seenByPartner")}
+              </span>
+            )}
+          </div>
         </>
       )}
     </Surface>

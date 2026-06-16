@@ -137,6 +137,15 @@ pub struct ChallengeSuggestion {
     pub intensity: String,
 }
 
+/// "Vu" d'un fil (blog/défis) par un membre — horodatage de dernière consultation.
+#[derive(Debug, Serialize, sqlx::FromRow)]
+#[serde(rename_all = "camelCase")]
+pub struct SeenEntry {
+    pub user_id: Uuid,
+    pub feature: String,
+    pub seen_at: DateTime<Utc>,
+}
+
 // ---------- Médias ----------
 
 #[derive(Debug, sqlx::FromRow)]
