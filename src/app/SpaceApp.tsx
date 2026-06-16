@@ -14,6 +14,7 @@ import type {
   UserPublic,
 } from "../api/types";
 import { relativeTime } from "../lib/time";
+import { useBackClose } from "../lib/useBackClose";
 import { disablePush, enablePush, pushSupported } from "../push";
 import { useAuth } from "../auth/AuthContext";
 
@@ -66,6 +67,10 @@ export function SpaceApp({
   const [openSheet, setOpenSheet] = useState<"post" | "challenge" | null>(null);
   // Brouillon en cours d'édition (sinon la feuille "post" crée un nouveau post).
   const [editingPost, setEditingPost] = useState<ApiPost | null>(null);
+  // Défi en cours d'édition (sinon la feuille "challenge" en crée un nouveau).
+  const [editingChallenge, setEditingChallenge] = useState<ApiChallenge | null>(
+    null,
+  );
 
   // Réglages / notifications.
   const [showSettings, setShowSettings] = useState(false);
@@ -221,6 +226,15 @@ export function SpaceApp({
     };
   }, [space.id]);
 
+  // Retour Android / swipe iOS ferment la surface ouverte (au lieu de quitter).
+  useBackClose(showSettings, () => setShowSettings(false));
+  useBackClose(openSheet !== null, () => {
+    setOpenSheet(null);
+    setEditingPost(null);
+    setEditingChallenge(null);
+  });
+  useBackClose(commentsFor !== null, () => setCommentsFor(null));
+
   if (!ready) return <Splash message={t("splash.loadingSpace")} />;
 
   const partner = members.find((m) => m.id !== user.id);
@@ -347,6 +361,22 @@ export function SpaceApp({
         setChallenges((prev) => prev.map((c) => (c.id === id ? updated : c))),
       )
       .catch((e) => console.error("transition de défi échouée", e));
+  };
+
+  const editChallenge = async (id: string, draft: ChallengeDraft) => {
+    try {
+      const updated = await api.updateChallenge(space.id, id, {
+        title: draft.title,
+        description: draft.description,
+        intensity: draft.intensity,
+        deadlineLabel: draft.deadlineLabel,
+      });
+      setChallenges((prev) => prev.map((c) => (c.id === id ? updated : c)));
+      setOpenSheet(null);
+      setEditingChallenge(null);
+    } catch (e) {
+      console.error("édition de défi échouée", e);
+    }
   };
 
   const deleteChallenge = async (id: string) => {
@@ -636,6 +666,13 @@ export function SpaceApp({
           onAccept={(id) => transition(id, "challengeAccepted")}
           onNegotiate={(id) => transition(id, "maybeMaybe")}
           onComplete={(id) => transition(id, "jobDone")}
+          onEdit={(id) => {
+            const c = challenges.find((x) => x.id === id);
+            if (c) {
+              setEditingChallenge(c);
+              setOpenSheet("challenge");
+            }
+          }}
           onDelete={deleteChallenge}
         />
       )}
@@ -657,6 +694,7 @@ export function SpaceApp({
               ? {
                   title: editingPost.title ?? undefined,
                   body: editingPost.body,
+                  draft: editingPost.draft,
                   media: editingPost.mediaId
                     ? {
                         viewOnce: editingPost.mediaViewOnce ?? false,
@@ -683,12 +721,37 @@ export function SpaceApp({
 
       <Sheet
         open={openSheet === "challenge"}
-        title={t("challengeComposer.sheetTitle")}
-        onClose={() => setOpenSheet(null)}
+        title={
+          editingChallenge
+            ? t("challengeComposer.sheetEdit")
+            : t("challengeComposer.sheetTitle")
+        }
+        onClose={() => {
+          setOpenSheet(null);
+          setEditingChallenge(null);
+        }}
       >
         <ChallengeComposer
-          onSubmit={addChallenge}
-          onCancel={() => setOpenSheet(null)}
+          key={editingChallenge?.id ?? "new"}
+          initial={
+            editingChallenge
+              ? {
+                  title: editingChallenge.title,
+                  description: editingChallenge.description,
+                  intensity: editingChallenge.intensity,
+                  deadlineLabel: editingChallenge.deadlineLabel ?? undefined,
+                }
+              : undefined
+          }
+          onSubmit={
+            editingChallenge
+              ? (d) => editChallenge(editingChallenge.id, d)
+              : addChallenge
+          }
+          onCancel={() => {
+            setOpenSheet(null);
+            setEditingChallenge(null);
+          }}
           suggestions={suggestions}
         />
       </Sheet>

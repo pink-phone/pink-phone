@@ -298,15 +298,7 @@ async fn update_post(
         return Err(ApiError::Forbidden);
     }
 
-    // Le contenu (texte ET média) n'est éditable que tant que le post est un brouillon.
-    let editing_content =
-        body.title.is_some() || body.body.is_some() || body.media_id.is_some() || body.clear_media;
-    if editing_content && !was_draft {
-        return Err(ApiError::BadRequest(
-            "un post publié ne peut plus être édité".into(),
-        ));
-    }
-
+    // L'auteur peut éditer le contenu d'un post (brouillon comme publié).
     let new_title = match &body.title {
         Some(t) => {
             let t = t.trim();
@@ -388,10 +380,10 @@ async fn update_post(
 
     let mut enriched = enrich(&state.pool, vec![row], auth.user_id).await?;
     let post = enriched.remove(0);
-    // Le statut visible côté partenaire a changé (publication ou remise en
-    // brouillon) : on le notifie pour rafraîchir. L'édition d'un brouillon qui
+    // Le partenaire rafraîchit si le post est (devenu) visible : publié, ou
+    // statut changé (publication/remise en brouillon). Éditer un brouillon qui
     // reste brouillon ne concerne que l'auteur.
-    if post.draft != was_draft {
+    if !post.draft || post.draft != was_draft {
         state.emit(space_id, auth.user_id, "post");
     }
     if was_draft && !post.draft {

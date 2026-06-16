@@ -29,6 +29,8 @@ export interface PostComposerProps {
   initial?: {
     title?: string;
     body?: string;
+    /** Statut du post édité : false = publié (pas d'option « brouillon »). */
+    draft?: boolean;
     media?: { viewOnce: boolean; loader?: () => Promise<string>; alt?: string };
   };
 }
@@ -37,6 +39,8 @@ export interface PostComposerProps {
 export function PostComposer({ onSubmit, onCancel, initial }: PostComposerProps) {
   const { t } = useTranslation();
   const editing = initial !== undefined;
+  // Édition d'un post déjà publié : on enregistre (reste publié), pas de brouillon.
+  const editingPublished = editing && initial?.draft === false;
   const [title, setTitle] = useState(initial?.title ?? "");
   const [body, setBody] = useState(initial?.body ?? "");
   const [file, setFile] = useState<File | null>(null);
@@ -175,7 +179,9 @@ export function PostComposer({ onSubmit, onCancel, initial }: PostComposerProps)
       <div className="space-y-2 pt-1">
         <div className="flex gap-2">
           <Button type="submit" className="flex-1" disabled={!canSubmit}>
-            {t("postComposer.publish")}
+            {editingPublished
+              ? t("postComposer.saveEdits")
+              : t("postComposer.publish")}
           </Button>
           {onCancel && (
             <Button type="button" variant="ghost" onClick={onCancel}>
@@ -183,15 +189,17 @@ export function PostComposer({ onSubmit, onCancel, initial }: PostComposerProps)
             </Button>
           )}
         </div>
-        <Button
-          type="button"
-          variant="secondary"
-          className="w-full"
-          disabled={!canSubmit}
-          onClick={() => submit(true)}
-        >
-          {editing ? t("postComposer.saveEdits") : t("postComposer.saveDraft")}
-        </Button>
+        {!editingPublished && (
+          <Button
+            type="button"
+            variant="secondary"
+            className="w-full"
+            disabled={!canSubmit}
+            onClick={() => submit(true)}
+          >
+            {t("postComposer.saveDraft")}
+          </Button>
+        )}
       </div>
     </form>
   );

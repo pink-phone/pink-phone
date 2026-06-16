@@ -23,7 +23,7 @@ pub fn router() -> Router<AppState> {
         )
         .route(
             "/api/spaces/{id}/challenges/{cid}",
-            axum::routing::delete(delete_challenge),
+            axum::routing::patch(update_challenge).delete(delete_challenge),
         )
 }
 
@@ -140,6 +140,58 @@ async fn transition(
     .bind(&body.status)
     .bind(challenge_id)
     .bind(space_id)
+    .fetch_one(&state.pool)
+    .await?;
+
+    state.emit(space_id, auth.user_id, "challenge");
+    Ok(Json(challenge))
+}
+
+/// Édition d'un défi (proposeur uniquement) : titre, description, intensité, deadline.
+async fn update_challenge(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Path((space_id, challenge_id)): Path<(Uuid, Uuid)>,
+    Json(body): Json<CreateChallengeBody>,
+) -> ApiResult<Json<Challenge>> {
+    ensure_member(&state.pool, auth.user_id, space_id).await?;
+    if body.title.trim().is_empty() || body.description.trim().is_empty() {
+        return Err(ApiError::BadRequest("titre et description requis".into()));
+    }
+    if !INTENSITIES.contains(&body.intensity.as_str()) {
+        return Err(ApiError::BadRequest("intensité inconnue".into()));
+    }
+
+    let proposer: Option<Uuid> = sqlx::query_scalar(
+        "SELECT proposer_id FROM challenges WHERE id = $1 AND space_id = $2",
+    )
+    .bind(challenge_id)
+    .bind(space_id)
+    .fetch_optional(&state.pool)
+    .await?;
+    if proposer.ok_or(ApiError::NotFound)? != auth.user_id {
+        return Err(ApiError::Forbidden);
+    }
+
+    let challenge: Challenge = sqlx::query_as(
+        "UPDATE challenges
+         SET title = $3, description = $4, intensity = $5, deadline_label = $6,
+             updated_at = now()
+         WHERE id = $1 AND space_id = $2
+         RETURNING id, proposer_id, title, description, intensity, status,
+                   deadline_label, created_at, updated_at",
+    )
+    .bind(challenge_id)
+    .bind(space_id)
+    .bind(body.title.trim())
+    .bind(body.description.trim())
+    .bind(&body.intensity)
+    .bind(
+        body.deadline_label
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty()),
+    )
     .fetch_one(&state.pool)
     .await?;
 

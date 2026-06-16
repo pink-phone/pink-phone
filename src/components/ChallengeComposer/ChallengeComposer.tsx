@@ -23,6 +23,8 @@ export interface ChallengeComposerProps {
   onCancel?: () => void;
   /** Banque de propositions (depuis l'API). À défaut, presets statiques. */
   suggestions?: ChallengePreset[];
+  /** Valeurs initiales (édition d'un défi existant). */
+  initial?: ChallengeDraft;
 }
 
 const INTENSITY_TONE = { soft: "soft", hot: "hot", hard: "hard" } as const;
@@ -34,12 +36,14 @@ export function ChallengeComposer({
   onSubmit,
   onCancel,
   suggestions,
+  initial,
 }: ChallengeComposerProps) {
   const { t } = useTranslation();
-  const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
-  const [intensity, setIntensity] = useState<Intensity>("hot");
-  const [deadline, setDeadline] = useState("");
+  const editing = initial !== undefined;
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [description, setDescription] = useState(initial?.description ?? "");
+  const [intensity, setIntensity] = useState<Intensity>(initial?.intensity ?? "hot");
+  const [deadline, setDeadline] = useState(initial?.deadlineLabel ?? "");
 
   const bank = suggestions && suggestions.length > 0 ? suggestions : CHALLENGE_PRESETS;
   // Sous-ensemble aléatoire, re-tiré à chaque clic sur "Autres idées".
@@ -72,7 +76,8 @@ export function ChallengeComposer({
         submit();
       }}
     >
-      {/* La "banque" : remplir d'un geste */}
+      {/* La "banque" : remplir d'un geste (masquée en édition) */}
+      {!editing && (
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
           <span className="block text-xs font-medium text-taupe-200">
@@ -105,6 +110,7 @@ export function ChallengeComposer({
           ))}
         </div>
       </div>
+      )}
 
       <TextField
         label={t("challengeComposer.titleLabel")}
@@ -129,9 +135,11 @@ export function ChallengeComposer({
 
       <div className="flex items-center gap-2 pt-1">
         <Button type="submit" className="flex-1" disabled={!canSubmit}>
-          {t("challengeComposer.submit", {
-            intensity: t(`challenges.intensity.${intensity}`),
-          })}
+          {editing
+            ? t("common.save")
+            : t("challengeComposer.submit", {
+                intensity: t(`challenges.intensity.${intensity}`),
+              })}
         </Button>
         {onCancel && (
           <Button type="button" variant="ghost" onClick={onCancel}>

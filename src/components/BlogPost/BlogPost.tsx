@@ -4,6 +4,7 @@ import { Badge } from "../Badge/Badge";
 import { Button } from "../Button/Button";
 import { SafeMedia } from "../SafeMedia/SafeMedia";
 import { ReactionBar, type ReactionId } from "../ReactionBar/ReactionBar";
+import { ContextMenu } from "../ContextMenu/ContextMenu";
 import { cn } from "../../lib/cn";
 
 export interface BlogPostAuthor {
@@ -88,15 +89,24 @@ export function BlogPost({
         </div>
         <div className="ml-auto flex items-center gap-2">
           {draft && <Badge tone="neutral">{t("blog.draftBadge")}</Badge>}
-          {isMine && onDelete && (
-            <button
-              type="button"
-              onClick={onDelete}
-              aria-label={t("blog.deletePost")}
-              className="rounded-full px-2 py-1 text-base text-taupe-400 transition-colors duration-300 ease-felt hover:text-bordeaux-300"
-            >
-              🗑
-            </button>
+          {isMine && (onEdit || onDelete) && (
+            <ContextMenu
+              ariaLabel={t("common.actions")}
+              items={[
+                ...(onEdit
+                  ? [{ label: t("common.edit"), onClick: onEdit }]
+                  : []),
+                ...(onDelete
+                  ? [
+                      {
+                        label: t("common.delete"),
+                        onClick: onDelete,
+                        danger: true,
+                      },
+                    ]
+                  : []),
+              ]}
+            />
           )}
         </div>
       </header>
@@ -120,20 +130,12 @@ export function BlogPost({
       )}
 
       {draft ? (
-        /* Un brouillon n'a pas encore d'interactions : seul l'auteur l'édite/publie. */
-        isMine && (
-          <div className="flex gap-2">
-            {onPublish && (
-              <Button className="flex-1" onClick={onPublish}>
-                {t("blog.publishDraft")}
-              </Button>
-            )}
-            {onEdit && (
-              <Button variant="secondary" onClick={onEdit}>
-                {t("blog.edit")}
-              </Button>
-            )}
-          </div>
+        /* Brouillon : publier (l'édition/suppression passent par le menu « ⋯ »). */
+        isMine &&
+        onPublish && (
+          <Button className="w-full" onClick={onPublish}>
+            {t("blog.publishDraft")}
+          </Button>
         )
       ) : (
         <>

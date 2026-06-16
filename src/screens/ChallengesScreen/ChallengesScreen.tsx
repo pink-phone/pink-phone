@@ -10,6 +10,7 @@ export interface ChallengesScreenProps {
   onAccept?: (id: string) => void;
   onNegotiate?: (id: string) => void;
   onComplete?: (id: string) => void;
+  onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
 }
 
@@ -28,6 +29,7 @@ export function ChallengesScreen({
   onAccept,
   onNegotiate,
   onComplete,
+  onEdit,
   onDelete,
 }: ChallengesScreenProps) {
   const { t } = useTranslation();
@@ -64,6 +66,7 @@ export function ChallengesScreen({
                   onAccept={() => onAccept?.(c.id)}
                   onNegotiate={() => onNegotiate?.(c.id)}
                   onComplete={() => onComplete?.(c.id)}
+                  onEdit={() => onEdit?.(c.id)}
                   onDelete={() => onDelete?.(c.id)}
                 />
               ))}

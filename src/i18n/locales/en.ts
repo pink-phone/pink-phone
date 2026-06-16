@@ -9,6 +9,10 @@ export const en: Resources = {
     logout: "Log out",
     loading: "Loading…",
     send: "Send",
+    save: "Save",
+    edit: "Edit",
+    delete: "Delete",
+    actions: "Actions",
   },
   app: {
     name: "Pink Phone",
@@ -169,6 +173,7 @@ export const en: Resources = {
   },
   challengeComposer: {
     sheetTitle: "Send a dare",
+    sheetEdit: "Edit dare",
     inspiration: "Inspiration (the bank)",
     reshuffle: "🎲 Other ideas",
     titleLabel: "Dare title",

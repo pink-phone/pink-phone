@@ -35,6 +35,7 @@ const meta = {
     onAccept: { action: "accept" },
     onNegotiate: { action: "negotiate" },
     onComplete: { action: "complete" },
+    onEdit: { action: "edit" },
     onDelete: { action: "delete" },
   },
   args: {

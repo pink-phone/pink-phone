@@ -309,6 +309,21 @@ export const transitionChallenge = (
     { method: "PATCH", json: { status } },
   );
 
+export const updateChallenge = (
+  spaceId: string,
+  challengeId: string,
+  body: {
+    title: string;
+    description: string;
+    intensity: Intensity;
+    deadlineLabel?: string;
+  },
+) =>
+  req<ApiChallenge>(`/api/spaces/${spaceId}/challenges/${challengeId}`, {
+    method: "PATCH",
+    json: body,
+  });
+
 export const deleteChallenge = (spaceId: string, challengeId: string) =>
   req<void>(`/api/spaces/${spaceId}/challenges/${challengeId}`, {
     method: "DELETE",

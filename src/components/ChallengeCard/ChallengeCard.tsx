@@ -3,6 +3,7 @@ import { Surface } from "../Surface/Surface";
 import { Badge, type BadgeTone } from "../Badge/Badge";
 import { Button } from "../Button/Button";
 import { FireEmbers } from "../FireEmbers/FireEmbers";
+import { ContextMenu } from "../ContextMenu/ContextMenu";
 import { cn } from "../../lib/cn";
 import { type ChallengeStatus, type Intensity } from "./challenge";
 
@@ -34,7 +35,8 @@ export interface ChallengeCardProps {
   onAccept?: () => void;
   onNegotiate?: () => void;
   onComplete?: () => void;
-  /** Suppression du défi (réservée au proposeur ; affichée si `perspective` = "proposer"). */
+  /** Modifier / supprimer le défi (réservés au proposeur via le menu « ⋯ »). */
+  onEdit?: () => void;
   onDelete?: () => void;
   className?: string;
 }
@@ -50,6 +52,7 @@ export function ChallengeCard({
   onAccept,
   onNegotiate,
   onComplete,
+  onEdit,
   onDelete,
   className,
 }: ChallengeCardProps) {
@@ -76,15 +79,24 @@ export function ChallengeCard({
             <Badge tone={STATUS_TONE[status]}>
               {t(`challenges.status.${status}.label`)}
             </Badge>
-            {perspective === "proposer" && onDelete && (
-              <button
-                type="button"
-                onClick={onDelete}
-                aria-label={t("challenges.deleteChallenge")}
-                className="rounded-full px-1.5 py-0.5 text-base text-taupe-400 transition-colors duration-300 ease-felt hover:text-bordeaux-300"
-              >
-                🗑
-              </button>
+            {perspective === "proposer" && (onEdit || onDelete) && (
+              <ContextMenu
+                ariaLabel={t("common.actions")}
+                items={[
+                  ...(onEdit
+                    ? [{ label: t("common.edit"), onClick: onEdit }]
+                    : []),
+                  ...(onDelete
+                    ? [
+                        {
+                          label: t("common.delete"),
+                          onClick: onDelete,
+                          danger: true,
+                        },
+                      ]
+                    : []),
+                ]}
+              />
             )}
           </div>
         </div>
