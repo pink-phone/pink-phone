@@ -1,6 +1,8 @@
 import type { Preview } from "@storybook/react-vite";
 // Charge les tokens DA + Tailwind dans Storybook (mêmes styles que l'app).
 import "../src/index.css";
+// Initialise i18n pour que les composants utilisant useTranslation s'affichent.
+import "../src/i18n";
 
 const preview: Preview = {
   parameters: {

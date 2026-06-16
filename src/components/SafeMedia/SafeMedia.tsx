@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { cn } from "../../lib/cn";
 
 export interface SafeMediaProps {
@@ -39,6 +40,7 @@ export function SafeMedia({
   onReveal,
   className,
 }: SafeMediaProps) {
+  const { t } = useTranslation();
   const [isRevealed, setIsRevealed] = useState(false);
   const [isConsumed, setIsConsumed] = useState(consumed);
   const [resolvedSrc, setResolvedSrc] = useState<string | null>(
@@ -91,8 +93,8 @@ export function SafeMedia({
       tabIndex={isConsumed ? -1 : 0}
       aria-label={
         isConsumed
-          ? "Média éphémère déjà consommé"
-          : `${alt} — maintenir pour révéler`
+          ? t("safeMedia.consumedAria")
+          : t("safeMedia.revealAria", { alt })
       }
       aria-pressed={isRevealed}
       className={cn(
@@ -132,11 +134,11 @@ export function SafeMedia({
       {!isRevealed && !isConsumed && (
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1 bg-charcoal-900/40 p-4 text-center text-blush-100 backdrop-blur-[2px]">
           <span className="text-3xl">🤫</span>
-          <p className="font-serif text-base">Notre secret</p>
-          <p className="text-xs text-taupe-200/80">Maintenir enfoncé pour révéler</p>
+          <p className="font-serif text-base">{t("safeMedia.secret")}</p>
+          <p className="text-xs text-taupe-200/80">{t("safeMedia.holdToReveal")}</p>
           {viewOnce && (
             <span className="mt-2 rounded-full bg-bordeaux-600/80 px-3 py-0.5 text-[11px] tracking-wide text-blush-100">
-              ✦ Éphémère · une seule fois
+              {t("safeMedia.ephemeralBadge")}
             </span>
           )}
         </div>
@@ -145,14 +147,14 @@ export function SafeMedia({
       {/* Chargement du média authentifié */}
       {isRevealed && loading && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-charcoal-900/50 text-sm text-taupe-200">
-          Chargement…
+          {t("safeMedia.loading")}
         </div>
       )}
 
       {/* Échec de chargement */}
       {isRevealed && failed && (
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-charcoal-900/60 p-4 text-center text-sm text-blush-200">
-          Média indisponible
+          {t("safeMedia.unavailable")}
         </div>
       )}
 
@@ -160,8 +162,8 @@ export function SafeMedia({
       {isConsumed && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 bg-charcoal-800 bg-felt-velvet p-4 text-center text-taupe-300">
           <span className="text-3xl opacity-70">🌫️</span>
-          <p className="font-serif text-base text-taupe-200">Envolé…</p>
-          <p className="text-xs">Ce souvenir n'existait que pour un instant.</p>
+          <p className="font-serif text-base text-taupe-200">{t("safeMedia.goneTitle")}</p>
+          <p className="text-xs">{t("safeMedia.goneText")}</p>
         </div>
       )}
     </div>

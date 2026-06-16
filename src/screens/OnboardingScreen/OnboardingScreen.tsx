@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Surface } from "../../components/Surface/Surface";
 import { Button } from "../../components/Button/Button";
 import { TextField } from "../../components/form/TextField";
@@ -21,6 +22,7 @@ export function OnboardingScreen({
   error,
   busy,
 }: OnboardingScreenProps) {
+  const { t } = useTranslation();
   const [name, setName] = useState("Pink Phone");
   const [joinId, setJoinId] = useState("");
 
@@ -28,15 +30,15 @@ export function OnboardingScreen({
     <main className="flex min-h-dvh flex-col items-center justify-center gap-5 p-6">
       <header className="text-center">
         <h1 className="font-serif text-2xl text-blush-100">
-          {userName ? `Bienvenue, ${userName}` : "Bienvenue"}
+          {userName ? t("onboarding.welcomeName", { name: userName }) : t("onboarding.welcome")}
         </h1>
-        <p className="mt-1 text-sm text-taupe-300">
-          Créez votre espace, ou rejoignez celui de l'autre.
-        </p>
+        <p className="mt-1 text-sm text-taupe-300">{t("onboarding.subtitle")}</p>
       </header>
 
       <Surface tone="velvet" className="w-full max-w-sm space-y-3">
-        <h2 className="font-serif text-lg text-taupe-100">Créer un espace</h2>
+        <h2 className="font-serif text-lg text-taupe-100">
+          {t("onboarding.createTitle")}
+        </h2>
         <form
           className="space-y-3"
           onSubmit={(e) => {
@@ -45,18 +47,20 @@ export function OnboardingScreen({
           }}
         >
           <TextField
-            label="Nom de l'espace"
+            label={t("onboarding.spaceNameLabel")}
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
           <Button type="submit" className="w-full" disabled={!name.trim() || busy}>
-            Créer
+            {t("onboarding.create")}
           </Button>
         </form>
       </Surface>
 
       <Surface tone="velvet" className="w-full max-w-sm space-y-3">
-        <h2 className="font-serif text-lg text-taupe-100">Rejoindre un espace</h2>
+        <h2 className="font-serif text-lg text-taupe-100">
+          {t("onboarding.joinTitle")}
+        </h2>
         <form
           className="space-y-3"
           onSubmit={(e) => {
@@ -65,11 +69,11 @@ export function OnboardingScreen({
           }}
         >
           <TextField
-            label="Identifiant de l'espace"
+            label={t("onboarding.spaceIdLabel")}
             value={joinId}
             onChange={(e) => setJoinId(e.target.value)}
-            placeholder="collez l'id partagé par votre partenaire"
-            hint="Votre partenaire le trouve dans les réglages de l'espace."
+            placeholder={t("onboarding.joinPlaceholder")}
+            hint={t("onboarding.joinHint")}
           />
           <Button
             type="submit"
@@ -77,7 +81,7 @@ export function OnboardingScreen({
             className="w-full"
             disabled={!joinId.trim() || busy}
           >
-            Rejoindre
+            {t("onboarding.join")}
           </Button>
         </form>
       </Surface>
@@ -94,7 +98,7 @@ export function OnboardingScreen({
           onClick={onLogout}
           className="text-xs text-taupe-400 transition-colors duration-300 ease-felt hover:text-spice-300"
         >
-          Se déconnecter
+          {t("common.logout")}
         </button>
       )}
     </main>

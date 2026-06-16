@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { cn } from "../../lib/cn";
 import { FireEmbers } from "../FireEmbers/FireEmbers";
 
@@ -33,6 +34,7 @@ export function ReactionBar({
   onToggle,
   className,
 }: ReactionBarProps) {
+  const { t } = useTranslation();
   return (
     <div className={cn("flex flex-wrap gap-2", className)}>
       {REACTIONS.map((r) => {
@@ -44,7 +46,7 @@ export function ReactionBar({
             key={r.id}
             type="button"
             aria-pressed={active}
-            aria-label={r.label}
+            aria-label={t(`reactions.${r.id}`)}
             onClick={() => onToggle?.(r.id)}
             className={cn(
               "relative inline-flex items-center gap-1.5 overflow-hidden rounded-full border px-3 py-1 text-sm",

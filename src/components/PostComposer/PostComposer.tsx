@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { TextField } from "../form/TextField";
 import { TextArea } from "../form/TextArea";
 import { Toggle } from "../form/Toggle";
@@ -34,6 +35,7 @@ export interface PostComposerProps {
 
 /** Formulaire de rédaction d'un post du blog intime. */
 export function PostComposer({ onSubmit, onCancel, initial }: PostComposerProps) {
+  const { t } = useTranslation();
   const editing = initial !== undefined;
   const [title, setTitle] = useState(initial?.title ?? "");
   const [body, setBody] = useState(initial?.body ?? "");
@@ -79,22 +81,24 @@ export function PostComposer({ onSubmit, onCancel, initial }: PostComposerProps)
       }}
     >
       <TextField
-        label="Titre (optionnel)"
+        label={t("postComposer.titleLabel")}
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        placeholder="Cette idée qui me trotte…"
+        placeholder={t("postComposer.titlePlaceholder")}
       />
       <TextArea
-        label="Ton récit"
+        label={t("postComposer.bodyLabel")}
         value={body}
         onChange={(e) => setBody(e.target.value)}
-        placeholder="Raconte, à tête reposée…"
+        placeholder={t("postComposer.bodyPlaceholder")}
         rows={editing ? 14 : 5}
       />
 
       <div className="space-y-1.5">
         <span className="block text-xs font-medium text-taupe-200">
-          {existingMedia ? "Photo (changer)" : "Photo (optionnel)"}
+          {existingMedia
+            ? t("postComposer.photoChange")
+            : t("postComposer.photoOptional")}
         </span>
 
         {existingMedia ? (
@@ -102,7 +106,7 @@ export function PostComposer({ onSubmit, onCancel, initial }: PostComposerProps)
             /* Éphémère : pas d'aperçu (la lecture le consommerait). */
             <div className="flex items-center justify-between gap-2 rounded-2xl border border-charcoal-600/60 bg-charcoal-800 px-3 py-2">
               <span className="text-xs text-taupe-300">
-                ✦ Photo éphémère déjà jointe
+                {t("postComposer.ephemeralAttached")}
               </span>
               <Button
                 type="button"
@@ -110,7 +114,7 @@ export function PostComposer({ onSubmit, onCancel, initial }: PostComposerProps)
                 size="sm"
                 onClick={() => setRemoveMedia(true)}
               >
-                Retirer
+                {t("postComposer.remove")}
               </Button>
             </div>
           ) : (
@@ -118,7 +122,7 @@ export function PostComposer({ onSubmit, onCancel, initial }: PostComposerProps)
             <div className="space-y-2">
               <SafeMedia
                 loader={existingMedia.loader}
-                alt={existingMedia.alt ?? "Photo jointe"}
+                alt={existingMedia.alt ?? t("postComposer.attachedAlt")}
               />
               <Button
                 type="button"
@@ -126,7 +130,7 @@ export function PostComposer({ onSubmit, onCancel, initial }: PostComposerProps)
                 size="sm"
                 onClick={() => setRemoveMedia(true)}
               >
-                Retirer la photo
+                {t("postComposer.removePhoto")}
               </Button>
             </div>
           )
@@ -144,13 +148,13 @@ export function PostComposer({ onSubmit, onCancel, initial }: PostComposerProps)
 
         {editing && removeMedia && !file && (
           <p className="text-[11px] text-taupe-400">
-            La photo sera retirée à l'enregistrement.{" "}
+            {t("postComposer.willRemove")}{" "}
             <button
               type="button"
               onClick={() => setRemoveMedia(false)}
               className="underline underline-offset-2 hover:text-taupe-200"
             >
-              Annuler
+              {t("postComposer.undo")}
             </button>
           </p>
         )}
@@ -158,12 +162,12 @@ export function PostComposer({ onSubmit, onCancel, initial }: PostComposerProps)
 
       {preview && (
         <div className="space-y-3">
-          <SafeMedia src={preview} alt="Aperçu" viewOnce={viewOnce} />
+          <SafeMedia src={preview} alt={t("postComposer.previewAlt")} viewOnce={viewOnce} />
           <Toggle
             checked={viewOnce}
             onChange={setViewOnce}
-            label="Éphémère (view once)"
-            hint="La photo disparaît après une seule lecture."
+            label={t("postComposer.ephemeralToggle")}
+            hint={t("postComposer.ephemeralHint")}
           />
         </div>
       )}
@@ -171,11 +175,11 @@ export function PostComposer({ onSubmit, onCancel, initial }: PostComposerProps)
       <div className="space-y-2 pt-1">
         <div className="flex gap-2">
           <Button type="submit" className="flex-1" disabled={!canSubmit}>
-            Publier
+            {t("postComposer.publish")}
           </Button>
           {onCancel && (
             <Button type="button" variant="ghost" onClick={onCancel}>
-              Annuler
+              {t("common.cancel")}
             </Button>
           )}
         </div>
@@ -186,7 +190,7 @@ export function PostComposer({ onSubmit, onCancel, initial }: PostComposerProps)
           disabled={!canSubmit}
           onClick={() => submit(true)}
         >
-          {editing ? "Enregistrer les modifications" : "Enregistrer le brouillon"}
+          {editing ? t("postComposer.saveEdits") : t("postComposer.saveDraft")}
         </Button>
       </div>
     </form>

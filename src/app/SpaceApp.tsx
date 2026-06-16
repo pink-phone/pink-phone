@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import * as api from "../api/client";
 import type {
   ApiChallenge,
@@ -39,6 +40,7 @@ import type { ChallengeData, PostData } from "../mock/data";
 
 /** L'app branchée sur un Space réel : charge et pilote les données via l'API. */
 export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
+  const { t } = useTranslation();
   const { logout } = useAuth();
   const [tab, setTab] = useState<TabId>("dashboard");
   const [ready, setReady] = useState(false);
@@ -156,7 +158,7 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
     };
   }, [space.id]);
 
-  if (!ready) return <Splash message="Chargement de votre espace…" />;
+  if (!ready) return <Splash message={t("splash.loadingSpace")} />;
 
   const partner = members.find((m) => m.id !== user.id);
   const myMood = moods.find((m) => m.userId === user.id)?.status ?? null;
@@ -197,7 +199,7 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
   };
 
   const deletePost = async (postId: string) => {
-    if (!window.confirm("Supprimer ce post ? C'est définitif.")) return;
+    if (!window.confirm(t("blog.confirmDelete"))) return;
     try {
       await api.deletePost(space.id, postId);
       setPosts((prev) => prev.filter((p) => p.id !== postId));
@@ -265,7 +267,7 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
   };
 
   const deleteChallenge = async (id: string) => {
-    if (!window.confirm("Supprimer ce défi ? C'est définitif.")) return;
+    if (!window.confirm(t("challenges.confirmDelete"))) return;
     try {
       await api.deleteChallenge(space.id, id);
       setChallenges((prev) => prev.filter((c) => c.id !== id));
@@ -375,7 +377,7 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
     body: p.body,
     media: p.mediaId
       ? {
-          alt: "Photo partagée",
+          alt: t("blog.sharedPhotoAlt"),
           viewOnce: p.mediaViewOnce ?? false,
           consumed: p.mediaConsumed ?? false,
           loader: () => api.fetchMediaObjectUrl(space.id, p.mediaId as string),
@@ -468,7 +470,7 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
 
       <Sheet
         open={openSheet === "post"}
-        title={editingPost ? "Modifier le brouillon" : "Écrire"}
+        title={editingPost ? t("postComposer.sheetEdit") : t("postComposer.sheetWrite")}
         // En édition, on s'offre de la place pour rédiger (≈ 3/4 d'écran).
         className={editingPost ? "min-h-[75dvh]" : undefined}
         onClose={() => {
@@ -486,7 +488,7 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
                   media: editingPost.mediaId
                     ? {
                         viewOnce: editingPost.mediaViewOnce ?? false,
-                        alt: "Photo jointe",
+                        alt: t("postComposer.attachedAlt"),
                         loader: () =>
                           api.fetchMediaObjectUrl(
                             space.id,
@@ -509,7 +511,7 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
 
       <Sheet
         open={openSheet === "challenge"}
-        title="Lancer un défi"
+        title={t("challengeComposer.sheetTitle")}
         onClose={() => setOpenSheet(null)}
       >
         <ChallengeComposer

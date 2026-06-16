@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Surface } from "../../components/Surface/Surface";
 import { Button } from "../../components/Button/Button";
 import { TextField } from "../../components/form/TextField";
@@ -31,6 +32,7 @@ export function AuthScreen({
   error,
   busy,
 }: AuthScreenProps) {
+  const { t } = useTranslation();
   const [mode, setMode] = useState<AuthMode>("login");
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -46,13 +48,13 @@ export function AuthScreen({
     <main className="flex min-h-dvh items-center justify-center p-6">
       <Surface tone="velvet" className="w-full max-w-sm space-y-5">
         <header className="text-center">
-          <h1 className="font-serif text-3xl text-blush-100">Pink Phone</h1>
+          <h1 className="font-serif text-3xl text-blush-100">{t("app.name")}</h1>
           <p className="mt-1 text-sm text-taupe-300">
             {!passwordEnabled
-              ? "Connectez-vous pour entrer."
+              ? t("auth.subtitleSso")
               : isRegister
-                ? "Créez votre nid."
-                : "Bon retour parmi nous."}
+                ? t("auth.subtitleRegister")
+                : t("auth.subtitleLogin")}
           </p>
         </header>
 
@@ -64,12 +66,12 @@ export function AuthScreen({
               className="w-full"
               onClick={onOidcLogin}
             >
-              🔐 Se connecter avec le SSO
+              {t("auth.sso")}
             </Button>
             {passwordEnabled && (
               <div className="flex items-center gap-3 text-[11px] uppercase tracking-wider text-taupe-400">
                 <span className="h-px flex-1 bg-charcoal-600/60" />
-                ou
+                {t("auth.or")}
                 <span className="h-px flex-1 bg-charcoal-600/60" />
               </div>
             )}
@@ -92,28 +94,28 @@ export function AuthScreen({
           }}
         >
           <TextField
-            label="Email"
+            label={t("auth.email")}
             type="email"
             autoComplete="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="toi@exemple.com"
+            placeholder={t("auth.emailPlaceholder")}
           />
           {isRegister && (
             <TextField
-              label="Ton prénom"
+              label={t("auth.firstName")}
               value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              placeholder="Alex"
+              placeholder={t("auth.firstNamePlaceholder")}
             />
           )}
           <TextField
-            label="Mot de passe"
+            label={t("auth.password")}
             type="password"
             autoComplete={isRegister ? "new-password" : "current-password"}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            hint={isRegister ? "8 caractères minimum." : undefined}
+            hint={isRegister ? t("auth.passwordHint") : undefined}
           />
 
           {error && (
@@ -123,7 +125,7 @@ export function AuthScreen({
           )}
 
           <Button type="submit" className="w-full" disabled={!canSubmit || busy}>
-            {busy ? "…" : isRegister ? "Créer mon compte" : "Se connecter"}
+            {busy ? "…" : isRegister ? t("auth.submitRegister") : t("auth.submitLogin")}
           </Button>
         </form>
         )}
@@ -134,9 +136,7 @@ export function AuthScreen({
             onClick={() => setMode(isRegister ? "login" : "register")}
             className="block w-full text-center text-xs text-taupe-400 transition-colors duration-300 ease-felt hover:text-spice-300"
           >
-            {isRegister
-              ? "Déjà un compte ? Se connecter"
-              : "Pas encore de compte ? En créer un"}
+            {isRegister ? t("auth.toggleToLogin") : t("auth.toggleToRegister")}
           </button>
         )}
       </Surface>

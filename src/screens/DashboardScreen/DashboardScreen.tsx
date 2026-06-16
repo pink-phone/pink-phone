@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Surface } from "../../components/Surface/Surface";
 import { MoodSelector } from "../../components/MoodSelector/MoodSelector";
 import { FireEmbers } from "../../components/FireEmbers/FireEmbers";
@@ -33,6 +34,7 @@ function MoodCard({
   mood: MoodOption | null;
   timeLabel?: string;
 }) {
+  const { t } = useTranslation();
   const hot = mood?.id === "veryHot";
   return (
     <Surface
@@ -50,15 +52,15 @@ function MoodCard({
         <p className="font-serif text-base text-blush-100">{name}</p>
         {mood ? (
           <>
-            <p className="text-sm text-blush-200">{mood.label}</p>
+            <p className="text-sm text-blush-200">{t(`moods.${mood.id}`)}</p>
             {timeLabel && (
-              <p className="text-xs text-blush-200/70">Mis à jour {timeLabel}</p>
+              <p className="text-xs text-blush-200/70">
+                {t("dashboard.updatedAt", { time: timeLabel })}
+              </p>
             )}
           </>
         ) : (
-          <p className="text-xs text-taupe-300">
-            Pas encore d'humeur aujourd'hui.
-          </p>
+          <p className="text-xs text-taupe-300">{t("dashboard.noMoodYet")}</p>
         )}
       </div>
     </Surface>
@@ -75,6 +77,7 @@ export function DashboardScreen({
   onMoodChange,
   onOpenSettings,
 }: DashboardScreenProps) {
+  const { t } = useTranslation();
   const myM = myMood ? moodOf(myMood) : null;
   const partnerM = partnerMood ? moodOf(partnerMood.mood) : null;
 
@@ -82,14 +85,14 @@ export function DashboardScreen({
     <div className="space-y-6">
       <header className="relative pt-2 text-center">
         <p className="text-xs uppercase tracking-[0.2em] text-taupe-400">
-          Aujourd'hui
+          {t("dashboard.today")}
         </p>
         <h1 className="mt-1 font-serif text-3xl text-blush-100">{spaceName}</h1>
         {onOpenSettings && (
           <button
             type="button"
             onClick={onOpenSettings}
-            aria-label="Réglages"
+            aria-label={t("dashboard.settings")}
             className="absolute right-0 top-1 rounded-full px-2 py-1 text-xl text-taupe-400 transition-colors duration-300 ease-felt hover:text-spice-300"
           >
             ⚙️
@@ -100,7 +103,7 @@ export function DashboardScreen({
       {partner ? (
         /* La météo du jour : les deux humeurs côte à côte, la perche sans un mot. */
         <div className="grid grid-cols-2 gap-3">
-          <MoodCard name="Toi" mood={myM} />
+          <MoodCard name={t("dashboard.you")} mood={myM} />
           <MoodCard
             name={partner.name}
             mood={partnerM}
@@ -111,10 +114,10 @@ export function DashboardScreen({
         /* Espace en attente : inviter le/la partenaire */
         <Surface tone="velvet" className="space-y-2 text-center">
           <p className="font-serif text-lg text-blush-100">
-            En attente de votre partenaire
+            {t("dashboard.waitingPartnerTitle")}
           </p>
           <p className="text-sm text-taupe-300">
-            Partagez-lui l'identifiant de l'espace pour qu'il/elle vous rejoigne.
+            {t("dashboard.waitingPartnerText")}
           </p>
           {inviteId && (
             <code className="block select-all break-all rounded-2xl bg-charcoal-900/60 px-3 py-2 text-xs text-spice-300">
@@ -127,19 +130,19 @@ export function DashboardScreen({
       {/* Mon humeur du jour */}
       <section className="space-y-3">
         <h2 className="font-serif text-lg text-taupe-100">
-          Comment te sens-tu&nbsp;?
+          {t("dashboard.moodQuestion")}
         </h2>
         <MoodSelector value={myMood} onChange={onMoodChange} />
         {myMood ? (
           <p className="text-center text-xs text-taupe-400">
             {partner
-              ? `Ton humeur est partagée avec ${partner.name}.`
-              : "Ton humeur est enregistrée."}{" "}
-            Elle se renouvelle chaque jour.
+              ? t("dashboard.moodSharedWith", { name: partner.name })
+              : t("dashboard.moodSaved")}{" "}
+            {t("dashboard.moodRenews")}
           </p>
         ) : (
           <p className="text-center text-xs text-taupe-400">
-            Choisis ton humeur du jour pour lui faire signe.
+            {t("dashboard.moodPrompt")}
           </p>
         )}
       </section>

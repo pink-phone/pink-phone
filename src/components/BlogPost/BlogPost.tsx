@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Surface } from "../Surface/Surface";
 import { Badge } from "../Badge/Badge";
 import { Button } from "../Button/Button";
@@ -63,6 +64,7 @@ export function BlogPost({
   onEdit,
   className,
 }: BlogPostProps) {
+  const { t } = useTranslation();
   return (
     <Surface tone="velvet" className={cn("w-full space-y-4", className)}>
       <header className="flex items-center gap-3">
@@ -77,12 +79,12 @@ export function BlogPost({
           <p className="text-xs text-taupe-400">{timeLabel}</p>
         </div>
         <div className="ml-auto flex items-center gap-2">
-          {draft && <Badge tone="neutral">Brouillon</Badge>}
+          {draft && <Badge tone="neutral">{t("blog.draftBadge")}</Badge>}
           {isMine && onDelete && (
             <button
               type="button"
               onClick={onDelete}
-              aria-label="Supprimer ce post"
+              aria-label={t("blog.deletePost")}
               className="rounded-full px-2 py-1 text-base text-taupe-400 transition-colors duration-300 ease-felt hover:text-bordeaux-300"
             >
               🗑
@@ -115,12 +117,12 @@ export function BlogPost({
           <div className="flex gap-2">
             {onPublish && (
               <Button className="flex-1" onClick={onPublish}>
-                Publier ce brouillon
+                {t("blog.publishDraft")}
               </Button>
             )}
             {onEdit && (
               <Button variant="secondary" onClick={onEdit}>
-                Éditer
+                {t("blog.edit")}
               </Button>
             )}
           </div>
@@ -138,7 +140,10 @@ export function BlogPost({
             onClick={onOpenComments}
             className="text-xs text-taupe-400 transition-colors duration-300 ease-felt hover:text-spice-300"
           >
-            💬 {commentCount > 0 ? `${commentCount} commentaire${commentCount > 1 ? "s" : ""}` : "Laisser un mot"}
+            💬{" "}
+            {commentCount > 0
+              ? t("blog.commentsCount", { count: commentCount })
+              : t("blog.commentsLeave")}
           </button>
         </>
       )}

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import * as api from "../api/client";
 import { ApiError } from "../api/client";
 import type { Space, UserPublic } from "../api/types";
@@ -7,12 +8,12 @@ import { OnboardingScreen } from "../screens/OnboardingScreen/OnboardingScreen";
 import { Splash } from "../screens/Splash/Splash";
 import { SpaceApp } from "./SpaceApp";
 
-const msg = (e: unknown) =>
-  e instanceof ApiError ? e.message : "une erreur est survenue";
-
 /** Aiguille vers l'onboarding (aucun espace) ou l'app (espace existant). */
 export function SpaceGate({ user }: { user: UserPublic }) {
+  const { t } = useTranslation();
   const { logout } = useAuth();
+  const msg = (e: unknown) =>
+    e instanceof ApiError ? e.message : t("errors.generic");
   const [spaces, setSpaces] = useState<Space[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -24,7 +25,7 @@ export function SpaceGate({ user }: { user: UserPublic }) {
       .catch(() => setSpaces([]));
   }, []);
 
-  if (spaces === null) return <Splash message="Chargement de votre espace…" />;
+  if (spaces === null) return <Splash message={t("splash.loadingSpace")} />;
 
   if (spaces.length === 0) {
     const onCreate = async (name: string) => {

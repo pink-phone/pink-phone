@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Sheet } from "../Sheet/Sheet";
 import { TextArea } from "../form/TextArea";
 import { Button } from "../Button/Button";
@@ -30,6 +31,7 @@ export function CommentsSheet({
   loading,
   busy,
 }: CommentsSheetProps) {
+  const { t } = useTranslation();
   const [draft, setDraft] = useState("");
 
   const submit = () => {
@@ -40,13 +42,15 @@ export function CommentsSheet({
   };
 
   return (
-    <Sheet open={open} title="Échanger" onClose={onClose}>
+    <Sheet open={open} title={t("comments.sheetTitle")} onClose={onClose}>
       <div className="space-y-4">
         {loading ? (
-          <p className="py-6 text-center text-sm text-taupe-400">Chargement…</p>
+          <p className="py-6 text-center text-sm text-taupe-400">
+            {t("common.loading")}
+          </p>
         ) : comments.length === 0 ? (
           <p className="py-6 text-center text-sm text-taupe-400">
-            Personne n'a encore réagi. Lance la discussion.
+            {t("comments.empty")}
           </p>
         ) : (
           <ul className="space-y-3">
@@ -79,10 +83,10 @@ export function CommentsSheet({
           }}
         >
           <TextArea
-            label="Ta réponse"
+            label={t("comments.replyLabel")}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder="Un mot, une envie…"
+            placeholder={t("comments.replyPlaceholder")}
             rows={2}
           />
           <Button
@@ -90,7 +94,7 @@ export function CommentsSheet({
             className="w-full"
             disabled={!draft.trim() || busy}
           >
-            {busy ? "…" : "Envoyer"}
+            {busy ? "…" : t("common.send")}
           </Button>
         </form>
       </div>

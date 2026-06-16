@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { Button } from "../Button/Button";
 import { cn } from "../../lib/cn";
 
@@ -16,6 +17,7 @@ export function InstallBanner({
   onDismiss,
   className,
 }: InstallBannerProps) {
+  const { t } = useTranslation();
   return (
     <div
       className={cn(
@@ -29,28 +31,21 @@ export function InstallBanner({
         </span>
         <div className="flex-1 leading-tight">
           <p className="font-serif text-sm text-blush-100">
-            Installer Pink Phone
+            {t("install.title")}
           </p>
-          {mode === "android" ? (
-            <p className="text-xs text-taupe-400">
-              Sur l'écran d'accueil, comme une vraie appli.
-            </p>
-          ) : (
-            <p className="text-xs text-taupe-400">
-              Touchez <span aria-hidden>⎋</span> Partager, puis « Sur l'écran
-              d'accueil ».
-            </p>
-          )}
+          <p className="text-xs text-taupe-400">
+            {mode === "android" ? t("install.android") : t("install.ios")}
+          </p>
         </div>
         {mode === "android" && (
           <Button size="sm" onClick={onInstall}>
-            Installer
+            {t("install.install")}
           </Button>
         )}
         <button
           type="button"
           onClick={onDismiss}
-          aria-label="Fermer"
+          aria-label={t("common.close")}
           className="rounded-full px-2 py-1 text-taupe-400 transition-colors duration-300 ease-felt hover:text-blush-100"
         >
           ✕

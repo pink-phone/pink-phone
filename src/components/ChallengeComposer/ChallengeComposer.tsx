@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { TextField } from "../form/TextField";
 import { TextArea } from "../form/TextArea";
 import { IntensityPicker } from "../form/IntensityPicker";
@@ -6,7 +7,6 @@ import { Button } from "../Button/Button";
 import { Badge } from "../Badge/Badge";
 import {
   CHALLENGE_PRESETS,
-  INTENSITY_LABEL,
   type ChallengePreset,
   type Intensity,
 } from "../ChallengeCard/challenge";
@@ -35,6 +35,7 @@ export function ChallengeComposer({
   onCancel,
   suggestions,
 }: ChallengeComposerProps) {
+  const { t } = useTranslation();
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [intensity, setIntensity] = useState<Intensity>("hot");
@@ -75,7 +76,7 @@ export function ChallengeComposer({
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
           <span className="block text-xs font-medium text-taupe-200">
-            Inspiration (la banque)
+            {t("challengeComposer.inspiration")}
           </span>
           {canReshuffle && (
             <button
@@ -83,7 +84,7 @@ export function ChallengeComposer({
               onClick={() => setRound((r) => r + 1)}
               className="text-xs text-taupe-400 transition-colors duration-300 ease-felt hover:text-spice-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
             >
-              🎲 Autres idées
+              {t("challengeComposer.reshuffle")}
             </button>
           )}
         </div>
@@ -106,33 +107,35 @@ export function ChallengeComposer({
       </div>
 
       <TextField
-        label="Titre du défi"
+        label={t("challengeComposer.titleLabel")}
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        placeholder="Un massage aux huiles…"
+        placeholder={t("challengeComposer.titlePlaceholder")}
       />
       <TextArea
-        label="Description"
+        label={t("challengeComposer.descriptionLabel")}
         value={description}
         onChange={(e) => setDescription(e.target.value)}
-        placeholder="Ce que tu proposes, et comment."
+        placeholder={t("challengeComposer.descriptionPlaceholder")}
         rows={4}
       />
       <IntensityPicker value={intensity} onChange={setIntensity} />
       <TextField
-        label="Date limite (optionnel)"
+        label={t("challengeComposer.deadlineLabel")}
         value={deadline}
         onChange={(e) => setDeadline(e.target.value)}
-        placeholder="Avant dimanche"
+        placeholder={t("challengeComposer.deadlinePlaceholder")}
       />
 
       <div className="flex items-center gap-2 pt-1">
         <Button type="submit" className="flex-1" disabled={!canSubmit}>
-          🔥 Proposer ({INTENSITY_LABEL[intensity]})
+          {t("challengeComposer.submit", {
+            intensity: t(`challenges.intensity.${intensity}`),
+          })}
         </Button>
         {onCancel && (
           <Button type="button" variant="ghost" onClick={onCancel}>
-            Annuler
+            {t("common.cancel")}
           </Button>
         )}
       </div>

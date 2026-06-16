@@ -1,14 +1,10 @@
+import { useTranslation } from "react-i18next";
 import { Surface } from "../Surface/Surface";
 import { Badge, type BadgeTone } from "../Badge/Badge";
 import { Button } from "../Button/Button";
 import { FireEmbers } from "../FireEmbers/FireEmbers";
 import { cn } from "../../lib/cn";
-import {
-  INTENSITY_LABEL,
-  STATUS_META,
-  type ChallengeStatus,
-  type Intensity,
-} from "./challenge";
+import { type ChallengeStatus, type Intensity } from "./challenge";
 
 const INTENSITY_TONE: Record<Intensity, BadgeTone> = {
   soft: "soft",
@@ -57,7 +53,7 @@ export function ChallengeCard({
   onDelete,
   className,
 }: ChallengeCardProps) {
-  const meta = STATUS_META[status];
+  const { t } = useTranslation();
   // Défi "chaud" (hot/hard) encore en jeu : halo de braise + particules.
   const showEmber = (intensity === "hot" || intensity === "hard") && status !== "jobDone";
 
@@ -73,14 +69,18 @@ export function ChallengeCard({
       {showEmber && <FireEmbers count={7} />}
       <div className="relative z-10 space-y-3">
         <div className="flex items-center justify-between gap-2">
-          <Badge tone={INTENSITY_TONE[intensity]}>{INTENSITY_LABEL[intensity]}</Badge>
+          <Badge tone={INTENSITY_TONE[intensity]}>
+            {t(`challenges.intensity.${intensity}`)}
+          </Badge>
           <div className="flex items-center gap-2">
-            <Badge tone={STATUS_TONE[status]}>{meta.label}</Badge>
+            <Badge tone={STATUS_TONE[status]}>
+              {t(`challenges.status.${status}.label`)}
+            </Badge>
             {perspective === "proposer" && onDelete && (
               <button
                 type="button"
                 onClick={onDelete}
-                aria-label="Supprimer ce défi"
+                aria-label={t("challenges.deleteChallenge")}
                 className="rounded-full px-1.5 py-0.5 text-base text-taupe-400 transition-colors duration-300 ease-felt hover:text-bordeaux-300"
               >
                 🗑
@@ -93,8 +93,10 @@ export function ChallengeCard({
         <p className="text-sm leading-relaxed text-taupe-200">{description}</p>
 
         <div className="flex items-center justify-between text-xs text-taupe-400">
-          <span>{meta.hint}</span>
-          {deadlineLabel && <span>⏳ {deadlineLabel}</span>}
+          <span>{t(`challenges.status.${status}.hint`)}</span>
+          {deadlineLabel && (
+            <span>{t("challenges.deadline", { label: deadlineLabel })}</span>
+          )}
         </div>
 
         <Actions
@@ -119,6 +121,7 @@ function Actions({
   ChallengeCardProps,
   "status" | "perspective" | "onAccept" | "onNegotiate" | "onComplete"
 >) {
+  const { t } = useTranslation();
   if (status === "jobDone") return null;
 
   if (status === "proposed") {
@@ -128,10 +131,10 @@ function Actions({
     return (
       <div className="flex gap-2 pt-1">
         <Button variant="primary" size="sm" className="flex-1" onClick={onAccept}>
-          🔥 Challenge accepted
+          {t("challenges.action.accept")}
         </Button>
         <Button variant="ghost" size="sm" onClick={onNegotiate}>
-          Maybe, maybe…
+          {t("challenges.action.negotiate")}
         </Button>
       </div>
     );
@@ -141,7 +144,7 @@ function Actions({
     return (
       <div className="flex gap-2 pt-1">
         <Button variant="secondary" size="sm" className="flex-1" onClick={onAccept}>
-          Finalement, partant·e
+          {t("challenges.action.maybeAccept")}
         </Button>
       </div>
     );
@@ -151,7 +154,7 @@ function Actions({
   return (
     <div className="pt-1">
       <Button variant="primary" size="sm" className="w-full" onClick={onComplete}>
-        ✅ Job done
+        {t("challenges.action.done")}
       </Button>
     </div>
   );

@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { ChallengeCard } from "../../components/ChallengeCard/ChallengeCard";
 import { Button } from "../../components/Button/Button";
 import type { ChallengeStatus } from "../../components/ChallengeCard/challenge";
@@ -12,12 +13,12 @@ export interface ChallengesScreenProps {
   onDelete?: (id: string) => void;
 }
 
-// Ordre et titres des sections (la liste "En cours" vit en haut).
-const SECTIONS: { status: ChallengeStatus; title: string }[] = [
-  { status: "challengeAccepted", title: "En cours" },
-  { status: "proposed", title: "Propositions" },
-  { status: "maybeMaybe", title: "À adapter" },
-  { status: "jobDone", title: "Accomplis" },
+// Ordre des sections (la liste "En cours" vit en haut). Titres via i18n.
+const SECTION_ORDER: ChallengeStatus[] = [
+  "challengeAccepted",
+  "proposed",
+  "maybeMaybe",
+  "jobDone",
 ];
 
 /** La liste des défis, regroupés par état. */
@@ -29,22 +30,25 @@ export function ChallengesScreen({
   onComplete,
   onDelete,
 }: ChallengesScreenProps) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-6">
       <header className="flex items-center justify-between pt-2">
-        <h1 className="font-serif text-2xl text-blush-100">Nos défis</h1>
+        <h1 className="font-serif text-2xl text-blush-100">
+          {t("challenges.title")}
+        </h1>
         <Button size="sm" onClick={onNew}>
-          ＋ Lancer un défi
+          {t("challenges.new")}
         </Button>
       </header>
 
-      {SECTIONS.map(({ status, title }) => {
+      {SECTION_ORDER.map((status) => {
         const items = challenges.filter((c) => c.status === status);
         if (items.length === 0) return null;
         return (
           <section key={status} className="space-y-3">
             <h2 className="text-xs uppercase tracking-[0.15em] text-taupe-400">
-              {title}
+              {t(`challenges.sections.${status}`)}
             </h2>
             <div className="flex flex-col items-stretch gap-3">
               {items.map((c) => (

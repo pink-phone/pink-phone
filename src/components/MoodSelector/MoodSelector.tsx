@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { cn } from "../../lib/cn";
 import { FireEmbers } from "../FireEmbers/FireEmbers";
 import { MOODS, type MoodId } from "./moods";
@@ -16,10 +17,11 @@ export interface MoodSelectorProps {
  * Permet de lancer une perche sans un mot.
  */
 export function MoodSelector({ value, onChange, className }: MoodSelectorProps) {
+  const { t } = useTranslation();
   return (
     <div
       role="radiogroup"
-      aria-label="Mon humeur du moment"
+      aria-label={t("moods.aria")}
       className={cn("flex justify-center gap-2", className)}
     >
       {MOODS.map((mood) => {
@@ -31,7 +33,7 @@ export function MoodSelector({ value, onChange, className }: MoodSelectorProps) 
             type="button"
             role="radio"
             aria-checked={active}
-            aria-label={mood.label}
+            aria-label={t(`moods.${mood.id}`)}
             onClick={() => onChange?.(mood.id)}
             className={cn(
               "group relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1.5 rounded-2xl border px-1 py-3",
@@ -58,7 +60,7 @@ export function MoodSelector({ value, onChange, className }: MoodSelectorProps) 
                 active ? "text-blush-100" : "text-taupe-300",
               )}
             >
-              {mood.label}
+              {t(`moods.${mood.id}`)}
             </span>
           </button>
         );

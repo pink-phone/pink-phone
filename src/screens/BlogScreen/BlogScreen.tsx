@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { BlogPost } from "../../components/BlogPost/BlogPost";
 import { Button } from "../../components/Button/Button";
 import type { ReactionId } from "../../components/ReactionBar/ReactionBar";
@@ -23,18 +24,19 @@ export function BlogScreen({
   onPublishPost,
   onEditPost,
 }: BlogScreenProps) {
+  const { t } = useTranslation();
   return (
     <div className="space-y-5">
       <header className="flex items-center justify-between pt-2">
-        <h1 className="font-serif text-2xl text-blush-100">Notre journal</h1>
+        <h1 className="font-serif text-2xl text-blush-100">{t("blog.title")}</h1>
         <Button size="sm" onClick={onCompose}>
-          ✍️ Écrire
+          {t("blog.compose")}
         </Button>
       </header>
 
       {posts.length === 0 ? (
         <p className="py-12 text-center text-sm text-taupe-400">
-          Rien encore. Lance la première confidence…
+          {t("blog.empty")}
         </p>
       ) : (
         <div className="flex flex-col items-stretch gap-5">

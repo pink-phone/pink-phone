@@ -1,5 +1,6 @@
+import { useTranslation } from "react-i18next";
 import { cn } from "../../lib/cn";
-import { INTENSITY_LABEL, type Intensity } from "../ChallengeCard/challenge";
+import { type Intensity } from "../ChallengeCard/challenge";
 
 const ORDER: Intensity[] = ["soft", "hot", "hard"];
 
@@ -20,13 +21,15 @@ export interface IntensityPickerProps {
 export function IntensityPicker({
   value,
   onChange,
-  label = "Intensité",
+  label,
   className,
 }: IntensityPickerProps) {
+  const { t } = useTranslation();
+  const fieldLabel = label ?? t("challengeComposer.intensityLabel");
   return (
     <div className={cn("space-y-1.5", className)}>
-      <span className="block text-xs font-medium text-taupe-200">{label}</span>
-      <div role="radiogroup" aria-label={label} className="flex gap-2">
+      <span className="block text-xs font-medium text-taupe-200">{fieldLabel}</span>
+      <div role="radiogroup" aria-label={fieldLabel} className="flex gap-2">
         {ORDER.map((id) => {
           const active = value === id;
           return (
@@ -44,7 +47,7 @@ export function IntensityPicker({
                   : "border-charcoal-600/60 bg-charcoal-800 text-taupe-300 hover:border-spice-400/40",
               )}
             >
-              {INTENSITY_LABEL[id]}
+              {t(`challenges.intensity.${id}`)}
             </button>
           );
         })}

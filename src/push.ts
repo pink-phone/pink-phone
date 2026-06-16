@@ -1,4 +1,5 @@
 import * as api from "./api/client";
+import i18n from "./i18n";
 
 /** Le navigateur supporte-t-il le Web Push ? */
 export function pushSupported(): boolean {
@@ -28,16 +29,16 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
  */
 export async function enablePush(): Promise<void> {
   if (!pushSupported()) {
-    throw new Error("Le push n'est pas supporté sur cet appareil.");
+    throw new Error(i18n.t("push.unsupported"));
   }
   const permission = await Notification.requestPermission();
   if (permission !== "granted") {
-    throw new Error("Permission de notification refusée.");
+    throw new Error(i18n.t("push.denied"));
   }
 
   const { publicKey } = await api.getVapidKey();
   if (!publicKey) {
-    throw new Error("Le serveur n'a pas de clés push configurées.");
+    throw new Error(i18n.t("push.noKeys"));
   }
 
   const reg = await navigator.serviceWorker.ready;

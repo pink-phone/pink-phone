@@ -1,3 +1,4 @@
+import { useTranslation } from "react-i18next";
 import { cn } from "../../lib/cn";
 
 export type TabId = "dashboard" | "blog" | "challenges";
@@ -5,13 +6,12 @@ export type TabId = "dashboard" | "blog" | "challenges";
 interface Tab {
   id: TabId;
   emoji: string;
-  label: string;
 }
 
 const TABS: Tab[] = [
-  { id: "dashboard", emoji: "🏡", label: "Accueil" },
-  { id: "blog", emoji: "📖", label: "Blog" },
-  { id: "challenges", emoji: "🎲", label: "Défis" },
+  { id: "dashboard", emoji: "🏡" },
+  { id: "blog", emoji: "📖" },
+  { id: "challenges", emoji: "🎲" },
 ];
 
 export interface BottomNavProps {
@@ -24,9 +24,10 @@ export interface BottomNavProps {
 
 /** Barre d'onglets fixe en bas (pattern PWA), avec safe-area. */
 export function BottomNav({ active, onChange, badges = {}, className }: BottomNavProps) {
+  const { t } = useTranslation();
   return (
     <nav
-      aria-label="Navigation principale"
+      aria-label={t("nav.aria")}
       className={cn(
         "sticky bottom-0 z-10 flex items-stretch gap-1 border-t border-charcoal-600/60",
         "bg-charcoal-800/90 px-2 pt-1.5 backdrop-blur-md",
@@ -57,7 +58,7 @@ export function BottomNav({ active, onChange, badges = {}, className }: BottomNa
             >
               {tab.emoji}
             </span>
-            <span className="text-[11px] font-medium">{tab.label}</span>
+            <span className="text-[11px] font-medium">{t(`nav.${tab.id}`)}</span>
             {badge > 0 && (
               <span className="absolute right-4 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-spice-500 px-1 text-[10px] font-semibold text-blush-50">
                 {badge}
