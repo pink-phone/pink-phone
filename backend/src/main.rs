@@ -31,6 +31,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let config = Config::from_env();
 
+    // Garde anti-config-de-dev : si l'API est exposée (bind non-loopback) avec des
+    // secrets par défaut, on refuse de démarrer ; on alerte si les médias sont en clair.
+    {
+        let exposed = !(config.bind_addr.starts_with("127.")
+            || config.bind_addr.starts_with("localhost")
+            || config.bind_addr.starts_with("[::1]"));
+        if exposed && config.jwt_secret == "dev-insecure-secret" {
+            return Err(format!(
+                "JWT_SECRET non configuré (valeur de dev) alors que l'API est exposée sur {} — refus de démarrer.",
+                config.bind_addr
+            )
+            .into());
+        }
+        if exposed && config.db_password == "pink" {
+            tracing::warn!(
+                "DB_PASSWORD par défaut ('pink') avec une API exposée — à changer."
+            );
+        }
+        if config.media_key_bytes().is_none() {
+            tracing::warn!(
+                "MEDIA_KEY absente/invalide : les médias sont stockés EN CLAIR sur disque."
+            );
+        }
+    }
+
     // DSN explicite si fourni (dev), sinon construit depuis les champs db_* :
     // évite tout problème d'encodage d'URL quand le mot de passe contient des
     // caractères spéciaux (/, +, @, …).
