@@ -6,7 +6,13 @@ import { Toggle } from "../../components/form/Toggle";
 import { TextField } from "../../components/form/TextField";
 import { cn } from "../../lib/cn";
 import { SUPPORTED_LANGS } from "../../i18n";
+import { THEMES, applyTheme, getTheme, type Theme } from "../../theme";
 import type { NotifMode } from "../../api/types";
+
+const THEME_LABEL_KEY = {
+  felted: "settings.themeFelted",
+  "red-velvet": "settings.themeRedVelvet",
+} as const satisfies Record<Theme, string>;
 
 // Liste IANA complète si le navigateur la fournit, sinon un repli raisonnable.
 const TIMEZONES: string[] = (() => {
@@ -82,6 +88,12 @@ export function SettingsScreen({
 }: SettingsScreenProps) {
   const { t, i18n } = useTranslation();
   const currentLang = i18n.resolvedLanguage ?? i18n.language;
+
+  const [theme, setTheme] = useState<Theme>(getTheme());
+  const chooseTheme = (next: Theme) => {
+    applyTheme(next);
+    setTheme(next);
+  };
 
   // Édition du nom du salon (resynchronisé si le nom change ailleurs).
   const [spaceName, setSpaceName] = useState(space?.name ?? "");
@@ -291,21 +303,55 @@ export function SettingsScreen({
         </div>
       </section>
 
-      {onHotAnimChange && (
-        <section className="space-y-3">
-          <h2 className="text-xs uppercase tracking-[0.15em] text-taupe-400">
-            {t("settings.appearance")}
-          </h2>
-          <Surface tone="velvet">
-            <Toggle
-              checked={hotAnimEnabled}
-              onChange={onHotAnimChange}
-              label={t("settings.hotAnim")}
-              hint={t("settings.hotAnimHint")}
-            />
+      <section className="space-y-3">
+        <h2 className="text-xs uppercase tracking-[0.15em] text-taupe-400">
+          {t("settings.appearance")}
+        </h2>
+        <Surface tone="velvet" className="space-y-4">
+            {/* Thème */}
+            <div className="space-y-1.5">
+              <span className="block text-xs font-medium text-taupe-200">
+                {t("settings.theme")}
+              </span>
+              <div
+                role="radiogroup"
+                aria-label={t("settings.theme")}
+                className="flex gap-2"
+              >
+                {THEMES.map((th) => {
+                  const active = theme === th;
+                  return (
+                    <button
+                      key={th}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      onClick={() => chooseTheme(th)}
+                      className={cn(
+                        "flex-1 rounded-2xl border px-3 py-2 text-sm font-medium",
+                        "transition-all duration-300 ease-felt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500",
+                        active
+                          ? "border-spice-500/70 bg-bordeaux-700 text-blush-100 shadow-glow"
+                          : "border-charcoal-600/60 bg-charcoal-800 text-taupe-300 hover:border-spice-400/40",
+                      )}
+                    >
+                      {t(THEME_LABEL_KEY[th])}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {onHotAnimChange && (
+              <Toggle
+                checked={hotAnimEnabled}
+                onChange={onHotAnimChange}
+                label={t("settings.hotAnim")}
+                hint={t("settings.hotAnimHint")}
+              />
+            )}
           </Surface>
         </section>
-      )}
 
       {onLogout && (
         <section className="pt-2">

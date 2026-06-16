@@ -193,6 +193,9 @@ export const en: Resources = {
     ghostModeTitle: "Ghost mode",
     ghostModeDesc: "No notifications, you discover by opening the app.",
     appearance: "Appearance",
+    theme: "Theme",
+    themeFelted: "Felted",
+    themeRedVelvet: "Red Velvet",
     hotAnim: "Ember effect 🔥",
     hotAnimHint:
       "Animated halo and particles on hot states. Turn off for a calmer look.",

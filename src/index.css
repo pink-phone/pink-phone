@@ -8,6 +8,55 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ---- Thèmes : canaux RGB des couleurs (cf. tailwind.config.js) ----
+   :root = thème "felted" (défaut). Un thème = un override de ces variables sur
+   [data-theme="…"] (posé sur <html> par src/theme.ts). */
+:root,
+[data-theme="felted"] {
+  --blush-50: 251 241 244;
+  --blush-100: 246 227 233;
+  --blush-200: 239 208 218;
+  --blush-300: 227 180 194;
+  --spice-300: 217 141 161;
+  --spice-400: 201 113 135;
+  --spice-500: 184 92 114;
+  --spice-600: 158 74 96;
+  --bordeaux-500: 122 39 64;
+  --bordeaux-600: 101 31 51;
+  --bordeaux-700: 81 24 41;
+  --charcoal-900: 26 23 25;
+  --charcoal-800: 34 30 32;
+  --charcoal-700: 43 38 41;
+  --charcoal-600: 58 51 55;
+  --taupe-100: 233 225 227;
+  --taupe-200: 216 204 207;
+  --taupe-300: 183 168 172;
+  --taupe-400: 140 124 129;
+}
+
+/* Red Velvet — rouge velours profond, plus dramatique que le rose feutré. */
+[data-theme="red-velvet"] {
+  --blush-50: 251 238 239;
+  --blush-100: 247 222 224;
+  --blush-200: 240 201 204;
+  --blush-300: 229 166 171;
+  --spice-300: 226 129 138;
+  --spice-400: 212 95 102;
+  --spice-500: 193 59 67;
+  --spice-600: 160 44 51;
+  --bordeaux-500: 138 28 38;
+  --bordeaux-600: 110 18 27;
+  --bordeaux-700: 86 11 19;
+  --charcoal-900: 28 18 20;
+  --charcoal-800: 36 23 25;
+  --charcoal-700: 46 29 32;
+  --charcoal-600: 63 40 44;
+  --taupe-100: 235 224 225;
+  --taupe-200: 219 203 204;
+  --taupe-300: 187 164 166;
+  --taupe-400: 145 120 123;
+}
+
 @layer base {
   html,
   body,

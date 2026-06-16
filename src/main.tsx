@@ -3,7 +3,11 @@ import { createRoot } from "react-dom/client";
 import { registerSW } from "virtual:pwa-register";
 import "./index.css";
 import "./i18n";
+import { applyTheme, getTheme } from "./theme";
 import { App } from "./App";
+
+// Applique le thème mémorisé au plus tôt (avant le rendu).
+applyTheme(getTheme());
 
 // Enregistre le service worker et, en mode autoUpdate, recharge l'app dès qu'une
 // nouvelle version est déployée (sinon le CD passe mais l'utilisateur garde

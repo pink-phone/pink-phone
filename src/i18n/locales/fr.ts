@@ -193,6 +193,9 @@ export const fr = {
     ghostModeTitle: "Mode fantôme",
     ghostModeDesc: "Aucune notification, on découvre en ouvrant l'app.",
     appearance: "Apparence",
+    theme: "Thème",
+    themeFelted: "Feutré",
+    themeRedVelvet: "Red Velvet",
     hotAnim: "Effet braise 🔥",
     hotAnimHint:
       "Halo et particules animés sur les états chauds. Désactive pour un rendu calme.",

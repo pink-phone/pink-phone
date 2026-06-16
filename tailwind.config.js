@@ -5,39 +5,38 @@ export default {
   content: ["./index.html", "./src/**/*.{ts,tsx}", "./.storybook/**/*.{ts,tsx}"],
   theme: {
     extend: {
+      // Palette thématisable : les canaux RGB vivent en variables CSS
+      // (src/index.css : :root = thème "felted", [data-theme=…] = autres thèmes).
+      // `<alpha-value>` préserve les modificateurs d'opacité (ex: bg-spice-500/40).
       colors: {
-        // Roses intimes (désaturés, profonds)
         blush: {
-          50: "#FBF1F4", // Blush Privé — fonds de cartes très clairs
-          100: "#F6E3E9",
-          200: "#EFD0DA",
-          300: "#E3B4C2",
+          50: "rgb(var(--blush-50) / <alpha-value>)",
+          100: "rgb(var(--blush-100) / <alpha-value>)",
+          200: "rgb(var(--blush-200) / <alpha-value>)",
+          300: "rgb(var(--blush-300) / <alpha-value>)",
         },
         spice: {
-          // Rose Épicé — couleur d'accent principale (boutons)
-          300: "#D98DA1",
-          400: "#C97187",
-          500: "#B85C72", // accent par défaut
-          600: "#9E4A60",
+          300: "rgb(var(--spice-300) / <alpha-value>)",
+          400: "rgb(var(--spice-400) / <alpha-value>)",
+          500: "rgb(var(--spice-500) / <alpha-value>)",
+          600: "rgb(var(--spice-600) / <alpha-value>)",
         },
         bordeaux: {
-          // Vin Bordelais — titres importants / états actifs "chauds"
-          500: "#7A2740",
-          600: "#651F33",
-          700: "#511829",
+          500: "rgb(var(--bordeaux-500) / <alpha-value>)",
+          600: "rgb(var(--bordeaux-600) / <alpha-value>)",
+          700: "rgb(var(--bordeaux-700) / <alpha-value>)",
         },
-        // Neutres feutrés
         charcoal: {
-          900: "#1A1719", // Charbon Doux — fond appli (dark, repose les yeux)
-          800: "#221E20",
-          700: "#2B2629",
-          600: "#3A3337",
+          900: "rgb(var(--charcoal-900) / <alpha-value>)",
+          800: "rgb(var(--charcoal-800) / <alpha-value>)",
+          700: "rgb(var(--charcoal-700) / <alpha-value>)",
+          600: "rgb(var(--charcoal-600) / <alpha-value>)",
         },
         taupe: {
-          100: "#E9E1E3",
-          200: "#D8CCCF", // Taupe Chaud — zones de texte
-          300: "#B7A8AC",
-          400: "#8C7C81",
+          100: "rgb(var(--taupe-100) / <alpha-value>)",
+          200: "rgb(var(--taupe-200) / <alpha-value>)",
+          300: "rgb(var(--taupe-300) / <alpha-value>)",
+          400: "rgb(var(--taupe-400) / <alpha-value>)",
         },
       },
       fontFamily: {
@@ -56,15 +55,15 @@ export default {
         // Ombres portées très douces pour la profondeur "feutrée"
         felt: "0 2px 8px -2px rgba(0,0,0,0.35), 0 8px 28px -8px rgba(0,0,0,0.45)",
         "felt-sm": "0 1px 4px -1px rgba(0,0,0,0.3)",
-        glow: "0 0 16px -2px rgba(184,92,114,0.55)", // soft glow (Mood actif)
+        glow: "0 0 16px -2px rgb(var(--spice-500) / 0.55)", // soft glow (Mood actif)
         // Braise : halo chaud (états "hot") — spice + bordeaux profond
         ember:
-          "0 0 18px -2px rgba(201,113,135,0.55), 0 0 36px -6px rgba(122,39,64,0.5)",
+          "0 0 18px -2px rgb(var(--spice-400) / 0.55), 0 0 36px -6px rgb(var(--bordeaux-600) / 0.5)",
       },
       backgroundImage: {
         // Textures subtiles (velours / lin feutré) — bruit doux non agressif
         "felt-velvet":
-          "radial-gradient(circle at 30% 20%, rgba(184,92,114,0.08), transparent 60%), radial-gradient(circle at 80% 80%, rgba(101,31,51,0.10), transparent 55%)",
+          "radial-gradient(circle at 30% 20%, rgb(var(--spice-500) / 0.08), transparent 60%), radial-gradient(circle at 80% 80%, rgb(var(--bordeaux-600) / 0.10), transparent 55%)",
         "felt-linen":
           "repeating-linear-gradient(45deg, rgba(255,255,255,0.012) 0 2px, transparent 2px 4px)",
       },
@@ -85,11 +84,11 @@ export default {
         "ember-breathe": {
           "0%, 100%": {
             boxShadow:
-              "0 0 10px -2px rgba(201,113,135,0.35), 0 0 20px -6px rgba(122,39,64,0.35)",
+              "0 0 10px -2px rgb(var(--spice-400) / 0.35), 0 0 20px -6px rgb(var(--bordeaux-600) / 0.35)",
           },
           "50%": {
             boxShadow:
-              "0 0 22px 0px rgba(201,113,135,0.7), 0 0 44px -4px rgba(122,39,64,0.55)",
+              "0 0 22px 0px rgb(var(--spice-400) / 0.7), 0 0 44px -4px rgb(var(--bordeaux-600) / 0.55)",
           },
         },
         // Particule de feu qui s'élève et s'éteint
