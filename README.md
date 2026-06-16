@@ -74,4 +74,8 @@ Soft skeuomorphism: desaturated roses (Blush → Spice → Bordeaux), warm neutr
 
 ## 📝 License
 
-> _No license defined yet — to be added (`LICENSE`) before any open release._
+Licensed under the **GNU Affero General Public License v3.0 or later** (`AGPL-3.0-or-later`) — see [`LICENSE`](LICENSE).
+
+In short: you can use, study, share and modify it freely; if you run a modified version as a network service, you must make your source available under the same terms.
+
+Copyright © 2026 Pink Phone contributors.

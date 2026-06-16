@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "description": "Pink Phone — PWA intime pour couples (blog, mood, défis)",
+  "license": "AGPL-3.0-or-later",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

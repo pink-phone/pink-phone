@@ -3,6 +3,7 @@ name = "pinkphone-api"
 version = "0.1.0"
 edition = "2021"
 description = "API Rust/Axum de PinkPhone — Notre Jardin Secret"
+license = "AGPL-3.0-or-later"
 
 [dependencies]
 axum = { version = "0.8", features = ["multipart", "macros", "ws"] }
