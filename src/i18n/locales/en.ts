@@ -214,6 +214,12 @@ export const en: Resources = {
     hotAnimHint:
       "Animated halo and particles on hot states. Turn off for a calmer look.",
     language: "Language",
+    reactionsSection: "Reactions",
+    reactionsIntro: "Choose the space's reactions and their order.",
+    reactionEnable: "Enable reaction",
+    reactionDisable: "Disable reaction",
+    allowCustom: "Free reactions",
+    allowCustomHint: "Allow a free emoji reaction via the ＋ button.",
     spaceSection: "Our space",
     spaceName: "Space name",
     save: "Save",

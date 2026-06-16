@@ -31,6 +31,8 @@ export interface ReactionBarProps {
   /** Réactions déjà posées par l'utilisateur courant (état actif). */
   mine?: string[];
   onToggle?: (reaction: string) => void;
+  /** Réactions prédéfinies actives, dans l'ordre voulu (défaut : toutes). */
+  order?: ReactionId[];
   /** Autoriser une réaction emoji libre (bouton « + »). */
   allowCustom?: boolean;
   className?: string;
@@ -41,6 +43,7 @@ export function ReactionBar({
   counts = {},
   mine = [],
   onToggle,
+  order,
   allowCustom = true,
   className,
 }: ReactionBarProps) {
@@ -48,18 +51,21 @@ export function ReactionBar({
   const [adding, setAdding] = useState(false);
   const [custom, setCustom] = useState("");
 
+  // Réactions prédéfinies actives (ordre du salon, sinon toutes).
+  const enabled = order ?? REACTIONS.map((r) => r.id);
+
   // Réactions custom déjà présentes (posées par l'un ou l'autre), hors prédéfinies.
   const customPresent = [...new Set([...Object.keys(counts), ...mine])].filter(
     (r) => !PREDEFINED.has(r),
   );
 
-  // Liste rendue : prédéfinies (ordre fixe) + custom présentes.
+  // Liste rendue : prédéfinies actives (dans l'ordre) + custom présentes.
   const items: { key: string; emoji: string; label: string; hot: boolean }[] = [
-    ...REACTIONS.map((r) => ({
-      key: r.id,
-      emoji: r.emoji,
-      label: t(`reactions.${r.id}`),
-      hot: r.id === "fire",
+    ...enabled.map((id) => ({
+      key: id,
+      emoji: PREDEFINED_EMOJI[id] ?? id,
+      label: t(`reactions.${id}`),
+      hot: id === "fire",
     })),
     ...customPresent.map((e) => ({
       key: e,

@@ -39,6 +39,7 @@ import type {
   ChallengeStatus,
   Intensity,
 } from "../components/ChallengeCard/challenge";
+import type { ReactionId } from "../components/ReactionBar/ReactionBar";
 import type { ChallengeData, PostData } from "../mock/data";
 
 /** L'app branchée sur un Space réel : charge et pilote les données via l'API. */
@@ -374,6 +375,19 @@ export function SpaceApp({
     }
   };
 
+  const changeReactions = async (
+    reactions: ReactionId[],
+    allowCustomReactions: boolean,
+  ) => {
+    try {
+      setSpace(
+        await api.updateSpace(space.id, { reactions, allowCustomReactions }),
+      );
+    } catch (e) {
+      console.error("changement des réactions échoué", e);
+    }
+  };
+
   type SuggestionDraft = {
     title: string;
     description: string;
@@ -507,6 +521,9 @@ export function SpaceApp({
           onBankAdd={addSuggestion}
           onBankUpdate={editSuggestion}
           onBankDelete={removeSuggestion}
+          reactions={space.reactions as ReactionId[]}
+          allowCustomReactions={space.allowCustomReactions}
+          onReactionsChange={changeReactions}
           onBack={() => setShowSettings(false)}
           onLogout={logout}
         />
@@ -598,6 +615,8 @@ export function SpaceApp({
           onCompose={() => setOpenSheet("post")}
           onToggleReaction={toggleReaction}
           onOpenComments={openComments}
+          reactionOrder={space.reactions as ReactionId[]}
+          allowCustomReactions={space.allowCustomReactions}
           onDeletePost={deletePost}
           onPublishPost={publishPost}
           onEditPost={(id) => {

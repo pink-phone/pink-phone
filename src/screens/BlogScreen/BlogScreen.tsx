@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { BlogPost } from "../../components/BlogPost/BlogPost";
 import { Button } from "../../components/Button/Button";
+import type { ReactionId } from "../../components/ReactionBar/ReactionBar";
 import type { PostData } from "../../mock/data";
 
 export interface BlogScreenProps {
@@ -11,6 +12,9 @@ export interface BlogScreenProps {
   onDeletePost?: (postId: string) => void;
   onPublishPost?: (postId: string) => void;
   onEditPost?: (postId: string) => void;
+  /** Config des réactions du salon (ordre + réactions libres). */
+  reactionOrder?: ReactionId[];
+  allowCustomReactions?: boolean;
 }
 
 /** Le fil du blog intime ("à tête reposée"). */
@@ -22,6 +26,8 @@ export function BlogScreen({
   onDeletePost,
   onPublishPost,
   onEditPost,
+  reactionOrder,
+  allowCustomReactions,
 }: BlogScreenProps) {
   const { t } = useTranslation();
   return (
@@ -53,6 +59,8 @@ export function BlogScreen({
               draft={post.draft}
               isMine={post.isMine}
               seenByPartner={post.seenByPartner}
+              reactionOrder={reactionOrder}
+              allowCustomReactions={allowCustomReactions}
               className="max-w-none"
               onToggleReaction={(r) => onToggleReaction?.(post.id, r)}
               onOpenComments={() => onOpenComments?.(post.id)}

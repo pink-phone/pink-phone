@@ -9,6 +9,8 @@ import {
   type BankSuggestion,
 } from "../../components/ChallengeBankManager/ChallengeBankManager";
 import type { Intensity } from "../../components/ChallengeCard/challenge";
+import { ReactionSettings } from "../../components/ReactionSettings/ReactionSettings";
+import type { ReactionId } from "../../components/ReactionBar/ReactionBar";
 import { cn } from "../../lib/cn";
 import { SUPPORTED_LANGS } from "../../i18n";
 import { THEMES, applyTheme, getTheme, type Theme } from "../../theme";
@@ -79,6 +81,10 @@ export interface SettingsScreenProps {
     s: { title: string; description: string; intensity: Intensity },
   ) => void;
   onBankDelete?: (id: string) => void;
+  /** Réactions du salon (ordre + emoji libres). Affichées si fournies. */
+  reactions?: ReactionId[];
+  allowCustomReactions?: boolean;
+  onReactionsChange?: (reactions: ReactionId[], allowCustom: boolean) => void;
   onBack?: () => void;
   onLogout?: () => void;
 }
@@ -100,6 +106,9 @@ export function SettingsScreen({
   onBankAdd,
   onBankUpdate,
   onBankDelete,
+  reactions,
+  allowCustomReactions = true,
+  onReactionsChange,
   onBack,
   onLogout,
 }: SettingsScreenProps) {
@@ -212,6 +221,21 @@ export function SettingsScreen({
                 {space.inviteId}
               </code>
             </div>
+          </Surface>
+        </section>
+      )}
+
+      {reactions && onReactionsChange && (
+        <section className="space-y-3">
+          <h2 className="text-xs uppercase tracking-[0.15em] text-taupe-400">
+            {t("settings.reactionsSection")}
+          </h2>
+          <Surface tone="velvet">
+            <ReactionSettings
+              value={reactions}
+              allowCustom={allowCustomReactions}
+              onChange={onReactionsChange}
+            />
           </Surface>
         </section>
       )}

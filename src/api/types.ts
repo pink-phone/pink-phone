@@ -24,6 +24,10 @@ export interface Space {
   name: string;
   /** Fuseau IANA du salon (renouvellement du mood à minuit). Défaut serveur: Europe/Paris. */
   timezone: string;
+  /** Réactions prédéfinies actives, dans l'ordre d'affichage. */
+  reactions: string[];
+  /** Autorise une réaction emoji libre. */
+  allowCustomReactions: boolean;
   createdAt: string;
 }
 

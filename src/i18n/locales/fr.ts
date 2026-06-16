@@ -214,6 +214,12 @@ export const fr = {
     hotAnimHint:
       "Halo et particules animés sur les états chauds. Désactive pour un rendu calme.",
     language: "Langue",
+    reactionsSection: "Réactions",
+    reactionsIntro: "Choisis les réactions du salon et leur ordre.",
+    reactionEnable: "Activer la réaction",
+    reactionDisable: "Désactiver la réaction",
+    allowCustom: "Réactions libres",
+    allowCustomHint: "Autorise une réaction emoji libre via le bouton ＋.",
     spaceSection: "Notre salon",
     spaceName: "Nom du salon",
     save: "Enregistrer",

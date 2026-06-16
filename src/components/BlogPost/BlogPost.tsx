@@ -3,7 +3,7 @@ import { Surface } from "../Surface/Surface";
 import { Badge } from "../Badge/Badge";
 import { Button } from "../Button/Button";
 import { SafeMedia } from "../SafeMedia/SafeMedia";
-import { ReactionBar } from "../ReactionBar/ReactionBar";
+import { ReactionBar, type ReactionId } from "../ReactionBar/ReactionBar";
 import { cn } from "../../lib/cn";
 
 export interface BlogPostAuthor {
@@ -32,6 +32,9 @@ export interface BlogPostProps {
   reactionCounts?: Record<string, number>;
   myReactions?: string[];
   onToggleReaction?: (r: string) => void;
+  /** Réactions actives du salon (ordre) + autorisation des réactions libres. */
+  reactionOrder?: ReactionId[];
+  allowCustomReactions?: boolean;
   commentCount?: number;
   onOpenComments?: () => void;
   /** Brouillon : affiche une pastille et (si `isMine`) le bouton Publier. */
@@ -57,6 +60,8 @@ export function BlogPost({
   reactionCounts,
   myReactions,
   onToggleReaction,
+  reactionOrder,
+  allowCustomReactions = true,
   commentCount = 0,
   onOpenComments,
   draft = false,
@@ -136,6 +141,8 @@ export function BlogPost({
             counts={reactionCounts}
             mine={myReactions}
             onToggle={onToggleReaction}
+            order={reactionOrder}
+            allowCustom={allowCustomReactions}
           />
 
           <div className="flex items-center justify-between gap-2">

@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 use crate::auth::AuthUser;
 use crate::error::{ApiError, ApiResult};
-use crate::models::{Member, Space};
+use crate::models::{Member, Space, REACTIONS};
 use crate::routes::ensure_member;
 use crate::state::AppState;
 
@@ -32,6 +32,9 @@ pub struct CreateSpaceBody {
 pub struct UpdateSpaceBody {
     pub name: Option<String>,
     pub timezone: Option<String>,
+    /// Réactions prédéfinies actives, dans l'ordre voulu.
+    pub reactions: Option<Vec<String>>,
+    pub allow_custom_reactions: Option<bool>,
 }
 
 async fn create_space(
@@ -46,7 +49,8 @@ async fn create_space(
 
     let mut tx = state.pool.begin().await?;
     let space: Space = sqlx::query_as(
-        "INSERT INTO spaces (name) VALUES ($1) RETURNING id, name, timezone, created_at",
+        "INSERT INTO spaces (name) VALUES ($1)
+         RETURNING id, name, timezone, reactions, allow_custom_reactions, created_at",
     )
     .bind(name)
     .fetch_one(&mut *tx)
@@ -95,14 +99,26 @@ async fn update_space(
         }
     }
 
+    if let Some(reactions) = &body.reactions {
+        if reactions.iter().any(|r| !REACTIONS.contains(&r.as_str())) {
+            return Err(ApiError::BadRequest("réaction inconnue".into()));
+        }
+    }
+
     let space: Space = sqlx::query_as(
-        "UPDATE spaces SET name = COALESCE($2, name), timezone = COALESCE($3, timezone)
+        "UPDATE spaces SET
+            name = COALESCE($2, name),
+            timezone = COALESCE($3, timezone),
+            reactions = COALESCE($4, reactions),
+            allow_custom_reactions = COALESCE($5, allow_custom_reactions)
          WHERE id = $1
-         RETURNING id, name, timezone, created_at",
+         RETURNING id, name, timezone, reactions, allow_custom_reactions, created_at",
     )
     .bind(space_id)
     .bind(name)
     .bind(&body.timezone)
+    .bind(body.reactions.as_deref())
+    .bind(body.allow_custom_reactions)
     .fetch_one(&state.pool)
     .await?;
 
@@ -115,7 +131,7 @@ async fn my_spaces(
     auth: AuthUser,
 ) -> ApiResult<Json<Vec<Space>>> {
     let spaces: Vec<Space> = sqlx::query_as(
-        "SELECT s.id, s.name, s.timezone, s.created_at
+        "SELECT s.id, s.name, s.timezone, s.reactions, s.allow_custom_reactions, s.created_at
          FROM spaces s
          JOIN space_memberships m ON m.space_id = s.id
          WHERE m.user_id = $1
@@ -135,7 +151,10 @@ async fn join_space(
     let mut tx = state.pool.begin().await?;
 
     let space: Option<Space> =
-        sqlx::query_as("SELECT id, name, timezone, created_at FROM spaces WHERE id = $1")
+        sqlx::query_as(
+            "SELECT id, name, timezone, reactions, allow_custom_reactions, created_at
+             FROM spaces WHERE id = $1",
+        )
             .bind(space_id)
             .fetch_optional(&mut *tx)
             .await?;

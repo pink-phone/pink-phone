@@ -30,6 +30,10 @@ pub struct Space {
     pub name: String,
     /// Fuseau IANA (ex: "Europe/Paris") — base du renouvellement du mood à minuit.
     pub timezone: String,
+    /// Réactions prédéfinies actives, dans l'ordre d'affichage.
+    pub reactions: Vec<String>,
+    /// Autorise une réaction emoji libre (bouton « + »).
+    pub allow_custom_reactions: bool,
     pub created_at: DateTime<Utc>,
 }
 
