@@ -180,6 +180,14 @@ export const fr = {
     submit: "🔥 Proposer ({{intensity}})",
     intensityLabel: "Intensité",
   },
+  challengeBank: {
+    title: "Banque de défis",
+    intro: "Vos propositions, en plus de la banque commune.",
+    empty: "Aucune proposition propre à votre salon pour l'instant.",
+    add: "Ajouter",
+    delete: "Supprimer",
+    edit: "Éditer",
+  },
   comments: {
     sheetTitle: "Échanger",
     empty: "Personne n'a encore réagi. Lance la discussion.",

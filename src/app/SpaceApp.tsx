@@ -35,7 +35,10 @@ import {
 } from "../components/ChallengeComposer/ChallengeComposer";
 
 import type { MoodId } from "../components/MoodSelector/moods";
-import type { ChallengeStatus } from "../components/ChallengeCard/challenge";
+import type {
+  ChallengeStatus,
+  Intensity,
+} from "../components/ChallengeCard/challenge";
 import type { ChallengeData, PostData } from "../mock/data";
 
 /** L'app branchée sur un Space réel : charge et pilote les données via l'API. */
@@ -46,7 +49,8 @@ export function SpaceApp({
   space: Space;
   user: UserPublic;
 }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const lang = i18n.resolvedLanguage ?? i18n.language;
   const { logout } = useAuth();
   // Le salon vit en state : renommage/fuseau immédiats + sync via WebSocket.
   const [space, setSpace] = useState<Space>(initialSpace);
@@ -137,10 +141,16 @@ export function SpaceApp({
     };
   }, [space.id]);
 
-  // Banque de propositions de défis (globale, curée). Chargée une fois.
+  // Banque de propositions (globales + salon), dans la langue courante.
+  const loadSuggestions = () =>
+    api
+      .listChallengeSuggestions(space.id, lang)
+      .then(setSuggestions)
+      .catch(() => {});
   useEffect(() => {
-    api.listChallengeSuggestions().then(setSuggestions).catch(() => {});
-  }, []);
+    loadSuggestions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [space.id, lang]);
 
   // Applique la préférence "effet braise" globalement (classe sur <html>) + persiste.
   useEffect(() => {
@@ -364,6 +374,36 @@ export function SpaceApp({
     }
   };
 
+  type SuggestionDraft = {
+    title: string;
+    description: string;
+    intensity: Intensity;
+  };
+  const addSuggestion = async (s: SuggestionDraft) => {
+    try {
+      await api.createSuggestion(space.id, { ...s, locale: lang });
+      loadSuggestions();
+    } catch (e) {
+      console.error("ajout de proposition échoué", e);
+    }
+  };
+  const editSuggestion = async (id: string, s: SuggestionDraft) => {
+    try {
+      await api.updateSuggestion(space.id, id, { ...s, locale: lang });
+      loadSuggestions();
+    } catch (e) {
+      console.error("édition de proposition échouée", e);
+    }
+  };
+  const removeSuggestion = async (id: string) => {
+    try {
+      await api.deleteSuggestion(space.id, id);
+      loadSuggestions();
+    } catch (e) {
+      console.error("suppression de proposition échouée", e);
+    }
+  };
+
   const toggleReaction = async (postId: string, reaction: string) => {
     const post = posts.find((p) => p.id === postId);
     if (!post) return;
@@ -456,6 +496,17 @@ export function SpaceApp({
           members={members.map((m) => ({ id: m.id, name: m.displayName }))}
           onRenameSpace={renameSpace}
           onTimezoneChange={changeTimezone}
+          challengeBank={suggestions
+            .filter((s) => s.spaceId !== null)
+            .map((s) => ({
+              id: s.id,
+              title: s.title,
+              description: s.description,
+              intensity: s.intensity,
+            }))}
+          onBankAdd={addSuggestion}
+          onBankUpdate={editSuggestion}
+          onBankDelete={removeSuggestion}
           onBack={() => setShowSettings(false)}
           onLogout={logout}
         />

@@ -8,6 +8,7 @@ pub mod oidc;
 pub mod posts;
 pub mod seen;
 pub mod spaces;
+pub mod suggestions;
 pub mod ws;
 
 use axum::Router;
@@ -47,5 +48,6 @@ pub fn api_router() -> Router<AppState> {
         .merge(notifications::router())
         .merge(oidc::router())
         .merge(seen::router())
+        .merge(suggestions::router())
         .merge(ws::router())
 }

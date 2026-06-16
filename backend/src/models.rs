@@ -127,11 +127,12 @@ pub struct Challenge {
     pub updated_at: DateTime<Utc>,
 }
 
-/// Proposition de défi (banque curée, globale).
+/// Proposition de défi. `space_id` null = globale (seed) ; sinon propre au salon.
 #[derive(Debug, Serialize, sqlx::FromRow)]
 #[serde(rename_all = "camelCase")]
 pub struct ChallengeSuggestion {
     pub id: Uuid,
+    pub space_id: Option<Uuid>,
     pub title: String,
     pub description: String,
     pub intensity: String,

@@ -7,13 +7,12 @@ use uuid::Uuid;
 
 use crate::auth::AuthUser;
 use crate::error::{ApiError, ApiResult};
-use crate::models::{challenge_transition_allowed, Challenge, ChallengeSuggestion, INTENSITIES};
+use crate::models::{challenge_transition_allowed, Challenge, INTENSITIES};
 use crate::routes::ensure_member;
 use crate::state::AppState;
 
 pub fn router() -> Router<AppState> {
     Router::new()
-        .route("/api/challenge-suggestions", get(list_suggestions))
         .route(
             "/api/spaces/{id}/challenges",
             get(list_challenges).post(create_challenge),
@@ -40,20 +39,6 @@ pub struct CreateChallengeBody {
 #[derive(Deserialize)]
 pub struct TransitionBody {
     pub status: String,
-}
-
-/// Banque de propositions de défis (globale, curée). Auth requise.
-async fn list_suggestions(
-    State(state): State<AppState>,
-    _auth: AuthUser,
-) -> ApiResult<Json<Vec<ChallengeSuggestion>>> {
-    let items: Vec<ChallengeSuggestion> = sqlx::query_as(
-        "SELECT id, title, description, intensity FROM challenge_suggestions
-         ORDER BY created_at",
-    )
-    .fetch_all(&state.pool)
-    .await?;
-    Ok(Json(items))
 }
 
 async fn list_challenges(

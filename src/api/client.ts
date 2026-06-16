@@ -243,9 +243,42 @@ export const addComment = (spaceId: string, postId: string, body: string) =>
 export const listChallenges = (spaceId: string) =>
   req<ApiChallenge[]>(`/api/spaces/${spaceId}/challenges`);
 
-/** Banque de propositions de défis (globale, curée). */
-export const listChallengeSuggestions = () =>
-  req<ChallengeSuggestion[]>("/api/challenge-suggestions");
+/** Banque de propositions (globales + propres au salon), dans la langue donnée. */
+export const listChallengeSuggestions = (spaceId: string, lang: string) =>
+  req<ChallengeSuggestion[]>(
+    `/api/spaces/${spaceId}/challenge-suggestions?lang=${encodeURIComponent(lang)}`,
+  );
+
+type SuggestionInput = {
+  title: string;
+  description: string;
+  intensity: Intensity;
+  locale: string;
+};
+
+/** Ajoute une proposition propre au salon. */
+export const createSuggestion = (spaceId: string, body: SuggestionInput) =>
+  req<ChallengeSuggestion>(`/api/spaces/${spaceId}/challenge-suggestions`, {
+    method: "POST",
+    json: body,
+  });
+
+/** Édite une proposition du salon. */
+export const updateSuggestion = (
+  spaceId: string,
+  sid: string,
+  body: SuggestionInput,
+) =>
+  req<ChallengeSuggestion>(
+    `/api/spaces/${spaceId}/challenge-suggestions/${sid}`,
+    { method: "PATCH", json: body },
+  );
+
+/** Supprime une proposition du salon. */
+export const deleteSuggestion = (spaceId: string, sid: string) =>
+  req<void>(`/api/spaces/${spaceId}/challenge-suggestions/${sid}`, {
+    method: "DELETE",
+  });
 
 export const createChallenge = (
   spaceId: string,

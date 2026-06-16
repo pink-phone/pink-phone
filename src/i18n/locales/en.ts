@@ -180,6 +180,14 @@ export const en: Resources = {
     submit: "🔥 Propose ({{intensity}})",
     intensityLabel: "Intensity",
   },
+  challengeBank: {
+    title: "Dare bank",
+    intro: "Your own suggestions, on top of the shared bank.",
+    empty: "No suggestions of your own yet.",
+    add: "Add",
+    delete: "Delete",
+    edit: "Edit",
+  },
   comments: {
     sheetTitle: "Talk",
     empty: "Nobody reacted yet. Start the conversation.",

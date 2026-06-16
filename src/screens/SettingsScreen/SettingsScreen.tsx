@@ -4,6 +4,11 @@ import { Surface } from "../../components/Surface/Surface";
 import { Button } from "../../components/Button/Button";
 import { Toggle } from "../../components/form/Toggle";
 import { TextField } from "../../components/form/TextField";
+import {
+  ChallengeBankManager,
+  type BankSuggestion,
+} from "../../components/ChallengeBankManager/ChallengeBankManager";
+import type { Intensity } from "../../components/ChallengeCard/challenge";
 import { cn } from "../../lib/cn";
 import { SUPPORTED_LANGS } from "../../i18n";
 import { THEMES, applyTheme, getTheme, type Theme } from "../../theme";
@@ -66,6 +71,14 @@ export interface SettingsScreenProps {
   members?: { id: string; name: string }[];
   onRenameSpace?: (name: string) => void;
   onTimezoneChange?: (timezone: string) => void;
+  /** Banque de défis propre au salon (gestion CRUD). Affichée si fournie. */
+  challengeBank?: BankSuggestion[];
+  onBankAdd?: (s: { title: string; description: string; intensity: Intensity }) => void;
+  onBankUpdate?: (
+    id: string,
+    s: { title: string; description: string; intensity: Intensity },
+  ) => void;
+  onBankDelete?: (id: string) => void;
   onBack?: () => void;
   onLogout?: () => void;
 }
@@ -83,6 +96,10 @@ export function SettingsScreen({
   members,
   onRenameSpace,
   onTimezoneChange,
+  challengeBank,
+  onBankAdd,
+  onBankUpdate,
+  onBankDelete,
   onBack,
   onLogout,
 }: SettingsScreenProps) {
@@ -196,6 +213,20 @@ export function SettingsScreen({
               </code>
             </div>
           </Surface>
+        </section>
+      )}
+
+      {challengeBank && onBankAdd && onBankUpdate && onBankDelete && (
+        <section className="space-y-3">
+          <h2 className="text-xs uppercase tracking-[0.15em] text-taupe-400">
+            {t("challengeBank.title")}
+          </h2>
+          <ChallengeBankManager
+            suggestions={challengeBank}
+            onAdd={onBankAdd}
+            onUpdate={onBankUpdate}
+            onDelete={onBankDelete}
+          />
         </section>
       )}
 

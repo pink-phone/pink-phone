@@ -93,6 +93,8 @@ export interface SeenEntry {
 
 export interface ChallengeSuggestion {
   id: string;
+  /** null = suggestion globale (seed, non éditable) ; sinon propre au salon. */
+  spaceId: string | null;
   title: string;
   description: string;
   intensity: Intensity;
