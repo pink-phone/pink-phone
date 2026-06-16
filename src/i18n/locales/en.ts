@@ -87,6 +87,7 @@ export const en: Resources = {
     cuddleNeeded: "Need some tenderness",
   },
   reactions: {
+    heart: "Heart",
     fire: "Hot",
     smirk: "Naughty",
     breath: "Breathless",

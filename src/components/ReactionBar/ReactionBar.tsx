@@ -3,19 +3,19 @@ import { cn } from "../../lib/cn";
 import { FireEmbers } from "../FireEmbers/FireEmbers";
 
 // Réactions rapides "sans jugement". Miroir d'un enum backend possible.
-export type ReactionId = "fire" | "smirk" | "breath" | "hush";
+export type ReactionId = "heart" | "fire" | "smirk" | "breath" | "hush";
 
 export interface ReactionOption {
   id: ReactionId;
   emoji: string;
-  label: string;
 }
 
 export const REACTIONS: ReactionOption[] = [
-  { id: "fire", emoji: "🔥", label: "Chaud" },
-  { id: "smirk", emoji: "😏", label: "Coquin" },
-  { id: "breath", emoji: "😮‍💨", label: "Haletant" },
-  { id: "hush", emoji: "🤫", label: "Notre secret" },
+  { id: "heart", emoji: "❤️" },
+  { id: "fire", emoji: "🔥" },
+  { id: "smirk", emoji: "😏" },
+  { id: "breath", emoji: "😮‍💨" },
+  { id: "hush", emoji: "🤫" },
 ];
 
 export interface ReactionBarProps {

@@ -27,7 +27,7 @@ export interface ChallengeComposerProps {
 
 const INTENSITY_TONE = { soft: "soft", hot: "hot", hard: "hard" } as const;
 // Nombre d'inspirations affichées d'un coup (le reste via "Autres idées").
-const VISIBLE_SUGGESTIONS = 5;
+const VISIBLE_SUGGESTIONS = 3;
 
 /** Formulaire de proposition d'un défi (depuis la banque ou sur-mesure). */
 export function ChallengeComposer({

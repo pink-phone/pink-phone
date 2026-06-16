@@ -152,7 +152,7 @@ pub struct Media {
 
 pub const INTENSITIES: [&str; 3] = ["soft", "hot", "hard"];
 pub const MOODS: [&str; 5] = ["calm", "flirty", "veryHot", "tired", "cuddleNeeded"];
-pub const REACTIONS: [&str; 4] = ["fire", "smirk", "breath", "hush"];
+pub const REACTIONS: [&str; 5] = ["heart", "fire", "smirk", "breath", "hush"];
 pub const VERDICTS: [&str; 3] = ["hot", "curious", "notForMe"];
 
 /// Transitions valides de la machine à états des défis.

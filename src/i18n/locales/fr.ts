@@ -87,6 +87,7 @@ export const fr = {
     cuddleNeeded: "Besoin de tendresse",
   },
   reactions: {
+    heart: "Cœur",
     fire: "Chaud",
     smirk: "Coquin",
     breath: "Haletant",
