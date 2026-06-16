@@ -164,7 +164,7 @@ pub struct Media {
 
 // ---------- Valeurs autorisées (contrat avec le frontend) ----------
 
-pub const INTENSITIES: [&str; 3] = ["soft", "hot", "hard"];
+pub const INTENSITIES: [&str; 2] = ["soft", "hot"];
 pub const MOODS: [&str; 5] = ["calm", "flirty", "veryHot", "tired", "cuddleNeeded"];
 pub const REACTIONS: [&str; 5] = ["heart", "fire", "smirk", "breath", "hush"];
 pub const VERDICTS: [&str; 3] = ["hot", "curious", "notForMe"];

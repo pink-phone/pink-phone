@@ -30,8 +30,10 @@ export function BottomNav({ active, onChange, badges = {}, className }: BottomNa
       aria-label={t("nav.aria")}
       className={cn(
         "sticky bottom-0 z-10 flex items-stretch gap-1 border-t border-charcoal-600/60",
-        "bg-charcoal-800/90 px-2 pt-1.5 backdrop-blur-md",
-        "pb-[calc(0.375rem+env(safe-area-inset-bottom))]",
+        "bg-charcoal-800/90 px-2 pt-1 backdrop-blur-md",
+        // Colle la barre au bas : on garde la safe-area iOS (home indicator) avec
+        // un minimum pour les écrans sans encoche, mais sans bande superflue.
+        "pb-[max(0.25rem,env(safe-area-inset-bottom))]",
         className,
       )}
     >

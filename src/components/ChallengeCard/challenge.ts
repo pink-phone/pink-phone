@@ -5,12 +5,11 @@ export type ChallengeStatus =
   | "maybeMaybe"
   | "jobDone";
 
-export type Intensity = "soft" | "hot" | "hard";
+export type Intensity = "soft" | "hot";
 
 export const INTENSITY_LABEL: Record<Intensity, string> = {
   soft: "Soft",
   hot: "Hot",
-  hard: "Hard",
 };
 
 interface StatusMeta {
@@ -47,6 +46,6 @@ export const CHALLENGE_PRESETS: ChallengePreset[] = [
   {
     title: "Soirée à l'aveugle",
     description: "Bandeau sur les yeux, tu te laisses guider toute la soirée.",
-    intensity: "hard",
+    intensity: "hot",
   },
 ];

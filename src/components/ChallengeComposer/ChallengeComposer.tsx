@@ -27,7 +27,7 @@ export interface ChallengeComposerProps {
   initial?: ChallengeDraft;
 }
 
-const INTENSITY_TONE = { soft: "soft", hot: "hot", hard: "hard" } as const;
+const INTENSITY_TONE = { soft: "soft", hot: "hot" } as const;
 // Nombre d'inspirations affichées d'un coup (le reste via "Autres idées").
 const VISIBLE_SUGGESTIONS = 3;
 

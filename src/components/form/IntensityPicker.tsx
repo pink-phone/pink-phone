@@ -2,12 +2,11 @@ import { useTranslation } from "react-i18next";
 import { cn } from "../../lib/cn";
 import { type Intensity } from "../ChallengeCard/challenge";
 
-const ORDER: Intensity[] = ["soft", "hot", "hard"];
+const ORDER: Intensity[] = ["soft", "hot"];
 
 const ACTIVE: Record<Intensity, string> = {
   soft: "border-taupe-300/50 bg-charcoal-700 text-taupe-100",
   hot: "border-spice-500/70 bg-bordeaux-700 text-blush-100 shadow-glow",
-  hard: "border-bordeaux-500/70 bg-bordeaux-600 text-blush-100 shadow-glow",
 };
 
 export interface IntensityPickerProps {

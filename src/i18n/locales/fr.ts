@@ -144,6 +144,7 @@ export const fr = {
   challenges: {
     title: "Nos défis",
     new: "＋ Lancer un défi",
+    bank: "📚 Banque",
     deleteChallenge: "Supprimer ce défi",
     confirmDelete: "Supprimer ce défi ? C'est définitif.",
     deadline: "⏳ {{label}}",
@@ -192,6 +193,9 @@ export const fr = {
     add: "Ajouter",
     delete: "Supprimer",
     edit: "Éditer",
+    catalogue: "Toutes les propositions",
+    mine: "Mes propositions",
+    ownTag: "Perso",
   },
   comments: {
     sheetTitle: "Échanger",

@@ -29,7 +29,6 @@ export interface ChallengeBankManagerProps {
 const INTENSITY_TONE: Record<Intensity, BadgeTone> = {
   soft: "soft",
   hot: "hot",
-  hard: "hard",
 };
 
 /** Gestion de la banque de défis propre au salon : ajout, édition, suppression. */

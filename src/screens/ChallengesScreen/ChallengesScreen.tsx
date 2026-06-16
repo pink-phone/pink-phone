@@ -7,6 +7,7 @@ import type { ChallengeData } from "../../mock/data";
 export interface ChallengesScreenProps {
   challenges: ChallengeData[];
   onNew?: () => void;
+  onOpenBank?: () => void;
   onAccept?: (id: string) => void;
   onNegotiate?: (id: string) => void;
   onComplete?: (id: string) => void;
@@ -26,6 +27,7 @@ const SECTION_ORDER: ChallengeStatus[] = [
 export function ChallengesScreen({
   challenges,
   onNew,
+  onOpenBank,
   onAccept,
   onNegotiate,
   onComplete,
@@ -39,9 +41,16 @@ export function ChallengesScreen({
         <h1 className="font-serif text-2xl text-blush-100">
           {t("challenges.title")}
         </h1>
-        <Button size="sm" onClick={onNew}>
-          {t("challenges.new")}
-        </Button>
+        <div className="flex items-center gap-2">
+          {onOpenBank && (
+            <Button variant="secondary" size="sm" onClick={onOpenBank}>
+              {t("challenges.bank")}
+            </Button>
+          )}
+          <Button size="sm" onClick={onNew}>
+            {t("challenges.new")}
+          </Button>
+        </div>
       </header>
 
       {SECTION_ORDER.map((status) => {

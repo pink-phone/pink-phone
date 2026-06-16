@@ -46,6 +46,24 @@ async fn set_mood(
     .await?;
 
     state.emit(space_id, auth.user_id, "mood");
+
+    // Une humeur « chaude » ou « taquine » fait signe au/à la partenaire (même
+    // si l'humeur est renvoyée à l'identique).
+    let nudge = match body.status.as_str() {
+        "veryHot" => Some("🔥 Très chaud·e en ce moment…"),
+        "flirty" => Some("😏 D'humeur taquine…"),
+        _ => None,
+    };
+    if let Some(msg) = nudge {
+        crate::notifications::notify_members(
+            &state,
+            space_id,
+            auth.user_id,
+            "Nouvelle humeur".into(),
+            msg.into(),
+        );
+    }
+
     Ok(Json(mood))
 }
 

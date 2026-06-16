@@ -10,7 +10,6 @@ import { type ChallengeStatus, type Intensity } from "./challenge";
 const INTENSITY_TONE: Record<Intensity, BadgeTone> = {
   soft: "soft",
   hot: "hot",
-  hard: "hard",
 };
 
 const STATUS_TONE: Record<ChallengeStatus, BadgeTone> = {
@@ -58,7 +57,7 @@ export function ChallengeCard({
 }: ChallengeCardProps) {
   const { t } = useTranslation();
   // Défi "chaud" (hot/hard) encore en jeu : halo de braise + particules.
-  const showEmber = (intensity === "hot" || intensity === "hard") && status !== "jobDone";
+  const showEmber = intensity === "hot" && status !== "jobDone";
 
   return (
     <Surface

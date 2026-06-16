@@ -32,8 +32,8 @@ export const AvecBanque: Story = {
       { title: "Massage aux huiles", description: "Une heure rien que pour l'autre.", intensity: "hot" },
       { title: "Douche à deux", description: "On se savonne, sans se presser.", intensity: "hot" },
       { title: "Lettre brûlante", description: "Écris une envie jamais avouée.", intensity: "hot" },
-      { title: "Soirée à l'aveugle", description: "Bandeau sur les yeux toute la soirée.", intensity: "hard" },
-      { title: "Mains attachées", description: "Un foulard, l'autre mène en douceur.", intensity: "hard" },
+      { title: "Soirée à l'aveugle", description: "Bandeau sur les yeux toute la soirée.", intensity: "hot" },
+      { title: "Mains attachées", description: "Un foulard, l'autre mène en douceur.", intensity: "hot" },
     ],
   },
   render: (args) => (

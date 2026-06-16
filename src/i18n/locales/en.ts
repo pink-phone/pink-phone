@@ -144,6 +144,7 @@ export const en: Resources = {
   challenges: {
     title: "Our dares",
     new: "＋ Send a dare",
+    bank: "📚 Bank",
     deleteChallenge: "Delete this dare",
     confirmDelete: "Delete this dare? This is permanent.",
     deadline: "⏳ {{label}}",
@@ -192,6 +193,9 @@ export const en: Resources = {
     add: "Add",
     delete: "Delete",
     edit: "Edit",
+    catalogue: "All suggestions",
+    mine: "My suggestions",
+    ownTag: "Yours",
   },
   comments: {
     sheetTitle: "Talk",

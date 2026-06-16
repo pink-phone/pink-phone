@@ -25,6 +25,7 @@ import type { TabId } from "../screens/BottomNav/BottomNav";
 import { DashboardScreen } from "../screens/DashboardScreen/DashboardScreen";
 import { BlogScreen } from "../screens/BlogScreen/BlogScreen";
 import { ChallengesScreen } from "../screens/ChallengesScreen/ChallengesScreen";
+import { ChallengeBankScreen } from "../screens/ChallengeBankScreen/ChallengeBankScreen";
 import { Splash } from "../screens/Splash/Splash";
 
 import { Sheet } from "../components/Sheet/Sheet";
@@ -74,6 +75,7 @@ export function SpaceApp({
 
   // Réglages / notifications.
   const [showSettings, setShowSettings] = useState(false);
+  const [showBank, setShowBank] = useState(false);
   const [notifMode, setNotifMode] = useState<NotifMode>("ghost");
   const [settingsBusy, setSettingsBusy] = useState(false);
   const [pushError, setPushError] = useState<string | null>(null);
@@ -228,6 +230,7 @@ export function SpaceApp({
 
   // Retour Android / swipe iOS ferment la surface ouverte (au lieu de quitter).
   useBackClose(showSettings, () => setShowSettings(false));
+  useBackClose(showBank, () => setShowBank(false));
   useBackClose(openSheet !== null, () => {
     setOpenSheet(null);
     setEditingPost(null);
@@ -540,22 +543,31 @@ export function SpaceApp({
           members={members.map((m) => ({ id: m.id, name: m.displayName }))}
           onRenameSpace={renameSpace}
           onTimezoneChange={changeTimezone}
-          challengeBank={suggestions
-            .filter((s) => s.spaceId !== null)
-            .map((s) => ({
-              id: s.id,
-              title: s.title,
-              description: s.description,
-              intensity: s.intensity,
-            }))}
-          onBankAdd={addSuggestion}
-          onBankUpdate={editSuggestion}
-          onBankDelete={removeSuggestion}
           reactions={space.reactions as ReactionId[]}
           allowCustomReactions={space.allowCustomReactions}
           onReactionsChange={changeReactions}
           onBack={() => setShowSettings(false)}
           onLogout={logout}
+        />
+      </div>
+    );
+  }
+
+  if (showBank) {
+    return (
+      <div className="mx-auto h-dvh max-w-md overflow-y-auto overscroll-contain bg-charcoal-900 bg-felt-velvet px-4 pb-[calc(2.5rem+env(safe-area-inset-bottom))] pt-[calc(1rem+env(safe-area-inset-top))]">
+        <ChallengeBankScreen
+          suggestions={suggestions.map((s) => ({
+            id: s.id,
+            title: s.title,
+            description: s.description,
+            intensity: s.intensity,
+            isOwn: s.spaceId !== null,
+          }))}
+          onAdd={addSuggestion}
+          onUpdate={editSuggestion}
+          onDelete={removeSuggestion}
+          onBack={() => setShowBank(false)}
         />
       </div>
     );
@@ -663,6 +675,7 @@ export function SpaceApp({
         <ChallengesScreen
           challenges={challengeData}
           onNew={() => setOpenSheet("challenge")}
+          onOpenBank={() => setShowBank(true)}
           onAccept={(id) => transition(id, "challengeAccepted")}
           onNegotiate={(id) => transition(id, "maybeMaybe")}
           onComplete={(id) => transition(id, "jobDone")}

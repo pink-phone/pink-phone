@@ -134,7 +134,7 @@ export const SAMPLE_CHALLENGES: ChallengeData[] = [
     id: "c3",
     title: "Soirée à l'aveugle",
     description: "Bandeau sur les yeux, tu te laisses guider toute la soirée.",
-    intensity: "hard",
+    intensity: "hot",
     status: "maybeMaybe",
     perspective: "recipient",
   },

@@ -26,7 +26,7 @@ const meta = {
     },
   },
   argTypes: {
-    intensity: { control: "inline-radio", options: ["soft", "hot", "hard"] },
+    intensity: { control: "inline-radio", options: ["soft", "hot"] },
     status: {
       control: "inline-radio",
       options: ["proposed", "challengeAccepted", "maybeMaybe", "jobDone"],
