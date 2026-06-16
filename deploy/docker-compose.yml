@@ -34,6 +34,9 @@ services:
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET requis}
       BIND_ADDR: 0.0.0.0:8080
       MEDIA_DIR: /data/media
+      # Chiffrement des médias au repos (base64 de 32 octets). Vide => clair.
+      # Générer : openssl rand -base64 32
+      MEDIA_KEY: ${MEDIA_KEY:-}
       # Web Push (vide => push désactivé). Générer : npx web-push generate-vapid-keys
       VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
       VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}

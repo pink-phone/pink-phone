@@ -228,6 +228,24 @@ export function SpaceApp({
     };
   }, [space.id]);
 
+  // Au retour sur l'app (focus / onglet redevenu visible), on resynchronise les
+  // données manquées pendant l'absence (le WS ne rejoue pas l'historique).
+  useEffect(() => {
+    const resync = () => {
+      if (document.visibilityState !== "visible") return;
+      api.listPosts(space.id).then(setPosts).catch(() => {});
+      api.listChallenges(space.id).then(setChallenges).catch(() => {});
+      api.listMoods(space.id).then(setMoods).catch(() => {});
+      api.listSeen(space.id).then(setSeen).catch(() => {});
+    };
+    document.addEventListener("visibilitychange", resync);
+    window.addEventListener("focus", resync);
+    return () => {
+      document.removeEventListener("visibilitychange", resync);
+      window.removeEventListener("focus", resync);
+    };
+  }, [space.id]);
+
   // Retour Android / swipe iOS ferment la surface ouverte (au lieu de quitter).
   useBackClose(showSettings, () => setShowSettings(false));
   useBackClose(showBank, () => setShowBank(false));

@@ -44,4 +44,6 @@ reqwest = { version = "0.12", features = ["json"] }
 sha2 = "0.10"
 base64 = "0.22"
 rand = "0.8"
+# Chiffrement des médias au repos (AES-256-GCM).
+aes-gcm = "0.10"
 url = "2"

@@ -82,6 +82,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         events,
     };
 
+    // Purge périodique des médias orphelins (toutes les heures ; 1er passage immédiat).
+    {
+        let pool = state.pool.clone();
+        let media_dir = state.config.media_dir.clone();
+        tokio::spawn(async move {
+            let mut tick =
+                tokio::time::interval(std::time::Duration::from_secs(3600));
+            loop {
+                tick.tick().await;
+                crate::routes::media::purge_orphan_media(&pool, &media_dir).await;
+            }
+        });
+    }
+
     let app: Router = routes::api_router()
         .route("/health", get(|| async { "ok" }))
         .with_state(state)

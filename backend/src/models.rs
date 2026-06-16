@@ -160,6 +160,8 @@ pub struct Media {
     pub mime: String,
     pub view_once: bool,
     pub consumed: bool,
+    /// Fichier chiffré au repos (AES-256-GCM) : nonce(12o) ++ ciphertext.
+    pub encrypted: bool,
 }
 
 // ---------- Valeurs autorisées (contrat avec le frontend) ----------

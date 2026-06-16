@@ -14,6 +14,9 @@ pub struct Config {
     pub db_name: String,
     pub jwt_secret: String,
     pub media_dir: String,
+    /// Clé de chiffrement des médias au repos (base64 de 32 octets). Vide =>
+    /// médias stockés en clair (dev / rétrocompat).
+    pub media_key: String,
     pub bind_addr: String,
     pub cors_origin: String,
     /// Clés VAPID pour le Web Push (base64 url-safe sans padding).
@@ -34,6 +37,16 @@ pub struct Config {
 }
 
 impl Config {
+    /// Clé média décodée (32 octets) si `MEDIA_KEY` est un base64 valide.
+    pub fn media_key_bytes(&self) -> Option<[u8; 32]> {
+        use base64::{engine::general_purpose::STANDARD, Engine};
+        if self.media_key.is_empty() {
+            return None;
+        }
+        let raw = STANDARD.decode(self.media_key.trim()).ok()?;
+        raw.try_into().ok()
+    }
+
     pub fn oidc_enabled(&self) -> bool {
         !self.oidc_issuer.is_empty()
             && !self.oidc_client_id.is_empty()
@@ -57,6 +70,7 @@ impl Config {
             jwt_secret: env::var("JWT_SECRET")
                 .unwrap_or_else(|_| "dev-insecure-secret".into()),
             media_dir: env::var("MEDIA_DIR").unwrap_or_else(|_| "./media-store".into()),
+            media_key: env::var("MEDIA_KEY").unwrap_or_default(),
             bind_addr: env::var("BIND_ADDR").unwrap_or_else(|_| "127.0.0.1:8080".into()),
             cors_origin: env::var("CORS_ORIGIN")
                 .unwrap_or_else(|_| "http://localhost:5173".into()),
