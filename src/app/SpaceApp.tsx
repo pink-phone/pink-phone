@@ -439,7 +439,7 @@ export function SpaceApp({
 
   if (showSettings) {
     return (
-      <div className="mx-auto min-h-dvh max-w-md overflow-y-auto bg-charcoal-900 bg-felt-velvet px-4 pb-10 pt-[calc(1rem+env(safe-area-inset-top))]">
+      <div className="mx-auto h-dvh max-w-md overflow-y-auto overscroll-contain bg-charcoal-900 bg-felt-velvet px-4 pb-[calc(2.5rem+env(safe-area-inset-bottom))] pt-[calc(1rem+env(safe-area-inset-top))]">
         <SettingsScreen
           notifMode={notifMode}
           onModeChange={changeNotifMode}
