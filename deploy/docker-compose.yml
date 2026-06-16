@@ -1,0 +1,70 @@
+# Compose de PRODUCTION (déployé sur le server, derrière a reverse proxy).
+# Seul le service web expose un port sur l'hôte ; a reverse proxy route le domaine + TLS.
+# Les images sont tirées du registre Forgejo (poussées par la CI).
+# Variables attendues dans le .env du serveur : voir .env.example.
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pink
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD requis}
+      POSTGRES_DB: pinkphone
+    volumes:
+      - pink-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pink -d pinkphone"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - pink
+
+  api:
+    image: pinkphone/pinkphone-api:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Connexion par champs (pas d'URL) : robuste aux caractères spéciaux du mot de passe.
+      DB_HOST: db
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET requis}
+      BIND_ADDR: 0.0.0.0:8080
+      MEDIA_DIR: /data/media
+      # Web Push (vide => push désactivé). Générer : npx web-push generate-vapid-keys
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@example.com}
+      # Auth : mot de passe (true par défaut) + OIDC/SSO (vides => désactivé)
+      PASSWORD_AUTH_ENABLED: ${PASSWORD_AUTH_ENABLED:-true}
+      OIDC_ISSUER: ${OIDC_ISSUER:-}
+      OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
+      OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
+      OIDC_REDIRECT_URI: ${OIDC_REDIRECT_URI:-}
+      OIDC_POST_LOGIN_REDIRECT: ${OIDC_POST_LOGIN_REDIRECT:-}
+    volumes:
+      - pink-media:/data/media
+    networks:
+      - pink
+
+  web:
+    image: pinkphone/pinkphone-web:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      # Port exposé sur l'hôte ; a reverse proxy pointe dessus.
+      - "${WEB_PORT:-8095}:80"
+    networks:
+      - pink
+
+networks:
+  pink:
+    name: pinkphone-network
+
+volumes:
+  pink-pgdata:
+  pink-media:

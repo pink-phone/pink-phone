@@ -1,0 +1,60 @@
+import { BlogPost } from "../../components/BlogPost/BlogPost";
+import { Button } from "../../components/Button/Button";
+import type { ReactionId } from "../../components/ReactionBar/ReactionBar";
+import type { Verdict } from "../../components/VerdictPicker/VerdictPicker";
+import type { PostData } from "../../mock/data";
+
+export interface BlogScreenProps {
+  posts: PostData[];
+  onCompose?: () => void;
+  onToggleReaction?: (postId: string, reaction: ReactionId) => void;
+  onVerdictChange?: (postId: string, verdict: Verdict) => void;
+  onOpenComments?: (postId: string) => void;
+}
+
+/** Le fil du blog intime ("à tête reposée"). */
+export function BlogScreen({
+  posts,
+  onCompose,
+  onToggleReaction,
+  onVerdictChange,
+  onOpenComments,
+}: BlogScreenProps) {
+  return (
+    <div className="space-y-5">
+      <header className="flex items-center justify-between pt-2">
+        <h1 className="font-serif text-2xl text-blush-100">Notre journal</h1>
+        <Button size="sm" onClick={onCompose}>
+          ✍️ Écrire
+        </Button>
+      </header>
+
+      {posts.length === 0 ? (
+        <p className="py-12 text-center text-sm text-taupe-400">
+          Rien encore. Lance la première confidence…
+        </p>
+      ) : (
+        <div className="flex flex-col items-stretch gap-5">
+          {posts.map((post) => (
+            <BlogPost
+              key={post.id}
+              author={post.author}
+              timeLabel={post.timeLabel}
+              title={post.title}
+              body={post.body}
+              media={post.media}
+              reactionCounts={post.reactionCounts}
+              myReactions={post.myReactions}
+              verdict={post.verdict}
+              commentCount={post.commentCount}
+              className="max-w-none"
+              onToggleReaction={(r) => onToggleReaction?.(post.id, r)}
+              onVerdictChange={(v) => onVerdictChange?.(post.id, v)}
+              onOpenComments={() => onOpenComments?.(post.id)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

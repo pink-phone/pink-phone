@@ -1,0 +1,193 @@
+use std::collections::HashMap;
+
+use axum::extract::{Path, State};
+use axum::routing::get;
+use axum::{Json, Router};
+use serde::Deserialize;
+use uuid::Uuid;
+
+use crate::auth::AuthUser;
+use crate::error::{ApiError, ApiResult};
+use crate::models::{Post, PostRow};
+use crate::routes::ensure_member;
+use crate::state::AppState;
+
+pub fn router() -> Router<AppState> {
+    Router::new().route(
+        "/api/spaces/{id}/posts",
+        get(list_posts).post(create_post),
+    )
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CreatePostBody {
+    pub title: Option<String>,
+    pub body: String,
+    pub media_id: Option<Uuid>,
+}
+
+#[derive(sqlx::FromRow)]
+struct ReactionRow {
+    post_id: Uuid,
+    reaction: String,
+    user_id: Uuid,
+}
+
+#[derive(sqlx::FromRow)]
+struct VerdictRow {
+    post_id: Uuid,
+    verdict: String,
+}
+
+#[derive(sqlx::FromRow)]
+struct CountRow {
+    post_id: Uuid,
+    n: i64,
+}
+
+/// Enrichit des posts bruts avec leurs interactions (réactions / verdict / nb
+/// de commentaires), en quelques requêtes groupées plutôt qu'une par post.
+async fn enrich(
+    pool: &sqlx::PgPool,
+    rows: Vec<PostRow>,
+    user_id: Uuid,
+) -> ApiResult<Vec<Post>> {
+    let ids: Vec<Uuid> = rows.iter().map(|r| r.id).collect();
+
+    let reactions: Vec<ReactionRow> = sqlx::query_as(
+        "SELECT post_id, reaction, user_id FROM post_reactions WHERE post_id = ANY($1)",
+    )
+    .bind(&ids)
+    .fetch_all(pool)
+    .await?;
+
+    let verdicts: Vec<VerdictRow> = sqlx::query_as(
+        "SELECT post_id, verdict FROM post_verdicts WHERE post_id = ANY($1) AND user_id = $2",
+    )
+    .bind(&ids)
+    .bind(user_id)
+    .fetch_all(pool)
+    .await?;
+
+    let counts: Vec<CountRow> = sqlx::query_as(
+        "SELECT post_id, count(*) AS n FROM post_comments
+         WHERE post_id = ANY($1) GROUP BY post_id",
+    )
+    .bind(&ids)
+    .fetch_all(pool)
+    .await?;
+
+    let mut counts_by_post: HashMap<Uuid, HashMap<String, i64>> = HashMap::new();
+    let mut mine_by_post: HashMap<Uuid, Vec<String>> = HashMap::new();
+    for r in reactions {
+        *counts_by_post
+            .entry(r.post_id)
+            .or_default()
+            .entry(r.reaction.clone())
+            .or_insert(0) += 1;
+        if r.user_id == user_id {
+            mine_by_post.entry(r.post_id).or_default().push(r.reaction);
+        }
+    }
+    let verdict_by_post: HashMap<Uuid, String> =
+        verdicts.into_iter().map(|v| (v.post_id, v.verdict)).collect();
+    let comments_by_post: HashMap<Uuid, i64> =
+        counts.into_iter().map(|c| (c.post_id, c.n)).collect();
+
+    Ok(rows
+        .into_iter()
+        .map(|p| Post {
+            reaction_counts: counts_by_post.remove(&p.id).unwrap_or_default(),
+            my_reactions: mine_by_post.remove(&p.id).unwrap_or_default(),
+            verdict: verdict_by_post.get(&p.id).cloned(),
+            comment_count: comments_by_post.get(&p.id).copied().unwrap_or(0),
+            id: p.id,
+            author_id: p.author_id,
+            author_name: p.author_name,
+            title: p.title,
+            body: p.body,
+            media_id: p.media_id,
+            created_at: p.created_at,
+        })
+        .collect())
+}
+
+async fn list_posts(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Path(space_id): Path<Uuid>,
+) -> ApiResult<Json<Vec<Post>>> {
+    ensure_member(&state.pool, auth.user_id, space_id).await?;
+
+    let rows: Vec<PostRow> = sqlx::query_as(
+        "SELECT p.id, p.author_id, u.display_name AS author_name,
+                p.title, p.body, p.media_id, p.created_at
+         FROM posts p
+         JOIN users u ON u.id = p.author_id
+         WHERE p.space_id = $1
+         ORDER BY p.created_at DESC",
+    )
+    .bind(space_id)
+    .fetch_all(&state.pool)
+    .await?;
+
+    Ok(Json(enrich(&state.pool, rows, auth.user_id).await?))
+}
+
+async fn create_post(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Path(space_id): Path<Uuid>,
+    Json(body): Json<CreatePostBody>,
+) -> ApiResult<Json<Post>> {
+    ensure_member(&state.pool, auth.user_id, space_id).await?;
+    if body.body.trim().is_empty() {
+        return Err(ApiError::BadRequest("le récit ne peut pas être vide".into()));
+    }
+
+    // Un média joint doit appartenir au même espace.
+    if let Some(media_id) = body.media_id {
+        let ok: Option<Uuid> = sqlx::query_scalar(
+            "SELECT id FROM media WHERE id = $1 AND space_id = $2",
+        )
+        .bind(media_id)
+        .bind(space_id)
+        .fetch_optional(&state.pool)
+        .await?;
+        if ok.is_none() {
+            return Err(ApiError::BadRequest("média introuvable pour cet espace".into()));
+        }
+    }
+
+    let row: PostRow = sqlx::query_as(
+        "WITH inserted AS (
+             INSERT INTO posts (space_id, author_id, title, body, media_id)
+             VALUES ($1, $2, $3, $4, $5)
+             RETURNING id, author_id, title, body, media_id, created_at
+         )
+         SELECT i.id, i.author_id, u.display_name AS author_name,
+                i.title, i.body, i.media_id, i.created_at
+         FROM inserted i JOIN users u ON u.id = i.author_id",
+    )
+    .bind(space_id)
+    .bind(auth.user_id)
+    .bind(body.title.as_deref().map(str::trim).filter(|s| !s.is_empty()))
+    .bind(body.body.trim())
+    .bind(body.media_id)
+    .fetch_one(&state.pool)
+    .await?;
+
+    let mut enriched = enrich(&state.pool, vec![row], auth.user_id).await?;
+    let post = enriched.remove(0);
+    crate::notifications::notify_members(
+        &state,
+        space_id,
+        auth.user_id,
+        "Nouveau message".into(),
+        post.title
+            .clone()
+            .unwrap_or_else(|| "Un nouveau récit t'attend".into()),
+    );
+    Ok(Json(post))
+}

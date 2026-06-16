@@ -1,0 +1,10 @@
+node_modules
+dist
+dist-ssr
+storybook-static
+*.local
+.DS_Store
+.env
+.env.*
+!.env.example
+*.log
