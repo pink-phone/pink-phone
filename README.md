@@ -1,36 +1,36 @@
 # Pink Phone 🔥
 
-**Le jardin secret d'un couple.** Une PWA intime — pas une app de rencontre, pas un réseau social — pour deux. Un journal « à tête reposée », une météo de l'envie, et des défis complices. Distribuée en PWA, volontairement **hors des stores**, auto-hébergeable.
+**A couple's secret garden.** An intimate PWA — not a dating app, not a social network — just for two. A laid-back shared journal, a "weather of desire", and playful dares. Shipped as a PWA, deliberately **outside the app stores**, self-hostable.
 
-> Conçue mobile-first, dark, dans une direction artistique « feutrée » (skeuomorphisme doux, rose désaturé, velours) — ni flat-and-cold, ni rose bonbon, ni clinique.
+> Mobile-first, dark, with a "felted" art direction (soft skeuomorphism, desaturated rose, velvet) — neither flat-and-cold, nor candy pink, nor clinical.
 
-## ✨ Fonctionnalités
+## ✨ Features
 
-- **Blog** — un journal partagé : récits, photos, réactions emoji (dont une **réaction libre**), commentaires. **Brouillons** (texte + photo, éditables), édition des posts publiés.
-- **Mood** — la « météo sexuelle » du jour : une humeur partagée d'un geste, renouvelée à minuit (fuseau du salon). Une humeur chaude/taquine fait *signe* (notification).
-- **Défis** — petite machine à états (`proposé → accepté / à adapter → mission accomplie`), avec une **banque de propositions** curée (FR/EN) + propositions propres au salon (CRUD).
-- **Médias sensuels & sûrs** — floutés par défaut, révélés au *press-and-hold* ; mode **éphémère** (« vision unique »). **Chiffrables au repos** (AES-256-GCM) et servis uniquement via une route authentifiée.
-- **Temps réel** — WebSocket : nouveaux contenus, humeurs, réactions et **accusés de lecture** (« ✓✓ Vu ») se synchronisent en direct. Badges « nouveautés » sur l'accueil.
-- **Thèmes** — « Feutré » (défaut) et « Red Velvet », via variables CSS.
-- **Bilingue** — FR / EN (react-i18next, détection navigateur, sélecteur dans les réglages).
-- **PWA installable** — manifeste + service worker, install Android (prompt natif) / iOS (instructions), recharge auto à la mise à jour, retour matériel Android & swipe iOS.
-- **Auth** — email/mot de passe (Argon2id) **et/ou** OIDC/SSO.
+- **Blog** — a shared journal: stories, photos, emoji reactions (including a **free/custom reaction**), comments. **Drafts** (text + photo, editable), and editing of published posts.
+- **Mood** — the daily "weather of desire": a mood shared in one tap, reset at midnight (the space's timezone). A hot/playful mood gently *nudges* the other (notification).
+- **Dares** — a small state machine (`proposed → accepted / to adjust → mission accomplished`), with a curated **suggestion bank** (FR/EN) plus space-specific suggestions (CRUD).
+- **Sensual & safe media** — blurred by default, revealed by *press-and-hold*; **ephemeral** ("view once") mode. **Encryptable at rest** (AES-256-GCM) and served only through an authenticated route.
+- **Real-time** — WebSocket: new content, moods, reactions and **read receipts** ("✓✓ Seen") sync live. "What's new" badges on the home screen.
+- **Themes** — "Felted" (default) and "Red Velvet", via CSS variables.
+- **Bilingual** — FR / EN (react-i18next, browser detection, switcher in settings).
+- **Installable PWA** — manifest + service worker, Android install (native prompt) / iOS (instructions), auto-reload on update, Android hardware back & iOS swipe-back.
+- **Auth** — email/password (Argon2id) **and/or** OIDC/SSO.
 
-## 🖼️ Captures
+## 🖼️ Screenshots
 
-> _À ajouter dans `docs/screenshots/` puis référencer ici (Dashboard, Blog, Défis, Réglages…)._
+> _To add under `docs/screenshots/` and reference here (Dashboard, Blog, Dares, Settings…)._
 
-| Accueil | Journal | Défis |
+| Home | Journal | Dares |
 |---|---|---|
 | _(dashboard.png)_ | _(blog.png)_ | _(challenges.png)_ |
 
 ## 🧱 Stack
 
-- **Front** — React 18 + TypeScript + Tailwind v3 + `vite-plugin-pwa`. **Storybook** comme surface de design (chaque composant y existe avant d'être utilisé).
-- **Back** — Rust / **Axum** + Tokio, Postgres via `sqlx` (requêtes runtime), JWT + Argon2id, Web Push (VAPID), WebSocket.
-- **Déploiement** — images Docker (web nginx + api), CI/CD Forgejo Actions, derrière un reverse-proxy (TLS).
+- **Front** — React 18 + TypeScript + Tailwind v3 + `vite-plugin-pwa`. **Storybook** as the design surface (every component lives there before being used).
+- **Back** — Rust / **Axum** + Tokio, Postgres via `sqlx` (runtime queries), JWT + Argon2id, Web Push (VAPID), WebSocket.
+- **Deployment** — Docker images (nginx web + api), Forgejo Actions CI/CD, behind a reverse proxy (TLS).
 
-## 🚀 Démarrage rapide (dev)
+## 🚀 Quick start (dev)
 
 ```bash
 # Front (design system + app)
@@ -38,40 +38,40 @@ npm install
 npm run storybook        # design system — http://localhost:6006
 npm run dev              # app (Vite) — http://localhost:5173
 
-# Back (autre terminal) — voir backend/README.md
+# Back (other terminal) — see backend/README.md
 cd backend
-cp .env.example .env     # adapter au besoin
+cp .env.example .env     # adjust as needed
 docker compose up -d     # Postgres :5432
-cargo run                # API :8080 (applique les migrations au démarrage)
+cargo run                # API :8080 (runs migrations on startup)
 ```
 
-L'URL de l'API côté front est configurable via `VITE_API_URL` (défaut `http://localhost:8080`).
+The front-end API URL is configurable via `VITE_API_URL` (default `http://localhost:8080`).
 
-## 📦 Auto-hébergement
+## 📦 Self-hosting
 
-Installation auto-hébergée (Docker Compose, variables d'env, reverse-proxy + WebSocket, génération des clés) : **[`INSTALL.md`](INSTALL.md)**.
+Self-hosted install (Docker Compose, env vars, reverse proxy + WebSocket, key generation): **[`INSTALL.md`](INSTALL.md)**.
 
-## 🤝 Contribuer
+## 🤝 Contributing
 
-Prérequis, commandes, conventions et la **règle d'or Storybook-first** : **[`CONTRIBUTING.md`](CONTRIBUTING.md)**.
+Prerequisites, commands, conventions and the **Storybook-first golden rule**: **[`CONTRIBUTING.md`](CONTRIBUTING.md)**.
 
-## 🔧 Déploiement (CI/CD)
+## 🔧 Deployment (CI/CD)
 
-Pipeline Forgejo Actions (build → release semver → déploiement SSH) : **[`deploy/README.md`](deploy/README.md)**.
+Forgejo Actions pipeline (build → semver release → SSH deploy): **[`deploy/README.md`](deploy/README.md)**.
 
-## 🎨 Direction artistique — « felted »
+## 📁 Architecture (overview)
 
-Skeuomorphisme feutré : roses désaturés (Blush Privé → Rose Épicé → Vin Bordelais), neutres chauds (Charbon Doux, Taupe), titres serif (Playfair) / corps sans (Inter), coins arrondis, ombres douces, transitions lentes. Palette en **variables CSS** (thématisable) dans `src/index.css` ; tokens dans `tailwind.config.js`.
+- `src/components/` — reusable, presentational, controlled bricks (each has its `*.stories.tsx`).
+- `src/screens/` — presentational screens; `src/app/` — orchestration (state + network, WebSocket).
+- `src/api/`, `src/auth/`, `src/i18n/`, `src/theme.ts` — typed client, auth, translations, themes.
+- `backend/` — Rust/Axum API (see [`backend/README.md`](backend/README.md)).
 
-## 📁 Architecture (survol)
+`App.tsx` → `AuthProvider` → `Root` (auth) → `SpaceGate` (spaces) → `SpaceApp` (loads the space's mood/posts/dares, WebSocket, wires the screens). `src/mock/data.ts` only feeds the stories.
 
-- `src/components/` — briques présentationnelles, contrôlées (chacune a sa `*.stories.tsx`).
-- `src/screens/` — écrans (présentationnels) ; `src/app/` — orchestration (état + réseau, WebSocket).
-- `src/api/`, `src/auth/`, `src/i18n/`, `src/theme.ts` — client typé, auth, traductions, thèmes.
-- `backend/` — API Rust/Axum (voir [`backend/README.md`](backend/README.md)).
+## 🎨 Art direction — "felted"
 
-`App.tsx` → `AuthProvider` → `Root` (auth) → `SpaceGate` (espaces) → `SpaceApp` (charge mood/posts/défis du Space, WebSocket, câble les écrans). `src/mock/data.ts` ne sert qu'aux stories.
+Soft skeuomorphism: desaturated roses (Blush → Spice → Bordeaux), warm neutrals (Charcoal, Taupe), serif titles (Playfair) / sans body (Inter), generous rounding, soft shadows, slow transitions. Palette as **CSS variables** (themeable) in `src/index.css`; tokens in `tailwind.config.js`.
 
-## 📝 Licence
+## 📝 License
 
-> _Aucune licence définie pour l'instant — à ajouter (`LICENSE`) avant une publication ouverte._
+> _No license defined yet — to be added (`LICENSE`) before any open release._

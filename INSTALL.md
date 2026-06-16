@@ -1,43 +1,43 @@
-# Installation auto-hébergée
+# Self-hosted installation
 
-Pink Phone s'auto-héberge avec **Docker Compose** : Postgres + l'API Rust + un nginx qui sert la PWA **et** reverse-proxie `/api` (tout en same-origin, pas de CORS à gérer).
+Pink Phone self-hosts with **Docker Compose**: Postgres + the Rust API + an nginx that serves the PWA **and** reverse-proxies `/api` (everything same-origin, no CORS to deal with).
 
-> Le `deploy/docker-compose.yml` du dépôt tire des images d'un registre privé (CI Forgejo). Pour un déploiement **depuis les sources**, utilise le compose ci-dessous (build local). Une fois la CI Docker Hub en place, on pourra pointer des images publiées.
+> The repo's `deploy/docker-compose.yml` pulls images from a private registry (Forgejo CI). For a **from-source** deploy, use the compose below (local build). Once a public image pipeline is in place, you'll be able to point at published images.
 
-## 1. Prérequis
+## 1. Prerequisites
 
 - Docker + Docker Compose v2.
-- (Recommandé) un reverse-proxy en façade pour le **domaine + TLS** (Traefik, Caddy, nginx…). Indispensable pour la PWA (service worker, push) qui exige HTTPS.
+- (Recommended) a front reverse proxy for **domain + TLS** (Traefik, Caddy, nginx…). Required for the PWA (service worker, push), which needs HTTPS.
 
-## 2. Récupérer le code
+## 2. Get the code
 
 ```bash
 git clone <repo> pinkphone && cd pinkphone
 ```
 
-## 3. Configurer l'environnement
+## 3. Configure the environment
 
-Copie l'exemple et renseigne les valeurs :
+Copy the example and fill in the values:
 
 ```bash
 cp deploy/.env.example .env
 ```
 
-| Variable | Rôle | Comment générer |
+| Variable | Purpose | How to generate |
 |---|---|---|
-| `JWT_SECRET` | **Requis.** Signe les jetons de session (stable !) | `openssl rand -hex 32` |
-| `POSTGRES_PASSWORD` | **Requis.** Mot de passe de la base | `openssl rand -base64 24` |
-| `MEDIA_KEY` | Chiffre les médias au repos (AES-256-GCM). Vide = clair. **Ne jamais changer après coup.** | `openssl rand -base64 32` |
-| `WEB_PORT` | Port exposé sur l'hôte (cible du reverse-proxy) | déf. `8095` |
-| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | Web Push (notifications). Vides = push désactivé | `npx web-push generate-vapid-keys` |
-| `PASSWORD_AUTH_ENABLED` | Auth email/mot de passe (`false` = SSO seul) | déf. `true` |
-| `OIDC_ISSUER` / `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET` / `OIDC_REDIRECT_URI` / `OIDC_POST_LOGIN_REDIRECT` | SSO/OIDC (tous requis si activé, sinon SSO désactivé) | côté fournisseur (Authentik, Keycloak…) |
+| `JWT_SECRET` | **Required.** Signs session tokens (keep it stable!) | `openssl rand -hex 32` |
+| `POSTGRES_PASSWORD` | **Required.** Database password | `openssl rand -base64 24` |
+| `MEDIA_KEY` | Encrypts media at rest (AES-256-GCM). Empty = plaintext. **Never change it later.** | `openssl rand -base64 32` |
+| `WEB_PORT` | Host port exposed (reverse-proxy target) | default `8095` |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` / `VAPID_SUBJECT` | Web Push (notifications). Empty = push disabled | `npx web-push generate-vapid-keys` |
+| `PASSWORD_AUTH_ENABLED` | Email/password auth (`false` = SSO only) | default `true` |
+| `OIDC_ISSUER` / `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET` / `OIDC_REDIRECT_URI` / `OIDC_POST_LOGIN_REDIRECT` | SSO/OIDC (all required if enabled, otherwise SSO is off) | from your provider (Authentik, Keycloak…) |
 
-Le callback OIDC est sur le domaine public : `https://ton-domaine/api/auth/oidc/callback`.
+The OIDC callback lives on the public domain: `https://your-domain/api/auth/oidc/callback`.
 
-## 4. Compose (build depuis les sources)
+## 4. Compose (build from source)
 
-Crée un `docker-compose.yml` (ou adapte `deploy/docker-compose.yml` en remplaçant `image:` par `build:`) :
+Create a `docker-compose.yml` (or adapt `deploy/docker-compose.yml`, replacing `image:` with `build:`):
 
 ```yaml
 services:
@@ -89,19 +89,19 @@ volumes: { pink-pgdata: {}, pink-media: {} }
 docker compose up -d --build
 ```
 
-- L'API **applique les migrations au démarrage** (aucune étape manuelle).
-- L'API refuse de démarrer si elle est exposée avec un `JWT_SECRET` de dev — c'est voulu.
+- The API **runs migrations on startup** (no manual step).
+- The API refuses to start if it's exposed with a dev `JWT_SECRET` — by design.
 
-## 5. Reverse-proxy (TLS) — ⚠️ WebSocket
+## 5. Reverse proxy (TLS) — ⚠️ WebSocket
 
-Pointe ton proxy vers `http://<hôte>:${WEB_PORT}`. Le **temps réel** repose sur un WebSocket (`/api/spaces/{id}/ws`) : le proxy de façade **doit transmettre l'upgrade WebSocket** (la plupart le font, Traefik automatiquement ; pour nginx, propager `Upgrade`/`Connection`). Le nginx interne de l'image `web` gère déjà l'upgrade et un `proxy_read_timeout` long (cf. `deploy/web-nginx.conf`).
+Point your proxy at `http://<host>:${WEB_PORT}`. Real-time relies on a WebSocket (`/api/spaces/{id}/ws`): the front proxy **must forward the WebSocket upgrade** (most do; Traefik automatically; for nginx, propagate `Upgrade`/`Connection`). The image's internal nginx already handles the upgrade and a long `proxy_read_timeout` (see `deploy/web-nginx.conf`).
 
-## 6. Premier lancement
+## 6. First run
 
-Ouvre l'app via ton domaine HTTPS, crée un compte, crée un **salon**, puis partage son identifiant à ton/ta partenaire pour qu'il/elle rejoigne. Installe la PWA (« Sur l'écran d'accueil »).
+Open the app via your HTTPS domain, create an account, create a **space**, then share its ID with your partner so they can join. Install the PWA ("Add to Home Screen").
 
-## Sauvegardes & sécurité
+## Backups & security
 
-- Données à sauvegarder : volume **`pink-pgdata`** (base) et **`pink-media`** (fichiers).
-- Les médias sont chiffrés au repos **si** `MEDIA_KEY` est défini ; les **métadonnées Postgres restent en clair** → pour une protection complète contre l'accès disque, chiffrer le volume au niveau OS (LUKS).
-- Garder `JWT_SECRET` **stable** (le changer déconnecte tout le monde) et `MEDIA_KEY` **immuable** (le changer rend les médias illisibles).
+- Data to back up: the **`pink-pgdata`** volume (database) and **`pink-media`** (files).
+- Media is encrypted at rest **if** `MEDIA_KEY` is set; **Postgres metadata stays in plaintext** → for full protection against disk access, encrypt the volume at the OS level (LUKS).
+- Keep `JWT_SECRET` **stable** (changing it logs everyone out) and `MEDIA_KEY` **immutable** (changing it makes media unreadable).

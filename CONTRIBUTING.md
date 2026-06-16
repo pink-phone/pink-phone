@@ -1,26 +1,26 @@
-# Contribuer à Pink Phone
+# Contributing to Pink Phone
 
-Merci de l'intérêt 💛 Ce guide couvre l'essentiel pour développer sereinement.
+Thanks for your interest 💛 This guide covers the essentials to work comfortably.
 
-## 🌟 La règle d'or : Storybook-first
+## 🌟 The golden rule: Storybook-first
 
-**Tout composant React doit exister dans Storybook (`*.stories.tsx`) avant d'être utilisé dans l'app.** On construit la brique isolée — ses états/variants sous le design system « felted » — on la valide en Storybook, **puis** on la compose dans les écrans. On ne câble pas un composant dans une page s'il n'a pas de story.
+**Every React component must exist in Storybook (`*.stories.tsx`) before it is used in the app.** Build the isolated brick — its states/variants under the "felted" design system — validate it in Storybook, **then** compose it into screens. Don't wire a component into a page if it has no story.
 
-Exception : la couche d'orchestration (`src/app/`, `src/api/`, `src/auth/`) qui parle au réseau et porte l'état — elle n'est pas dans Storybook (même catégorie que `App.tsx`).
+Exception: the orchestration layer (`src/app/`, `src/api/`, `src/auth/`) that talks to the network and holds state — it is not in Storybook (same category as `App.tsx`).
 
-## 🧰 Prérequis
+## 🧰 Prerequisites
 
-- **Node ≥ 20.19** (Storybook 10 l'exige ; sur macOS, le node Homebrew suffit).
+- **Node ≥ 20.19** (Storybook 10 requires it; on macOS, the Homebrew node works).
 - **Rust** stable + **Cargo** (backend).
-- **Docker** (Postgres en local).
+- **Docker** (local Postgres).
 
-## 💻 Travailler
+## 💻 Working
 
 ### Front
 ```bash
 npm install
-npm run storybook        # surface de design — :6006 (le terrain de jeu principal)
-npm run dev              # l'app (Vite) — :5173
+npm run storybook        # design surface — :6006 (the primary playground)
+npm run dev              # the app (Vite) — :5173
 ```
 
 ### Back
@@ -28,42 +28,42 @@ npm run dev              # l'app (Vite) — :5173
 cd backend
 cp .env.example .env
 docker compose up -d     # Postgres :5432
-cargo run                # API :8080 (migrations appliquées au démarrage)
+cargo run                # API :8080 (migrations applied on startup)
 ```
 
-## ✅ Avant de pousser — les portes de compilation
+## ✅ Before pushing — the compile gates
 
-Il n'y a **ni test runner ni linter** configurés. La validation passe par le compilateur (TypeScript strict, `noUnusedLocals`/`noUnusedParameters`) et par les builds. Tout doit sortir en **exit 0** :
+There is **no test runner and no linter** configured. Validation goes through the compiler (strict TypeScript, `noUnusedLocals`/`noUnusedParameters`) and the builds. Everything must exit **0**:
 
 ```bash
-npx tsc --noEmit          # type-check front
-npm run build             # build PWA (tsc + vite)
-npm run build-storybook   # « est-ce que tout compile ? » de fait
-cd backend && cargo build # compile l'API (sqlx runtime → pas besoin de DB)
+npx tsc --noEmit          # front type-check
+npm run build             # PWA build (tsc + vite)
+npm run build-storybook   # de-facto "does everything compile?"
+cd backend && cargo build # compiles the API (sqlx runtime → no DB needed)
 ```
 
-Si tu ajoutes une **migration** SQL, vérifie qu'elle s'applique (Postgres jetable ou `cargo run`). Ne **jamais** modifier une migration déjà appliquée (sqlx vérifie le checksum) — en ajouter une nouvelle.
+If you add a SQL **migration**, verify it applies (throwaway Postgres or `cargo run`). **Never** edit an already-applied migration (sqlx checks the checksum) — add a new one.
 
-## 🧭 Architecture (rappel)
+## 🧭 Architecture (recap)
 
-- `src/components/<Name>/` — réutilisables, **présentationnels**, contrôlés (props + callbacks). Une `*.stories.tsx` chacun.
-- `src/screens/<Name>/` — écrans présentationnels (données + handlers en props), avec stories.
-- `src/app/` — orchestration : `Root` → `SpaceGate` → `SpaceApp` (état, réseau, WebSocket).
-- `src/api/` (client typé), `src/auth/`, `src/i18n/`, `src/theme.ts`.
-- `backend/src/routes/` — un module par ressource ; `ensure_member()` est la garde d'autorisation par salon.
+- `src/components/<Name>/` — reusable, **presentational**, controlled (props + callbacks). One `*.stories.tsx` each.
+- `src/screens/<Name>/` — presentational screens (data + handlers via props), with stories.
+- `src/app/` — orchestration: `Root` → `SpaceGate` → `SpaceApp` (state, network, WebSocket).
+- `src/api/` (typed client), `src/auth/`, `src/i18n/`, `src/theme.ts`.
+- `backend/src/routes/` — one module per resource; `ensure_member()` is the per-space authorization guard.
 
-Les **enums de domaine** (`MoodId`, `ChallengeStatus`, `Intensity`, `ReactionId`, `Verdict`) sont des contrats partagés avec le backend : les chaînes sont alignées 1:1 (ex. `challengeAccepted`, `veryHot`).
+The **domain enums** (`MoodId`, `ChallengeStatus`, `Intensity`, `ReactionId`, `Verdict`) are a shared contract with the backend: strings are aligned 1:1 (e.g. `challengeAccepted`, `veryHot`).
 
 ## 🌍 i18n
 
-Toute chaîne visible passe par `t(...)`. Les dictionnaires sont dans `src/i18n/locales/` (FR = source, EN = miroir). Les clés sont **typées** : une clé inconnue est une erreur de compilation. Ajoute la clé dans `fr.ts` **et** `en.ts`.
+Every user-facing string goes through `t(...)`. Dictionaries live in `src/i18n/locales/` (FR = source, EN = mirror). Keys are **typed**: an unknown key is a compile error. Add the key to both `fr.ts` **and** `en.ts`.
 
-## 🎨 Design system « felted »
+## 🎨 "Felted" design system
 
-Dark-only, mobile-first. Couleurs en variables CSS (`src/index.css`) + tokens Tailwind (`tailwind.config.js`). Arrondis généreux, ombres douces (`shadow-felt`), transitions lentes (`ease-felt`). Respecter `prefers-reduced-motion`. La sécurité est *sensuelle* : média flouté révélé au press-and-hold (`SafeMedia`) — ne pas réduire ce geste à un toggle.
+Dark-only, mobile-first. Colors as CSS variables (`src/index.css`) + Tailwind tokens (`tailwind.config.js`). Generous rounding, soft shadows (`shadow-felt`), slow transitions (`ease-felt`). Respect `prefers-reduced-motion`. Security is *sensual*: media blurred and revealed by press-and-hold (`SafeMedia`) — don't reduce that gesture to a toggle.
 
 ## 🔀 Git & commits
 
-- Branche depuis `main` ; pas de commit direct sur `main` sauf accord.
-- Messages clairs ; conventions type *Conventional Commits* (`feat:`, `fix:`, `chore:`…) bienvenues.
-- Décris le **pourquoi** autant que le **quoi**.
+- Branch off `main`; no direct commits to `main` without agreement.
+- Clear messages; *Conventional Commits* style (`feat:`, `fix:`, `chore:`…) welcome.
+- Describe the **why** as much as the **what**.
