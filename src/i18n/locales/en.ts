@@ -92,6 +92,8 @@ export const en: Resources = {
     smirk: "Naughty",
     breath: "Breathless",
     hush: "Our secret",
+    addAria: "Add a reaction (emoji)",
+    addPlaceholder: "🙂",
   },
   blog: {
     title: "Our journal",

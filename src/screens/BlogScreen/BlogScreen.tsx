@@ -1,13 +1,12 @@
 import { useTranslation } from "react-i18next";
 import { BlogPost } from "../../components/BlogPost/BlogPost";
 import { Button } from "../../components/Button/Button";
-import type { ReactionId } from "../../components/ReactionBar/ReactionBar";
 import type { PostData } from "../../mock/data";
 
 export interface BlogScreenProps {
   posts: PostData[];
   onCompose?: () => void;
-  onToggleReaction?: (postId: string, reaction: ReactionId) => void;
+  onToggleReaction?: (postId: string, reaction: string) => void;
   onOpenComments?: (postId: string) => void;
   onDeletePost?: (postId: string) => void;
   onPublishPost?: (postId: string) => void;

@@ -91,6 +91,22 @@ pub struct ReactionBody {
     pub reaction: String,
 }
 
+/// Réaction acceptée : soit une prédéfinie, soit un emoji "libre" borné
+/// (1 à 8 caractères, ≤ 32 octets, pas d'alphanumérique ASCII ni d'espace —
+/// de quoi accepter un emoji, y compris séquences ZWJ, sans stocker du texte).
+fn reaction_allowed(r: &str) -> bool {
+    if REACTIONS.contains(&r) {
+        return true;
+    }
+    let n = r.chars().count();
+    n >= 1
+        && n <= 8
+        && r.len() <= 32
+        && !r
+            .chars()
+            .any(|c| c.is_ascii_alphanumeric() || c.is_whitespace())
+}
+
 async fn add_reaction(
     State(state): State<AppState>,
     auth: AuthUser,
@@ -98,8 +114,9 @@ async fn add_reaction(
     Json(body): Json<ReactionBody>,
 ) -> ApiResult<Json<ReactionSummary>> {
     guard(&state.pool, auth.user_id, space_id, post_id).await?;
-    if !REACTIONS.contains(&body.reaction.as_str()) {
-        return Err(ApiError::BadRequest("réaction inconnue".into()));
+    let reaction = body.reaction.trim();
+    if !reaction_allowed(reaction) {
+        return Err(ApiError::BadRequest("réaction invalide".into()));
     }
     sqlx::query(
         "INSERT INTO post_reactions (post_id, user_id, reaction)
@@ -107,7 +124,7 @@ async fn add_reaction(
     )
     .bind(post_id)
     .bind(auth.user_id)
-    .bind(&body.reaction)
+    .bind(reaction)
     .execute(&state.pool)
     .await?;
     state.emit(space_id, auth.user_id, "reaction");

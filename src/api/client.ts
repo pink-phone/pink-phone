@@ -3,7 +3,6 @@ import type {
   ChallengeStatus,
   Intensity,
 } from "../components/ChallengeCard/challenge";
-import type { ReactionId } from "../components/ReactionBar/ReactionBar";
 import type { Verdict } from "../components/VerdictPicker/VerdictPicker";
 import type {
   ApiChallenge,
@@ -199,7 +198,7 @@ export const publishPost = (spaceId: string, postId: string) =>
 export const addReaction = (
   spaceId: string,
   postId: string,
-  reaction: ReactionId,
+  reaction: string,
 ) =>
   req<ReactionSummary>(`/api/spaces/${spaceId}/posts/${postId}/reactions`, {
     method: "POST",
@@ -209,10 +208,11 @@ export const addReaction = (
 export const removeReaction = (
   spaceId: string,
   postId: string,
-  reaction: ReactionId,
+  reaction: string,
 ) =>
   req<ReactionSummary>(
-    `/api/spaces/${spaceId}/posts/${postId}/reactions/${reaction}`,
+    // La réaction peut être un emoji libre : on encode pour le path.
+    `/api/spaces/${spaceId}/posts/${postId}/reactions/${encodeURIComponent(reaction)}`,
     { method: "DELETE" },
   );
 

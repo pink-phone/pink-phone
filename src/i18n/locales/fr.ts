@@ -92,6 +92,8 @@ export const fr = {
     smirk: "Coquin",
     breath: "Haletant",
     hush: "Notre secret",
+    addAria: "Ajouter une réaction (emoji)",
+    addPlaceholder: "🙂",
   },
   blog: {
     title: "Notre journal",

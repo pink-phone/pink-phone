@@ -1,7 +1,6 @@
 // Types des réponses de l'API Rust. Les chaînes (status/mood/intensity) sont
 // volontairement alignées 1:1 sur les types des composants.
 import type { MoodId } from "../components/MoodSelector/moods";
-import type { ReactionId } from "../components/ReactionBar/ReactionBar";
 import type { Verdict } from "../components/VerdictPicker/VerdictPicker";
 import type {
   ChallengeStatus,
@@ -54,15 +53,16 @@ export interface ApiPost {
   /** Brouillon : visible du seul auteur, non notifié tant qu'il n'est pas publié. */
   draft: boolean;
   createdAt: string;
-  reactionCounts: Partial<Record<ReactionId, number>>;
-  myReactions: ReactionId[];
+  // Clés = id de réaction prédéfinie OU emoji libre (réaction custom).
+  reactionCounts: Record<string, number>;
+  myReactions: string[];
   verdict: Verdict | null;
   commentCount: number;
 }
 
 export interface ReactionSummary {
-  reactionCounts: Partial<Record<ReactionId, number>>;
-  myReactions: ReactionId[];
+  reactionCounts: Record<string, number>;
+  myReactions: string[];
 }
 
 export interface ApiComment {

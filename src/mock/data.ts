@@ -1,7 +1,6 @@
 // Données de démonstration partagées par les stories et l'App.
 // Aucune dépendance réseau garantie : les médias pointent vers des photos neutres.
 import type { BlogPostMedia } from "../components/BlogPost/BlogPost";
-import type { ReactionId } from "../components/ReactionBar/ReactionBar";
 import type { Verdict } from "../components/VerdictPicker/VerdictPicker";
 import type { MoodId } from "../components/MoodSelector/moods";
 import type {
@@ -38,8 +37,8 @@ export interface PostData {
   title?: string;
   body: string;
   media?: BlogPostMedia;
-  reactionCounts: Partial<Record<ReactionId, number>>;
-  myReactions: ReactionId[];
+  reactionCounts: Record<string, number>;
+  myReactions: string[];
   verdict: Verdict | null;
   commentCount: number;
   /** Brouillon (visible du seul auteur). */

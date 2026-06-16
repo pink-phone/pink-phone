@@ -34,7 +34,6 @@ import {
 } from "../components/ChallengeComposer/ChallengeComposer";
 
 import type { MoodId } from "../components/MoodSelector/moods";
-import type { ReactionId } from "../components/ReactionBar/ReactionBar";
 import type { ChallengeStatus } from "../components/ChallengeCard/challenge";
 import type { ChallengeData, PostData } from "../mock/data";
 
@@ -276,7 +275,7 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
     }
   };
 
-  const toggleReaction = async (postId: string, reaction: ReactionId) => {
+  const toggleReaction = async (postId: string, reaction: string) => {
     const post = posts.find((p) => p.id === postId);
     if (!post) return;
     const mine = post.myReactions.includes(reaction);
