@@ -14,6 +14,17 @@ const meta = {
     onModeChange: fn(),
     onHotAnimChange: fn(),
     hotAnimEnabled: true,
+    space: {
+      name: "Pink Phone",
+      timezone: "Europe/Paris",
+      inviteId: "a1b2c3d4-0000-0000-0000-000000000000",
+    },
+    members: [
+      { id: "1", name: "Toi" },
+      { id: "2", name: "Camille" },
+    ],
+    onRenameSpace: fn(),
+    onTimezoneChange: fn(),
     onBack: fn(),
     onLogout: fn(),
   },

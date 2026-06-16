@@ -197,6 +197,13 @@ export const fr = {
     hotAnimHint:
       "Halo et particules animés sur les états chauds. Désactive pour un rendu calme.",
     language: "Langue",
+    spaceSection: "Notre salon",
+    spaceName: "Nom du salon",
+    save: "Enregistrer",
+    timezone: "Fuseau horaire",
+    timezoneHint: "Sert au renouvellement de l'humeur à minuit.",
+    inviteId: "Identifiant d'invitation",
+    members: "Membres",
   },
   install: {
     title: "Installer Pink Phone",

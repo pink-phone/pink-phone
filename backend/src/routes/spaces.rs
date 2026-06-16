@@ -17,6 +17,7 @@ pub fn router() -> Router<AppState> {
     Router::new()
         .route("/api/spaces", post(create_space))
         .route("/api/spaces/me", get(my_spaces))
+        .route("/api/spaces/{id}", axum::routing::patch(update_space))
         .route("/api/spaces/{id}/join", post(join_space))
         .route("/api/spaces/{id}/members", get(members))
 }
@@ -24,6 +25,13 @@ pub fn router() -> Router<AppState> {
 #[derive(Deserialize)]
 pub struct CreateSpaceBody {
     pub name: String,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateSpaceBody {
+    pub name: Option<String>,
+    pub timezone: Option<String>,
 }
 
 async fn create_space(
@@ -53,6 +61,52 @@ async fn create_space(
     .await?;
     tx.commit().await?;
 
+    Ok(Json(space))
+}
+
+/// Met à jour le salon (nom et/ou fuseau). Tout membre peut l'éditer.
+async fn update_space(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Path(space_id): Path<Uuid>,
+    Json(body): Json<UpdateSpaceBody>,
+) -> ApiResult<Json<Space>> {
+    ensure_member(&state.pool, auth.user_id, space_id).await?;
+
+    let name = match &body.name {
+        Some(n) => {
+            let n = n.trim();
+            if n.is_empty() {
+                return Err(ApiError::BadRequest("nom d'espace requis".into()));
+            }
+            Some(n.to_string())
+        }
+        None => None,
+    };
+
+    if let Some(tz) = &body.timezone {
+        let ok: Option<String> =
+            sqlx::query_scalar("SELECT name FROM pg_timezone_names WHERE name = $1")
+                .bind(tz)
+                .fetch_optional(&state.pool)
+                .await?;
+        if ok.is_none() {
+            return Err(ApiError::BadRequest("fuseau horaire inconnu".into()));
+        }
+    }
+
+    let space: Space = sqlx::query_as(
+        "UPDATE spaces SET name = COALESCE($2, name), timezone = COALESCE($3, timezone)
+         WHERE id = $1
+         RETURNING id, name, timezone, created_at",
+    )
+    .bind(space_id)
+    .bind(name)
+    .bind(&body.timezone)
+    .fetch_one(&state.pool)
+    .await?;
+
+    state.emit(space_id, auth.user_id, "space");
     Ok(Json(space))
 }
 

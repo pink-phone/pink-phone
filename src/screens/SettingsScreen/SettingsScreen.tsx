@@ -1,10 +1,31 @@
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Surface } from "../../components/Surface/Surface";
 import { Button } from "../../components/Button/Button";
 import { Toggle } from "../../components/form/Toggle";
+import { TextField } from "../../components/form/TextField";
 import { cn } from "../../lib/cn";
 import { SUPPORTED_LANGS } from "../../i18n";
 import type { NotifMode } from "../../api/types";
+
+// Liste IANA complète si le navigateur la fournit, sinon un repli raisonnable.
+const TIMEZONES: string[] = (() => {
+  const intl = Intl as { supportedValuesOf?: (key: string) => string[] };
+  try {
+    return intl.supportedValuesOf?.("timeZone") ?? [];
+  } catch {
+    return [];
+  }
+})();
+const TZ_FALLBACK = [
+  "Europe/Paris",
+  "Europe/London",
+  "America/New_York",
+  "America/Los_Angeles",
+  "Asia/Tokyo",
+  "Australia/Sydney",
+  "UTC",
+];
 
 // Modes de notif : id + emoji + flag "bientôt" ; titres/descriptions via i18n.
 const MODES: { id: NotifMode; emoji: string; soon?: boolean }[] = [
@@ -34,6 +55,11 @@ export interface SettingsScreenProps {
   /** Effet « braise » des états chauds (halo + particules). */
   hotAnimEnabled?: boolean;
   onHotAnimChange?: (enabled: boolean) => void;
+  /** Réglages du salon (affichés si fournis). */
+  space?: { name: string; timezone: string; inviteId: string };
+  members?: { id: string; name: string }[];
+  onRenameSpace?: (name: string) => void;
+  onTimezoneChange?: (timezone: string) => void;
   onBack?: () => void;
   onLogout?: () => void;
 }
@@ -47,11 +73,24 @@ export function SettingsScreen({
   busy,
   hotAnimEnabled = true,
   onHotAnimChange,
+  space,
+  members,
+  onRenameSpace,
+  onTimezoneChange,
   onBack,
   onLogout,
 }: SettingsScreenProps) {
   const { t, i18n } = useTranslation();
   const currentLang = i18n.resolvedLanguage ?? i18n.language;
+
+  // Édition du nom du salon (resynchronisé si le nom change ailleurs).
+  const [spaceName, setSpaceName] = useState(space?.name ?? "");
+  useEffect(() => setSpaceName(space?.name ?? ""), [space?.name]);
+  const tzOptions = TIMEZONES.length ? TIMEZONES : TZ_FALLBACK;
+  const tzList =
+    space && !tzOptions.includes(space.timezone)
+      ? [space.timezone, ...tzOptions]
+      : tzOptions;
   return (
     <div className="space-y-6">
       <header className="flex items-center gap-3 pt-2">
@@ -67,6 +106,86 @@ export function SettingsScreen({
         )}
         <h1 className="font-serif text-2xl text-blush-100">{t("settings.title")}</h1>
       </header>
+
+      {space && (
+        <section className="space-y-3">
+          <h2 className="text-xs uppercase tracking-[0.15em] text-taupe-400">
+            {t("settings.spaceSection")}
+          </h2>
+          <Surface tone="velvet" className="space-y-4">
+            {/* Nom du salon */}
+            <form
+              className="flex items-end gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const v = spaceName.trim();
+                if (v && v !== space.name) onRenameSpace?.(v);
+              }}
+            >
+              <TextField
+                label={t("settings.spaceName")}
+                value={spaceName}
+                onChange={(e) => setSpaceName(e.target.value)}
+                className="flex-1"
+              />
+              <Button
+                type="submit"
+                size="sm"
+                disabled={!spaceName.trim() || spaceName.trim() === space.name}
+              >
+                {t("settings.save")}
+              </Button>
+            </form>
+
+            {/* Fuseau horaire */}
+            <div className="space-y-1.5">
+              <label
+                htmlFor="space-tz"
+                className="block text-xs font-medium text-taupe-200"
+              >
+                {t("settings.timezone")}
+              </label>
+              <select
+                id="space-tz"
+                value={space.timezone}
+                onChange={(e) => onTimezoneChange?.(e.target.value)}
+                className="w-full rounded-2xl border border-charcoal-600/60 bg-charcoal-800 px-3 py-2 text-sm text-taupe-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+              >
+                {tzList.map((tz) => (
+                  <option key={tz} value={tz}>
+                    {tz}
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-taupe-400">
+                {t("settings.timezoneHint")}
+              </p>
+            </div>
+
+            {/* Membres */}
+            {members && members.length > 0 && (
+              <div className="space-y-1">
+                <span className="block text-xs font-medium text-taupe-200">
+                  {t("settings.members")}
+                </span>
+                <p className="text-sm text-taupe-300">
+                  {members.map((m) => m.name).join(" · ")}
+                </p>
+              </div>
+            )}
+
+            {/* Identifiant d'invitation */}
+            <div className="space-y-1">
+              <span className="block text-xs font-medium text-taupe-200">
+                {t("settings.inviteId")}
+              </span>
+              <code className="block select-all break-all rounded-2xl bg-charcoal-900/60 px-3 py-2 text-xs text-spice-300">
+                {space.inviteId}
+              </code>
+            </div>
+          </Surface>
+        </section>
+      )}
 
       <section className="space-y-3">
         <h2 className="text-xs uppercase tracking-[0.15em] text-taupe-400">

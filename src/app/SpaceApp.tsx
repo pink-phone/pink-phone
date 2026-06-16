@@ -38,9 +38,17 @@ import type { ChallengeStatus } from "../components/ChallengeCard/challenge";
 import type { ChallengeData, PostData } from "../mock/data";
 
 /** L'app branchée sur un Space réel : charge et pilote les données via l'API. */
-export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
+export function SpaceApp({
+  space: initialSpace,
+  user,
+}: {
+  space: Space;
+  user: UserPublic;
+}) {
   const { t } = useTranslation();
   const { logout } = useAuth();
+  // Le salon vit en state : renommage/fuseau immédiats + sync via WebSocket.
+  const [space, setSpace] = useState<Space>(initialSpace);
   const [tab, setTab] = useState<TabId>("dashboard");
   const [ready, setReady] = useState(false);
   const [members, setMembers] = useState<Member[]>([]);
@@ -130,6 +138,14 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
         api.listChallenges(space.id).then(setChallenges).catch(() => {});
       } else if (kind === "mood") {
         api.listMoods(space.id).then(setMoods).catch(() => {});
+      } else if (kind === "space") {
+        api
+          .mySpaces()
+          .then((list) => {
+            const s = list.find((x) => x.id === space.id);
+            if (s) setSpace(s);
+          })
+          .catch(() => {});
       }
     };
 
@@ -275,6 +291,22 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
     }
   };
 
+  const renameSpace = async (name: string) => {
+    try {
+      setSpace(await api.updateSpace(space.id, { name }));
+    } catch (e) {
+      console.error("renommage du salon échoué", e);
+    }
+  };
+
+  const changeTimezone = async (timezone: string) => {
+    try {
+      setSpace(await api.updateSpace(space.id, { timezone }));
+    } catch (e) {
+      console.error("changement de fuseau échoué", e);
+    }
+  };
+
   const toggleReaction = async (postId: string, reaction: string) => {
     const post = posts.find((p) => p.id === postId);
     if (!post) return;
@@ -359,6 +391,14 @@ export function SpaceApp({ space, user }: { space: Space; user: UserPublic }) {
           busy={settingsBusy}
           hotAnimEnabled={hotAnim}
           onHotAnimChange={setHotAnim}
+          space={{
+            name: space.name,
+            timezone: space.timezone,
+            inviteId: space.id,
+          }}
+          members={members.map((m) => ({ id: m.id, name: m.displayName }))}
+          onRenameSpace={renameSpace}
+          onTimezoneChange={changeTimezone}
           onBack={() => setShowSettings(false)}
           onLogout={logout}
         />

@@ -137,6 +137,12 @@ export const createSpace = (name: string) =>
 
 export const mySpaces = () => req<Space[]>("/api/spaces/me");
 
+/** Met à jour le salon (nom et/ou fuseau). Tout membre peut l'éditer. */
+export const updateSpace = (
+  spaceId: string,
+  body: { name?: string; timezone?: string },
+) => req<Space>(`/api/spaces/${spaceId}`, { method: "PATCH", json: body });
+
 export const joinSpace = (spaceId: string) =>
   req<Space>(`/api/spaces/${spaceId}/join`, { method: "POST" });
 

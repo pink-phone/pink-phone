@@ -197,6 +197,13 @@ export const en: Resources = {
     hotAnimHint:
       "Animated halo and particles on hot states. Turn off for a calmer look.",
     language: "Language",
+    spaceSection: "Our space",
+    spaceName: "Space name",
+    save: "Save",
+    timezone: "Timezone",
+    timezoneHint: "Used for the daily mood reset at midnight.",
+    inviteId: "Invite ID",
+    members: "Members",
   },
   install: {
     title: "Install Pink Phone",
