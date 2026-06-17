@@ -18,7 +18,11 @@ const OUT = resolve(__dirname, "..", "..", "docs", "screenshots");
 
 // Écrans à capturer : (titre de la story, fichier, nom de variante préféré).
 const TARGETS = [
-  { title: "Écrans/DashboardScreen", file: "dashboard.png" },
+  {
+    title: "Écrans/DashboardScreen",
+    file: "dashboard.png",
+    prefer: "Du nouveau (posts, commentaires, défis)",
+  },
   { title: "Écrans/BlogScreen", file: "blog.png", prefer: "Par Défaut" },
   {
     title: "Écrans/BlogScreen",
