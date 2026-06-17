@@ -2,7 +2,6 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { useState } from "react";
 import { DashboardScreen } from "./DashboardScreen";
-import type { MoodId } from "../../components/MoodSelector/moods";
 import { PARTNER, PARTNER_MOOD, SPACE_NAME } from "../../mock/data";
 
 const meta = {
@@ -24,7 +23,7 @@ type Story = StoryObj<typeof meta>;
 
 export const ParDéfaut: Story = {
   render: (args) => {
-    const [myMood, setMyMood] = useState<MoodId | null>(args.myMood);
+    const [myMood, setMyMood] = useState<string | null>(args.myMood);
     return (
       <div className="w-[380px]">
         <DashboardScreen
@@ -44,7 +43,7 @@ export const Mystère: Story = {
   name: "Humeur à l'aveugle (partenaire masqué)",
   args: { partnerMoodHidden: true, myMood: null },
   render: (args) => {
-    const [myMood, setMyMood] = useState<MoodId | null>(args.myMood);
+    const [myMood, setMyMood] = useState<string | null>(args.myMood);
     return (
       <div className="w-[380px]">
         <DashboardScreen

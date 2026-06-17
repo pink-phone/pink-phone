@@ -1,6 +1,5 @@
 // Types des réponses de l'API Rust. Les chaînes (status/mood/intensity) sont
 // volontairement alignées 1:1 sur les types des composants.
-import type { MoodId } from "../components/MoodSelector/moods";
 import type { Verdict } from "../components/VerdictPicker/VerdictPicker";
 import type {
   ChallengeStatus,
@@ -41,7 +40,8 @@ export interface Member {
 
 export interface MoodEntry {
   userId: string;
-  status: MoodId;
+  /** Id de mood prédéfini OU emoji libre (mood custom). */
+  status: string;
   updatedAt: string;
 }
 

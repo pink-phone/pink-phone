@@ -28,7 +28,7 @@ export const ParDéfaut: Story = {
 
 export const Interactif: Story = {
   render: (args) => {
-    const [value, setValue] = useState<MoodId | null>(null);
+    const [value, setValue] = useState<string | null>(null);
     return (
       <MoodSelector
         {...args}
@@ -40,6 +40,12 @@ export const Interactif: Story = {
       />
     );
   },
+};
+
+/** Humeur libre (emoji custom) active : le bouton « + » devient l'humeur choisie. */
+export const MoodLibre: Story = {
+  name: "Humeur libre (emoji custom)",
+  args: { value: "🥰" },
 };
 
 const label = (id: MoodId) => MOODS.find((m) => m.id === id)!;

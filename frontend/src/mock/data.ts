@@ -2,7 +2,6 @@
 // Aucune dépendance réseau garantie : les médias pointent vers des photos neutres.
 import type { BlogPostMedia } from "../components/BlogPost/BlogPost";
 import type { Verdict } from "../components/VerdictPicker/VerdictPicker";
-import type { MoodId } from "../components/MoodSelector/moods";
 import type {
   ChallengeStatus,
   Intensity,
@@ -21,7 +20,8 @@ export const PARTNER: Person = { name: "Camille", glyph: "C" };
 export const SPACE_NAME = "Pink Phone";
 
 export interface MoodSnapshot {
-  mood: MoodId;
+  /** Id de mood prédéfini OU emoji libre (mood custom). */
+  mood: string;
   timeLabel: string;
 }
 

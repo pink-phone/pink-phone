@@ -2,11 +2,7 @@ import { useTranslation } from "react-i18next";
 import { Surface } from "../../components/Surface/Surface";
 import { MoodSelector } from "../../components/MoodSelector/MoodSelector";
 import { FireEmbers } from "../../components/FireEmbers/FireEmbers";
-import {
-  MOODS,
-  type MoodId,
-  type MoodOption,
-} from "../../components/MoodSelector/moods";
+import { MOODS } from "../../components/MoodSelector/moods";
 import { cn } from "../../lib/cn";
 import type { MoodSnapshot, Person } from "../../mock/data";
 
@@ -19,8 +15,9 @@ export interface DashboardScreenProps {
   partnerMoodHidden?: boolean;
   /** Id de l'espace, à partager pour inviter (affiché si pas de partenaire). */
   inviteId?: string;
-  myMood: MoodId | null;
-  onMoodChange: (mood: MoodId) => void;
+  /** Mood courant : id prédéfini OU emoji libre (mood custom). */
+  myMood: string | null;
+  onMoodChange: (mood: string) => void;
   onOpenSettings?: () => void;
   /** Nouveautés non vues (badges "Du nouveau"). */
   newPosts?: number;
@@ -31,26 +28,28 @@ export interface DashboardScreenProps {
   onOpen?: (tab: "blog" | "challenges") => void;
 }
 
-const moodOf = (id: MoodId) => MOODS.find((m) => m.id === id)!;
-
 /** Une "vignette météo" pour l'humeur d'une personne (ou son absence). */
 function MoodCard({
   name,
-  mood,
+  moodId,
   timeLabel,
   hidden = false,
 }: {
   name: string;
-  mood: MoodOption | null;
+  /** Id prédéfini, emoji libre, ou null (pas encore d'humeur). */
+  moodId: string | null;
   timeLabel?: string;
   /** Vote à l'aveugle : humeur masquée tant que je n'ai pas posé la mienne. */
   hidden?: boolean;
 }) {
   const { t } = useTranslation();
-  const hot = !hidden && mood?.id === "veryHot";
+  const predef = moodId ? MOODS.find((m) => m.id === moodId) : undefined;
+  const isCustom = !!moodId && !predef;
+  const hot = !hidden && predef?.id === "veryHot";
+  const has = !hidden && !!moodId;
   return (
     <Surface
-      tone={mood && !hidden ? "deep" : "velvet"}
+      tone={has ? "deep" : "velvet"}
       className={cn(
         "relative overflow-hidden",
         hot && "shadow-ember animate-ember-breathe motion-reduce:animate-none",
@@ -69,12 +68,14 @@ function MoodCard({
         ) : (
           <>
             <span aria-hidden className="text-4xl">
-              {mood ? mood.emoji : "…"}
+              {predef ? predef.emoji : isCustom ? moodId : "…"}
             </span>
             <p className="font-serif text-base text-blush-100">{name}</p>
-            {mood ? (
+            {moodId ? (
               <>
-                <p className="text-sm text-blush-200">{t(`moods.${mood.id}`)}</p>
+                <p className="text-sm text-blush-200">
+                  {predef ? t(`moods.${predef.id}`) : t("moods.custom")}
+                </p>
                 {timeLabel && (
                   <p className="text-xs text-blush-200/70">
                     {t("dashboard.updatedAt", { time: timeLabel })}
@@ -107,8 +108,6 @@ export function DashboardScreen({
   onOpen,
 }: DashboardScreenProps) {
   const { t } = useTranslation();
-  const myM = myMood ? moodOf(myMood) : null;
-  const partnerM = partnerMood ? moodOf(partnerMood.mood) : null;
 
   return (
     <div className="space-y-6">
@@ -132,10 +131,10 @@ export function DashboardScreen({
       {partner ? (
         /* La météo du jour : les deux humeurs côte à côte, la perche sans un mot. */
         <div className="grid grid-cols-2 gap-3">
-          <MoodCard name={t("dashboard.you")} mood={myM} />
+          <MoodCard name={t("dashboard.you")} moodId={myMood} />
           <MoodCard
             name={partner.name}
-            mood={partnerM}
+            moodId={partnerMood?.mood ?? null}
             timeLabel={partnerMood?.timeLabel}
             hidden={partnerMoodHidden}
           />
