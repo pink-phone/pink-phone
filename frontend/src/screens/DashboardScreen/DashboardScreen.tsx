@@ -15,6 +15,8 @@ export interface DashboardScreenProps {
   /** Absent tant que le/la partenaire n'a pas rejoint l'espace. */
   partner?: Person;
   partnerMood?: MoodSnapshot;
+  /** Vote à l'aveugle actif ET je n'ai pas encore posé mon humeur → masque celle du partenaire. */
+  partnerMoodHidden?: boolean;
   /** Id de l'espace, à partager pour inviter (affiché si pas de partenaire). */
   inviteId?: string;
   myMood: MoodId | null;
@@ -34,16 +36,19 @@ function MoodCard({
   name,
   mood,
   timeLabel,
+  hidden = false,
 }: {
   name: string;
   mood: MoodOption | null;
   timeLabel?: string;
+  /** Vote à l'aveugle : humeur masquée tant que je n'ai pas posé la mienne. */
+  hidden?: boolean;
 }) {
   const { t } = useTranslation();
-  const hot = mood?.id === "veryHot";
+  const hot = !hidden && mood?.id === "veryHot";
   return (
     <Surface
-      tone={mood ? "deep" : "velvet"}
+      tone={mood && !hidden ? "deep" : "velvet"}
       className={cn(
         "relative overflow-hidden",
         hot && "shadow-ember animate-ember-breathe motion-reduce:animate-none",
@@ -51,21 +56,33 @@ function MoodCard({
     >
       {hot && <FireEmbers count={6} />}
       <div className="relative z-10 flex flex-col items-center gap-1 text-center">
-        <span aria-hidden className="text-4xl">
-          {mood ? mood.emoji : "…"}
-        </span>
-        <p className="font-serif text-base text-blush-100">{name}</p>
-        {mood ? (
+        {hidden ? (
           <>
-            <p className="text-sm text-blush-200">{t(`moods.${mood.id}`)}</p>
-            {timeLabel && (
-              <p className="text-xs text-blush-200/70">
-                {t("dashboard.updatedAt", { time: timeLabel })}
-              </p>
-            )}
+            <span aria-hidden className="text-4xl">
+              🤫
+            </span>
+            <p className="font-serif text-base text-blush-100">{name}</p>
+            <p className="text-xs text-taupe-300">{t("dashboard.moodHidden")}</p>
           </>
         ) : (
-          <p className="text-xs text-taupe-300">{t("dashboard.noMoodYet")}</p>
+          <>
+            <span aria-hidden className="text-4xl">
+              {mood ? mood.emoji : "…"}
+            </span>
+            <p className="font-serif text-base text-blush-100">{name}</p>
+            {mood ? (
+              <>
+                <p className="text-sm text-blush-200">{t(`moods.${mood.id}`)}</p>
+                {timeLabel && (
+                  <p className="text-xs text-blush-200/70">
+                    {t("dashboard.updatedAt", { time: timeLabel })}
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="text-xs text-taupe-300">{t("dashboard.noMoodYet")}</p>
+            )}
+          </>
         )}
       </div>
     </Surface>
@@ -77,6 +94,7 @@ export function DashboardScreen({
   spaceName,
   partner,
   partnerMood,
+  partnerMoodHidden = false,
   inviteId,
   myMood,
   onMoodChange,
@@ -116,6 +134,7 @@ export function DashboardScreen({
             name={partner.name}
             mood={partnerM}
             timeLabel={partnerMood?.timeLabel}
+            hidden={partnerMoodHidden}
           />
         </div>
       ) : (

@@ -34,6 +34,9 @@ pub struct Space {
     pub reactions: Vec<String>,
     /// Autorise une réaction emoji libre (bouton « + »).
     pub allow_custom_reactions: bool,
+    /// Vote d'humeur à l'aveugle : masque l'humeur du partenaire tant que je n'ai
+    /// pas posé la mienne du jour (révélation mutuelle une fois les deux votes).
+    pub blind_mood: bool,
     pub created_at: DateTime<Utc>,
 }
 

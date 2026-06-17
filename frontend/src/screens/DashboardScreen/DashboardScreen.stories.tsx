@@ -40,6 +40,28 @@ export const ParDéfaut: Story = {
   },
 };
 
+export const Mystère: Story = {
+  name: "Humeur à l'aveugle (partenaire masqué)",
+  args: { partnerMoodHidden: true, myMood: null },
+  render: (args) => {
+    const [myMood, setMyMood] = useState<MoodId | null>(args.myMood);
+    return (
+      <div className="w-[380px]">
+        <DashboardScreen
+          {...args}
+          myMood={myMood}
+          // Une fois mon humeur posée, la carte du partenaire se dévoile.
+          partnerMoodHidden={args.partnerMoodHidden && !myMood}
+          onMoodChange={(m) => {
+            setMyMood(m);
+            args.onMoodChange?.(m);
+          }}
+        />
+      </div>
+    );
+  },
+};
+
 export const Solo: Story = {
   name: "Espace en attente (sans partenaire)",
   args: { partner: undefined, partnerMood: undefined, inviteId: "a1b2c3d4-…" },

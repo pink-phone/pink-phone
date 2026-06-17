@@ -287,12 +287,17 @@ export function SpaceApp({
   const onMoodChange = (mood: MoodId) => {
     api
       .setMood(space.id, mood)
-      .then((entry) =>
+      .then((entry) => {
         setMoods((prev) => [
           ...prev.filter((m) => m.userId !== entry.userId),
           entry,
-        ]),
-      )
+        ]);
+        // En mode « à l'aveugle », poser mon humeur révèle celle du partenaire
+        // (le backend ne la renvoyait pas tant que je n'avais pas voté).
+        if (space.blindMood) {
+          api.listMoods(space.id).then(setMoods).catch(() => {});
+        }
+      })
       .catch((e) => console.error("mise à jour du mood échouée", e));
   };
 
@@ -439,6 +444,16 @@ export function SpaceApp({
     }
   };
 
+  const changeBlindMood = async (blindMood: boolean) => {
+    try {
+      setSpace(await api.updateSpace(space.id, { blindMood }));
+      // Mon vote conditionne la visibilité du mood partenaire : on resynchronise.
+      api.listMoods(space.id).then(setMoods).catch(() => {});
+    } catch (e) {
+      console.error("changement du mode mystère échoué", e);
+    }
+  };
+
   type SuggestionDraft = {
     title: string;
     description: string;
@@ -557,10 +572,12 @@ export function SpaceApp({
             name: space.name,
             timezone: space.timezone,
             inviteId: space.id,
+            blindMood: space.blindMood,
           }}
           members={members.map((m) => ({ id: m.id, name: m.displayName }))}
           onRenameSpace={renameSpace}
           onTimezoneChange={changeTimezone}
+          onBlindMoodChange={changeBlindMood}
           reactions={space.reactions as ReactionId[]}
           allowCustomReactions={space.allowCustomReactions}
           onReactionsChange={changeReactions}
@@ -660,6 +677,7 @@ export function SpaceApp({
                 }
               : undefined
           }
+          partnerMoodHidden={space.blindMood && !myMood}
           inviteId={space.id}
           myMood={myMood}
           onMoodChange={onMoodChange}

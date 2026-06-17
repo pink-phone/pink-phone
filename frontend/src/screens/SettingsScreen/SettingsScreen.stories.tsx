@@ -18,6 +18,7 @@ const meta = {
       name: "Pink Phone",
       timezone: "Europe/Paris",
       inviteId: "a1b2c3d4-0000-0000-0000-000000000000",
+      blindMood: false,
     },
     members: [
       { id: "1", name: "You" },
@@ -25,6 +26,7 @@ const meta = {
     ],
     onRenameSpace: fn(),
     onTimezoneChange: fn(),
+    onBlindMoodChange: fn(),
     onBack: fn(),
     onLogout: fn(),
   },

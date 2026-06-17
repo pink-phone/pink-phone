@@ -55,13 +55,34 @@ async fn set_mood(
         _ => None,
     };
     if let Some(msg) = nudge {
-        crate::notifications::notify_members(
-            &state,
-            space_id,
-            auth.user_id,
-            "Nouvelle humeur".into(),
-            msg.into(),
-        );
+        // En mode « vote à l'aveugle », la notif ne part que lorsque TOUT LE MONDE
+        // a voté aujourd'hui : impossible de dévoiler l'humeur à quelqu'un qui n'a
+        // pas encore posé la sienne (option simple, sans replay de l'humeur du 1er).
+        let blind: bool = sqlx::query_scalar("SELECT blind_mood FROM spaces WHERE id = $1")
+            .bind(space_id)
+            .fetch_one(&state.pool)
+            .await?;
+        let everyone_voted: bool = !blind
+            || sqlx::query_scalar(
+                "SELECT (SELECT count(*) FROM space_memberships WHERE space_id = $1)
+                      <= (SELECT count(DISTINCT m.user_id) FROM moods m
+                          JOIN spaces s ON s.id = m.space_id
+                          WHERE m.space_id = $1
+                            AND (m.updated_at AT TIME ZONE s.timezone)::date
+                                = (now() AT TIME ZONE s.timezone)::date)",
+            )
+            .bind(space_id)
+            .fetch_one(&state.pool)
+            .await?;
+        if everyone_voted {
+            crate::notifications::notify_members(
+                &state,
+                space_id,
+                auth.user_id,
+                "Nouvelle humeur".into(),
+                msg.into(),
+            );
+        }
     }
 
     Ok(Json(mood))
@@ -89,5 +110,20 @@ async fn list_moods(
     .bind(space_id)
     .fetch_all(&state.pool)
     .await?;
+
+    // Vote à l'aveugle : tant que JE n'ai pas posé mon humeur du jour, je ne vois
+    // pas celle des autres. Révélation mutuelle dès que j'ai voté.
+    let blind: bool = sqlx::query_scalar("SELECT blind_mood FROM spaces WHERE id = $1")
+        .bind(space_id)
+        .fetch_one(&state.pool)
+        .await?;
+    if blind && !moods.iter().any(|m| m.user_id == auth.user_id) {
+        return Ok(Json(
+            moods
+                .into_iter()
+                .filter(|m| m.user_id == auth.user_id)
+                .collect(),
+        ));
+    }
     Ok(Json(moods))
 }
