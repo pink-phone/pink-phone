@@ -10,7 +10,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "screenshots": "node scripts/screenshots.mjs"
   },
   "dependencies": {
     "@fontsource/inter": "^5.1.0",
@@ -29,6 +30,7 @@
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
+    "playwright": "^1.61.0",
     "postcss": "^8.4.49",
     "storybook": "10.4.0",
     "tailwindcss": "^3.4.17",

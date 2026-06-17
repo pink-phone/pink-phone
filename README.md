@@ -18,11 +18,13 @@
 
 ## 🖼️ Screenshots
 
-> _To add under `docs/screenshots/` and reference here (Dashboard, Blog, Dares, Settings…)._
+> Generated from Storybook (mock data, no real content): `cd frontend && npx playwright install chromium` (once), then `npm run build-storybook && npm run screenshots`.
 
 | Home | Journal | Dares |
 |---|---|---|
-| _(dashboard.png)_ | _(blog.png)_ | _(challenges.png)_ |
+| ![Home](docs/screenshots/dashboard.png) | ![Journal](docs/screenshots/blog.png) | ![Dares](docs/screenshots/challenges.png) |
+| **Dares bank** | **Settings** | **Sign in** |
+| ![Dares bank](docs/screenshots/challenge-bank.png) | ![Settings](docs/screenshots/settings.png) | ![Sign in](docs/screenshots/auth.png) |
 
 ## 🧱 Stack
 
