@@ -2,6 +2,23 @@
 
 Pink Phone self-hosts with **Docker Compose**: Postgres + the Rust API + an nginx that serves the PWA **and** reverse-proxies `/api` (everything same-origin, no CORS). Published images are pulled from Docker Hub — **no local build required**.
 
+## 0. Just want to try it? (local, zero config)
+
+For a quick local taste — no `.env`, no secrets, no reverse proxy — use the
+self-contained demo compose:
+
+```bash
+git clone <repo> pinkphone && cd pinkphone/deploy
+docker compose -f docker-compose.local.yml up
+```
+
+Then open **http://localhost:8095** and register an account. The `web` container
+already bundles nginx and proxies `/api`, so it works same-origin out of the box.
+
+> ⚠️ Local testing only: hard-coded throwaway secrets, media stored unencrypted,
+> and push notifications won't work (browsers require HTTPS). For a real
+> deployment, follow the steps below.
+
 ## 1. Prerequisites
 
 - Docker + Docker Compose v2.
