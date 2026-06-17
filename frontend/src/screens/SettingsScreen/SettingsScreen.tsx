@@ -73,10 +73,17 @@ export interface SettingsScreenProps {
   hotAnimEnabled?: boolean;
   onHotAnimChange?: (enabled: boolean) => void;
   /** Réglages du salon (affichés si fournis). */
-  space?: { name: string; timezone: string; inviteId: string };
+  space?: {
+    name: string;
+    timezone: string;
+    inviteId: string;
+    blindMood?: boolean;
+  };
   members?: { id: string; name: string }[];
   onRenameSpace?: (name: string) => void;
   onTimezoneChange?: (timezone: string) => void;
+  /** Active/désactive le vote d'humeur à l'aveugle (portée salon). */
+  onBlindMoodChange?: (enabled: boolean) => void;
   /** Réactions du salon (ordre + emoji libres). Affichées si fournies. */
   reactions?: ReactionId[];
   allowCustomReactions?: boolean;
@@ -98,6 +105,7 @@ export function SettingsScreen({
   members,
   onRenameSpace,
   onTimezoneChange,
+  onBlindMoodChange,
   reactions,
   allowCustomReactions = true,
   onReactionsChange,
@@ -262,6 +270,16 @@ export function SettingsScreen({
                 {space.inviteId}
               </code>
             </div>
+
+            {/* Vote d'humeur à l'aveugle */}
+            {onBlindMoodChange && (
+              <Toggle
+                checked={space.blindMood ?? false}
+                onChange={onBlindMoodChange}
+                label={t("settings.blindMood")}
+                hint={t("settings.blindMoodHint")}
+              />
+            )}
           </Surface>
         </section>
       )}

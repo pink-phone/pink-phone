@@ -35,6 +35,7 @@ pub struct UpdateSpaceBody {
     /// Réactions prédéfinies actives, dans l'ordre voulu.
     pub reactions: Option<Vec<String>>,
     pub allow_custom_reactions: Option<bool>,
+    pub blind_mood: Option<bool>,
 }
 
 async fn create_space(
@@ -50,7 +51,7 @@ async fn create_space(
     let mut tx = state.pool.begin().await?;
     let space: Space = sqlx::query_as(
         "INSERT INTO spaces (name) VALUES ($1)
-         RETURNING id, name, timezone, reactions, allow_custom_reactions, created_at",
+         RETURNING id, name, timezone, reactions, allow_custom_reactions, blind_mood, created_at",
     )
     .bind(name)
     .fetch_one(&mut *tx)
@@ -110,15 +111,17 @@ async fn update_space(
             name = COALESCE($2, name),
             timezone = COALESCE($3, timezone),
             reactions = COALESCE($4, reactions),
-            allow_custom_reactions = COALESCE($5, allow_custom_reactions)
+            allow_custom_reactions = COALESCE($5, allow_custom_reactions),
+            blind_mood = COALESCE($6, blind_mood)
          WHERE id = $1
-         RETURNING id, name, timezone, reactions, allow_custom_reactions, created_at",
+         RETURNING id, name, timezone, reactions, allow_custom_reactions, blind_mood, created_at",
     )
     .bind(space_id)
     .bind(name)
     .bind(&body.timezone)
     .bind(body.reactions.as_deref())
     .bind(body.allow_custom_reactions)
+    .bind(body.blind_mood)
     .fetch_one(&state.pool)
     .await?;
 
@@ -131,7 +134,7 @@ async fn my_spaces(
     auth: AuthUser,
 ) -> ApiResult<Json<Vec<Space>>> {
     let spaces: Vec<Space> = sqlx::query_as(
-        "SELECT s.id, s.name, s.timezone, s.reactions, s.allow_custom_reactions, s.created_at
+        "SELECT s.id, s.name, s.timezone, s.reactions, s.allow_custom_reactions, s.blind_mood, s.created_at
          FROM spaces s
          JOIN space_memberships m ON m.space_id = s.id
          WHERE m.user_id = $1
@@ -152,7 +155,7 @@ async fn join_space(
 
     let space: Option<Space> =
         sqlx::query_as(
-            "SELECT id, name, timezone, reactions, allow_custom_reactions, created_at
+            "SELECT id, name, timezone, reactions, allow_custom_reactions, blind_mood, created_at
              FROM spaces WHERE id = $1",
         )
             .bind(space_id)

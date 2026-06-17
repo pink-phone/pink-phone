@@ -146,6 +146,7 @@ export const updateSpace = (
     timezone?: string;
     reactions?: string[];
     allowCustomReactions?: boolean;
+    blindMood?: boolean;
   },
 ) => req<Space>(`/api/spaces/${spaceId}`, { method: "PATCH", json: body });
 

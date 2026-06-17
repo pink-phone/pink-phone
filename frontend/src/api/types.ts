@@ -28,6 +28,8 @@ export interface Space {
   reactions: string[];
   /** Autorise une réaction emoji libre. */
   allowCustomReactions: boolean;
+  /** Vote d'humeur à l'aveugle : masque l'humeur du partenaire tant que je n'ai pas voté. */
+  blindMood: boolean;
   createdAt: string;
 }
 
