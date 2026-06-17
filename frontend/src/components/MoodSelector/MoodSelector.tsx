@@ -128,7 +128,7 @@ export function MoodSelector({
               {/* Indice quand le champ est vide : smiley grisé + badge « ＋ ». */}
               {emoji === "" && (
                 <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                  <span className="relative inline-flex text-xl opacity-60">
+                  <span className="relative inline-flex text-xl opacity-35 grayscale">
                     🙂
                     <span className="absolute -right-1.5 -top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-charcoal-700 text-[10px] font-semibold leading-none text-taupe-100 ring-1 ring-charcoal-600">
                       ＋
@@ -178,16 +178,7 @@ export function MoodSelector({
                 </span>
               </>
             ) : (
-              <>
-                {/* Smiley grisé + badge « ＋ » dans le coin (affordance « ajouter »). */}
-                <span className="relative inline-flex text-xl opacity-60 transition-opacity duration-300 ease-felt group-hover:opacity-100">
-                  🙂
-                  <span className="absolute -right-1.5 -top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-charcoal-700 text-[10px] font-semibold leading-none text-taupe-100 ring-1 ring-charcoal-600">
-                    ＋
-                  </span>
-                </span>
-                <span className="text-sm">{t("moods.addFree")}</span>
-              </>
+              <span className="text-sm">＋ {t("moods.addFree")}</span>
             )}
           </button>
         ))}
