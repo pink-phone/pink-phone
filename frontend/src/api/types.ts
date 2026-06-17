@@ -66,6 +66,8 @@ export interface ApiPost {
   myReactions: string[];
   verdict: Verdict | null;
   commentCount: number;
+  /** Date du dernier commentaire posté par quelqu'un d'autre (null si aucun). */
+  lastCommentAt: string | null;
 }
 
 export interface ReactionSummary {

@@ -101,6 +101,9 @@ pub struct Post {
     pub my_reactions: Vec<String>,
     pub verdict: Option<String>,
     pub comment_count: i64,
+    /// Date du dernier commentaire posté par QUELQU'UN D'AUTRE (null si aucun) —
+    /// sert au badge « nouveaux commentaires » du dashboard, comparé au last_seen.
+    pub last_comment_at: Option<DateTime<Utc>>,
 }
 
 // ---------- Interactions ----------
