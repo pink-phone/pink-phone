@@ -10,9 +10,10 @@ Helpers for a production, self-hosted deployment. Full step-by-step guide:
   Images default to Docker Hub (`pinkphone/pinkphone-{api,web}`); override
   `API_IMAGE` / `WEB_IMAGE` / `IMAGE_TAG` to use another registry or version.
 - **`.env.example`** — all environment variables (copy to `.env` and fill in).
-- **`web-nginx.conf`** — the nginx config baked into the `web` image: serves the
-  PWA and reverse-proxies `/api` (incl. the WebSocket upgrade) to the `api`
-  service, so everything is same-origin (no CORS).
+
+The `web` image bakes its own nginx config (`frontend/nginx.conf`): it serves the
+PWA and reverse-proxies `/api` (incl. the WebSocket upgrade) to the `api` service,
+so everything is same-origin (no CORS).
 
 ## Quick start
 

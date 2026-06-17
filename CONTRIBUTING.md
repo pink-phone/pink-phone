@@ -16,8 +16,9 @@ Exception: the orchestration layer (`src/app/`, `src/api/`, `src/auth/`) that ta
 
 ## 💻 Working
 
-### Front
+### Front (in `frontend/`)
 ```bash
+cd frontend
 npm install
 npm run storybook        # design surface — :6006 (the primary playground)
 npm run dev              # the app (Vite) — :5173
@@ -36,15 +37,20 @@ cargo run                # API :8080 (migrations applied on startup)
 There is **no test runner and no linter** configured. Validation goes through the compiler (strict TypeScript, `noUnusedLocals`/`noUnusedParameters`) and the builds. Everything must exit **0**:
 
 ```bash
+# Front — run in frontend/
+cd frontend
 npx tsc --noEmit          # front type-check
 npm run build             # PWA build (tsc + vite)
 npm run build-storybook   # de-facto "does everything compile?"
-cd backend && cargo build # compiles the API (sqlx runtime → no DB needed)
+# Back
+cd ../backend && cargo build  # compiles the API (sqlx runtime → no DB needed)
 ```
 
 If you add a SQL **migration**, verify it applies (throwaway Postgres or `cargo run`). **Never** edit an already-applied migration (sqlx checks the checksum) — add a new one.
 
 ## 🧭 Architecture (recap)
+
+The repo has two apps: **`frontend/`** (web) and **`backend/`** (API). Paths below are under `frontend/` unless noted.
 
 - `src/components/<Name>/` — reusable, **presentational**, controlled (props + callbacks). One `*.stories.tsx` each.
 - `src/screens/<Name>/` — presentational screens (data + handlers via props), with stories.
@@ -56,11 +62,11 @@ The **domain enums** (`MoodId`, `ChallengeStatus`, `Intensity`, `ReactionId`, `V
 
 ## 🌍 i18n
 
-Every user-facing string goes through `t(...)`. Dictionaries live in `src/i18n/locales/` (FR = source, EN = mirror). Keys are **typed**: an unknown key is a compile error. Add the key to both `fr.ts` **and** `en.ts`.
+Every user-facing string goes through `t(...)`. Dictionaries live in `frontend/src/i18n/locales/` (FR = source, EN = mirror). Keys are **typed**: an unknown key is a compile error. Add the key to both `fr.ts` **and** `en.ts`.
 
 ## 🎨 "Felted" design system
 
-Dark-only, mobile-first. Colors as CSS variables (`src/index.css`) + Tailwind tokens (`tailwind.config.js`). Generous rounding, soft shadows (`shadow-felt`), slow transitions (`ease-felt`). Respect `prefers-reduced-motion`. Security is *sensual*: media blurred and revealed by press-and-hold (`SafeMedia`) — don't reduce that gesture to a toggle.
+Dark-only, mobile-first. Colors as CSS variables (`frontend/src/index.css`) + Tailwind tokens (`frontend/tailwind.config.js`). Generous rounding, soft shadows (`shadow-felt`), slow transitions (`ease-felt`). Respect `prefers-reduced-motion`. Security is *sensual*: media blurred and revealed by press-and-hold (`SafeMedia`) — don't reduce that gesture to a toggle.
 
 ## 🔀 Git & commits
 

@@ -1,13 +1,8 @@
 node_modules
 dist
 storybook-static
-backend
-.forgejo
-deploy
-!deploy/web-nginx.conf
 .git
 .env
 .env.*
 !.env.example
 *.log
-media-store

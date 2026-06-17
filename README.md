@@ -34,6 +34,7 @@
 
 ```bash
 # Front (design system + app)
+cd frontend
 npm install
 npm run storybook        # design system — http://localhost:6006
 npm run dev              # app (Vite) — http://localhost:5173
@@ -61,16 +62,18 @@ Production deployment files (Docker Compose + reverse proxy): **[`deploy/README.
 
 ## 📁 Architecture (overview)
 
-- `src/components/` — reusable, presentational, controlled bricks (each has its `*.stories.tsx`).
-- `src/screens/` — presentational screens; `src/app/` — orchestration (state + network, WebSocket).
-- `src/api/`, `src/auth/`, `src/i18n/`, `src/theme.ts` — typed client, auth, translations, themes.
+Two top-level apps: **`frontend/`** (React/Vite/Storybook PWA) and **`backend/`** (Rust/Axum API).
+
+- `frontend/src/components/` — reusable, presentational, controlled bricks (each has its `*.stories.tsx`).
+- `frontend/src/screens/` — presentational screens; `frontend/src/app/` — orchestration (state + network, WebSocket).
+- `frontend/src/api/`, `…/auth/`, `…/i18n/`, `…/theme.ts` — typed client, auth, translations, themes.
 - `backend/` — Rust/Axum API (see [`backend/README.md`](backend/README.md)).
 
-`App.tsx` → `AuthProvider` → `Root` (auth) → `SpaceGate` (spaces) → `SpaceApp` (loads the space's mood/posts/dares, WebSocket, wires the screens). `src/mock/data.ts` only feeds the stories.
+`App.tsx` → `AuthProvider` → `Root` (auth) → `SpaceGate` (spaces) → `SpaceApp` (loads the space's mood/posts/dares, WebSocket, wires the screens). `frontend/src/mock/data.ts` only feeds the stories.
 
 ## 🎨 Art direction — "felted"
 
-Soft skeuomorphism: desaturated roses (Blush → Spice → Bordeaux), warm neutrals (Charcoal, Taupe), serif titles (Playfair) / sans body (Inter), generous rounding, soft shadows, slow transitions. Palette as **CSS variables** (themeable) in `src/index.css`; tokens in `tailwind.config.js`.
+Soft skeuomorphism: desaturated roses (Blush → Spice → Bordeaux), warm neutrals (Charcoal, Taupe), serif titles (Playfair) / sans body (Inter), generous rounding, soft shadows, slow transitions. Palette as **CSS variables** (themeable) in `frontend/src/index.css`; tokens in `frontend/tailwind.config.js`.
 
 ## 📝 License
 
