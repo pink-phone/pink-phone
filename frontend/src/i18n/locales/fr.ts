@@ -85,6 +85,8 @@ export const fr = {
     newHeader: "Du nouveau",
     newPosts_one: "{{count}} nouveau message",
     newPosts_other: "{{count}} nouveaux messages",
+    newComments_one: "{{count}} nouveau commentaire",
+    newComments_other: "{{count}} nouveaux commentaires",
     newChallenges_one: "{{count}} nouveau défi",
     newChallenges_other: "{{count}} nouveaux défis",
   },

@@ -62,6 +62,16 @@ export const Mystère: Story = {
   },
 };
 
+export const Nouveautés: Story = {
+  name: "Du nouveau (posts, commentaires, défis)",
+  args: { newPosts: 1, newComments: 2, newChallenges: 1 },
+  render: (args) => (
+    <div className="w-[380px]">
+      <DashboardScreen {...args} />
+    </div>
+  ),
+};
+
 export const Solo: Story = {
   name: "Espace en attente (sans partenaire)",
   args: { partner: undefined, partnerMood: undefined, inviteId: "a1b2c3d4-…" },

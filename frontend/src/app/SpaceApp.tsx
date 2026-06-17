@@ -283,6 +283,10 @@ export function SpaceApp({
       c.proposerId !== user.id &&
       (!myChallSeen || c.createdAt > myChallSeen),
   ).length;
+  // Posts ayant reçu un commentaire de l'autre depuis mon dernier passage au blog.
+  const newComments = posts.filter(
+    (p) => p.lastCommentAt && (!myBlogSeen || p.lastCommentAt > myBlogSeen),
+  ).length;
 
   const onMoodChange = (mood: MoodId) => {
     api
@@ -683,6 +687,7 @@ export function SpaceApp({
           onMoodChange={onMoodChange}
           onOpenSettings={() => setShowSettings(true)}
           newPosts={newPosts}
+          newComments={newComments}
           newChallenges={newChallenges}
           onOpen={setTab}
         />

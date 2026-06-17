@@ -85,6 +85,8 @@ export const en: Resources = {
     newHeader: "What's new",
     newPosts_one: "{{count}} new message",
     newPosts_other: "{{count}} new messages",
+    newComments_one: "{{count}} new comment",
+    newComments_other: "{{count}} new comments",
     newChallenges_one: "{{count}} new dare",
     newChallenges_other: "{{count}} new dares",
   },

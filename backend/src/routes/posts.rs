@@ -1,6 +1,8 @@
 use std::collections::HashMap;
 use std::path::Path as FsPath;
 
+use chrono::{DateTime, Utc};
+
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::routing::{delete, get};
@@ -103,6 +105,19 @@ async fn enrich(
     .fetch_all(pool)
     .await?;
 
+    // Dernier commentaire posté par quelqu'un d'autre (pour le badge « nouveaux
+    // commentaires » du dashboard, comparé à mon last_seen côté client).
+    let last_comments: Vec<(Uuid, DateTime<Utc>)> = sqlx::query_as(
+        "SELECT post_id, max(created_at) FROM post_comments
+         WHERE post_id = ANY($1) AND author_id <> $2 GROUP BY post_id",
+    )
+    .bind(&ids)
+    .bind(user_id)
+    .fetch_all(pool)
+    .await?;
+    let last_comment_by_post: HashMap<Uuid, DateTime<Utc>> =
+        last_comments.into_iter().collect();
+
     let mut counts_by_post: HashMap<Uuid, HashMap<String, i64>> = HashMap::new();
     let mut mine_by_post: HashMap<Uuid, Vec<String>> = HashMap::new();
     for r in reactions {
@@ -127,6 +142,7 @@ async fn enrich(
             my_reactions: mine_by_post.remove(&p.id).unwrap_or_default(),
             verdict: verdict_by_post.get(&p.id).cloned(),
             comment_count: comments_by_post.get(&p.id).copied().unwrap_or(0),
+            last_comment_at: last_comment_by_post.get(&p.id).copied(),
             id: p.id,
             author_id: p.author_id,
             author_name: p.author_name,
