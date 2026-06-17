@@ -16,7 +16,7 @@ export interface Person {
   glyph: string;
 }
 
-export const ME: Person = { name: "Toi", glyph: "T" };
+export const ME: Person = { name: "You", glyph: "Y" };
 export const PARTNER: Person = { name: "Camille", glyph: "C" };
 export const SPACE_NAME = "Pink Phone";
 
@@ -27,7 +27,7 @@ export interface MoodSnapshot {
 
 export const PARTNER_MOOD: MoodSnapshot = {
   mood: "cuddleNeeded",
-  timeLabel: "il y a 10 min",
+  timeLabel: "10 min ago",
 };
 
 export interface PostData {
@@ -53,9 +53,9 @@ export const SAMPLE_POSTS: PostData[] = [
   {
     id: "p0",
     author: ME,
-    timeLabel: "À l'instant",
-    title: "Note pour plus tard…",
-    body: "Une idée que je garde au chaud, je la peaufine avant de te l'envoyer.",
+    timeLabel: "Just now",
+    title: "A note for later…",
+    body: "An idea I'm keeping warm — I'll polish it before sending it your way.",
     reactionCounts: {},
     myReactions: [],
     verdict: null,
@@ -66,10 +66,10 @@ export const SAMPLE_POSTS: PostData[] = [
   {
     id: "p1",
     author: PARTNER,
-    timeLabel: "Hier, 23 h",
-    title: "Cette idée qui me trotte…",
+    timeLabel: "Yesterday, 11pm",
+    title: "This idea on my mind…",
     body:
-      "Je repensais à ce qu'on s'est murmuré l'autre soir. J'aimerais qu'on prenne le temps, sans précipitation, juste pour explorer.",
+      "I was thinking about what we whispered the other night. I'd love to take our time, no rush, just to explore.",
     reactionCounts: { fire: 2, smirk: 1 },
     myReactions: ["fire"],
     verdict: "curious",
@@ -78,9 +78,9 @@ export const SAMPLE_POSTS: PostData[] = [
   {
     id: "p2",
     author: ME,
-    timeLabel: "Mardi, 8 h",
+    timeLabel: "Tuesday, 8am",
     body:
-      "Petit débrief d'hier soir : c'était parfait. J'ai adoré la lenteur. On recommence quand tu veux. 😏",
+      "Quick recap of last night: it was perfect. I loved how slow it was. Let's do it again whenever you want. 😏",
     reactionCounts: { fire: 1, smirk: 2, breath: 1 },
     myReactions: [],
     verdict: "hot",
@@ -90,9 +90,9 @@ export const SAMPLE_POSTS: PostData[] = [
   {
     id: "p3",
     author: PARTNER,
-    timeLabel: "Dimanche",
-    body: "Juste pour toi, et juste pour ce soir. Regarde vite. 🤫",
-    media: { src: DEMO_PHOTO, alt: "Photo éphémère", viewOnce: true },
+    timeLabel: "Sunday",
+    body: "Just for you, and just for tonight. Look quickly. 🤫",
+    media: { src: DEMO_PHOTO, alt: "Ephemeral photo", viewOnce: true },
     reactionCounts: { hush: 1 },
     myReactions: [],
     verdict: null,
@@ -113,35 +113,35 @@ export interface ChallengeData {
 export const SAMPLE_CHALLENGES: ChallengeData[] = [
   {
     id: "c1",
-    title: "Un massage aux huiles, sans téléphone",
+    title: "An oil massage, no phones",
     description:
-      "Une heure rien que pour toi, lumière tamisée. Tu te laisses faire, c'est tout.",
+      "An hour just for you, soft light. You just let go, that's all.",
     intensity: "hot",
     status: "proposed",
-    deadlineLabel: "Avant dimanche",
+    deadlineLabel: "Before Sunday",
     perspective: "recipient",
   },
   {
     id: "c2",
-    title: "Le mot interdit",
+    title: "The forbidden word",
     description:
-      "On s'envoie un seul SMS dans la journée. Le plus suggestif possible, mais sans rien dire d'explicite.",
+      "We send a single text during the day. As suggestive as possible, without anything explicit.",
     intensity: "soft",
     status: "challengeAccepted",
     perspective: "proposer",
   },
   {
     id: "c3",
-    title: "Soirée à l'aveugle",
-    description: "Bandeau sur les yeux, tu te laisses guider toute la soirée.",
+    title: "Blindfolded evening",
+    description: "Blindfold on, you let yourself be guided all evening.",
     intensity: "hot",
     status: "maybeMaybe",
     perspective: "recipient",
   },
   {
     id: "c4",
-    title: "Le rendez-vous galant",
-    description: "Comme au premier soir : on se redécouvre, sans précipitation.",
+    title: "The romantic date",
+    description: "Like the first night: we rediscover each other, no rush.",
     intensity: "soft",
     status: "jobDone",
     perspective: "proposer",

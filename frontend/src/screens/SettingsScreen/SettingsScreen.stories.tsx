@@ -20,7 +20,7 @@ const meta = {
       inviteId: "a1b2c3d4-0000-0000-0000-000000000000",
     },
     members: [
-      { id: "1", name: "Toi" },
+      { id: "1", name: "You" },
       { id: "2", name: "Camille" },
     ],
     onRenameSpace: fn(),

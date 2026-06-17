@@ -16,9 +16,9 @@ type Story = StoryObj<typeof meta>;
 export const ParDéfaut: Story = {
   args: {
     suggestions: [
-      { id: "1", title: "Le mot interdit", description: "Un seul SMS suggestif.", intensity: "soft", isOwn: false },
-      { id: "2", title: "Massage aux huiles", description: "Une heure rien que pour l'autre.", intensity: "hot", isOwn: false },
-      { id: "3", title: "Notre rituel", description: "Une idée rien qu'à nous.", intensity: "hot", isOwn: true },
+      { id: "1", title: "The forbidden word", description: "A single suggestive text.", intensity: "soft", isOwn: false },
+      { id: "2", title: "Oil massage", description: "An hour just for the other.", intensity: "hot", isOwn: false },
+      { id: "3", title: "Our ritual", description: "An idea that's all ours.", intensity: "hot", isOwn: true },
     ],
   },
   render: (args) => (

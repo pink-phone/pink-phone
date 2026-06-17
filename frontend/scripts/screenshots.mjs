@@ -10,7 +10,7 @@ import { readFile } from "node:fs/promises";
 import { mkdirSync, existsSync } from "node:fs";
 import { extname, join, resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { chromium, devices } from "playwright";
+import { chromium } from "playwright";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const SB = resolve(__dirname, "..", "storybook-static");
@@ -81,9 +81,13 @@ async function main() {
 
   const browser = await chromium.launch();
   const context = await browser.newContext({
-    ...devices["iPhone 13"],
-    reducedMotion: "reduce", // fige les animations (braise, etc.)
+    // Cadre « grand téléphone » (un peu plus large que l'iPhone standard).
+    viewport: { width: 440, height: 900 },
     deviceScaleFactor: 2,
+    isMobile: true,
+    hasTouch: true,
+    locale: "en-US", // captures 100 % anglaises (i18n + relativeTime)
+    reducedMotion: "reduce", // fige les animations (braise, etc.)
   });
   const page = await context.newPage();
 
