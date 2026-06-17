@@ -42,10 +42,10 @@ export const Interactif: Story = {
   },
 };
 
-/** Humeur libre (emoji custom) active : le bouton « + » devient l'humeur choisie. */
+/** Humeur libre active (emoji + libellé), sur sa ligne dédiée. */
 export const MoodLibre: Story = {
-  name: "Humeur libre (emoji custom)",
-  args: { value: "🥰" },
+  name: "Humeur libre (emoji + libellé)",
+  args: { value: "🥰 envie de toi" },
 };
 
 const label = (id: MoodId) => MOODS.find((m) => m.id === id)!;
