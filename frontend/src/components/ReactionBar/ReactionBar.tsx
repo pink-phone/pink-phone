@@ -145,9 +145,15 @@ export function ReactionBar({
             type="button"
             onClick={() => setAdding(true)}
             aria-label={t("reactions.addAria")}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-charcoal-600/60 bg-charcoal-800 text-base text-taupe-300 transition-all duration-300 ease-felt hover:border-spice-400/40 hover:text-blush-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+            className="group inline-flex h-8 w-8 items-center justify-center rounded-full border border-charcoal-600/60 bg-charcoal-800 transition-all duration-300 ease-felt hover:border-spice-400/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
           >
-            ＋
+            {/* Smiley grisé + badge « ＋ » : affordance « ajouter une réaction ». */}
+            <span className="relative inline-flex text-base opacity-50 grayscale transition-all duration-300 ease-felt group-hover:opacity-100 group-hover:grayscale-0">
+              🙂
+              <span className="absolute -right-1 -top-1 flex h-3 w-3 items-center justify-center rounded-full bg-charcoal-700 text-[8px] font-semibold leading-none text-taupe-100 ring-1 ring-charcoal-600">
+                ＋
+              </span>
+            </span>
           </button>
         ))}
     </div>
