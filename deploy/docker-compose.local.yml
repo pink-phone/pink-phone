@@ -1,0 +1,67 @@
+# Out-of-the-box LOCAL demo — zero config, just run:
+#
+#   docker compose -f docker-compose.local.yml up
+#
+# Then open http://localhost:8095 and register an account.
+#
+# The `web` image already bundles nginx: it serves the PWA and reverse-proxies
+# /api (incl. the WebSocket upgrade) to the api service, so everything is
+# same-origin — no CORS, no extra proxy needed.
+#
+# ⚠️ FOR LOCAL TESTING ONLY. The secrets below are hard-coded throwaways and
+# media is stored unencrypted. For a real deployment use docker-compose.yml +
+# .env with strong secrets (see ../INSTALL.md).
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: pink
+      POSTGRES_PASSWORD: pink
+      POSTGRES_DB: pinkphone
+    volumes:
+      - pink-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pink -d pinkphone"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    networks:
+      - pink
+
+  api:
+    image: pinkphone/pinkphone-api:latest
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PASSWORD: pink
+      # Throwaway secret so the dev-config guard lets the API boot — NOT secure.
+      JWT_SECRET: local-demo-only-not-for-production
+      BIND_ADDR: 0.0.0.0:8080
+      MEDIA_DIR: /data/media
+    volumes:
+      - pink-media:/data/media
+    networks:
+      - pink
+
+  web:
+    image: pinkphone/pinkphone-web:latest
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "8095:80"
+    networks:
+      - pink
+
+networks:
+  pink:
+    name: pinkphone-local
+
+volumes:
+  pink-pgdata:
+  pink-media:
