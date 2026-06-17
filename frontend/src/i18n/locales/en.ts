@@ -97,6 +97,10 @@ export const en: Resources = {
     veryHot: "Very hot",
     tired: "Tired",
     cuddleNeeded: "Need some tenderness",
+    custom: "Free mood",
+    addAria: "Pick a free mood (emoji)",
+    addPlaceholder: "🙂",
+    customActiveAria: "Free mood — edit",
   },
   reactions: {
     heart: "Heart",

@@ -36,7 +36,6 @@ import {
   type ChallengeDraft,
 } from "../components/ChallengeComposer/ChallengeComposer";
 
-import type { MoodId } from "../components/MoodSelector/moods";
 import type {
   ChallengeStatus,
   Intensity,
@@ -288,7 +287,7 @@ export function SpaceApp({
     (p) => p.lastCommentAt && (!myBlogSeen || p.lastCommentAt > myBlogSeen),
   ).length;
 
-  const onMoodChange = (mood: MoodId) => {
+  const onMoodChange = (mood: string) => {
     api
       .setMood(space.id, mood)
       .then((entry) => {

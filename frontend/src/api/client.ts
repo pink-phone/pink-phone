@@ -1,4 +1,3 @@
-import type { MoodId } from "../components/MoodSelector/moods";
 import type {
   ChallengeStatus,
   Intensity,
@@ -158,7 +157,7 @@ export const members = (spaceId: string) =>
 
 // ---------- Mood ----------
 
-export const setMood = (spaceId: string, status: MoodId) =>
+export const setMood = (spaceId: string, status: string) =>
   req<MoodEntry>(`/api/spaces/${spaceId}/mood`, {
     method: "PUT",
     json: { status },

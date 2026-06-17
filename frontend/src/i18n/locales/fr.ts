@@ -97,6 +97,10 @@ export const fr = {
     veryHot: "Très chaud·e",
     tired: "Fatigué·e",
     cuddleNeeded: "Besoin de tendresse",
+    custom: "Humeur libre",
+    addAria: "Choisir une humeur libre (emoji)",
+    addPlaceholder: "🙂",
+    customActiveAria: "Humeur libre — modifier",
   },
   reactions: {
     heart: "Cœur",

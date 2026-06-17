@@ -21,6 +21,22 @@ pub struct SetMoodBody {
     pub status: String,
 }
 
+/// Mood accepté : soit un prédéfini, soit un emoji « libre » borné (même règle
+/// que les réactions libres : 1–8 caractères, ≤ 32 octets, pas d'alphanumérique
+/// ASCII ni d'espace — un emoji, pas du texte).
+fn mood_allowed(s: &str) -> bool {
+    if MOODS.contains(&s) {
+        return true;
+    }
+    let n = s.chars().count();
+    n >= 1
+        && n <= 8
+        && s.len() <= 32
+        && !s
+            .chars()
+            .any(|c| c.is_ascii_alphanumeric() || c.is_whitespace())
+}
+
 async fn set_mood(
     State(state): State<AppState>,
     auth: AuthUser,
@@ -28,8 +44,8 @@ async fn set_mood(
     Json(body): Json<SetMoodBody>,
 ) -> ApiResult<Json<Mood>> {
     ensure_member(&state.pool, auth.user_id, space_id).await?;
-    if !MOODS.contains(&body.status.as_str()) {
-        return Err(ApiError::BadRequest("humeur inconnue".into()));
+    if !mood_allowed(&body.status) {
+        return Err(ApiError::BadRequest("humeur invalide".into()));
     }
 
     let mood: Mood = sqlx::query_as(
