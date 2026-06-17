@@ -19,7 +19,12 @@ const OUT = resolve(__dirname, "..", "..", "docs", "screenshots");
 // Écrans à capturer : (titre de la story, fichier, nom de variante préféré).
 const TARGETS = [
   { title: "Écrans/DashboardScreen", file: "dashboard.png" },
-  { title: "Écrans/BlogScreen", file: "blog.png" },
+  { title: "Écrans/BlogScreen", file: "blog.png", prefer: "Par Défaut" },
+  {
+    title: "Écrans/BlogScreen",
+    file: "blog-comments.png",
+    prefer: "Avec commentaires ouverts",
+  },
   { title: "Écrans/ChallengesScreen", file: "challenges.png" },
   { title: "Écrans/ChallengeBankScreen", file: "challenge-bank.png" },
   { title: "Écrans/SettingsScreen", file: "settings.png", prefer: "Interactif" },

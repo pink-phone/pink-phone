@@ -20,11 +20,13 @@
 
 > Generated from Storybook (mock data, no real content): `cd frontend && npx playwright install chromium` (once), then `npm run build-storybook && npm run screenshots`.
 
-| Home | Journal | Dares |
+| Home | Journal | Comments |
 |---|---|---|
-| ![Home](docs/screenshots/dashboard.png) | ![Journal](docs/screenshots/blog.png) | ![Dares](docs/screenshots/challenges.png) |
-| **Dares bank** | **Settings** | **Sign in** |
-| ![Dares bank](docs/screenshots/challenge-bank.png) | ![Settings](docs/screenshots/settings.png) | ![Sign in](docs/screenshots/auth.png) |
+| ![Home](docs/screenshots/dashboard.png) | ![Journal](docs/screenshots/blog.png) | ![Comments](docs/screenshots/blog-comments.png) |
+| **Dares** | **Dares bank** | **Settings** |
+| ![Dares](docs/screenshots/challenges.png) | ![Dares bank](docs/screenshots/challenge-bank.png) | ![Settings](docs/screenshots/settings.png) |
+| **Sign in** | **Onboarding** | |
+| ![Sign in](docs/screenshots/auth.png) | ![Onboarding](docs/screenshots/onboarding.png) | |
 
 ## 🧱 Stack
 
