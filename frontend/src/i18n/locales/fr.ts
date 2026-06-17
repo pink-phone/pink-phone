@@ -72,7 +72,7 @@ export const fr = {
     settings: "Réglages",
     you: "Toi",
     noMoodYet: "Pas encore d'humeur aujourd'hui.",
-    moodHidden: "Pose ton humeur pour la dévoiler.",
+    moodHidden: "À toi : partage ton humeur pour révéler la sienne.",
     updatedAt: "Mis à jour {{time}}",
     waitingPartnerTitle: "En attente de votre partenaire",
     waitingPartnerText:
@@ -235,9 +235,9 @@ export const fr = {
       "Halo et particules animés sur les états chauds. Désactive pour un rendu calme.",
     language: "Langue",
     reactionsSection: "Réactions",
-    blindMood: "Humeur à l'aveugle",
+    blindMood: "Surprise mutuelle",
     blindMoodHint:
-      "L'humeur de l'autre reste masquée tant que tu n'as pas posé la tienne du jour. Révélation dès que vous avez voté tous les deux.",
+      "Personne ne voit l'humeur de l'autre avant d'avoir partagé la sienne. Les deux se dévoilent en même temps.",
     reactionsIntro: "Choisis les réactions du salon et leur ordre.",
     reactionEnable: "Activer la réaction",
     reactionDisable: "Désactiver la réaction",
