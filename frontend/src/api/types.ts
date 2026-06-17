@@ -54,6 +54,8 @@ export interface ApiPost {
   mediaViewOnce: boolean | null;
   /** Média éphémère déjà consommé (null si aucun média). */
   mediaConsumed: boolean | null;
+  /** Type MIME du média joint (null si aucun) — distingue image / vidéo. */
+  mediaMime: string | null;
   /** Brouillon : visible du seul auteur, non notifié tant qu'il n'est pas publié. */
   draft: boolean;
   createdAt: string;

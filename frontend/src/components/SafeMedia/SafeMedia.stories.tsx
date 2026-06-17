@@ -5,6 +5,10 @@ import { SafeMedia } from "./SafeMedia";
 const DEMO_SRC =
   "https://images.unsplash.com/photo-1519681393784-d120267933ba?w=640&q=70";
 
+// Vidéo neutre de démo (échantillon public, non explicite).
+const DEMO_VIDEO =
+  "https://interactive-examples.mdn.mozilla.net/media/cc0-videos/flower.mp4";
+
 const meta = {
   title: "Sécurité/SafeMedia",
   component: SafeMedia,
@@ -53,6 +57,22 @@ export const ÉphémèreConsommé: Story = {
       description: {
         story:
           "État « envolé » restitué dès le montage (média éphémère consommé côté serveur) : persiste après un rechargement, sans tenter de charger un fichier supprimé.",
+      },
+    },
+  },
+};
+
+export const Vidéo: Story = {
+  args: {
+    src: DEMO_VIDEO,
+    kind: "video",
+    alt: "Vidéo intime",
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Vidéo : le même geste « press-and-hold » révèle ET lit la vidéo ; on relâche pour flouter et mettre en pause (pas de contrôles natifs — la lecture reste pilotée par le geste).",
       },
     },
   },

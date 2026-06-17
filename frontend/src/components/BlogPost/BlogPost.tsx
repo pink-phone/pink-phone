@@ -17,6 +17,8 @@ export interface BlogPostMedia {
   src?: string;
   /** Chargement paresseux du média authentifié (voir SafeMedia). */
   loader?: () => Promise<string>;
+  /** Image (défaut) ou vidéo. */
+  kind?: "image" | "video";
   alt: string;
   viewOnce?: boolean;
   /** Média éphémère déjà consommé (état "Envolé…" persistant). */
@@ -123,6 +125,7 @@ export function BlogPost({
         <SafeMedia
           src={media.src}
           loader={media.loader}
+          kind={media.kind}
           alt={media.alt}
           viewOnce={media.viewOnce}
           consumed={media.consumed}

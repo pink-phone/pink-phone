@@ -10,6 +10,12 @@ export interface SafeMediaProps {
    * renvoie une object URL. Le résultat est mis en cache puis révoqué au démontage.
    */
   loader?: () => Promise<string>;
+  /**
+   * Nature du média. La vidéo se lit pendant qu'on maintient (révélation), puis
+   * se met en pause au relâchement — le geste « press-and-hold » de la DA reste
+   * identique aux photos. Défaut : image.
+   */
+  kind?: "image" | "video";
   alt: string;
   /**
    * "View once" : une fois révélé, le média se consume et ne peut plus être
@@ -34,6 +40,7 @@ export interface SafeMediaProps {
 export function SafeMedia({
   src,
   loader,
+  kind = "image",
   alt,
   viewOnce = false,
   consumed = false,
@@ -50,6 +57,7 @@ export function SafeMedia({
   const [failed, setFailed] = useState(false);
   const hasRevealedOnce = useRef(false);
   const objectUrl = useRef<string | null>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
 
   // Révoque l'object URL chargé paresseusement au démontage.
   useEffect(
@@ -58,6 +66,18 @@ export function SafeMedia({
     },
     [],
   );
+
+  // Vidéo : lecture pendant la révélation, pause sinon (le geste pilote la lecture).
+  useEffect(() => {
+    if (kind !== "video") return;
+    const v = videoRef.current;
+    if (!v) return;
+    if (isRevealed && resolvedSrc) {
+      void v.play().catch(() => {});
+    } else {
+      v.pause();
+    }
+  }, [kind, isRevealed, resolvedSrc]);
 
   const reveal = useCallback(() => {
     if (isConsumed) return;
@@ -118,24 +138,41 @@ export function SafeMedia({
         if (e.key === " " || e.key === "Enter") hide();
       }}
     >
-      {!isConsumed && resolvedSrc && (
-        <img
-          src={resolvedSrc}
-          alt={alt}
-          draggable={false}
-          className={cn(
-            "h-full w-full object-cover transition-all duration-500 ease-felt",
-            isRevealed ? "scale-100 blur-0" : "scale-110 blur-2xl",
-          )}
-        />
-      )}
+      {!isConsumed &&
+        resolvedSrc &&
+        (kind === "video" ? (
+          <video
+            ref={videoRef}
+            src={resolvedSrc}
+            aria-label={alt}
+            playsInline
+            loop
+            draggable={false}
+            className={cn(
+              "h-full w-full object-cover transition-all duration-500 ease-felt",
+              isRevealed ? "scale-100 blur-0" : "scale-110 blur-2xl",
+            )}
+          />
+        ) : (
+          <img
+            src={resolvedSrc}
+            alt={alt}
+            draggable={false}
+            className={cn(
+              "h-full w-full object-cover transition-all duration-500 ease-felt",
+              isRevealed ? "scale-100 blur-0" : "scale-110 blur-2xl",
+            )}
+          />
+        ))}
 
       {/* Voile + invite tant que ce n'est pas révélé */}
       {!isRevealed && !isConsumed && (
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1 bg-charcoal-900/40 p-4 text-center text-blush-100 backdrop-blur-[2px]">
-          <span className="text-3xl">🤫</span>
+          <span className="text-3xl">{kind === "video" ? "🎬" : "🤫"}</span>
           <p className="font-serif text-base">{t("safeMedia.secret")}</p>
-          <p className="text-xs text-taupe-200/80">{t("safeMedia.holdToReveal")}</p>
+          <p className="text-xs text-taupe-200/80">
+            {t(kind === "video" ? "safeMedia.holdToWatch" : "safeMedia.holdToReveal")}
+          </p>
           {viewOnce && (
             <span className="mt-2 rounded-full bg-bordeaux-600/80 px-3 py-0.5 text-[11px] tracking-wide text-blush-100">
               {t("safeMedia.ephemeralBadge")}

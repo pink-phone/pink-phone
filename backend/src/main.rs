@@ -124,7 +124,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app: Router = routes::api_router()
         .route("/health", get(|| async { "ok" }))
         .with_state(state)
-        .layer(DefaultBodyLimit::max(20 * 1024 * 1024)) // 20 Mo pour les médias
+        .layer(DefaultBodyLimit::max(100 * 1024 * 1024)) // 100 Mo (médias : photos + vidéos)
         .layer(cors)
         .layer(TraceLayer::new_for_http());
 
