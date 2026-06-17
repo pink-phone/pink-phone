@@ -510,6 +510,7 @@ export function SettingsScreen({
         <div className="flex justify-center pb-4">
           {pinFlow && (
             <LockScreen
+              key={pinFlow}
               title={pinSheet[pinFlow].title}
               subtitle={pinSheet[pinFlow].subtitle}
               error={pinError}
