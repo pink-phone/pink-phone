@@ -1,7 +1,7 @@
-# Compose de PRODUCTION (déployé sur le server, derrière a reverse proxy).
-# Seul le service web expose un port sur l'hôte ; a reverse proxy route le domaine + TLS.
-# Les images sont tirées du registre Forgejo (poussées par la CI).
-# Variables attendues dans le .env du serveur : voir .env.example.
+# Production compose. Only the `web` service is exposed on the host; put a
+# reverse proxy in front for domain + TLS (see INSTALL.md).
+# Images default to Docker Hub; override API_IMAGE/WEB_IMAGE + IMAGE_TAG to use
+# another registry. Expected variables: see .env.example.
 
 services:
   db:
@@ -22,7 +22,7 @@ services:
       - pink
 
   api:
-    image: pinkphone/pinkphone-api:${IMAGE_TAG:-latest}
+    image: ${API_IMAGE:-pinkphone/pinkphone-api}:${IMAGE_TAG:-latest}
     restart: unless-stopped
     depends_on:
       db:
@@ -54,12 +54,12 @@ services:
       - pink
 
   web:
-    image: pinkphone/pinkphone-web:${IMAGE_TAG:-latest}
+    image: ${WEB_IMAGE:-pinkphone/pinkphone-web}:${IMAGE_TAG:-latest}
     restart: unless-stopped
     depends_on:
       - api
     ports:
-      # Port exposé sur l'hôte ; a reverse proxy pointe dessus.
+      # Exposed on the host; point your reverse proxy here.
       - "${WEB_PORT:-8095}:80"
     networks:
       - pink
