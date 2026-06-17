@@ -151,7 +151,7 @@ export function MoodSelector({
             }
             onClick={openEditor}
             className={cn(
-              "relative flex w-full items-center justify-center gap-2 rounded-2xl border px-3 py-2.5",
+              "group relative flex w-full items-center justify-center gap-2 rounded-2xl border px-3 py-2.5",
               "transition-all duration-300 ease-felt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500",
               customActive
                 ? "border-spice-500/70 bg-bordeaux-700 bg-felt-velvet text-blush-100 shadow-glow"
@@ -166,7 +166,16 @@ export function MoodSelector({
                 </span>
               </>
             ) : (
-              <span className="text-sm">＋ {t("moods.addFree")}</span>
+              <>
+                {/* Smiley grisé + badge « ＋ » dans le coin (affordance « ajouter »). */}
+                <span className="relative inline-flex text-xl opacity-60 transition-opacity duration-300 ease-felt group-hover:opacity-100">
+                  🙂
+                  <span className="absolute -right-1.5 -top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-charcoal-700 text-[10px] font-semibold leading-none text-taupe-100 ring-1 ring-charcoal-600">
+                    ＋
+                  </span>
+                </span>
+                <span className="text-sm">{t("moods.addFree")}</span>
+              </>
             )}
           </button>
         ))}
