@@ -98,8 +98,11 @@ export const fr = {
     tired: "Fatigué·e",
     cuddleNeeded: "Besoin de tendresse",
     custom: "Humeur libre",
-    addAria: "Choisir une humeur libre (emoji)",
+    addFree: "Humeur libre",
+    addEmojiAria: "Emoji de l'humeur libre",
+    addLabelAria: "Libellé de l'humeur libre",
     addPlaceholder: "🙂",
+    labelPlaceholder: "un mot…",
     customActiveAria: "Humeur libre — modifier",
   },
   reactions: {

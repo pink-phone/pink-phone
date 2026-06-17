@@ -3,6 +3,7 @@ import { Surface } from "../../components/Surface/Surface";
 import { MoodSelector } from "../../components/MoodSelector/MoodSelector";
 import { FireEmbers } from "../../components/FireEmbers/FireEmbers";
 import { MOODS } from "../../components/MoodSelector/moods";
+import { parseCustomMood } from "../../components/MoodSelector/MoodSelector";
 import { cn } from "../../lib/cn";
 import type { MoodSnapshot, Person } from "../../mock/data";
 
@@ -45,6 +46,7 @@ function MoodCard({
   const { t } = useTranslation();
   const predef = moodId ? MOODS.find((m) => m.id === moodId) : undefined;
   const isCustom = !!moodId && !predef;
+  const custom = isCustom ? parseCustomMood(moodId as string) : null;
   const hot = !hidden && predef?.id === "veryHot";
   const has = !hidden && !!moodId;
   return (
@@ -68,13 +70,15 @@ function MoodCard({
         ) : (
           <>
             <span aria-hidden className="text-4xl">
-              {predef ? predef.emoji : isCustom ? moodId : "…"}
+              {predef ? predef.emoji : custom ? custom.emoji : "…"}
             </span>
             <p className="font-serif text-base text-blush-100">{name}</p>
             {moodId ? (
               <>
                 <p className="text-sm text-blush-200">
-                  {predef ? t(`moods.${predef.id}`) : t("moods.custom")}
+                  {predef
+                    ? t(`moods.${predef.id}`)
+                    : custom?.label || t("moods.custom")}
                 </p>
                 {timeLabel && (
                   <p className="text-xs text-blush-200/70">

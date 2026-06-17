@@ -98,8 +98,11 @@ export const en: Resources = {
     tired: "Tired",
     cuddleNeeded: "Need some tenderness",
     custom: "Free mood",
-    addAria: "Pick a free mood (emoji)",
+    addFree: "Free mood",
+    addEmojiAria: "Free mood emoji",
+    addLabelAria: "Free mood label",
     addPlaceholder: "🙂",
+    labelPlaceholder: "a word…",
     customActiveAria: "Free mood — edit",
   },
   reactions: {

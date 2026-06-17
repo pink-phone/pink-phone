@@ -21,20 +21,16 @@ pub struct SetMoodBody {
     pub status: String,
 }
 
-/// Mood accepté : soit un prédéfini, soit un emoji « libre » borné (même règle
-/// que les réactions libres : 1–8 caractères, ≤ 32 octets, pas d'alphanumérique
-/// ASCII ni d'espace — un emoji, pas du texte).
+/// Mood accepté : soit un prédéfini, soit une humeur « libre » bornée. Le format
+/// libre est « emoji [label] » (l'emoji puis un libellé court optionnel), stocké
+/// dans le même champ TEXT — on borne juste la longueur, le contenu reste libre.
 fn mood_allowed(s: &str) -> bool {
     if MOODS.contains(&s) {
         return true;
     }
-    let n = s.chars().count();
-    n >= 1
-        && n <= 8
-        && s.len() <= 32
-        && !s
-            .chars()
-            .any(|c| c.is_ascii_alphanumeric() || c.is_whitespace())
+    let t = s.trim();
+    let n = t.chars().count();
+    n >= 1 && n <= 40 && t.len() <= 120
 }
 
 async fn set_mood(
