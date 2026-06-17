@@ -87,12 +87,15 @@ export function ReactionBar({
       {items.map(({ key, emoji, label, hot }) => {
         const active = mine.includes(key);
         const count = counts[key] ?? 0;
+        // Réaction posée par quelqu'un d'autre (présente mais pas de moi) :
+        // liseré spice pour la repérer d'un coup d'œil sans la confondre avec la mienne.
+        const byOther = !active && count > 0;
         return (
           <button
             key={key}
             type="button"
             aria-pressed={active}
-            aria-label={label}
+            aria-label={byOther ? t("reactions.byOtherAria", { label }) : label}
             onClick={() => onToggle?.(key)}
             className={cn(
               "relative inline-flex items-center gap-1.5 overflow-hidden rounded-full border px-3 py-1 text-sm",
@@ -101,7 +104,9 @@ export function ReactionBar({
                 ? hot
                   ? "border-spice-500/70 bg-bordeaux-700 text-blush-100 shadow-ember animate-ember-breathe motion-reduce:animate-none"
                   : "border-spice-500/70 bg-bordeaux-700 text-blush-100 shadow-glow"
-                : "border-charcoal-600/60 bg-charcoal-800 text-taupe-300 hover:border-spice-400/40 hover:-translate-y-0.5",
+                : byOther
+                  ? "border-spice-400/70 bg-charcoal-800 text-taupe-100 hover:-translate-y-0.5"
+                  : "border-charcoal-600/60 bg-charcoal-800 text-taupe-300 hover:border-spice-400/40 hover:-translate-y-0.5",
             )}
           >
             {active && hot && <FireEmbers count={4} />}
