@@ -8,3 +8,6 @@ storybook-static
 .env.*
 !.env.example
 *.log
+
+# Notes de travail perso (non publiées)
+thinking.MD

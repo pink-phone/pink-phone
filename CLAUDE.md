@@ -8,7 +8,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
+The repo has two apps: **`frontend/`** (web) and **`backend/`** (API). Frontend commands run from `frontend/`:
+
 ```bash
+cd frontend
 npm run storybook       # design system on :6006 (primary dev surface)
 npm run dev             # the app (Vite)
 npm run build           # tsc --noEmit + vite build (PWA)
@@ -26,7 +29,7 @@ Stack: React 18 + TypeScript + Tailwind v3 + `vite-plugin-pwa`, Storybook (`@sto
 
 ## Architecture
 
-The frontend is layered strictly **presentational components → screens → orchestration**. Presentational pieces stay API-agnostic and live in Storybook; the orchestration layer (`src/app/`, `src/api/`, `src/auth/`) is the only place that touches the network and holds app state — it is *not* in Storybook, same category as `App.tsx`.
+The frontend lives in **`frontend/`** (so `src/…` paths below are `frontend/src/…`); the backend lives in **`backend/`**. The frontend is layered strictly **presentational components → screens → orchestration**. Presentational pieces stay API-agnostic and live in Storybook; the orchestration layer (`src/app/`, `src/api/`, `src/auth/`) is the only place that touches the network and holds app state — it is *not* in Storybook, same category as `App.tsx`.
 
 - `src/components/<Name>/` — reusable, presentational, controlled components. No data fetching, no global state; everything comes via props with callbacks for events. Each ships with a `.stories.tsx`. Foundations (`Surface`, `Button`, `Badge`, `Sheet`, `form/*`) are composed by feature components (`SafeMedia`, `MoodSelector`, `ReactionBar`, `VerdictPicker`, `BlogPost`, `ChallengeCard`, `PostComposer`, `ChallengeComposer`).
 - `src/screens/<Name>/` — full screens (`Auth`, `Onboarding`, `Dashboard`, `Blog`, `Challenges`, `Splash`) plus `AppShell` + `BottomNav`. Presentational: they take data + handlers and map them onto components. They have stories.
@@ -56,11 +59,11 @@ Backend commands (run in `backend/`): `cargo build` / `cargo run` (applies migra
 
 ### Deployment
 
-The **web image** (`Dockerfile`) is nginx serving the PWA **and** reverse-proxying `/api` (incl. the WebSocket upgrade) → the api service, so production is same-origin (no CORS; built with `VITE_API_URL=""` → relative `/api`). `deploy/docker-compose.yml` runs db + api + web; only `web` is exposed — put a reverse proxy in front for domain + TLS. Public images are published to Docker Hub (`pinkphone/pinkphone-{api,web}`) by the manual GitHub release workflow (`.github/workflows/release.yml`); the API applies migrations on startup. Keep `JWT_SECRET` stable (changing it invalidates all sessions) and set all four `OIDC_*` for SSO (`oidc_enabled()` needs them non-empty). Self-hosting guide: `INSTALL.md` (+ `deploy/README.md`).
+The **web image** (`frontend/Dockerfile`, with `frontend/nginx.conf`) is nginx serving the PWA **and** reverse-proxying `/api` (incl. the WebSocket upgrade) → the api service, so production is same-origin (no CORS; built with `VITE_API_URL=""` → relative `/api`). `deploy/docker-compose.yml` runs db + api + web; only `web` is exposed — put a reverse proxy in front for domain + TLS. Public images are published to Docker Hub (`pinkphone/pinkphone-{api,web}`) by the manual GitHub release workflow (`.github/workflows/release.yml`); the API applies migrations on startup. Keep `JWT_SECRET` stable (changing it invalidates all sessions) and set all four `OIDC_*` for SSO (`oidc_enabled()` needs them non-empty). Self-hosting guide: `INSTALL.md` (+ `deploy/README.md`).
 
 ## Design system — "felted"
 
-Skeuomorphic, soft, warm — **not** flat-and-cold, **not** candy/barbie pink, **not** clinical or explicit. All tokens live in `tailwind.config.js`; the app is dark-only (charcoal background), so use the palette directly (no `dark:` variants are configured).
+Skeuomorphic, soft, warm — **not** flat-and-cold, **not** candy/barbie pink, **not** clinical or explicit. All tokens live in `frontend/tailwind.config.js`; the app is dark-only (charcoal background), so use the palette directly (no `dark:` variants are configured).
 
 - Colors: `blush` (light card fills) → `spice` (primary accent) → `bordeaux` (hot/active states); neutrals `charcoal` (bg) and `taupe` (text).
 - Fonts: `font-serif` = Playfair Display (titles), `font-sans` = Inter (body), loaded offline via `@fontsource` in `src/index.css`.
@@ -69,4 +72,4 @@ Skeuomorphic, soft, warm — **not** flat-and-cold, **not** candy/barbie pink, *
 
 Mobile-first: respect safe-area insets; Storybook defaults to a mobile viewport and charcoal background.
 
-PWA install: the manifest (in `vite.config.ts`) + `injectManifest` SW + icons in `public/` (`pwa-192x192.png`, `pwa-512x512.png`, `pwa-maskable-512x512.png`, `apple-touch-icon.png`, regenerated from an SVG via `rsvg-convert`) make it installable. `src/app/InstallPrompt.tsx` shows an in-app banner (`InstallBanner`): native prompt on Android (`beforeinstallprompt`), manual instructions on iOS (no native prompt; relies on `apple-mobile-web-app-*` meta in `index.html`).
+PWA install: the manifest (in `frontend/vite.config.ts`) + `injectManifest` SW + icons in `frontend/public/` (`pwa-192x192.png`, `pwa-512x512.png`, `pwa-maskable-512x512.png`, `apple-touch-icon.png`, regenerated from an SVG via `rsvg-convert`) make it installable. `src/app/InstallPrompt.tsx` shows an in-app banner (`InstallBanner`): native prompt on Android (`beforeinstallprompt`), manual instructions on iOS (no native prompt; relies on `apple-mobile-web-app-*` meta in `index.html`).
