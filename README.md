@@ -28,7 +28,7 @@
 
 - **Front** — React 18 + TypeScript + Tailwind v3 + `vite-plugin-pwa`. **Storybook** as the design surface (every component lives there before being used).
 - **Back** — Rust / **Axum** + Tokio, Postgres via `sqlx` (runtime queries), JWT + Argon2id, Web Push (VAPID), WebSocket.
-- **Deployment** — Docker images (nginx web + api), Forgejo Actions CI/CD, behind a reverse proxy (TLS).
+- **Deployment** — Docker images (nginx web + api) on Docker Hub, behind a reverse proxy (TLS).
 
 ## 🚀 Quick start (dev)
 
@@ -55,9 +55,9 @@ Self-hosted install (Docker Compose, env vars, reverse proxy + WebSocket, key ge
 
 Prerequisites, commands, conventions and the **Storybook-first golden rule**: **[`CONTRIBUTING.md`](CONTRIBUTING.md)**.
 
-## 🔧 Deployment (CI/CD)
+## 🔧 Deployment
 
-Forgejo Actions pipeline (build → semver release → SSH deploy): **[`deploy/README.md`](deploy/README.md)**.
+Production deployment files (Docker Compose + reverse proxy): **[`deploy/README.md`](deploy/README.md)**. Public images are published to Docker Hub (`pinkphone/pinkphone-{api,web}`).
 
 ## 📁 Architecture (overview)
 

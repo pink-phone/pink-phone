@@ -1,5 +1,5 @@
-# Release publique (manuelle) : crée le tag, build les images et les publie sur
-# Docker Hub, puis crée la release GitHub. Tourne SUR GitHub (pas Forgejo).
+# Public release (manual): creates the tag, builds the images and publishes them
+# to Docker Hub, then creates the GitHub release.
 #
 # Prérequis (Settings → Secrets and variables → Actions du dépôt GitHub) :
 #   - DOCKERHUB_USERNAME : namespace Docker Hub (= nom des images <user>/pinkphone-*).
