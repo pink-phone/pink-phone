@@ -1,6 +1,31 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { BlogScreen } from "./BlogScreen";
+import {
+  CommentsSheet,
+  type CommentView,
+} from "../../components/CommentsSheet/CommentsSheet";
 import { SAMPLE_POSTS } from "../../mock/data";
+
+const SAMPLE_COMMENTS: CommentView[] = [
+  {
+    id: "1",
+    authorName: "Camille",
+    body: "Tell me more… I'm intrigued. 😏",
+    timeLabel: "Yesterday, 11pm",
+  },
+  {
+    id: "2",
+    authorName: "You",
+    body: "Soon. I want to get it just right first.",
+    timeLabel: "Yesterday, 11:20pm",
+  },
+  {
+    id: "3",
+    authorName: "Camille",
+    body: "I love it when you take your time.",
+    timeLabel: "Just now",
+  },
+];
 
 const meta = {
   title: "Écrans/BlogScreen",
@@ -22,6 +47,21 @@ export const ParDéfaut: Story = {
   render: (args) => (
     <div className="w-[380px]">
       <BlogScreen {...args} />
+    </div>
+  ),
+};
+
+export const AvecCommentaires: Story = {
+  name: "Avec commentaires ouverts",
+  render: (args) => (
+    <div className="w-[380px]">
+      <BlogScreen {...args} />
+      <CommentsSheet
+        open
+        comments={SAMPLE_COMMENTS}
+        onClose={() => {}}
+        onAdd={() => {}}
+      />
     </div>
   ),
 };
