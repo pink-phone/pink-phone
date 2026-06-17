@@ -47,6 +47,8 @@ jobs:
           git tag "${{ steps.v.outputs.tag }}"
           git push origin "${{ steps.v.outputs.tag }}"
 
+      - uses: docker/setup-qemu-action@v3 # émulation arm64 sur runner amd64
+
       - uses: docker/setup-buildx-action@v3
 
       - uses: docker/login-action@v3
@@ -58,7 +60,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./backend
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: |
             ${{ env.API_IMAGE }}:latest
@@ -68,7 +70,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: ./frontend
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: |
             ${{ env.WEB_IMAGE }}:latest
