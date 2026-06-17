@@ -106,6 +106,7 @@ export const en: Resources = {
     hush: "Our secret",
     addAria: "Add a reaction (emoji)",
     addPlaceholder: "🙂",
+    byOtherAria: "{{label}} — partner's reaction",
   },
   blog: {
     title: "Our journal",

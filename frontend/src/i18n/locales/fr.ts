@@ -106,6 +106,7 @@ export const fr = {
     hush: "Notre secret",
     addAria: "Ajouter une réaction (emoji)",
     addPlaceholder: "🙂",
+    byOtherAria: "{{label}} — réaction de l'autre",
   },
   blog: {
     title: "Notre journal",

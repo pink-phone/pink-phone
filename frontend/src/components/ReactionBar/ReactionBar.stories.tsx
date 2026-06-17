@@ -10,7 +10,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Réactions rapides « sans jugement » sous un post. Un appui pose ou retire sa réaction ; l'état actif reçoit un soft glow.",
+          "Réactions rapides « sans jugement » sous un post. Trois états : ma réaction (fond plein + soft glow), réaction de l'autre (liseré spice, fond neutre), aucune (neutre). Un appui pose ou retire la sienne.",
       },
     },
   },
@@ -25,6 +25,23 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const ParDéfaut: Story = {};
+
+/** Réactions posées par l'autre (liseré spice) vs la mienne (fond plein). */
+export const RéactionsDeLAutre: Story = {
+  name: "Réactions de l'autre (liseré spice)",
+  args: {
+    counts: { heart: 1, fire: 1, smirk: 2 },
+    mine: ["heart"],
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "❤️ est ma réaction (fond plein). 🔥 et 😏 ont été posées par l'autre : liseré spice, sans fond plein, pour les distinguer des miennes.",
+      },
+    },
+  },
+};
 
 export const Interactif: Story = {
   render: (args) => {
