@@ -8,7 +8,7 @@ For a quick local taste — no `.env`, no secrets, no reverse proxy — use the
 self-contained demo compose:
 
 ```bash
-git clone <repo> pinkphone && cd pinkphone/deploy
+git clone https://github.com/pink-phone/pink-phone.git pinkphone && cd pinkphone/deploy
 docker compose -f docker-compose.local.yml up
 ```
 
@@ -29,7 +29,7 @@ already bundles nginx and proxies `/api`, so it works same-origin out of the box
 You only need `docker-compose.yml` and `.env.example` from the `deploy/` folder:
 
 ```bash
-git clone <repo> pinkphone && cd pinkphone/deploy
+git clone https://github.com/pink-phone/pink-phone.git pinkphone && cd pinkphone/deploy
 # (or just download deploy/docker-compose.yml and deploy/.env.example)
 cp .env.example .env
 ```
