@@ -6,6 +6,15 @@ import { Toggle } from "../../components/form/Toggle";
 import { TextField } from "../../components/form/TextField";
 import { ReactionSettings } from "../../components/ReactionSettings/ReactionSettings";
 import type { ReactionId } from "../../components/ReactionBar/ReactionBar";
+import { Sheet } from "../../components/Sheet/Sheet";
+import { LockScreen } from "../../components/LockScreen/LockScreen";
+import {
+  isPinSet,
+  setPin as storePin,
+  verifyPin,
+  clearPin,
+  PIN_LENGTH,
+} from "../../lib/pin";
 import { cn } from "../../lib/cn";
 import { SUPPORTED_LANGS } from "../../i18n";
 import { THEMES, applyTheme, getTheme, type Theme } from "../../theme";
@@ -102,6 +111,55 @@ export function SettingsScreen({
   const chooseTheme = (next: Theme) => {
     applyTheme(next);
     setTheme(next);
+  };
+
+  // Verrouillage local par code PIN (concern appareil, comme le thème/la langue).
+  const [pinSet, setPinSet] = useState(isPinSet());
+  const [pinFlow, setPinFlow] = useState<null | "set" | "confirm" | "disable">(
+    null,
+  );
+  const [firstPin, setFirstPin] = useState("");
+  const [pinError, setPinError] = useState<string | null>(null);
+  const closePinFlow = () => {
+    setPinFlow(null);
+    setFirstPin("");
+    setPinError(null);
+  };
+  const handlePinSubmit = async (pin: string) => {
+    if (pinFlow === "set") {
+      setFirstPin(pin);
+      setPinError(null);
+      setPinFlow("confirm");
+    } else if (pinFlow === "confirm") {
+      if (pin === firstPin) {
+        await storePin(pin);
+        setPinSet(true);
+        closePinFlow();
+      } else {
+        setPinError(t("lock.mismatch"));
+        setFirstPin("");
+        setPinFlow("set");
+      }
+    } else if (pinFlow === "disable") {
+      if (await verifyPin(pin)) {
+        clearPin();
+        setPinSet(false);
+        closePinFlow();
+      } else {
+        setPinError(t("lock.wrong"));
+      }
+    }
+  };
+  const pinSheet = {
+    set: { title: t("lock.setTitle"), subtitle: t("lock.setSubtitle") },
+    confirm: {
+      title: t("lock.confirmTitle"),
+      subtitle: t("lock.confirmSubtitle"),
+    },
+    disable: {
+      title: t("lock.disableTitle"),
+      subtitle: t("lock.disableSubtitle"),
+    },
   };
 
   // Édition du nom du salon (resynchronisé si le nom change ailleurs).
@@ -377,6 +435,65 @@ export function SettingsScreen({
           </Surface>
         </section>
 
+      <section className="space-y-3">
+        <h2 className="text-xs uppercase tracking-[0.15em] text-taupe-400">
+          {t("settings.securitySection")}
+        </h2>
+        <Surface tone="velvet" className="space-y-3">
+          <div className="flex items-start gap-3">
+            <span aria-hidden className="text-2xl">
+              🔒
+            </span>
+            <div className="leading-tight">
+              <p className="font-serif text-base text-blush-100">
+                {t("lock.settingTitle")}
+              </p>
+              <p className="mt-0.5 text-xs text-taupe-400">
+                {pinSet ? t("lock.settingOn") : t("lock.settingOff")}
+              </p>
+            </div>
+          </div>
+          {pinSet ? (
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                className="flex-1"
+                onClick={() => {
+                  setPinError(null);
+                  setFirstPin("");
+                  setPinFlow("set");
+                }}
+              >
+                {t("lock.change")}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setPinError(null);
+                  setPinFlow("disable");
+                }}
+              >
+                {t("lock.disable")}
+              </Button>
+            </div>
+          ) : (
+            <Button
+              size="sm"
+              className="w-full"
+              onClick={() => {
+                setPinError(null);
+                setFirstPin("");
+                setPinFlow("set");
+              }}
+            >
+              {t("lock.enable")}
+            </Button>
+          )}
+        </Surface>
+      </section>
+
       {onLogout && (
         <section className="pt-2">
           <Button variant="secondary" className="w-full" onClick={onLogout}>
@@ -384,6 +501,25 @@ export function SettingsScreen({
           </Button>
         </section>
       )}
+
+      <Sheet
+        open={pinFlow !== null}
+        title={pinFlow ? pinSheet[pinFlow].title : ""}
+        onClose={closePinFlow}
+      >
+        <div className="flex justify-center pb-4">
+          {pinFlow && (
+            <LockScreen
+              title={pinSheet[pinFlow].title}
+              subtitle={pinSheet[pinFlow].subtitle}
+              error={pinError}
+              pinLength={PIN_LENGTH}
+              onSubmit={handlePinSubmit}
+              onCancel={closePinFlow}
+            />
+          )}
+        </div>
+      </Sheet>
     </div>
   );
 }

@@ -602,6 +602,7 @@ export function SpaceApp({
     media: p.mediaId
       ? {
           alt: t("blog.sharedPhotoAlt"),
+          kind: p.mediaMime?.startsWith("video/") ? "video" : "image",
           viewOnce: p.mediaViewOnce ?? false,
           consumed: p.mediaConsumed ?? false,
           loader: () => api.fetchMediaObjectUrl(space.id, p.mediaId as string),
@@ -729,6 +730,9 @@ export function SpaceApp({
                   media: editingPost.mediaId
                     ? {
                         viewOnce: editingPost.mediaViewOnce ?? false,
+                        kind: editingPost.mediaMime?.startsWith("video/")
+                          ? "video"
+                          : "image",
                         alt: t("postComposer.attachedAlt"),
                         loader: () =>
                           api.fetchMediaObjectUrl(

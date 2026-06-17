@@ -31,8 +31,18 @@ export interface PostComposerProps {
     body?: string;
     /** Statut du post édité : false = publié (pas d'option « brouillon »). */
     draft?: boolean;
-    media?: { viewOnce: boolean; loader?: () => Promise<string>; alt?: string };
+    media?: {
+      viewOnce: boolean;
+      loader?: () => Promise<string>;
+      alt?: string;
+      kind?: "image" | "video";
+    };
   };
+}
+
+/** Image / vidéo d'après le type MIME du fichier choisi. */
+function fileKind(file: File): "image" | "video" {
+  return file.type.startsWith("video/") ? "video" : "image";
 }
 
 /** Formulaire de rédaction d'un post du blog intime. */
@@ -126,6 +136,7 @@ export function PostComposer({ onSubmit, onCancel, initial }: PostComposerProps)
             <div className="space-y-2">
               <SafeMedia
                 loader={existingMedia.loader}
+                kind={existingMedia.kind}
                 alt={existingMedia.alt ?? t("postComposer.attachedAlt")}
               />
               <Button
@@ -142,7 +153,7 @@ export function PostComposer({ onSubmit, onCancel, initial }: PostComposerProps)
 
         <input
           type="file"
-          accept="image/*"
+          accept="image/*,video/*"
           onChange={(e) => {
             setFile(e.target.files?.[0] ?? null);
             setRemoveMedia(false);
@@ -166,7 +177,12 @@ export function PostComposer({ onSubmit, onCancel, initial }: PostComposerProps)
 
       {preview && (
         <div className="space-y-3">
-          <SafeMedia src={preview} alt={t("postComposer.previewAlt")} viewOnce={viewOnce} />
+          <SafeMedia
+            src={preview}
+            kind={file ? fileKind(file) : "image"}
+            alt={t("postComposer.previewAlt")}
+            viewOnce={viewOnce}
+          />
           <Toggle
             checked={viewOnce}
             onChange={setViewOnce}

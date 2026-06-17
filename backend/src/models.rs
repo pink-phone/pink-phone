@@ -70,6 +70,8 @@ pub struct PostRow {
     pub media_view_once: Option<bool>,
     /// Média éphémère déjà consommé (null si aucun média).
     pub media_consumed: Option<bool>,
+    /// Type MIME du média joint (null si aucun) — distingue image / vidéo.
+    pub media_mime: Option<String>,
     pub draft: bool,
     pub created_at: DateTime<Utc>,
 }
@@ -88,6 +90,8 @@ pub struct Post {
     pub media_view_once: Option<bool>,
     /// Média éphémère déjà consommé (null si aucun média).
     pub media_consumed: Option<bool>,
+    /// Type MIME du média joint (null si aucun) — distingue image / vidéo.
+    pub media_mime: Option<String>,
     pub draft: bool,
     pub created_at: DateTime<Utc>,
     pub reaction_counts: std::collections::HashMap<String, i64>,

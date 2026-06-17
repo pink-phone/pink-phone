@@ -135,6 +135,7 @@ async fn enrich(
             media_id: p.media_id,
             media_view_once: p.media_view_once,
             media_consumed: p.media_consumed,
+            media_mime: p.media_mime,
             draft: p.draft,
             created_at: p.created_at,
         })
@@ -152,7 +153,7 @@ async fn list_posts(
     let rows: Vec<PostRow> = sqlx::query_as(
         "SELECT p.id, p.author_id, u.display_name AS author_name,
                 p.title, p.body, p.media_id, m.view_once AS media_view_once,
-                m.consumed AS media_consumed, p.draft, p.created_at
+                m.consumed AS media_consumed, m.mime AS media_mime, p.draft, p.created_at
          FROM posts p
          JOIN users u ON u.id = p.author_id
          LEFT JOIN media m ON m.id = p.media_id
@@ -200,7 +201,7 @@ async fn create_post(
          )
          SELECT i.id, i.author_id, u.display_name AS author_name,
                 i.title, i.body, i.media_id, m.view_once AS media_view_once,
-                m.consumed AS media_consumed, i.draft, i.created_at
+                m.consumed AS media_consumed, m.mime AS media_mime, i.draft, i.created_at
          FROM inserted i
          JOIN users u ON u.id = i.author_id
          LEFT JOIN media m ON m.id = i.media_id",
@@ -349,7 +350,7 @@ async fn update_post(
          )
          SELECT up.id, up.author_id, u.display_name AS author_name,
                 up.title, up.body, up.media_id, m.view_once AS media_view_once,
-                m.consumed AS media_consumed, up.draft, up.created_at
+                m.consumed AS media_consumed, m.mime AS media_mime, up.draft, up.created_at
          FROM updated up
          JOIN users u ON u.id = up.author_id
          LEFT JOIN media m ON m.id = up.media_id",
