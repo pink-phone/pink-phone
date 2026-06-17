@@ -116,15 +116,27 @@ export function MoodSelector({
               submitCustom();
             }}
           >
-            <input
-              autoFocus
-              value={emoji}
-              onChange={(e) => setEmoji(e.target.value)}
-              maxLength={8}
-              aria-label={t("moods.addEmojiAria")}
-              placeholder={t("moods.addPlaceholder")}
-              className="w-14 rounded-2xl border border-spice-400/50 bg-charcoal-800 px-1 py-2 text-center text-xl text-blush-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
-            />
+            <div className="relative w-14 shrink-0">
+              <input
+                autoFocus
+                value={emoji}
+                onChange={(e) => setEmoji(e.target.value)}
+                maxLength={8}
+                aria-label={t("moods.addEmojiAria")}
+                className="w-full rounded-2xl border border-spice-400/50 bg-charcoal-800 px-1 py-2 text-center text-xl text-blush-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+              />
+              {/* Indice quand le champ est vide : smiley grisé + badge « ＋ ». */}
+              {emoji === "" && (
+                <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                  <span className="relative inline-flex text-xl opacity-60">
+                    🙂
+                    <span className="absolute -right-1.5 -top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-charcoal-700 text-[10px] font-semibold leading-none text-taupe-100 ring-1 ring-charcoal-600">
+                      ＋
+                    </span>
+                  </span>
+                </span>
+              )}
+            </div>
             <input
               value={label}
               onChange={(e) => setLabel(e.target.value)}
