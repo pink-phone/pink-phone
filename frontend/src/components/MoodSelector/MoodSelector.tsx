@@ -110,8 +110,14 @@ export function MoodSelector({
       </div>
 
       {/* Ligne dédiée : humeur libre — tuile à la même taille que les autres. */}
-      {allowCustom &&
-        (adding ? (
+      {allowCustom && (
+        <>
+          <div className="flex items-center gap-3 text-[11px] uppercase tracking-[0.15em] text-taupe-500">
+            <span className="h-px flex-1 bg-charcoal-600/50" />
+            {t("moods.or")}
+            <span className="h-px flex-1 bg-charcoal-600/50" />
+          </div>
+          {adding ? (
           <form
             className="rounded-2xl border border-spice-500/70 bg-charcoal-800 bg-felt-velvet px-3 py-3 shadow-glow"
             onSubmit={(e) => {
@@ -186,7 +192,7 @@ export function MoodSelector({
             }
             onClick={openEditor}
             className={cn(
-              "group flex w-[calc((100%_-_2rem)/5)] flex-col items-center gap-1.5 rounded-2xl border px-1 py-3",
+              "group mx-auto flex w-[calc((100%_-_2rem)/5)] flex-col items-center gap-1.5 rounded-2xl border px-1 py-3",
               "transition-all duration-300 ease-felt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500",
               customActive
                 ? "border-spice-500/70 bg-bordeaux-700 bg-felt-velvet shadow-glow"
@@ -214,7 +220,9 @@ export function MoodSelector({
               </>
             )}
           </button>
-        ))}
+          )}
+        </>
+      )}
     </div>
   );
 }

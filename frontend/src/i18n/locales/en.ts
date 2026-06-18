@@ -98,6 +98,7 @@ export const en: Resources = {
     tired: "Tired",
     cuddleNeeded: "Need some tenderness",
     custom: "Free mood",
+    or: "or",
     addFree: "Free mood",
     addEmojiAria: "Free mood emoji",
     addLabelAria: "Free mood label",

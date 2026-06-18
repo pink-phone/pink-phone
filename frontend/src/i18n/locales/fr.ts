@@ -98,6 +98,7 @@ export const fr = {
     tired: "Fatigué·e",
     cuddleNeeded: "Besoin de tendresse",
     custom: "Humeur libre",
+    or: "ou",
     addFree: "Humeur libre",
     addEmojiAria: "Emoji de l'humeur libre",
     addLabelAria: "Libellé de l'humeur libre",
