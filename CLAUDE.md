@@ -17,6 +17,7 @@ npm run dev             # the app (Vite)
 npm run build           # tsc --noEmit + vite build (PWA)
 npm run build-storybook # static Storybook — also the de-facto "does everything compile?" check
 npx tsc --noEmit        # type-check only
+npm run screenshots     # regenerate docs/screenshots/* from built Storybook (one-time: npx playwright install chromium)
 ```
 
 There is **no test runner and no linter** configured. The compile gate is `tsc` (strict mode, incl. `noUnusedLocals`/`noUnusedParameters`); run `npm run build` and `npm run build-storybook` to verify changes — both must exit 0.
@@ -43,23 +44,37 @@ Reactions, verdicts and comments are persisted (migration `0002`, `routes/intera
 
 Auth: email/password (Argon2id) **and** OIDC/SSO (`routes/oidc.rs`, manual Authorization Code + PKCE, confidential client, full `id_token` validation via JWKS). Both toggle independently: `PASSWORD_AUTH_ENABLED=false` disables password (register/login → 403), OIDC enables when `OIDC_*` env is set. `GET /api/auth/config` tells the frontend which to show; OIDC success redirects to the frontend with `#token=` (handled in `AuthContext`). Migration `0004`: `password_hash` nullable + `oidc_sub`. Logout: `useAuth().logout` (gear → Réglages).
 
+### Real-time, "seen" & resync
+
+`SpaceApp` opens a WebSocket (`spaceSocketUrl`, JWT in the query string) and **refetches the relevant list** on each event (`post`/`reaction`/`comment`/`mood`/`seen`/`space`/`challenge`) — events carry no payload, they're just "something changed". It also resyncs everything on focus/`visibilitychange` (the socket does not replay events missed while away). Read state lives in `space_last_seen(user, space, feature)` (features `blog`/`challenges`): it drives both the dashboard "what's new" badges (new posts/comments/challenges, counted client-side from timestamps vs my last-seen) and the "✓✓ Seen" read receipts; opening a tab marks it seen.
+
+### i18n (every user-facing string)
+
+All UI text goes through `t(...)` (react-i18next). Dictionaries: `src/i18n/locales/fr.ts` (source) + `en.ts` (mirror); **keys are typed** (`i18n/i18next.d.ts`) so an unknown key is a compile error — **add new keys to both files**. `relativeTime` (`lib/time.ts`) uses `Intl.RelativeTimeFormat`. Language = browser detection + switcher in Settings (localStorage `pp_lang`). Storybook initializes i18n in `preview.ts`; story/mock content is plain English (dev-only).
+
+### Local device state (not server-backed)
+
+Some concerns are device-local and bypass the API/`SpaceApp` layer: **theme** (`src/theme.ts`, localStorage `pp_theme`, applied at boot in `main.tsx`), **language** (`pp_lang`), and an optional **passcode lock** (`src/lib/pin.ts` = salted SHA-256 in localStorage `pp_pin`, a soft device deterrent — not real crypto; `src/app/LockGate.tsx` wraps the app and locks on reopen / when backgrounded). They're wired in `SettingsScreen`/`app/` directly, same exception as the orchestration layer.
+
 Notifications (migration `0003`): per-user mode `push`/`digest`/`ghost` (`user_settings`). `notifications::notify_members` sends **Web Push** (crate `web-push`, hyper-client, best-effort spawned task) on new post/challenge/comment to other space members in `push` mode, using `push_subscriptions`; VAPID keys via `VAPID_*` env (empty ⇒ disabled). Frontend: `injectManifest` SW (`src/sw.js`, handles `push`/`notificationclick`), `src/push.ts` (permission + subscribe), `SettingsScreen` (mode picker + logout, reached via the dashboard gear). **Email digest delivery is not implemented yet** (mode is storable; needs SMTP + a scheduled job).
 
 ### Domain enums mirror the backend
 
-Each domain type lives in its own `.ts` next to its component and is meant to stay aligned with future Rust enums: `ChallengeStatus` + `Intensity` (`challenge.ts`), `MoodId` (`moods.ts`), `ReactionId` (`ReactionBar.tsx`), `Verdict` (`VerdictPicker.tsx`). When changing these, treat them as a shared contract with the backend.
+Each domain type lives in its own `.ts` next to its component and is meant to stay aligned with the Rust side: `ChallengeStatus` + `Intensity` (`challenge.ts`), `MoodId` (`moods.ts`), `ReactionId` (`ReactionBar.tsx`), `Verdict` (`VerdictPicker.tsx`). When changing these, treat them as a shared contract with the backend. **Caveat:** moods and reactions also support **free/custom** values, so they travel as `string` (a predefined id OR a free emoji; a free mood is stored as `"emoji label"`) — the union types are the *known* set, validated server-side as "predefined OR bounded emoji/label", not a closed enum.
+
+Mood also has a space-level "mutual surprise" flag (`spaces.blind_mood`): while it's on and I haven't posted my mood today, the API returns other members' mood entries with the **status blanked** (I know they voted, not what) and the dashboard shows a lightly-blurred placeholder; revealed once I post mine. The hot/teasing push only fires once everyone has voted.
 
 The **challenge state machine** is central: `proposed → challengeAccepted | maybeMaybe → jobDone`. `ChallengeCard` renders different actions per state and per `perspective` (`recipient` vs `proposer`).
 
 ### Multi-ready data model (backend, in `backend/`)
 
-Content belongs to a `Space` (max 2 users in V1, more later), never directly to a user: `users → space_memberships → spaces`, then moods/posts/challenges/media keyed by `space_id`. Built with Axum + Tokio, JWT auth, Argon2id, `sqlx` (Postgres, **runtime queries** so `cargo build` needs no live DB), `uuid`, `chrono`. `routes::ensure_member` is the per-request authorization guard. Status/mood/intensity values are stored as TEXT matching the frontend strings 1:1 (`challengeAccepted`, `veryHot`, …); `models::challenge_transition_allowed` encodes the state machine. Media is served only through an **authenticated streaming route** (token + space membership) — never from `/public`; files stored under UUIDs in `MEDIA_DIR`, with an optional `viewOnce` ephemeral mode (deleted + marked consumed after one read).
+Content belongs to a `Space` (max 2 users in V1, more later), never directly to a user: `users → space_memberships → spaces`, then moods/posts/challenges/media keyed by `space_id`. Built with Axum + Tokio, JWT auth, Argon2id, `sqlx` (Postgres, **runtime queries** so `cargo build` needs no live DB), `uuid`, `chrono`. `routes::ensure_member` is the per-request authorization guard. Status/mood/intensity values are stored as TEXT matching the frontend strings 1:1 (`challengeAccepted`, `veryHot`, …); `models::challenge_transition_allowed` encodes the state machine. Media is served only through an **authenticated streaming route** (token + space membership) — never from `/public`; files stored under UUIDs in `MEDIA_DIR`, with an optional `viewOnce` ephemeral mode (deleted + marked consumed after one read). Optionally **encrypted at rest** (AES-256-GCM, key `MEDIA_KEY`; column `media.encrypted` lets ciphered + legacy plaintext files coexist) — **never change `MEDIA_KEY` once set**. Posts and challenges carry photos **and videos** (`SafeMedia` renders `<video>` by mime; same press-and-hold gesture); orphan media (uploaded but unattached, >1h) is purged hourly.
 
 Backend commands (run in `backend/`): `cargo build` / `cargo run` (applies migrations on start); `docker-compose up -d` for Postgres. There is no Rust test suite yet — `cargo build` is the gate.
 
 ### Deployment
 
-The **web image** (`frontend/Dockerfile`, with `frontend/nginx.conf`) is nginx serving the PWA **and** reverse-proxying `/api` (incl. the WebSocket upgrade) → the api service, so production is same-origin (no CORS; built with `VITE_API_URL=""` → relative `/api`). `deploy/docker-compose.yml` runs db + api + web; only `web` is exposed — put a reverse proxy in front for domain + TLS. Public images are published to Docker Hub (`pinkphone/pinkphone-{api,web}`) by the manual GitHub release workflow (`.github/workflows/release.yml`); the API applies migrations on startup. Keep `JWT_SECRET` stable (changing it invalidates all sessions) and set all four `OIDC_*` for SSO (`oidc_enabled()` needs them non-empty). Self-hosting guide: `INSTALL.md` (+ `deploy/README.md`).
+The **web image** (`frontend/Dockerfile`, with `frontend/nginx.conf`) is nginx serving the PWA **and** reverse-proxying `/api` (incl. the WebSocket upgrade) → the api service, so production is same-origin (no CORS; built with `VITE_API_URL=""` → relative `/api`). `deploy/docker-compose.yml` runs db + api + web; only `web` is exposed — put a reverse proxy in front for domain + TLS. Public images are published to Docker Hub (`pinkphone/pinkphone-{api,web}`) by the manual GitHub release workflow (`.github/workflows/release.yml`); the API applies migrations on startup. Keep `JWT_SECRET` stable (changing it invalidates all sessions) and set all four `OIDC_*` for SSO (`oidc_enabled()` needs them non-empty). A **startup guard** refuses to boot if the API binds a non-loopback address with the dev `JWT_SECRET` (warns on default DB password / missing `MEDIA_KEY`) — so a publicly-exposed deploy needs a real secret. `deploy/docker-compose.local.yml` is a zero-config local demo (throwaway secrets, no `.env`). Images are multi-arch (`linux/amd64` + `linux/arm64`). Self-hosting guide: `INSTALL.md` (+ `deploy/README.md`).
 
 ## Design system — "felted"
 
