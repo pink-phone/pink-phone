@@ -61,8 +61,10 @@ function MoodCard({
       <div className="relative z-10 flex flex-col items-center gap-1 text-center">
         {hidden ? (
           <>
-            <span aria-hidden className="text-4xl">
-              🤫
+            {/* Cache générique flouté : on devine une humeur, sans la lire
+                (le vrai mood n'est même pas envoyé tant que je n'ai pas voté). */}
+            <span aria-hidden className="select-none text-4xl blur-[2px]">
+              🙂
             </span>
             <p className="font-serif text-base text-blush-100">{name}</p>
             <p className="text-xs text-taupe-300">{t("dashboard.moodHidden")}</p>
