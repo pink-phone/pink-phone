@@ -109,67 +109,72 @@ export function MoodSelector({
         })}
       </div>
 
-      {/* Ligne dédiée : humeur libre (emoji + libellé). */}
+      {/* Ligne dédiée : humeur libre — tuile à la même taille que les autres. */}
       {allowCustom &&
         (adding ? (
           <form
-            className="flex w-full items-center gap-2 rounded-2xl border border-spice-500/70 bg-charcoal-800 bg-felt-velvet px-3 py-2.5 shadow-glow"
+            className="rounded-2xl border border-spice-500/70 bg-charcoal-800 bg-felt-velvet px-3 py-3 shadow-glow"
             onSubmit={(e) => {
               e.preventDefault();
               submitCustom();
             }}
           >
-            <div className="relative w-10 shrink-0">
-              <input
-                autoFocus
-                value={emoji}
-                onChange={(e) => setEmoji(e.target.value)}
-                maxLength={8}
-                aria-label={t("moods.addEmojiAria")}
-                className="w-full rounded-xl bg-charcoal-900/50 px-0.5 py-1.5 text-center text-xl text-blush-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
-              />
-              {/* Indice quand le champ est vide : smiley grisé + badge « ＋ ». */}
-              {emoji === "" && (
-                <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                  <span className="relative inline-flex text-xl opacity-35 grayscale">
-                    🙂
-                    <span className="absolute -right-1.5 -top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-charcoal-700 text-[10px] font-semibold leading-none text-taupe-100 ring-1 ring-charcoal-600">
-                      ＋
+            <div className="flex flex-col items-center gap-2">
+              {/* Smiley (emoji libre) sur sa ligne, sans contour. */}
+              <div className="relative">
+                <input
+                  autoFocus
+                  value={emoji}
+                  onChange={(e) => setEmoji(e.target.value)}
+                  maxLength={8}
+                  aria-label={t("moods.addEmojiAria")}
+                  className="w-14 bg-transparent text-center text-3xl text-blush-100 focus-visible:outline-none"
+                />
+                {emoji === "" && (
+                  <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
+                    <span className="relative inline-flex text-3xl opacity-35 grayscale">
+                      🙂
+                      <span className="absolute -right-1.5 -top-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-charcoal-700 text-[10px] font-semibold leading-none text-taupe-100 ring-1 ring-charcoal-600">
+                        ＋
+                      </span>
                     </span>
                   </span>
-                </span>
-              )}
+                )}
+              </div>
+              {/* Libellé + actions sur une ligne. */}
+              <div className="flex w-full items-center gap-2">
+                <input
+                  value={label}
+                  onChange={(e) => setLabel(e.target.value)}
+                  maxLength={24}
+                  aria-label={t("moods.addLabelAria")}
+                  placeholder={t("moods.labelPlaceholder")}
+                  className="min-w-0 flex-1 rounded-xl border border-charcoal-600/60 bg-charcoal-900/50 px-3 py-1.5 text-sm text-blush-100 placeholder:text-taupe-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+                />
+                {customActive && (
+                  <button
+                    type="button"
+                    aria-label={t("moods.removeAria")}
+                    onClick={() => {
+                      setAdding(false);
+                      setEmoji("");
+                      setLabel("");
+                      onClear?.();
+                    }}
+                    className="shrink-0 rounded-full px-2 py-1.5 text-sm text-taupe-300 transition-colors duration-200 ease-felt hover:text-blush-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+                  >
+                    ✕
+                  </button>
+                )}
+                <button
+                  type="submit"
+                  aria-label={t("common.save")}
+                  className="shrink-0 rounded-xl border border-spice-500/70 bg-bordeaux-700 px-3 py-1.5 text-sm text-blush-100 transition-transform duration-200 ease-felt hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+                >
+                  ✓
+                </button>
+              </div>
             </div>
-            <input
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              maxLength={24}
-              aria-label={t("moods.addLabelAria")}
-              placeholder={t("moods.labelPlaceholder")}
-              className="min-w-0 flex-1 bg-transparent px-1 text-sm text-blush-100 placeholder:text-taupe-400 focus-visible:outline-none"
-            />
-            {customActive && (
-              <button
-                type="button"
-                aria-label={t("moods.removeAria")}
-                onClick={() => {
-                  setAdding(false);
-                  setEmoji("");
-                  setLabel("");
-                  onClear?.();
-                }}
-                className="shrink-0 rounded-full px-1.5 py-1 text-sm text-taupe-300 transition-colors duration-200 ease-felt hover:text-blush-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
-              >
-                ✕
-              </button>
-            )}
-            <button
-              type="submit"
-              aria-label={t("common.save")}
-              className="shrink-0 rounded-xl border border-spice-500/70 bg-bordeaux-700 px-2.5 py-1 text-sm text-blush-100 transition-transform duration-200 ease-felt hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
-            >
-              ✓
-            </button>
           </form>
         ) : (
           <button
@@ -181,22 +186,32 @@ export function MoodSelector({
             }
             onClick={openEditor}
             className={cn(
-              "group relative flex w-full items-center justify-center gap-2 rounded-2xl border px-3 py-2.5",
+              "group flex w-[calc((100%_-_2rem)/5)] flex-col items-center gap-1.5 rounded-2xl border px-1 py-3",
               "transition-all duration-300 ease-felt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500",
               customActive
-                ? "border-spice-500/70 bg-bordeaux-700 bg-felt-velvet text-blush-100 shadow-glow"
-                : "border-dashed border-charcoal-600/60 bg-charcoal-800 text-taupe-300 hover:border-spice-400/50 hover:text-blush-100",
+                ? "border-spice-500/70 bg-bordeaux-700 bg-felt-velvet shadow-glow"
+                : "border-dashed border-charcoal-600/60 bg-charcoal-800 hover:-translate-y-0.5 hover:border-spice-400/50",
             )}
           >
             {customActive ? (
               <>
-                <span className="text-xl">{current?.emoji}</span>
-                <span className="text-sm">
+                <span className="text-2xl">{current?.emoji}</span>
+                <span className="text-center text-[11px] leading-tight text-blush-100">
                   {current?.label || t("moods.custom")}
                 </span>
               </>
             ) : (
-              <span className="text-sm">＋ {t("moods.addFree")}</span>
+              <>
+                <span className="relative inline-flex text-2xl opacity-35 grayscale">
+                  🙂
+                  <span className="absolute -right-1.5 -top-1.5 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-charcoal-700 text-[10px] font-semibold leading-none text-taupe-100 ring-1 ring-charcoal-600">
+                    ＋
+                  </span>
+                </span>
+                <span className="text-center text-[11px] leading-tight text-taupe-300">
+                  {t("moods.addFree")}
+                </span>
+              </>
             )}
           </button>
         ))}
