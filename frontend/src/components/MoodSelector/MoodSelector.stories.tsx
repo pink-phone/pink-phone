@@ -37,6 +37,7 @@ export const Interactif: Story = {
           setValue(m);
           args.onChange?.(m);
         }}
+        onClear={() => setValue(null)}
       />
     );
   },

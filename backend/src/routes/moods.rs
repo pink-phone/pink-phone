@@ -1,4 +1,5 @@
 use axum::extract::{Path, State};
+use axum::http::StatusCode;
 use axum::routing::{get, put};
 use axum::{Json, Router};
 use serde::Deserialize;
@@ -12,7 +13,7 @@ use crate::state::AppState;
 
 pub fn router() -> Router<AppState> {
     Router::new()
-        .route("/api/spaces/{id}/mood", put(set_mood))
+        .route("/api/spaces/{id}/mood", put(set_mood).delete(clear_mood))
         .route("/api/spaces/{id}/moods", get(list_moods))
 }
 
@@ -98,6 +99,23 @@ async fn set_mood(
     }
 
     Ok(Json(mood))
+}
+
+/// Retire mon humeur (désélection). Idempotent. Émet un event pour resync — en
+/// « surprise mutuelle », ça re-masque l'humeur du partenaire (je n'ai plus voté).
+async fn clear_mood(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Path(space_id): Path<Uuid>,
+) -> ApiResult<StatusCode> {
+    ensure_member(&state.pool, auth.user_id, space_id).await?;
+    sqlx::query("DELETE FROM moods WHERE user_id = $1 AND space_id = $2")
+        .bind(auth.user_id)
+        .bind(space_id)
+        .execute(&state.pool)
+        .await?;
+    state.emit(space_id, auth.user_id, "mood");
+    Ok(StatusCode::NO_CONTENT)
 }
 
 async fn list_moods(

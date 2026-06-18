@@ -9,6 +9,8 @@ export interface MoodSelectorProps {
   value?: string | null;
   /** Déclenché au choix d'un mood (prédéfini ou libre). */
   onChange?: (mood: string) => void;
+  /** Désélection : retire l'humeur du jour (reclic sur l'humeur active). */
+  onClear?: () => void;
   /** Autoriser une humeur libre (emoji + libellé), sur sa propre ligne. */
   allowCustom?: boolean;
   className?: string;
@@ -32,6 +34,7 @@ export function parseCustomMood(value: string): { emoji: string; label: string }
 export function MoodSelector({
   value,
   onChange,
+  onClear,
   allowCustom = true,
   className,
 }: MoodSelectorProps) {
@@ -73,7 +76,7 @@ export function MoodSelector({
               role="radio"
               aria-checked={active}
               aria-label={t(`moods.${mood.id}`)}
-              onClick={() => onChange?.(mood.id)}
+              onClick={() => (active ? onClear?.() : onChange?.(mood.id))}
               className={cn(
                 "group relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1.5 rounded-2xl border px-1 py-3",
                 "transition-all duration-300 ease-felt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500",
@@ -145,6 +148,21 @@ export function MoodSelector({
               placeholder={t("moods.labelPlaceholder")}
               className="min-w-0 flex-1 rounded-2xl border border-charcoal-600/60 bg-charcoal-800 px-3 py-2 text-sm text-blush-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
             />
+            {customActive && (
+              <button
+                type="button"
+                aria-label={t("moods.removeAria")}
+                onClick={() => {
+                  setAdding(false);
+                  setEmoji("");
+                  setLabel("");
+                  onClear?.();
+                }}
+                className="rounded-2xl border border-charcoal-600/60 bg-charcoal-800 px-3 py-2 text-sm text-taupe-300 transition-colors duration-200 ease-felt hover:text-blush-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+              >
+                ✕
+              </button>
+            )}
             <button
               type="submit"
               aria-label={t("common.save")}

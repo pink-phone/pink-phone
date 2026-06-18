@@ -309,6 +309,19 @@ export function SpaceApp({
       .catch((e) => console.error("mise à jour du mood échouée", e));
   };
 
+  const onMoodClear = () => {
+    api
+      .clearMood(space.id)
+      .then(() => {
+        setMoods((prev) => prev.filter((m) => m.userId !== user.id));
+        // En « surprise mutuelle », ne plus avoir voté re-masque l'humeur de l'autre.
+        if (space.blindMood) {
+          api.listMoods(space.id).then(setMoods).catch(() => {});
+        }
+      })
+      .catch((e) => console.error("retrait du mood échoué", e));
+  };
+
   const addPost = async (draft: PostDraft) => {
     try {
       let mediaId: string | undefined;
@@ -689,6 +702,7 @@ export function SpaceApp({
           inviteId={space.id}
           myMood={myMood}
           onMoodChange={onMoodChange}
+          onMoodClear={onMoodClear}
           onOpenSettings={() => setShowSettings(true)}
           newPosts={newPosts}
           newComments={newComments}

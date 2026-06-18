@@ -166,6 +166,10 @@ export const setMood = (spaceId: string, status: string) =>
 export const listMoods = (spaceId: string) =>
   req<MoodEntry[]>(`/api/spaces/${spaceId}/moods`);
 
+/** Retire mon humeur du jour (désélection). */
+export const clearMood = (spaceId: string) =>
+  req<void>(`/api/spaces/${spaceId}/mood`, { method: "DELETE" });
+
 // ---------- Posts ----------
 
 export const listPosts = (spaceId: string) =>

@@ -104,6 +104,7 @@ export const fr = {
     addPlaceholder: "🙂",
     labelPlaceholder: "un mot…",
     customActiveAria: "Humeur libre — modifier",
+    removeAria: "Retirer mon humeur",
   },
   reactions: {
     heart: "Cœur",
