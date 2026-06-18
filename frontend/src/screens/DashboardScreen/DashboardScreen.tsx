@@ -19,6 +19,8 @@ export interface DashboardScreenProps {
   /** Mood courant : id prédéfini OU emoji libre (mood custom). */
   myMood: string | null;
   onMoodChange: (mood: string) => void;
+  /** Retire mon humeur du jour (désélection). */
+  onMoodClear?: () => void;
   onOpenSettings?: () => void;
   /** Nouveautés non vues (badges "Du nouveau"). */
   newPosts?: number;
@@ -107,6 +109,7 @@ export function DashboardScreen({
   inviteId,
   myMood,
   onMoodChange,
+  onMoodClear,
   onOpenSettings,
   newPosts = 0,
   newComments = 0,
@@ -204,7 +207,11 @@ export function DashboardScreen({
         <h2 className="font-serif text-lg text-taupe-100">
           {t("dashboard.moodQuestion")}
         </h2>
-        <MoodSelector value={myMood} onChange={onMoodChange} />
+        <MoodSelector
+          value={myMood}
+          onChange={onMoodChange}
+          onClear={onMoodClear}
+        />
         {myMood ? (
           <p className="text-center text-xs text-taupe-400">
             {partner

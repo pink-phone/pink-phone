@@ -104,6 +104,7 @@ export const en: Resources = {
     addPlaceholder: "🙂",
     labelPlaceholder: "a word…",
     customActiveAria: "Free mood — edit",
+    removeAria: "Remove my mood",
   },
   reactions: {
     heart: "Heart",
