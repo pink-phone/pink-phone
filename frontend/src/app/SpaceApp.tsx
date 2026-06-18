@@ -262,6 +262,11 @@ export function SpaceApp({
   const partnerMoodEntry = partner
     ? moods.find((m) => m.userId === partner.id)
     : undefined;
+  // En « surprise mutuelle », le partenaire a voté mais son statut est vidé tant
+  // que je n'ai pas voté → on n'affiche le cache flouté QUE s'il a posé.
+  const partnerHasMood = !!partnerMoodEntry?.status;
+  const partnerVoted = !!partnerMoodEntry;
+  const blindHidden = space.blindMood && !myMood && partnerVoted;
 
   // ----- "Vu" : badges nouveautés + accusés de lecture -----
   const seenAt = (userId: string, feature: string) =>
@@ -673,14 +678,14 @@ export function SpaceApp({
               : undefined
           }
           partnerMood={
-            partnerMoodEntry
+            partnerHasMood
               ? {
-                  mood: partnerMoodEntry.status,
-                  timeLabel: relativeTime(partnerMoodEntry.updatedAt),
+                  mood: partnerMoodEntry!.status,
+                  timeLabel: relativeTime(partnerMoodEntry!.updatedAt),
                 }
               : undefined
           }
-          partnerMoodHidden={space.blindMood && !myMood}
+          partnerMoodHidden={blindHidden}
           inviteId={space.id}
           myMood={myMood}
           onMoodChange={onMoodChange}
