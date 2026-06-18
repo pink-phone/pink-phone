@@ -123,19 +123,25 @@ async fn list_moods(
     .fetch_all(&state.pool)
     .await?;
 
-    // Vote à l'aveugle : tant que JE n'ai pas posé mon humeur du jour, je ne vois
-    // pas celle des autres. Révélation mutuelle dès que j'ai voté.
+    // Vote à l'aveugle : tant que JE n'ai pas posé mon humeur du jour, je ne dois
+    // pas connaître celle des autres — mais je peux savoir QU'ILS ont voté (pour
+    // afficher un cache « humeur en attente »). On garde donc les entrées des
+    // autres mais on vide leur `status` (la valeur reste secrète jusqu'à mon vote).
     let blind: bool = sqlx::query_scalar("SELECT blind_mood FROM spaces WHERE id = $1")
         .bind(space_id)
         .fetch_one(&state.pool)
         .await?;
     if blind && !moods.iter().any(|m| m.user_id == auth.user_id) {
-        return Ok(Json(
-            moods
-                .into_iter()
-                .filter(|m| m.user_id == auth.user_id)
-                .collect(),
-        ));
+        let redacted = moods
+            .into_iter()
+            .map(|mut m| {
+                if m.user_id != auth.user_id {
+                    m.status = String::new();
+                }
+                m
+            })
+            .collect();
+        return Ok(Json(redacted));
     }
     Ok(Json(moods))
 }
