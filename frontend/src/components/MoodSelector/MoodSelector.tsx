@@ -113,20 +113,20 @@ export function MoodSelector({
       {allowCustom &&
         (adding ? (
           <form
-            className="flex items-center gap-2"
+            className="flex w-full items-center gap-2 rounded-2xl border border-spice-500/70 bg-charcoal-800 bg-felt-velvet px-3 py-2.5 shadow-glow"
             onSubmit={(e) => {
               e.preventDefault();
               submitCustom();
             }}
           >
-            <div className="relative w-14 shrink-0">
+            <div className="relative w-10 shrink-0">
               <input
                 autoFocus
                 value={emoji}
                 onChange={(e) => setEmoji(e.target.value)}
                 maxLength={8}
                 aria-label={t("moods.addEmojiAria")}
-                className="w-full rounded-2xl border border-spice-400/50 bg-charcoal-800 px-1 py-2 text-center text-xl text-blush-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+                className="w-full rounded-xl bg-charcoal-900/50 px-0.5 py-1.5 text-center text-xl text-blush-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
               />
               {/* Indice quand le champ est vide : smiley grisé + badge « ＋ ». */}
               {emoji === "" && (
@@ -146,7 +146,7 @@ export function MoodSelector({
               maxLength={24}
               aria-label={t("moods.addLabelAria")}
               placeholder={t("moods.labelPlaceholder")}
-              className="min-w-0 flex-1 rounded-2xl border border-charcoal-600/60 bg-charcoal-800 px-3 py-2 text-sm text-blush-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+              className="min-w-0 flex-1 bg-transparent px-1 text-sm text-blush-100 placeholder:text-taupe-400 focus-visible:outline-none"
             />
             {customActive && (
               <button
@@ -158,7 +158,7 @@ export function MoodSelector({
                   setLabel("");
                   onClear?.();
                 }}
-                className="rounded-2xl border border-charcoal-600/60 bg-charcoal-800 px-3 py-2 text-sm text-taupe-300 transition-colors duration-200 ease-felt hover:text-blush-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+                className="shrink-0 rounded-full px-1.5 py-1 text-sm text-taupe-300 transition-colors duration-200 ease-felt hover:text-blush-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
               >
                 ✕
               </button>
@@ -166,7 +166,7 @@ export function MoodSelector({
             <button
               type="submit"
               aria-label={t("common.save")}
-              className="rounded-2xl border border-spice-500/70 bg-bordeaux-700 px-3 py-2 text-sm text-blush-100 shadow-glow transition-transform duration-200 ease-felt hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+              className="shrink-0 rounded-xl border border-spice-500/70 bg-bordeaux-700 px-2.5 py-1 text-sm text-blush-100 transition-transform duration-200 ease-felt hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
             >
               ✓
             </button>
