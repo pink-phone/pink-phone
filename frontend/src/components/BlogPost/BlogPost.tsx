@@ -117,9 +117,11 @@ export function BlogPost({
         <h3 className="font-serif text-xl text-spice-300">{title}</h3>
       )}
 
-      <p className="whitespace-pre-line text-sm leading-relaxed text-taupe-200">
-        {body}
-      </p>
+      {body && (
+        <p className="whitespace-pre-line text-sm leading-relaxed text-taupe-200">
+          {body}
+        </p>
+      )}
 
       {media && (
         <SafeMedia

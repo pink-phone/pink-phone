@@ -56,6 +56,16 @@ export const AvecMédia: Story = {
   },
 };
 
+/** Post sans récit : juste une photo/vidéo (le texte n'est pas obligatoire). */
+export const MédiaSeul: Story = {
+  args: {
+    title: undefined,
+    body: "",
+    media: { src: DEMO_SRC, alt: "Photo partagée" },
+    commentCount: 0,
+  },
+};
+
 export const MédiaÉphémère: Story = {
   args: {
     body: "Juste pour toi, et juste pour ce soir. Regarde vite. 🤫",

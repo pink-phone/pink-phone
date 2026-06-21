@@ -191,8 +191,11 @@ async fn create_post(
     Json(body): Json<CreatePostBody>,
 ) -> ApiResult<Json<Post>> {
     ensure_member(&state.pool, auth.user_id, space_id).await?;
-    if body.body.trim().is_empty() {
-        return Err(ApiError::BadRequest("le récit ne peut pas être vide".into()));
+    // Un post peut être un simple média : on exige un récit OU un média.
+    if body.body.trim().is_empty() && body.media_id.is_none() {
+        return Err(ApiError::BadRequest(
+            "un récit ou un média est requis".into(),
+        ));
     }
 
     // Un média joint doit appartenir au même espace.
@@ -331,9 +334,6 @@ async fn update_post(
         Some(b) => b.trim().to_string(),
         None => cur_body,
     };
-    if new_body.is_empty() {
-        return Err(ApiError::BadRequest("le récit ne peut pas être vide".into()));
-    }
 
     // Média : retrait explicite, remplacement, ou inchangé.
     let new_media = if body.clear_media {
@@ -341,6 +341,12 @@ async fn update_post(
     } else {
         body.media_id.or(cur_media)
     };
+    // Un post peut être un simple média : on exige un récit OU un média.
+    if new_body.is_empty() && new_media.is_none() {
+        return Err(ApiError::BadRequest(
+            "un récit ou un média est requis".into(),
+        ));
+    }
     // Un média nouvellement attaché doit appartenir au même espace.
     if let Some(mid) = body.media_id {
         if Some(mid) != cur_media {
