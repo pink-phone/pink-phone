@@ -14,6 +14,14 @@ pub struct OidcFlow {
     pub created: Instant,
 }
 
+/// Jeton de session en attente d'échange après un callback OIDC réussi. Le JWT
+/// n'est PAS renvoyé dans l'URL (SEC-006) : le callback redirige avec un code
+/// éphémère à usage unique, échangé contre ce jeton via POST. TTL très court.
+pub struct LoginTicket {
+    pub token: String,
+    pub created: Instant,
+}
+
 /// Événement temps réel diffusé aux membres d'un espace (refresh instantané).
 #[derive(Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -34,6 +42,8 @@ pub struct AppState {
     pub http: reqwest::Client,
     /// États OIDC en cours, indexés par `state` (anti-CSRF). TTL court.
     pub oidc_states: Arc<Mutex<HashMap<String, OidcFlow>>>,
+    /// Jetons en attente d'échange post-callback OIDC, indexés par code éphémère.
+    pub oidc_tickets: Arc<Mutex<HashMap<String, LoginTicket>>>,
     /// Bus d'événements temps réel (alimente les WebSockets par espace).
     pub events: broadcast::Sender<SpaceEvent>,
 }

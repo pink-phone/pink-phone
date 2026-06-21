@@ -126,6 +126,13 @@ export const login = (email: string, password: string) =>
 
 export const me = () => req<UserPublic>("/api/auth/me");
 
+/** Échange le code éphémère du callback OIDC contre le JWT de session. */
+export const oidcExchange = (code: string) =>
+  req<{ token: string }>("/api/auth/oidc/exchange", {
+    method: "POST",
+    json: { code },
+  });
+
 /** Révoque tous les jetons du compte (perte/vol d'appareil). 204 No Content. */
 export const logoutAll = () =>
   req<void>("/api/auth/logout-all", { method: "POST" });

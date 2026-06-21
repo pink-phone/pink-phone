@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 
 use axum::extract::{Query, State};
 use axum::response::Redirect;
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::{Json, Router};
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
 use base64::Engine;
@@ -15,13 +15,14 @@ use uuid::Uuid;
 
 use crate::auth::issue_token;
 use crate::error::{ApiError, ApiResult};
-use crate::state::{AppState, OidcFlow};
+use crate::state::{AppState, LoginTicket, OidcFlow};
 
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/api/auth/config", get(auth_config))
         .route("/api/auth/oidc/login", get(login))
         .route("/api/auth/oidc/callback", get(callback))
+        .route("/api/auth/oidc/exchange", post(exchange))
 }
 
 // ---------- /api/auth/config ----------
@@ -156,12 +157,57 @@ async fn callback(
 ) -> Redirect {
     let front = state.config.oidc_post_login_redirect.clone();
     match callback_inner(&state, params).await {
-        Ok(token) => Redirect::to(&format!("{front}#token={token}")),
+        Ok(token) => {
+            // Le JWT (30 j) ne transite PAS par l'URL (SEC-006) : on dépose un code
+            // éphémère à usage unique, échangé ensuite contre le jeton via POST.
+            let code = random_b64(24);
+            {
+                let mut tickets = state.oidc_tickets.lock().unwrap();
+                tickets.retain(|_, t| t.created.elapsed() < Duration::from_secs(60));
+                tickets.insert(
+                    code.clone(),
+                    LoginTicket {
+                        token,
+                        created: Instant::now(),
+                    },
+                );
+            }
+            Redirect::to(&format!("{front}#code={code}"))
+        }
         Err(e) => {
             tracing::warn!(error = ?e, "échec du callback OIDC");
             Redirect::to(&format!("{front}#error=oidc"))
         }
     }
+}
+
+// ---------- /api/auth/oidc/exchange ----------
+
+#[derive(Deserialize)]
+struct ExchangeBody {
+    code: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ExchangeResponse {
+    token: String,
+}
+
+/// Échange le code éphémère du callback contre le JWT de session (usage unique).
+async fn exchange(
+    State(state): State<AppState>,
+    Json(body): Json<ExchangeBody>,
+) -> ApiResult<Json<ExchangeResponse>> {
+    let ticket = {
+        let mut tickets = state.oidc_tickets.lock().unwrap();
+        tickets.retain(|_, t| t.created.elapsed() < Duration::from_secs(60));
+        tickets.remove(&body.code)
+    }
+    .ok_or(ApiError::Unauthorized)?;
+    Ok(Json(ExchangeResponse {
+        token: ticket.token,
+    }))
 }
 
 async fn callback_inner(
