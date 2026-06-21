@@ -13,11 +13,25 @@ applyTheme(getTheme());
 // Remonte les erreurs front vers le backend (debug à distance, surtout iOS).
 initClientLogging();
 
-// Enregistre le service worker et, en mode autoUpdate, recharge l'app dès qu'une
-// nouvelle version est déployée (sinon le CD passe mais l'utilisateur garde
-// l'ancienne PWA en cache). On déclenche en plus une vérification de mise à jour
-// au retour de focus de l'app : un nouveau SW (skipWaiting dans sw.js) s'active
-// et autoUpdate recharge la page. Throttle pour ne pas vérifier à chaque focus.
+// Recharge la page quand un nouveau service worker prend le contrôle (après
+// skipWaiting + clients.claim dans sw.js) : un déploiement s'applique alors sans
+// reload manuel — sinon l'ancien index.html précaché (et ses en-têtes, ex. CSP)
+// resterait servi jusqu'à un rechargement à la main. On ignore la TOUTE PREMIÈRE
+// prise de contrôle (aucun contrôleur au chargement) pour ne pas recharger
+// inutilement au premier lancement.
+if ("serviceWorker" in navigator) {
+  const hadController = !!navigator.serviceWorker.controller;
+  let reloading = false;
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (reloading || !hadController) return;
+    reloading = true;
+    window.location.reload();
+  });
+}
+
+// Enregistre le service worker. On vérifie une mise à jour au retour de focus de
+// l'app : un nouveau SW (skipWaiting dans sw.js) s'active, prend le contrôle, et
+// le listener ci-dessus recharge la page. Throttle pour ne pas vérifier à chaque focus.
 registerSW({
   immediate: true,
   onRegisteredSW(_swUrl, registration) {
