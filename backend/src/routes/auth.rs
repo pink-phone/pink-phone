@@ -51,26 +51,26 @@ async fn register(
         ));
     }
 
-    let existing: Option<uuid::Uuid> =
-        sqlx::query_scalar("SELECT id FROM users WHERE email = $1")
-            .bind(&email)
-            .fetch_optional(&state.pool)
-            .await?;
-    if existing.is_some() {
-        return Err(ApiError::Conflict("cet email est déjà utilisé".into()));
-    }
-
+    // Anti-énumération (SEC-011) : on hache TOUJOURS avant de tenter l'insert (pas
+    // de pré-SELECT qui répondrait vite pour un email pris et lentement pour un
+    // libre — oracle temporel), et un email déjà pris ne renvoie qu'un message
+    // GÉNÉRIQUE (jamais « cet email existe »). L'unicité est garantie par la
+    // contrainte DB (`ON CONFLICT DO NOTHING` → aussi à l'abri d'une course).
     let hash = hash_password(&body.password)?;
-    let user: UserPublic = sqlx::query_as(
+    let user: Option<UserPublic> = sqlx::query_as(
         "INSERT INTO users (email, display_name, password_hash)
          VALUES ($1, $2, $3)
+         ON CONFLICT (email) DO NOTHING
          RETURNING id, email, display_name, created_at",
     )
     .bind(&email)
     .bind(body.display_name.trim())
     .bind(&hash)
-    .fetch_one(&state.pool)
+    .fetch_optional(&state.pool)
     .await?;
+    let user = user.ok_or_else(|| {
+        ApiError::BadRequest("impossible de créer le compte avec ces informations".into())
+    })?;
 
     let token = issue_token(&state.config.jwt_secret, user.id)?;
     Ok(Json(AuthResponse { token, user }))

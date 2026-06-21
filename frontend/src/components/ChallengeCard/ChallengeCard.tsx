@@ -152,6 +152,9 @@ function Actions({
   }
 
   if (status === "maybeMaybe") {
+    // Répondre reste la prérogative du destinataire (cf. garde backend SEC-015) :
+    // le proposeur attend, il ne s'auto-accepte pas le défi.
+    if (perspective === "proposer") return null;
     return (
       <div className="flex gap-2 pt-1">
         <Button variant="secondary" size="sm" className="flex-1" onClick={onAccept}>
