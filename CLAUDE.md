@@ -34,11 +34,13 @@ The frontend lives in **`frontend/`** (so `src/…` paths below are `frontend/sr
 
 - `src/components/<Name>/` — reusable, presentational, controlled components. No data fetching, no global state; everything comes via props with callbacks for events. Each ships with a `.stories.tsx`. Foundations (`Surface`, `Button`, `Badge`, `Sheet`, `form/*`) are composed by feature components (`SafeMedia`, `MoodSelector`, `ReactionBar`, `VerdictPicker`, `BlogPost`, `ChallengeCard`, `PostComposer`, `ChallengeComposer`).
 - `src/screens/<Name>/` — full screens (`Auth`, `Onboarding`, `Dashboard`, `Blog`, `Challenges`, `Splash`) plus `AppShell` + `BottomNav`. Presentational: they take data + handlers and map them onto components. They have stories.
-- `src/app/` — stateful orchestration: `Root` (auth gate) → `SpaceGate` (load spaces / onboarding) → `SpaceApp` (loads moods/posts/challenges for a space, wires screen callbacks to API mutations). `App.tsx` just wraps `Root` in `AuthProvider`.
+- `src/app/` — stateful orchestration: `Root` (auth gate) → `SpaceGate` (load spaces / onboarding) → `SpaceApp` (loads moods/posts/challenges for a space, wires screen callbacks to API mutations). `App.tsx` just wraps `Root` in `AuthProvider`. Cohesive concerns are pulled out of `SpaceApp` into `src/app/hooks/` (`useSpaceSocket` — WS lifecycle; `useSuggestions` — the autonomous challenge-bank domain) and pure API→view-model conversions live in `src/app/mappers.ts`.
+- `src/domain/types.ts` — **neutral layer** holding the domain enums mirrored with Rust (`ChallengeStatus`, `Intensity`, `Verdict`, `ReactionId`, `MoodId`). Both `components/` and `api/` depend on it (the arrow always points *to* the domain); the component files re-export their type for convenience.
+- `src/types/view.ts` — presentation view-models (`Person`, `MoodSnapshot`, `PostData`, `ChallengeData`) that screens take as props and `SpaceApp`/`mappers.ts` build. The mock depends on these, not the reverse.
 - `src/api/` — typed fetch client (`client.ts`, `types.ts`). Base URL from `VITE_API_URL` (default `http://localhost:8080`). `setToken` injects the JWT. Media: `uploadMedia` (multipart) and `fetchMediaObjectUrl` (authed blob → object URL, fed to `SafeMedia`'s `loader`).
-- `src/auth/AuthContext.tsx` — token (localStorage `pp_token`) + current user; `useAuth()`.
-- `src/mock/data.ts` — sample data used **only by stories** now (and the shared `PostData`/`ChallengeData`/`Person` types that `SpaceApp` maps onto).
-- `src/lib/cn.ts` (classnames), `src/lib/time.ts` (`relativeTime`).
+- `src/auth/AuthContext.tsx` — token (localStorage `pp_token`) + current user; `useAuth()` (also exposes the raw `token` for non-`fetch` uses like the WebSocket URL).
+- `src/mock/data.ts` — sample data used **only by stories** now (the view-model types it uses live in `src/types/view.ts`).
+- `src/lib/cn.ts` (classnames), `src/lib/time.ts` (`relativeTime`), `src/lib/confirm.ts` (`confirmAction`, the swappable seam over `window.confirm`).
 
 Reactions, verdicts and comments are persisted (migration `0002`, `routes/interactions.rs`); `listPosts` returns each post enriched with `reactionCounts`/`myReactions`/`verdict`/`commentCount`, and `SpaceApp` calls the API directly (no local overlay). The dev server runs on `:5173`, which the backend CORS allows by default.
 
@@ -60,7 +62,7 @@ Notifications (migration `0003`): per-user mode `push`/`digest`/`ghost` (`user_s
 
 ### Domain enums mirror the backend
 
-Each domain type lives in its own `.ts` next to its component and is meant to stay aligned with the Rust side: `ChallengeStatus` + `Intensity` (`challenge.ts`), `MoodId` (`moods.ts`), `ReactionId` (`ReactionBar.tsx`), `Verdict` (`VerdictPicker.tsx`). When changing these, treat them as a shared contract with the backend. **Caveat:** moods and reactions also support **free/custom** values, so they travel as `string` (a predefined id OR a free emoji; a free mood is stored as `"emoji label"`) — the union types are the *known* set, validated server-side as "predefined OR bounded emoji/label", not a closed enum.
+Each domain enum is defined once in `src/domain/types.ts` (the neutral layer) and re-exported next to its component for convenience (`challenge.ts`, `moods.ts`, `ReactionBar.tsx`, `VerdictPicker.tsx`): `ChallengeStatus`, `Intensity`, `MoodId`, `ReactionId`, `Verdict`. They stay aligned with the Rust side — treat them as a shared contract with the backend. The `api/` layer imports them from `domain/types`, never from `components/`. **Caveat:** moods and reactions also support **free/custom** values, so they travel as `string` (a predefined id OR a free emoji; a free mood is stored as `"emoji label"`) — the union types are the *known* set, validated server-side as "predefined OR bounded emoji/label", not a closed enum.
 
 Mood also has a space-level "mutual surprise" flag (`spaces.blind_mood`): while it's on and I haven't posted my mood today, the API returns other members' mood entries with the **status blanked** (I know they voted, not what) and the dashboard shows a lightly-blurred placeholder; revealed once I post mine. The hot/teasing push only fires once everyone has voted.
 

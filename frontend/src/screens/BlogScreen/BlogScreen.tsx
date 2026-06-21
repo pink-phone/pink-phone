@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import { BlogPost } from "../../components/BlogPost/BlogPost";
 import { Button } from "../../components/Button/Button";
 import type { ReactionId } from "../../components/ReactionBar/ReactionBar";
-import type { PostData } from "../../mock/data";
+import type { PostData } from "../../types/view";
 
 export interface BlogScreenProps {
   posts: PostData[];

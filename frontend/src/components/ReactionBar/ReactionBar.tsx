@@ -2,10 +2,12 @@ import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "../../lib/cn";
 import { FireEmbers } from "../FireEmbers/FireEmbers";
+import type { ReactionId } from "../../domain/types";
 
 // Réactions rapides prédéfinies "sans jugement". Une réaction peut aussi être
-// un emoji libre (cf. ReactionBar) — d'où le type `string` pour les valeurs.
-export type ReactionId = "heart" | "fire" | "smirk" | "breath" | "hush";
+// un emoji libre — d'où le type `string` pour les valeurs aux frontières.
+// `ReactionId` (l'ensemble connu) est un type de domaine, re-exporté ici.
+export type { ReactionId };
 
 export interface ReactionOption {
   id: ReactionId;
