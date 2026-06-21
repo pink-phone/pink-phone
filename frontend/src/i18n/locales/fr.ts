@@ -285,7 +285,7 @@ export const fr = {
     holdToWatch: "Maintenir enfoncé pour regarder",
     ephemeralBadge: "✦ Éphémère · une seule fois",
     loading: "Chargement…",
-    unavailable: "Média indisponible",
+    unavailable: "Média indisponible — maintiens à nouveau pour réessayer",
     goneTitle: "Envolé…",
     goneText: "Ce souvenir n'existait que pour un instant.",
     revealAria: "{{alt}} — maintenir pour révéler",
