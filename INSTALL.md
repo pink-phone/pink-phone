@@ -149,3 +149,7 @@ Open the app via your HTTPS domain, create an account, create a **space**, then 
 - Back up the **`pink-pgdata`** volume (database) and **`pink-media`** (files).
 - Media is encrypted at rest **if** `MEDIA_KEY` is set; **Postgres metadata stays in plaintext** → for full protection against disk access, encrypt the volume at the OS level (e.g. LUKS).
 - Keep `JWT_SECRET` **stable** (changing it logs everyone out) and `MEDIA_KEY` **immutable** (changing it makes media unreadable).
+- If you set `MEDIA_KEY` **after** media already exist (they're stored in plaintext), encrypt them in place once with the maintenance command (safe & re-runnable; only touches still-plaintext files):
+  ```bash
+  docker exec <api-container> pinkphone-api backfill-media-encryption
+  ```
