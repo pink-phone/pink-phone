@@ -83,7 +83,11 @@ export function SafeMedia({
     if (isConsumed) return;
     setIsRevealed(true);
 
-    if (loader && resolvedSrc === null && !loading && !failed) {
+    // Un échec précédent ne doit pas être définitif : chaque nouvelle révélation
+    // retente le chargement (un blip réseau sur un média lourd ne « gèle » plus
+    // l'état « indisponible » jusqu'au rechargement de la page).
+    if (loader && resolvedSrc === null && !loading) {
+      setFailed(false);
       setLoading(true);
       loader()
         .then((url) => {
@@ -119,6 +123,8 @@ export function SafeMedia({
       aria-pressed={isRevealed}
       className={cn(
         "relative mx-auto aspect-[4/5] w-full max-w-sm select-none overflow-hidden rounded-3xl shadow-felt outline-none",
+        // iOS : neutralise le menu contextuel natif (Copier/Enregistrer) du press-and-hold.
+        "[-webkit-touch-callout:none] [-webkit-user-select:none]",
         "ring-1 ring-charcoal-600/60 focus-visible:ring-2 focus-visible:ring-spice-500",
         !isConsumed && "cursor-pointer",
         className,
@@ -150,6 +156,7 @@ export function SafeMedia({
             draggable={false}
             className={cn(
               "h-full w-full object-cover transition-all duration-500 ease-felt",
+              "pointer-events-none [-webkit-touch-callout:none] [-webkit-user-select:none]",
               isRevealed ? "scale-100 blur-0" : "scale-110 blur-2xl",
             )}
           />
@@ -160,6 +167,7 @@ export function SafeMedia({
             draggable={false}
             className={cn(
               "h-full w-full object-cover transition-all duration-500 ease-felt",
+              "pointer-events-none [-webkit-touch-callout:none] [-webkit-user-select:none]",
               isRevealed ? "scale-100 blur-0" : "scale-110 blur-2xl",
             )}
           />

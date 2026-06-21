@@ -285,7 +285,7 @@ export const en: Resources = {
     holdToWatch: "Press and hold to watch",
     ephemeralBadge: "✦ Ephemeral · once only",
     loading: "Loading…",
-    unavailable: "Media unavailable",
+    unavailable: "Media unavailable — press and hold again to retry",
     goneTitle: "Gone…",
     goneText: "This memory only existed for a moment.",
     revealAria: "{{alt}} — hold to reveal",

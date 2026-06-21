@@ -2,14 +2,19 @@ use aes_gcm::aead::{Aead, KeyInit};
 use aes_gcm::{Aes256Gcm, Key, Nonce};
 use axum::body::Body;
 use axum::extract::{Multipart, Path, State};
-use axum::http::header::{CACHE_CONTROL, CONTENT_TYPE};
-use axum::http::HeaderValue;
+use axum::http::header::{
+    ACCEPT_RANGES, CACHE_CONTROL, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE, RANGE,
+};
+use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use axum::response::Response;
 use axum::routing::post;
 use axum::{Json, Router};
 use rand::{rngs::OsRng, RngCore};
 use serde::Serialize;
+use std::io::SeekFrom;
 use std::path::PathBuf;
+use tokio::io::{AsyncReadExt, AsyncSeekExt};
+use tokio_util::io::ReaderStream;
 use uuid::Uuid;
 
 use crate::auth::AuthUser;
@@ -56,6 +61,61 @@ pub struct MediaCreated {
 
 fn media_path(dir: &str, key: &str) -> PathBuf {
     PathBuf::from(dir).join(key)
+}
+
+/// Plage `Range` demandée, bornes inclusives.
+enum RangeReq {
+    /// Aucun en-tête `Range` (ou ignoré) → ressource entière.
+    Full,
+    /// Plage satisfiable `start..=end`.
+    Partial(u64, u64),
+    /// En-tête présent mais non satisfiable → 416.
+    Unsatisfiable,
+}
+
+/// Parse un en-tête `Range: bytes=…` simple (une seule plage) pour `total` octets.
+/// On gère `bytes=a-b`, `bytes=a-` et `bytes=-n` (suffixe). Tout le reste = Full.
+fn parse_range(headers: &HeaderMap, total: u64) -> RangeReq {
+    let Some(raw) = headers.get(RANGE) else {
+        return RangeReq::Full;
+    };
+    let Some(spec) = raw.to_str().ok().and_then(|s| s.strip_prefix("bytes=")) else {
+        return RangeReq::Unsatisfiable;
+    };
+    // Plages multiples non gérées : on sert la ressource entière (réponse 200 valide).
+    if spec.contains(',') {
+        return RangeReq::Full;
+    }
+    let Some((a, b)) = spec.split_once('-') else {
+        return RangeReq::Unsatisfiable;
+    };
+    if total == 0 {
+        return RangeReq::Unsatisfiable;
+    }
+    let (start, end) = if a.is_empty() {
+        // Suffixe : les n derniers octets.
+        match b.parse::<u64>() {
+            Ok(0) | Err(_) => return RangeReq::Unsatisfiable,
+            Ok(n) => (total.saturating_sub(n.min(total)), total - 1),
+        }
+    } else {
+        let Ok(start) = a.parse::<u64>() else {
+            return RangeReq::Unsatisfiable;
+        };
+        let end = if b.is_empty() {
+            total - 1
+        } else {
+            match b.parse::<u64>() {
+                Ok(e) => e.min(total - 1),
+                Err(_) => return RangeReq::Unsatisfiable,
+            }
+        };
+        (start, end)
+    };
+    if start > end || start >= total {
+        return RangeReq::Unsatisfiable;
+    }
+    RangeReq::Partial(start, end)
 }
 
 /// Purge les médias orphelins : uploadés mais rattachés à aucun post, et
@@ -160,6 +220,7 @@ async fn upload(
 async fn stream(
     State(state): State<AppState>,
     auth: AuthUser,
+    headers: HeaderMap,
     Path((space_id, media_id)): Path<(Uuid, Uuid)>,
 ) -> ApiResult<Response> {
     ensure_member(&state.pool, auth.user_id, space_id).await?;
@@ -172,10 +233,14 @@ async fn stream(
     .bind(space_id)
     .fetch_optional(&state.pool)
     .await?;
-    let media = media.ok_or(ApiError::NotFound)?;
+    let media = media.ok_or_else(|| {
+        tracing::warn!(%media_id, %space_id, "média introuvable (ligne absente)");
+        ApiError::NotFound
+    })?;
 
     if media.consumed {
-        // Média éphémère déjà ouvert : envolé.
+        // Média éphémère déjà ouvert : envolé (attendu, pas une erreur).
+        tracing::debug!(%media_id, "média éphémère déjà consommé");
         return Err(ApiError::NotFound);
     }
 
@@ -183,28 +248,137 @@ async fn stream(
     let content_type =
         HeaderValue::from_str(&media.mime).map_err(|_| ApiError::Internal)?;
 
-    // Lecture complète (nécessaire pour déchiffrer le GCM), puis déchiffrement.
-    let raw = tokio::fs::read(&path).await.map_err(|_| ApiError::NotFound)?;
-    let bytes = if media.encrypted {
-        let key = state.config.media_key_bytes().ok_or(ApiError::Internal)?;
-        decrypt(&key, &raw).ok_or(ApiError::Internal)?
-    } else {
-        raw
-    };
+    // view_once et chiffré : on doit lire le fichier entier en mémoire (le GCM
+    // s'authentifie sur tout le blob ; le view_once se consomme après lecture).
+    // Le Range est honoré en tranchant le tampon déjà déchiffré.
+    if media.view_once || media.encrypted {
+        let raw = tokio::fs::read(&path).await.map_err(|e| {
+            tracing::error!(%media_id, key = %media.storage_key, error = ?e,
+                "lecture du fichier média échouée (absent sur disque ?)");
+            ApiError::NotFound
+        })?;
+        let bytes = if media.encrypted {
+            let key = state.config.media_key_bytes().ok_or_else(|| {
+                tracing::error!(%media_id,
+                    "média chiffré mais MEDIA_KEY absente/invalide à la lecture");
+                ApiError::Internal
+            })?;
+            decrypt(&key, &raw).ok_or_else(|| {
+                tracing::error!(%media_id,
+                    "déchiffrement AES échoué (MEDIA_KEY a-t-elle changé ?)");
+                ApiError::Internal
+            })?
+        } else {
+            raw
+        };
 
-    if media.view_once {
-        // Une seule lecture : on supprime le fichier et on marque consommé.
-        let _ = tokio::fs::remove_file(&path).await;
-        sqlx::query("UPDATE media SET consumed = true WHERE id = $1")
-            .bind(media.id)
-            .execute(&state.pool)
-            .await?;
+        if media.view_once {
+            // Une seule lecture : on supprime le fichier et on marque consommé.
+            let _ = tokio::fs::remove_file(&path).await;
+            sqlx::query("UPDATE media SET consumed = true WHERE id = $1")
+                .bind(media.id)
+                .execute(&state.pool)
+                .await?;
+        }
+
+        let total = bytes.len() as u64;
+        return Ok(match parse_range(&headers, total) {
+            RangeReq::Unsatisfiable => unsatisfiable_response(total),
+            RangeReq::Full => {
+                let mut resp = Response::new(Body::from(bytes));
+                base_headers(resp.headers_mut(), content_type, total);
+                resp
+            }
+            RangeReq::Partial(start, end) => {
+                let slice = bytes[start as usize..=end as usize].to_vec();
+                partial_response(slice, content_type, start, end, total)
+            }
+        });
     }
 
-    let mut resp = Response::new(Body::from(bytes));
-    resp.headers_mut().insert(CONTENT_TYPE, content_type);
+    // Média en clair : on stream depuis le disque sans charger le fichier entier
+    // en mémoire (nginx ne bufferise plus la réponse dans un fichier temporaire).
+    let meta = tokio::fs::metadata(&path).await.map_err(|e| {
+        tracing::error!(%media_id, key = %media.storage_key, error = ?e,
+            "stat du fichier média échouée (absent sur disque ?)");
+        ApiError::NotFound
+    })?;
+    let total = meta.len();
+    let mut file = tokio::fs::File::open(&path).await.map_err(|e| {
+        tracing::error!(%media_id, key = %media.storage_key, error = ?e,
+            "ouverture du fichier média échouée");
+        ApiError::NotFound
+    })?;
+
+    Ok(match parse_range(&headers, total) {
+        RangeReq::Unsatisfiable => unsatisfiable_response(total),
+        RangeReq::Full => {
+            let body = Body::from_stream(ReaderStream::new(file));
+            let mut resp = Response::new(body);
+            base_headers(resp.headers_mut(), content_type, total);
+            resp
+        }
+        RangeReq::Partial(start, end) => {
+            if file.seek(SeekFrom::Start(start)).await.is_err() {
+                return Err(ApiError::Internal);
+            }
+            let len = end - start + 1;
+            let body = Body::from_stream(ReaderStream::new(file.take(len)));
+            let mut resp = Response::new(body);
+            resp.headers_mut().insert(CONTENT_TYPE, content_type);
+            common_headers(resp.headers_mut(), len);
+            *resp.status_mut() = StatusCode::PARTIAL_CONTENT;
+            if let Ok(cr) =
+                HeaderValue::from_str(&format!("bytes {start}-{end}/{total}"))
+            {
+                resp.headers_mut().insert(CONTENT_RANGE, cr);
+            }
+            resp
+        }
+    })
+}
+
+/// En-têtes communs à toutes les réponses média (cache + Accept-Ranges + taille).
+fn common_headers(h: &mut HeaderMap, content_length: u64) {
     // Médias intimes : jamais mis en cache disque par le navigateur (#34).
+    h.insert(CACHE_CONTROL, HeaderValue::from_static("no-store"));
+    h.insert(ACCEPT_RANGES, HeaderValue::from_static("bytes"));
+    h.insert(CONTENT_LENGTH, HeaderValue::from(content_length));
+}
+
+/// En-têtes d'une réponse 200 complète.
+fn base_headers(h: &mut HeaderMap, content_type: HeaderValue, total: u64) {
+    h.insert(CONTENT_TYPE, content_type);
+    common_headers(h, total);
+}
+
+/// Réponse 206 servie depuis un tampon en mémoire (view_once / chiffré).
+fn partial_response(
+    slice: Vec<u8>,
+    content_type: HeaderValue,
+    start: u64,
+    end: u64,
+    total: u64,
+) -> Response {
+    let len = slice.len() as u64;
+    let mut resp = Response::new(Body::from(slice));
+    resp.headers_mut().insert(CONTENT_TYPE, content_type);
+    common_headers(resp.headers_mut(), len);
+    *resp.status_mut() = StatusCode::PARTIAL_CONTENT;
+    if let Ok(cr) = HeaderValue::from_str(&format!("bytes {start}-{end}/{total}")) {
+        resp.headers_mut().insert(CONTENT_RANGE, cr);
+    }
+    resp
+}
+
+/// Réponse 416 (Range non satisfiable) avec `Content-Range: bytes */total`.
+fn unsatisfiable_response(total: u64) -> Response {
+    let mut resp = Response::new(Body::empty());
+    *resp.status_mut() = StatusCode::RANGE_NOT_SATISFIABLE;
     resp.headers_mut()
-        .insert(CACHE_CONTROL, HeaderValue::from_static("no-store"));
-    Ok(resp)
+        .insert(ACCEPT_RANGES, HeaderValue::from_static("bytes"));
+    if let Ok(cr) = HeaderValue::from_str(&format!("bytes */{total}")) {
+        resp.headers_mut().insert(CONTENT_RANGE, cr);
+    }
+    resp
 }

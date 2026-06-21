@@ -50,9 +50,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             );
         }
         if config.media_key_bytes().is_none() {
-            tracing::warn!(
-                "MEDIA_KEY absente/invalide : les médias sont stockés EN CLAIR sur disque."
-            );
+            if config.media_key.trim().is_empty() {
+                tracing::warn!(
+                    "MEDIA_KEY absente : les médias sont stockés EN CLAIR sur disque."
+                );
+            } else {
+                // Clé fournie mais illisible : les nouveaux médias passeront en clair ET
+                // tout média déjà chiffré deviendra impossible à déchiffrer (→ 500
+                // « média indisponible »). Cause probable d'un bug média intermittent.
+                tracing::error!(
+                    "MEDIA_KEY fournie mais INVALIDE (base64 32 octets attendu) : \
+                     médias chiffrés existants illisibles, nouveaux stockés EN CLAIR."
+                );
+            }
         }
     }
 
