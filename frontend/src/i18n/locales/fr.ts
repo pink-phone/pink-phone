@@ -153,6 +153,8 @@ export const fr = {
     publish: "Publier",
     saveDraft: "Enregistrer le brouillon",
     saveEdits: "Enregistrer les modifications",
+    publishing: "Publication…",
+    saving: "Enregistrement…",
   },
   challenges: {
     title: "Nos défis",

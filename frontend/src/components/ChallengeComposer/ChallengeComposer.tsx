@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { TextField } from "../form/TextField";
 import { TextArea } from "../form/TextArea";
@@ -19,7 +19,8 @@ export interface ChallengeDraft {
 }
 
 export interface ChallengeComposerProps {
-  onSubmit: (draft: ChallengeDraft) => void;
+  /** Peut renvoyer une `Promise` : spinner + boutons désactivés le temps de l'envoi. */
+  onSubmit: (draft: ChallengeDraft) => void | Promise<void>;
   onCancel?: () => void;
   /** Banque de propositions (depuis l'API). À défaut, presets statiques. */
   suggestions?: ChallengePreset[];
@@ -57,15 +58,25 @@ export function ChallengeComposer({
   const canReshuffle = bank.length > VISIBLE_SUGGESTIONS;
 
   const canSubmit = title.trim().length > 0 && description.trim().length > 0;
+  const [submitting, setSubmitting] = useState(false);
+  const mounted = useRef(true);
+  useEffect(() => () => {
+    mounted.current = false;
+  }, []);
 
-  const submit = () => {
-    if (!canSubmit) return;
-    onSubmit({
-      title: title.trim(),
-      description: description.trim(),
-      intensity,
-      deadlineLabel: deadline.trim() || undefined,
-    });
+  const submit = async () => {
+    if (!canSubmit || submitting) return;
+    setSubmitting(true);
+    try {
+      await onSubmit({
+        title: title.trim(),
+        description: description.trim(),
+        intensity,
+        deadlineLabel: deadline.trim() || undefined,
+      });
+    } finally {
+      if (mounted.current) setSubmitting(false);
+    }
   };
 
   return (
@@ -134,7 +145,12 @@ export function ChallengeComposer({
       />
 
       <div className="flex items-center gap-2 pt-1">
-        <Button type="submit" className="flex-1" disabled={!canSubmit}>
+        <Button
+          type="submit"
+          className="flex-1"
+          disabled={!canSubmit || submitting}
+          loading={submitting}
+        >
           {editing
             ? t("common.save")
             : t("challengeComposer.submit", {
@@ -142,7 +158,12 @@ export function ChallengeComposer({
               })}
         </Button>
         {onCancel && (
-          <Button type="button" variant="ghost" onClick={onCancel}>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onCancel}
+            disabled={submitting}
+          >
             {t("common.cancel")}
           </Button>
         )}

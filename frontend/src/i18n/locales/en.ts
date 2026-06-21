@@ -153,6 +153,8 @@ export const en: Resources = {
     publish: "Publish",
     saveDraft: "Save draft",
     saveEdits: "Save changes",
+    publishing: "Publishing…",
+    saving: "Saving…",
   },
   challenges: {
     title: "Our dares",
