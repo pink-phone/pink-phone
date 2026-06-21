@@ -108,6 +108,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         return Ok(());
     }
 
+    // Rotation de clé : déchiffre avec MEDIA_KEY (ancienne), rechiffre avec
+    // MEDIA_KEY_NEW (nouvelle). Puis met à jour le secret MEDIA_KEY = la nouvelle.
+    //   docker exec -e MEDIA_KEY_NEW="<nouvelle b64>" <api> pinkphone-api rotate-media-key
+    if std::env::args().nth(1).as_deref() == Some("rotate-media-key") {
+        let old_key = config
+            .media_key_bytes()
+            .ok_or("MEDIA_KEY (ancienne clé) absente/invalide")?;
+        let new_raw = std::env::var("MEDIA_KEY_NEW")
+            .map_err(|_| "MEDIA_KEY_NEW non défini (la nouvelle clé, base64 32 octets)")?;
+        let new_key = config::decode_media_key(&new_raw)
+            .ok_or("MEDIA_KEY_NEW invalide (base64 de 32 octets attendu)")?;
+        if old_key == new_key {
+            return Err("MEDIA_KEY_NEW identique à MEDIA_KEY : rien à faire".into());
+        }
+        routes::media::rotate_key(&pool, &config.media_dir, &old_key, &new_key).await?;
+        return Ok(());
+    }
+
     let http = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(10))
         .build()?;
