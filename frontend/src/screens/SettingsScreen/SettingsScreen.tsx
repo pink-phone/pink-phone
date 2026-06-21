@@ -90,6 +90,8 @@ export interface SettingsScreenProps {
   onReactionsChange?: (reactions: ReactionId[], allowCustom: boolean) => void;
   onBack?: () => void;
   onLogout?: () => void;
+  /** Révoque toutes les sessions du compte (perte/vol d'appareil), puis déconnecte. */
+  onLogoutAll?: () => void;
 }
 
 /** Réglages : mode de notification « à la carte » + apparence + déconnexion. */
@@ -111,6 +113,7 @@ export function SettingsScreen({
   onReactionsChange,
   onBack,
   onLogout,
+  onLogoutAll,
 }: SettingsScreenProps) {
   const { t, i18n } = useTranslation();
   const currentLang = i18n.resolvedLanguage ?? i18n.language;
@@ -512,11 +515,27 @@ export function SettingsScreen({
         </Surface>
       </section>
 
-      {onLogout && (
-        <section className="pt-2">
-          <Button variant="secondary" className="w-full" onClick={onLogout}>
-            {t("common.logout")}
-          </Button>
+      {(onLogout || onLogoutAll) && (
+        <section className="space-y-2 pt-2">
+          {onLogout && (
+            <Button variant="secondary" className="w-full" onClick={onLogout}>
+              {t("common.logout")}
+            </Button>
+          )}
+          {onLogoutAll && (
+            <>
+              <button
+                type="button"
+                onClick={onLogoutAll}
+                className="w-full text-center text-xs text-taupe-300 underline underline-offset-2 transition-colors duration-300 ease-felt hover:text-spice-300"
+              >
+                {t("settings.logoutAll")}
+              </button>
+              <p className="text-center text-[11px] text-taupe-400">
+                {t("settings.logoutAllHint")}
+              </p>
+            </>
+          )}
         </section>
       )}
 

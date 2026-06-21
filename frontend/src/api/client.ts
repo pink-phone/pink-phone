@@ -126,6 +126,10 @@ export const login = (email: string, password: string) =>
 
 export const me = () => req<UserPublic>("/api/auth/me");
 
+/** Révoque tous les jetons du compte (perte/vol d'appareil). 204 No Content. */
+export const logoutAll = () =>
+  req<void>("/api/auth/logout-all", { method: "POST" });
+
 /**
  * Méthodes d'auth disponibles (mot de passe et/ou OIDC).
  * Avec retry : un échec transitoire ne doit pas faire disparaître le bouton SSO.

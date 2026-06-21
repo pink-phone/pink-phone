@@ -220,6 +220,11 @@ export const en: Resources = {
   },
   settings: {
     title: "Settings",
+    logoutAll: "Sign out of all devices",
+    logoutAllHint:
+      "If your device is lost or stolen: invalidates every session, everywhere (including here). Sign-in required.",
+    logoutAllConfirm:
+      "Sign out of all devices? Every session will be invalidated and you'll need to sign in again.",
     notifications: "Notifications",
     pushUnavailable:
       "Push isn't available on this device — daily digest or ghost mode are still possible.",

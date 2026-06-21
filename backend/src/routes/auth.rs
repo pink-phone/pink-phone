@@ -1,4 +1,5 @@
 use axum::extract::State;
+use axum::http::StatusCode;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
@@ -13,6 +14,7 @@ pub fn router() -> Router<AppState> {
         .route("/api/auth/register", post(register))
         .route("/api/auth/login", post(login))
         .route("/api/auth/me", get(me))
+        .route("/api/auth/logout-all", post(logout_all))
 }
 
 #[derive(Deserialize)]
@@ -122,4 +124,19 @@ async fn me(
     .fetch_one(&state.pool)
     .await?;
     Ok(Json(user))
+}
+
+/// Révoque TOUS les jetons de l'utilisateur (SEC-003) — le « panic button » en cas
+/// de perte/vol d'appareil. Fixe `min_token_iat = now()` : tous les JWT émis avant
+/// (y compris celui de cette requête) deviennent invalides. Le client doit ensuite
+/// se reconnecter.
+async fn logout_all(
+    State(state): State<AppState>,
+    auth: AuthUser,
+) -> ApiResult<StatusCode> {
+    sqlx::query("UPDATE users SET min_token_iat = now() WHERE id = $1")
+        .bind(auth.user_id)
+        .execute(&state.pool)
+        .await?;
+    Ok(StatusCode::NO_CONTENT)
 }
