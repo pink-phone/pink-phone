@@ -47,6 +47,27 @@ function authHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+export interface ClientLogEntry {
+  level?: string;
+  message: string;
+  context?: string;
+}
+
+/**
+ * Remonte un lot de logs front vers le serveur (best-effort, `keepalive` pour
+ * survivre à une fermeture d'onglet). No-op sans jeton (la route exige l'auth).
+ * On n'attend pas la réponse et on avale les erreurs — surtout pas de boucle.
+ */
+export function reportClientLogs(entries: ClientLogEntry[]): void {
+  if (!token || entries.length === 0) return;
+  void fetch(`${BASE}/api/logs`, {
+    method: "POST",
+    headers: { ...authHeaders(), "Content-Type": "application/json" },
+    body: JSON.stringify({ entries, userAgent: navigator.userAgent }),
+    keepalive: true,
+  }).catch(() => {});
+}
+
 interface ReqOptions {
   method?: string;
   json?: unknown;

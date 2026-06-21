@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { TextField } from "../form/TextField";
 import { TextArea } from "../form/TextArea";
@@ -18,7 +18,12 @@ export interface PostDraft {
 }
 
 export interface PostComposerProps {
-  onSubmit: (draft: PostDraft) => void;
+  /**
+   * Peut renvoyer une `Promise` : tant qu'elle n'est pas résolue, le formulaire
+   * affiche un état « en cours » (spinner, boutons désactivés) — utile car
+   * l'upload d'une image/vidéo lourde peut prendre plusieurs secondes.
+   */
+  onSubmit: (draft: PostDraft) => void | Promise<void>;
   onCancel?: () => void;
   /**
    * Valeurs initiales (édition d'un brouillon). `media` décrit la photo déjà
@@ -58,6 +63,12 @@ export function PostComposer({ onSubmit, onCancel, initial }: PostComposerProps)
   const [preview, setPreview] = useState<string | null>(null);
   // Photo déjà jointe au brouillon, tant qu'on ne la remplace/retire pas.
   const [removeMedia, setRemoveMedia] = useState(false);
+  // Quelle action est en cours d'envoi (pour cibler le spinner sur le bon bouton).
+  const [pending, setPending] = useState<"primary" | "draft" | null>(null);
+  const mounted = useRef(true);
+  useEffect(() => () => {
+    mounted.current = false;
+  }, []);
   const existingMedia =
     initial?.media && !file && !removeMedia ? initial.media : null;
 
@@ -73,17 +84,25 @@ export function PostComposer({ onSubmit, onCancel, initial }: PostComposerProps)
   }, [file]);
 
   const canSubmit = body.trim().length > 0;
+  const busy = pending !== null;
 
-  const submit = (draft: boolean) => {
-    if (!canSubmit) return;
-    onSubmit({
-      title: title.trim() || undefined,
-      body: body.trim(),
-      file: file ?? undefined,
-      viewOnce: file ? viewOnce : false,
-      draft,
-      removeMedia: removeMedia && !file,
-    });
+  const submit = async (draft: boolean) => {
+    if (!canSubmit || busy) return;
+    setPending(draft ? "draft" : "primary");
+    try {
+      await onSubmit({
+        title: title.trim() || undefined,
+        body: body.trim(),
+        file: file ?? undefined,
+        viewOnce: file ? viewOnce : false,
+        draft,
+        removeMedia: removeMedia && !file,
+      });
+    } finally {
+      // Le parent ferme la feuille au succès (démontage) → on ne touche au state
+      // que si on est encore monté (échec : le formulaire reste pour réessayer).
+      if (mounted.current) setPending(null);
+    }
   };
 
   return (
@@ -194,13 +213,27 @@ export function PostComposer({ onSubmit, onCancel, initial }: PostComposerProps)
 
       <div className="space-y-2 pt-1">
         <div className="flex gap-2">
-          <Button type="submit" className="flex-1" disabled={!canSubmit}>
-            {editingPublished
-              ? t("postComposer.saveEdits")
-              : t("postComposer.publish")}
+          <Button
+            type="submit"
+            className="flex-1"
+            disabled={!canSubmit || busy}
+            loading={pending === "primary"}
+          >
+            {pending === "primary"
+              ? editingPublished
+                ? t("postComposer.saving")
+                : t("postComposer.publishing")
+              : editingPublished
+                ? t("postComposer.saveEdits")
+                : t("postComposer.publish")}
           </Button>
           {onCancel && (
-            <Button type="button" variant="ghost" onClick={onCancel}>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={onCancel}
+              disabled={busy}
+            >
               {t("common.cancel")}
             </Button>
           )}
@@ -210,10 +243,13 @@ export function PostComposer({ onSubmit, onCancel, initial }: PostComposerProps)
             type="button"
             variant="secondary"
             className="w-full"
-            disabled={!canSubmit}
+            disabled={!canSubmit || busy}
+            loading={pending === "draft"}
             onClick={() => submit(true)}
           >
-            {t("postComposer.saveDraft")}
+            {pending === "draft"
+              ? t("postComposer.saving")
+              : t("postComposer.saveDraft")}
           </Button>
         )}
       </div>

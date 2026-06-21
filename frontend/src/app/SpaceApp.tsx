@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import * as api from "../api/client";
+import { logClientError } from "../clientLog";
 import type {
   ApiChallenge,
   ApiComment,
@@ -339,6 +340,7 @@ export function SpaceApp({
       setOpenSheet(null);
     } catch (e) {
       console.error("publication échouée", e);
+      logClientError(`addPost échec : ${String(e)}`, "blog/createPost");
     }
   };
 
@@ -383,6 +385,7 @@ export function SpaceApp({
       setEditingPost(null);
     } catch (e) {
       console.error("édition du brouillon échouée", e);
+      logClientError(`editPost échec : ${String(e)}`, "blog/updatePost");
     }
   };
 

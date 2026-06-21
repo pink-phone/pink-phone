@@ -20,6 +20,18 @@ export const Primary: Story = {};
 export const Secondary: Story = { args: { variant: "secondary", children: "Négocier" } };
 export const Ghost: Story = { args: { variant: "ghost", children: "Pas cette fois" } };
 
+export const Loading: Story = {
+  args: { loading: true, children: "Publication…" },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "État asynchrone : spinner + bouton désactivé (anti double-envoi pendant un upload média lourd).",
+      },
+    },
+  },
+};
+
 export const Palette: Story = {
   render: () => (
     <div className="flex flex-wrap items-center gap-3">
