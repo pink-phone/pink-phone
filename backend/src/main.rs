@@ -37,9 +37,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let exposed = !(config.bind_addr.starts_with("127.")
             || config.bind_addr.starts_with("localhost")
             || config.bind_addr.starts_with("[::1]"));
-        if exposed && config.jwt_secret == "dev-insecure-secret" {
+        // On refuse de démarrer exposé avec la valeur de dev OU un secret à trop
+        // faible entropie (SEC-016) : un `JWT_SECRET` court (ex. la valeur du
+        // compose de démo locale) contournerait la seule égalité avec la valeur
+        // de dev tout en restant trivial à brute-forcer.
+        if exposed
+            && (config.jwt_secret == "dev-insecure-secret"
+                || config.jwt_secret.len() < 32)
+        {
             return Err(format!(
-                "JWT_SECRET non configuré (valeur de dev) alors que l'API est exposée sur {} — refus de démarrer.",
+                "JWT_SECRET trop faible (valeur de dev ou < 32 caractères) alors que l'API est exposée sur {} — refus de démarrer.",
                 config.bind_addr
             )
             .into());

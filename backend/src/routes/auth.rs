@@ -3,7 +3,7 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
 
-use crate::auth::{hash_password, issue_token, verify_password, AuthUser};
+use crate::auth::{hash_password, issue_token, verify_login, AuthUser};
 use crate::error::{ApiError, ApiResult};
 use crate::models::{User, UserPublic};
 use crate::state::AppState;
@@ -90,9 +90,12 @@ async fn login(
     .fetch_optional(&state.pool)
     .await?;
 
+    // On vérifie TOUJOURS (hash réel ou leurre) avant de trancher, pour ne pas
+    // révéler par le temps de réponse si l'email existe (SEC-010).
+    let hash = user.as_ref().and_then(|u| u.password_hash.as_deref());
+    let ok = verify_login(&body.password, hash);
     let user = user.ok_or(ApiError::Unauthorized)?;
-    let hash = user.password_hash.as_deref().ok_or(ApiError::Unauthorized)?;
-    if !verify_password(&body.password, hash) {
+    if !ok {
         return Err(ApiError::Unauthorized);
     }
 

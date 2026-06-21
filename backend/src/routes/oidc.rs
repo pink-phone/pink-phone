@@ -55,14 +55,28 @@ async fn discover(state: &AppState) -> ApiResult<Discovery> {
         "{}/.well-known/openid-configuration",
         state.config.oidc_issuer.trim_end_matches('/')
     );
-    Ok(state
+    let disc: Discovery = state
         .http
         .get(url)
         .send()
         .await?
         .error_for_status()?
-        .json::<Discovery>()
-        .await?)
+        .json()
+        .await?;
+    // Défense en profondeur (SEC-009 / OIDC Discovery §4.3) : l'issuer renvoyé par
+    // la discovery doit correspondre à l'OIDC_ISSUER configuré, sinon une réponse
+    // de discovery substituée pourrait imposer un issuer/JWKS attaquant.
+    if disc.issuer.trim_end_matches('/')
+        != state.config.oidc_issuer.trim_end_matches('/')
+    {
+        tracing::error!(
+            configured = %state.config.oidc_issuer,
+            discovered = %disc.issuer,
+            "issuer OIDC de la discovery ≠ OIDC_ISSUER configuré"
+        );
+        return Err(ApiError::Unauthorized);
+    }
+    Ok(disc)
 }
 
 fn random_b64(len: usize) -> String {

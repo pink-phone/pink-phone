@@ -29,7 +29,33 @@ pub fn verify_password(password: &str, hash: &str) -> bool {
         Ok(parsed) => Argon2::default()
             .verify_password(password.as_bytes(), &parsed)
             .is_ok(),
-        Err(_) => false,
+        // Hash mal formé en base : on log (corruption potentielle) et on refuse.
+        Err(e) => {
+            tracing::error!(error = ?e, "hash de mot de passe illisible en base");
+            false
+        }
+    }
+}
+
+/// Hash Argon2id « leurre », calculé une fois, pour exécuter une vérification même
+/// quand l'email est inconnu. Uniformise le temps de réponse du login : sans ça,
+/// un email inexistant répond instantanément alors qu'un email connu paie un
+/// Argon2 (~200 ms), révélant l'existence d'un compte par canal temporel (SEC-010).
+fn dummy_hash() -> &'static str {
+    static DUMMY: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+    DUMMY.get_or_init(|| hash_password("pp-timing-dummy").unwrap_or_default())
+}
+
+/// Vérifie le mot de passe contre `hash` s'il existe, sinon contre le hash leurre
+/// (temps de calcul comparable que le compte existe ou non). Renvoie toujours
+/// `false` dans le cas leurre.
+pub fn verify_login(password: &str, hash: Option<&str>) -> bool {
+    match hash {
+        Some(h) => verify_password(password, h),
+        None => {
+            let _ = verify_password(password, dummy_hash());
+            false
+        }
     }
 }
 

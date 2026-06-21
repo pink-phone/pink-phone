@@ -67,7 +67,7 @@ async fn set_mood(
         "flirty" => Some("😏 D'humeur taquine…"),
         _ => None,
     };
-    if let Some(msg) = nudge {
+    if nudge.is_some() {
         // En mode « vote à l'aveugle », la notif ne part que lorsque TOUT LE MONDE
         // a voté aujourd'hui : impossible de dévoiler l'humeur à quelqu'un qui n'a
         // pas encore posé la sienne (option simple, sans replay de l'humeur du 1er).
@@ -93,7 +93,6 @@ async fn set_mood(
                 space_id,
                 auth.user_id,
                 "Nouvelle humeur".into(),
-                msg.into(),
             );
         }
     }
