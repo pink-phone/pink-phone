@@ -39,12 +39,7 @@ pub struct Config {
 impl Config {
     /// Clé média décodée (32 octets) si `MEDIA_KEY` est un base64 valide.
     pub fn media_key_bytes(&self) -> Option<[u8; 32]> {
-        use base64::{engine::general_purpose::STANDARD, Engine};
-        if self.media_key.is_empty() {
-            return None;
-        }
-        let raw = STANDARD.decode(self.media_key.trim()).ok()?;
-        raw.try_into().ok()
+        decode_media_key(&self.media_key)
     }
 
     pub fn oidc_enabled(&self) -> bool {
@@ -53,6 +48,17 @@ impl Config {
             && !self.oidc_client_secret.is_empty()
             && !self.oidc_redirect_uri.is_empty()
     }
+}
+
+/// Décode une clé média (base64 standard → 32 octets). `None` si vide ou invalide.
+/// Partagé par `media_key_bytes` et la rotation de clé (`MEDIA_KEY_NEW`).
+pub fn decode_media_key(raw: &str) -> Option<[u8; 32]> {
+    use base64::{engine::general_purpose::STANDARD, Engine};
+    let raw = raw.trim();
+    if raw.is_empty() {
+        return None;
+    }
+    STANDARD.decode(raw).ok()?.try_into().ok()
 }
 
 impl Config {

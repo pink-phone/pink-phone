@@ -148,8 +148,14 @@ Open the app via your HTTPS domain, create an account, create a **space**, then 
 
 - Back up the **`pink-pgdata`** volume (database) and **`pink-media`** (files).
 - Media is encrypted at rest **if** `MEDIA_KEY` is set; **Postgres metadata stays in plaintext** → for full protection against disk access, encrypt the volume at the OS level (e.g. LUKS).
-- Keep `JWT_SECRET` **stable** (changing it logs everyone out) and `MEDIA_KEY` **immutable** (changing it makes media unreadable).
+- Keep `JWT_SECRET` **stable** (changing it logs everyone out). Don't change `MEDIA_KEY` casually (it makes media unreadable) — but you **can** migrate to a new key with the rotation command below.
 - If you set `MEDIA_KEY` **after** media already exist (they're stored in plaintext), encrypt them in place once with the maintenance command (safe & re-runnable; only touches still-plaintext files):
   ```bash
   docker exec <api-container> pinkphone-api backfill-media-encryption
+  ```
+- **Rotating `MEDIA_KEY`** (move all media from the current key to a new one): the command decrypts with the running `MEDIA_KEY` and re-encrypts with `MEDIA_KEY_NEW`. Safe & re-runnable (already-rotated files are detected and skipped).
+  ```bash
+  NEW=$(openssl rand -base64 32)
+  docker exec -e MEDIA_KEY_NEW="$NEW" <api-container> pinkphone-api rotate-media-key
+  # then set MEDIA_KEY = "$NEW" in your secrets and redeploy. Back up the new key.
   ```

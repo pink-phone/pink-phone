@@ -36,7 +36,7 @@ pub(crate) fn encrypt(key: &[u8; 32], plaintext: &[u8]) -> Option<Vec<u8>> {
 }
 
 /// Déchiffre un blob nonce(12o) ++ ciphertext produit par `encrypt`.
-fn decrypt(key: &[u8; 32], blob: &[u8]) -> Option<Vec<u8>> {
+pub(crate) fn decrypt(key: &[u8; 32], blob: &[u8]) -> Option<Vec<u8>> {
     if blob.len() < 12 {
         return None;
     }
@@ -474,6 +474,85 @@ pub async fn backfill_encryption(
         done += 1;
     }
     tracing::info!(done, "backfill chiffrement terminé.");
+    Ok(())
+}
+
+/// Sous-commande de maintenance : **rotation de clé** — migre tous les médias de
+/// `old_key` vers `new_key` (déchiffre avec l'ancienne, rechiffre avec la nouvelle ;
+/// un média en clair, `encrypted = false`, est simplement chiffré avec la nouvelle).
+/// Même garanties que `backfill_encryption` (nouveau storage_key, bascule atomique
+/// `… WHERE storage_key = <ancien>`, suppression de l'ancien fichier). **Ré-exécutable** :
+/// un média déjà migré (qui ne déchiffre qu'avec la nouvelle clé — l'auth GCM rejette
+/// l'ancienne) est détecté et ignoré ; un crash ne laisse au pire qu'un orphelin.
+pub async fn rotate_key(
+    pool: &sqlx::PgPool,
+    media_dir: &str,
+    old_key: &[u8; 32],
+    new_key: &[u8; 32],
+) -> Result<(), Box<dyn std::error::Error>> {
+    let rows: Vec<(Uuid, String, bool)> =
+        sqlx::query_as("SELECT id, storage_key, encrypted FROM media")
+            .fetch_all(pool)
+            .await?;
+    if rows.is_empty() {
+        tracing::info!("rotation de clé média : aucun média.");
+        return Ok(());
+    }
+    tracing::info!(count = rows.len(), "rotation de clé média : médias à traiter");
+
+    let mut rotated = 0usize;
+    let mut skipped = 0usize;
+    for (id, old_storage, encrypted) in rows {
+        let old_path = media_path(media_dir, &old_storage);
+        let raw = match tokio::fs::read(&old_path).await {
+            Ok(b) => b,
+            Err(e) => {
+                tracing::warn!(%id, key = %old_storage, error = ?e, "fichier absent, ignoré");
+                continue;
+            }
+        };
+        let plaintext: Vec<u8> = if encrypted {
+            if let Some(pt) = decrypt(old_key, &raw) {
+                pt
+            } else if decrypt(new_key, &raw).is_some() {
+                // Déjà chiffré avec la nouvelle clé (rotation déjà passée) → on saute.
+                skipped += 1;
+                continue;
+            } else {
+                return Err(format!(
+                    "média {id} : ne déchiffre ni avec l'ancienne ni la nouvelle clé (clé erronée ?)"
+                )
+                .into());
+            }
+        } else {
+            raw
+        };
+
+        let cipher = encrypt(new_key, &plaintext).ok_or("échec du chiffrement")?;
+        let new_storage = Uuid::new_v4().to_string();
+        let new_path = media_path(media_dir, &new_storage);
+        tokio::fs::write(&new_path, &cipher).await?;
+
+        let updated = sqlx::query(
+            "UPDATE media SET storage_key = $2, encrypted = true
+             WHERE id = $1 AND storage_key = $3",
+        )
+        .bind(id)
+        .bind(&new_storage)
+        .bind(&old_storage)
+        .execute(pool)
+        .await?;
+        if updated.rows_affected() == 0 {
+            let _ = tokio::fs::remove_file(&new_path).await;
+            continue;
+        }
+        if let Err(e) = tokio::fs::remove_file(&old_path).await {
+            tracing::warn!(%id, key = %old_storage, error = ?e,
+                "ancien fichier non supprimé (à nettoyer manuellement)");
+        }
+        rotated += 1;
+    }
+    tracing::info!(rotated, skipped, "rotation de clé média terminée.");
     Ok(())
 }
 
