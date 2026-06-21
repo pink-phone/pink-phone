@@ -163,3 +163,29 @@ async fn list_moods(
     }
     Ok(Json(moods))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn moods_predefinis_acceptes() {
+        for m in MOODS {
+            assert!(mood_allowed(m), "{m} devrait être accepté");
+        }
+    }
+
+    #[test]
+    fn humeur_libre_bornee() {
+        assert!(mood_allowed("🥰 amoureux·se"));
+        assert!(mood_allowed("🔥"));
+        assert!(mood_allowed(&"x".repeat(40))); // borne haute en caractères
+    }
+
+    #[test]
+    fn humeur_invalide() {
+        assert!(!mood_allowed("")); // vide
+        assert!(!mood_allowed("   ")); // que des espaces (trim -> vide)
+        assert!(!mood_allowed(&"x".repeat(41))); // > 40 caractères
+    }
+}

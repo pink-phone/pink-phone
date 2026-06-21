@@ -264,3 +264,30 @@ async fn add_comment(
 
     Ok(Json(comment))
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reactions_predefinies_acceptees() {
+        for r in REACTIONS {
+            assert!(reaction_allowed(r), "{r} devrait être accepté");
+        }
+    }
+
+    #[test]
+    fn emoji_libre_accepte() {
+        assert!(reaction_allowed("🔥"));
+        assert!(reaction_allowed("👍"));
+    }
+
+    #[test]
+    fn texte_et_vide_refuses() {
+        assert!(!reaction_allowed("")); // vide
+        assert!(!reaction_allowed("lol")); // alphanumérique ASCII
+        assert!(!reaction_allowed("a")); // une lettre
+        assert!(!reaction_allowed("🔥 ok")); // contient un espace
+        assert!(!reaction_allowed(&"🔥".repeat(9))); // > 8 caractères
+    }
+}
