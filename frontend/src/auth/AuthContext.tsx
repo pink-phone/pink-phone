@@ -33,24 +33,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setTokenState] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Au démarrage : token d'un callback OIDC (#token=...) sinon token stocké.
+  // Au démarrage : code d'un callback OIDC (#code=…) échangé contre le JWT, sinon
+  // jeton déjà stocké.
   useEffect(() => {
     const hash = window.location.hash;
-    let token = localStorage.getItem(TOKEN_KEY);
 
-    if (hash.startsWith("#token=")) {
-      token = decodeURIComponent(hash.slice("#token=".length));
+    // Nettoie le fragment (#code= / #error=oidc) pour ne pas le laisser dans l'URL.
+    const cleanHash = () => {
+      if (hash.startsWith("#code=") || hash.startsWith("#error=")) {
+        window.history.replaceState(
+          null,
+          "",
+          window.location.pathname + window.location.search,
+        );
+      }
+    };
+
+    const adopt = (token: string) => {
       localStorage.setItem(TOKEN_KEY, token);
-    }
-    // Nettoie le fragment (token ou #error=oidc) de l'URL.
-    if (hash.startsWith("#token=") || hash.startsWith("#error=")) {
-      window.history.replaceState(
-        null,
-        "",
-        window.location.pathname + window.location.search,
-      );
+      api.setToken(token);
+      setTokenState(token);
+      return api.me().then(setUser);
+    };
+    const drop = () => {
+      localStorage.removeItem(TOKEN_KEY);
+      api.setToken(null);
+      setTokenState(null);
+    };
+
+    // Callback OIDC : on échange le code éphémère contre le JWT (le jeton ne
+    // transite jamais par l'URL — SEC-006).
+    if (hash.startsWith("#code=")) {
+      const code = decodeURIComponent(hash.slice("#code=".length));
+      cleanHash();
+      api
+        .oidcExchange(code)
+        .then(({ token }) => adopt(token))
+        .catch(drop)
+        .finally(() => setLoading(false));
+      return;
     }
 
+    cleanHash(); // nettoie un éventuel #error=oidc
+
+    const token = localStorage.getItem(TOKEN_KEY);
     if (!token) {
       setLoading(false);
       return;
@@ -60,11 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     api
       .me()
       .then(setUser)
-      .catch(() => {
-        localStorage.removeItem(TOKEN_KEY);
-        api.setToken(null);
-        setTokenState(null);
-      })
+      .catch(drop)
       .finally(() => setLoading(false));
   }, []);
 
