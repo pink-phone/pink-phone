@@ -83,7 +83,9 @@ export function PostComposer({ onSubmit, onCancel, initial }: PostComposerProps)
     return () => URL.revokeObjectURL(url);
   }, [file]);
 
-  const canSubmit = body.trim().length > 0;
+  // Un post peut être un simple média : on accepte un récit OU une photo/vidéo.
+  const hasMedia = file !== null || existingMedia !== null;
+  const canSubmit = body.trim().length > 0 || hasMedia;
   const busy = pending !== null;
 
   const submit = async (draft: boolean) => {
