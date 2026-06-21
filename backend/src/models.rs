@@ -192,6 +192,13 @@ pub fn challenge_transition_allowed(from: &str, to: &str) -> bool {
     )
 }
 
+/// Une transition « réponse à une proposition » (accepter le défi ou demander à
+/// l'adapter) est la prérogative du DESTINATAIRE : le proposeur ne peut pas
+/// l'effectuer lui-même (SEC-015). La validation finale (`jobDone`) en est exclue.
+pub fn is_proposal_response(to: &str) -> bool {
+    matches!(to, "challengeAccepted" | "maybeMaybe")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -202,6 +209,16 @@ mod tests {
         assert!(challenge_transition_allowed("proposed", "maybeMaybe"));
         assert!(challenge_transition_allowed("maybeMaybe", "challengeAccepted"));
         assert!(challenge_transition_allowed("challengeAccepted", "jobDone"));
+    }
+
+    #[test]
+    fn reponses_a_une_proposition() {
+        // Réservées au destinataire (le proposeur ne peut pas les faire).
+        assert!(is_proposal_response("challengeAccepted"));
+        assert!(is_proposal_response("maybeMaybe"));
+        // La validation finale et un état inconnu n'en sont pas.
+        assert!(!is_proposal_response("jobDone"));
+        assert!(!is_proposal_response("proposed"));
     }
 
     #[test]

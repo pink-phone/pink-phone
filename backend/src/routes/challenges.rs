@@ -7,7 +7,9 @@ use uuid::Uuid;
 
 use crate::auth::AuthUser;
 use crate::error::{ApiError, ApiResult};
-use crate::models::{challenge_transition_allowed, Challenge, INTENSITIES};
+use crate::models::{
+    challenge_transition_allowed, is_proposal_response, Challenge, INTENSITIES,
+};
 use crate::routes::ensure_member;
 use crate::state::AppState;
 
@@ -114,20 +116,27 @@ async fn transition(
 ) -> ApiResult<Json<Challenge>> {
     ensure_member(&state.pool, auth.user_id, space_id).await?;
 
-    let current: Option<String> = sqlx::query_scalar(
-        "SELECT status FROM challenges WHERE id = $1 AND space_id = $2",
+    let row: Option<(String, Uuid)> = sqlx::query_as(
+        "SELECT status, proposer_id FROM challenges WHERE id = $1 AND space_id = $2",
     )
     .bind(challenge_id)
     .bind(space_id)
     .fetch_optional(&state.pool)
     .await?;
-    let current = current.ok_or(ApiError::NotFound)?;
+    let (current, proposer_id) = row.ok_or(ApiError::NotFound)?;
 
     if !challenge_transition_allowed(&current, &body.status) {
         return Err(ApiError::Conflict(format!(
             "transition {current} → {} interdite",
             body.status
         )));
+    }
+
+    // SEC-015 : répondre à une proposition (l'accepter ou demander à l'adapter)
+    // est la prérogative du DESTINATAIRE — le proposeur ne peut pas accepter à sa
+    // place. La validation finale (`jobDone`) reste ouverte aux deux.
+    if is_proposal_response(&body.status) && proposer_id == auth.user_id {
+        return Err(ApiError::Forbidden);
     }
 
     let challenge: Challenge = sqlx::query_as(
