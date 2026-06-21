@@ -17,10 +17,11 @@ npm run dev             # the app (Vite)
 npm run build           # tsc --noEmit + vite build (PWA)
 npm run build-storybook # static Storybook — also the de-facto "does everything compile?" check
 npx tsc --noEmit        # type-check only
+npm run test            # Vitest (run once); npm run test:watch to watch
 npm run screenshots     # regenerate docs/screenshots/* from built Storybook (one-time: npx playwright install chromium)
 ```
 
-There is **no test runner and no linter** configured. The compile gate is `tsc` (strict mode, incl. `noUnusedLocals`/`noUnusedParameters`); run `npm run build` and `npm run build-storybook` to verify changes — both must exit 0.
+Tests use **Vitest + Testing Library + jsdom** (`vitest.config.ts`, setup `src/test/setup.ts` which boots i18n in `fr`); test files are `*.test.ts(x)` next to the code (pure functions like `app/mappers.ts`, `lib/`, plus component tests via RTL). There is **no linter** configured. The compile gate is `tsc` (strict mode, incl. `noUnusedLocals`/`noUnusedParameters`); run `npm run build`, `npm run build-storybook` and `npm run test` to verify changes — all must exit 0.
 
 ## What this is
 
@@ -72,7 +73,7 @@ The **challenge state machine** is central: `proposed → challengeAccepted | ma
 
 Content belongs to a `Space` (max 2 users in V1, more later), never directly to a user: `users → space_memberships → spaces`, then moods/posts/challenges/media keyed by `space_id`. Built with Axum + Tokio, JWT auth, Argon2id, `sqlx` (Postgres, **runtime queries** so `cargo build` needs no live DB), `uuid`, `chrono`. `routes::ensure_member` is the per-request authorization guard. Status/mood/intensity values are stored as TEXT matching the frontend strings 1:1 (`challengeAccepted`, `veryHot`, …); `models::challenge_transition_allowed` encodes the state machine. Media is served only through an **authenticated streaming route** (token + space membership) — never from `/public`; files stored under UUIDs in `MEDIA_DIR`, with an optional `viewOnce` ephemeral mode (deleted + marked consumed after one read). Optionally **encrypted at rest** (AES-256-GCM, key `MEDIA_KEY`; column `media.encrypted` lets ciphered + legacy plaintext files coexist) — **never change `MEDIA_KEY` once set**. Posts and challenges carry photos **and videos** (`SafeMedia` renders `<video>` by mime; same press-and-hold gesture); orphan media (uploaded but unattached, >1h) is purged hourly.
 
-Backend commands (run in `backend/`): `cargo build` / `cargo run` (applies migrations on start); `docker-compose up -d` for Postgres. There is no Rust test suite yet — `cargo build` is the gate.
+Backend commands (run in `backend/`): `cargo build` / `cargo run` (applies migrations on start); `cargo test` (unit tests for pure logic — state machine, validation, Range parsing, media crypto — no DB needed); `docker-compose up -d` for Postgres. `cargo build` + `cargo test` are the gates.
 
 ### Deployment
 

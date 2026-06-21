@@ -382,3 +382,55 @@ fn unsatisfiable_response(total: u64) -> Response {
     }
     resp
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn range(spec: &str, total: u64) -> RangeReq {
+        let mut h = HeaderMap::new();
+        h.insert(RANGE, HeaderValue::from_str(spec).unwrap());
+        parse_range(&h, total)
+    }
+
+    #[test]
+    fn sans_header_full() {
+        assert!(matches!(parse_range(&HeaderMap::new(), 100), RangeReq::Full));
+    }
+
+    #[test]
+    fn plages_satisfiables() {
+        assert!(matches!(range("bytes=0-99", 1000), RangeReq::Partial(0, 99)));
+        assert!(matches!(range("bytes=100-", 1000), RangeReq::Partial(100, 999)));
+        // Suffixe : les 50 derniers octets.
+        assert!(matches!(range("bytes=-50", 1000), RangeReq::Partial(950, 999)));
+        // `end` au-delà de la taille => borné à total-1.
+        assert!(matches!(range("bytes=0-100000", 1000), RangeReq::Partial(0, 999)));
+    }
+
+    #[test]
+    fn plages_non_satisfiables() {
+        assert!(matches!(range("bytes=2000-3000", 1000), RangeReq::Unsatisfiable));
+        assert!(matches!(range("bytes=abc", 1000), RangeReq::Unsatisfiable));
+        assert!(matches!(range("bytes=-0", 1000), RangeReq::Unsatisfiable));
+        // Ressource vide : aucune plage n'est satisfiable.
+        assert!(matches!(range("bytes=0-0", 0), RangeReq::Unsatisfiable));
+    }
+
+    #[test]
+    fn chiffrement_roundtrip() {
+        let key = [7u8; 32];
+        let msg = b"un message intime";
+        let blob = encrypt(&key, msg).expect("chiffrement");
+        assert_ne!(&blob[..], &msg[..]); // bien chiffré
+        assert_eq!(decrypt(&key, &blob).expect("déchiffrement"), msg);
+    }
+
+    #[test]
+    fn dechiffrement_echoue_si_mauvaise_cle_ou_blob_court() {
+        let key = [7u8; 32];
+        let blob = encrypt(&key, b"secret").unwrap();
+        assert!(decrypt(&[9u8; 32], &blob).is_none()); // GCM rejette
+        assert!(decrypt(&key, b"court").is_none()); // < 12 octets de nonce
+    }
+}

@@ -60,3 +60,27 @@ async fn ingest(auth: AuthUser, Json(batch): Json<ClientLogBatch>) -> StatusCode
     }
     StatusCode::NO_CONTENT
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn court_inchange() {
+        assert_eq!(truncate("abc", 10), "abc");
+        assert_eq!(truncate("abc", 3), "abc");
+    }
+
+    #[test]
+    fn tronque_a_max() {
+        assert_eq!(truncate("abcdef", 3), "abc");
+    }
+
+    #[test]
+    fn recule_sur_frontiere_utf8() {
+        // "é" fait 2 octets : tronquer à 1 octet doit reculer (pas de coupe au
+        // milieu d'un caractère).
+        assert_eq!(truncate("é", 1), "");
+        assert_eq!(truncate("aé", 2), "a");
+    }
+}
