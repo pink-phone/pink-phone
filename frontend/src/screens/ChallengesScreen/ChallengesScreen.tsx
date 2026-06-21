@@ -2,7 +2,7 @@ import { useTranslation } from "react-i18next";
 import { ChallengeCard } from "../../components/ChallengeCard/ChallengeCard";
 import { Button } from "../../components/Button/Button";
 import type { ChallengeStatus } from "../../components/ChallengeCard/challenge";
-import type { ChallengeData } from "../../mock/data";
+import type { ChallengeData } from "../../types/view";
 
 export interface ChallengesScreenProps {
   challenges: ChallengeData[];

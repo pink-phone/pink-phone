@@ -1,11 +1,7 @@
-// Les moods possibles (la "météo sexuelle"). L'enum miroir côté backend Rust :
-// MoodStatus { Calm, Flirty, VeryHot, Tired, CuddleNeeded, Neutral }
-export type MoodId =
-  | "calm"
-  | "flirty"
-  | "veryHot"
-  | "tired"
-  | "cuddleNeeded";
+// Les moods possibles (la "météo sexuelle"). `MoodId` est un type de domaine
+// (miroir Rust `MoodStatus`), défini dans `domain/types` et re-exporté ici.
+import type { MoodId } from "../../domain/types";
+export type { MoodId };
 
 export interface MoodOption {
   id: MoodId;

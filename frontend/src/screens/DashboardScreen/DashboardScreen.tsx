@@ -5,7 +5,7 @@ import { FireEmbers } from "../../components/FireEmbers/FireEmbers";
 import { MOODS } from "../../components/MoodSelector/moods";
 import { parseCustomMood } from "../../components/MoodSelector/MoodSelector";
 import { cn } from "../../lib/cn";
-import type { MoodSnapshot, Person } from "../../mock/data";
+import type { MoodSnapshot, Person } from "../../types/view";
 
 export interface DashboardScreenProps {
   spaceName: string;

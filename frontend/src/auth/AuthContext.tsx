@@ -13,6 +13,8 @@ const TOKEN_KEY = "pp_token";
 
 interface AuthContextValue {
   user: UserPublic | null;
+  /** Jeton JWT courant (pour les usages hors client `fetch`, ex. URL WebSocket). */
+  token: string | null;
   /** true tant qu'on vérifie un éventuel jeton persistant au démarrage. */
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
@@ -28,6 +30,7 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserPublic | null>(null);
+  const [token, setTokenState] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Au démarrage : token d'un callback OIDC (#token=...) sinon token stocké.
@@ -53,12 +56,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return;
     }
     api.setToken(token);
+    setTokenState(token);
     api
       .me()
       .then(setUser)
       .catch(() => {
         localStorage.removeItem(TOKEN_KEY);
         api.setToken(null);
+        setTokenState(null);
       })
       .finally(() => setLoading(false));
   }, []);
@@ -66,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const persist = useCallback((token: string, u: UserPublic) => {
     localStorage.setItem(TOKEN_KEY, token);
     api.setToken(token);
+    setTokenState(token);
     setUser(u);
   }, []);
 
@@ -88,11 +94,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY);
     api.setToken(null);
+    setTokenState(null);
     setUser(null);
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider
+      value={{ user, token, loading, login, register, logout }}
+    >
       {children}
     </AuthContext.Provider>
   );

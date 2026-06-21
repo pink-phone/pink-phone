@@ -1,53 +1,25 @@
-// Données de démonstration partagées par les stories et l'App.
+// Données de démonstration pour les stories (et quelques constantes partagées).
 // Aucune dépendance réseau garantie : les médias pointent vers des photos neutres.
-import type { BlogPostMedia } from "../components/BlogPost/BlogPost";
-import type { Verdict } from "../components/VerdictPicker/VerdictPicker";
+// Les vue-modèles (`Person`, `MoodSnapshot`, `PostData`, `ChallengeData`) vivent
+// dans `types/view` (contrat de présentation) ; ce fichier les consomme.
 import type {
-  ChallengeStatus,
-  Intensity,
-} from "../components/ChallengeCard/challenge";
+  ChallengeData,
+  MoodSnapshot,
+  Person,
+  PostData,
+} from "../types/view";
 
 const DEMO_PHOTO =
   "https://images.unsplash.com/photo-1519681393784-d120267933ba?w=640&q=70";
-
-export interface Person {
-  name: string;
-  glyph: string;
-}
 
 export const ME: Person = { name: "You", glyph: "Y" };
 export const PARTNER: Person = { name: "Camille", glyph: "C" };
 export const SPACE_NAME = "Pink Phone";
 
-export interface MoodSnapshot {
-  /** Id de mood prédéfini OU emoji libre (mood custom). */
-  mood: string;
-  timeLabel: string;
-}
-
 export const PARTNER_MOOD: MoodSnapshot = {
   mood: "cuddleNeeded",
   timeLabel: "10 min ago",
 };
-
-export interface PostData {
-  id: string;
-  author: Person;
-  timeLabel: string;
-  title?: string;
-  body: string;
-  media?: BlogPostMedia;
-  reactionCounts: Record<string, number>;
-  myReactions: string[];
-  verdict: Verdict | null;
-  commentCount: number;
-  /** Brouillon (visible du seul auteur). */
-  draft?: boolean;
-  /** Le post appartient à l'utilisateur courant (active suppression/publication). */
-  isMine?: boolean;
-  /** Mon post a été vu par le/la partenaire (accusé de lecture). */
-  seenByPartner?: boolean;
-}
 
 export const SAMPLE_POSTS: PostData[] = [
   {
@@ -99,16 +71,6 @@ export const SAMPLE_POSTS: PostData[] = [
     commentCount: 0,
   },
 ];
-
-export interface ChallengeData {
-  id: string;
-  title: string;
-  description: string;
-  intensity: Intensity;
-  status: ChallengeStatus;
-  deadlineLabel?: string;
-  perspective?: "recipient" | "proposer";
-}
 
 export const SAMPLE_CHALLENGES: ChallengeData[] = [
   {

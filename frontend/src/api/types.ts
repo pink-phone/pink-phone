@@ -1,10 +1,7 @@
 // Types des réponses de l'API Rust. Les chaînes (status/mood/intensity) sont
-// volontairement alignées 1:1 sur les types des composants.
-import type { Verdict } from "../components/VerdictPicker/VerdictPicker";
-import type {
-  ChallengeStatus,
-  Intensity,
-} from "../components/ChallengeCard/challenge";
+// alignées 1:1 sur les types de domaine (miroir des enums Rust), couche neutre
+// dont dépendent aussi bien l'infra réseau que la présentation.
+import type { ChallengeStatus, Intensity, Verdict } from "../domain/types";
 
 export interface UserPublic {
   id: string;

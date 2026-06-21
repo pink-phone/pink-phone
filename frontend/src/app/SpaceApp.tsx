@@ -2,11 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import * as api from "../api/client";
 import { logClientError } from "../clientLog";
+import { confirmAction } from "../lib/confirm";
 import type {
   ApiChallenge,
   ApiComment,
   ApiPost,
-  ChallengeSuggestion,
   Member,
   SeenEntry,
   MoodEntry,
@@ -37,12 +37,13 @@ import {
   type ChallengeDraft,
 } from "../components/ChallengeComposer/ChallengeComposer";
 
-import type {
-  ChallengeStatus,
-  Intensity,
-} from "../components/ChallengeCard/challenge";
+import type { ChallengeStatus } from "../components/ChallengeCard/challenge";
 import type { ReactionId } from "../components/ReactionBar/ReactionBar";
-import type { ChallengeData, PostData } from "../mock/data";
+import type { ChallengeData, PostData } from "../types/view";
+
+import { useSpaceSocket } from "./hooks/useSpaceSocket";
+import { useSuggestions } from "./hooks/useSuggestions";
+import { toChallengeData, toCommentViews, toPostData } from "./mappers";
 
 /** L'app branchée sur un Space réel : charge et pilote les données via l'API. */
 export function SpaceApp({
@@ -54,7 +55,7 @@ export function SpaceApp({
 }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.resolvedLanguage ?? i18n.language;
-  const { logout } = useAuth();
+  const { token, logout } = useAuth();
   // Le salon vit en state : renommage/fuseau immédiats + sync via WebSocket.
   const [space, setSpace] = useState<Space>(initialSpace);
   const [tab, setTab] = useState<TabId>("dashboard");
@@ -63,8 +64,14 @@ export function SpaceApp({
   const [moods, setMoods] = useState<MoodEntry[]>([]);
   const [posts, setPosts] = useState<ApiPost[]>([]);
   const [challenges, setChallenges] = useState<ApiChallenge[]>([]);
-  const [suggestions, setSuggestions] = useState<ChallengeSuggestion[]>([]);
   const [seen, setSeen] = useState<SeenEntry[]>([]);
+  // Banque de propositions : domaine autonome, extrait dans son propre hook.
+  const {
+    suggestions,
+    add: addSuggestion,
+    edit: editSuggestion,
+    remove: removeSuggestion,
+  } = useSuggestions(space.id, lang);
   const [openSheet, setOpenSheet] = useState<"post" | "challenge" | null>(null);
   // Brouillon en cours d'édition (sinon la feuille "post" crée un nouveau post).
   const [editingPost, setEditingPost] = useState<ApiPost | null>(null);
@@ -149,17 +156,6 @@ export function SpaceApp({
     };
   }, [space.id]);
 
-  // Banque de propositions (globales + salon), dans la langue courante.
-  const loadSuggestions = () =>
-    api
-      .listChallengeSuggestions(space.id, lang)
-      .then(setSuggestions)
-      .catch(() => {});
-  useEffect(() => {
-    loadSuggestions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [space.id, lang]);
-
   // Applique la préférence "effet braise" globalement (classe sur <html>) + persiste.
   useEffect(() => {
     document.documentElement.classList.toggle("no-hot-anim", !hotAnim);
@@ -167,66 +163,36 @@ export function SpaceApp({
   }, [hotAnim]);
 
   // WebSocket de refresh temps réel : à chaque mutation d'un autre membre, on
-  // refetch la liste concernée. Reconnexion auto si la socket tombe.
-  useEffect(() => {
-    const token = localStorage.getItem("pp_token");
-    if (!token) return;
-    let socket: WebSocket | null = null;
-    let stopped = false;
-    let retry: ReturnType<typeof setTimeout> | undefined;
-
-    const handle = (kind: string) => {
-      if (kind === "post" || kind === "reaction" || kind === "comment") {
-        api.listPosts(space.id).then(setPosts).catch(() => {});
-        if (kind === "comment" && commentsForRef.current) {
-          api
-            .listComments(space.id, commentsForRef.current)
-            .then(setComments)
-            .catch(() => {});
-        }
-        // Si je regarde déjà le blog, le nouveau contenu est "vu".
-        if (kind === "post" && tabRef.current === "blog") markSeen("blog");
-      } else if (kind === "challenge") {
-        api.listChallenges(space.id).then(setChallenges).catch(() => {});
-        if (tabRef.current === "challenges") markSeen("challenges");
-      } else if (kind === "mood") {
-        api.listMoods(space.id).then(setMoods).catch(() => {});
-      } else if (kind === "seen") {
-        api.listSeen(space.id).then(setSeen).catch(() => {});
-      } else if (kind === "space") {
+  // refetch la liste concernée (l'événement ne porte qu'un `kind`). Le cycle de
+  // vie de la socket (reconnexion, nettoyage) est dans `useSpaceSocket`.
+  useSpaceSocket(space.id, token, (kind) => {
+    if (kind === "post" || kind === "reaction" || kind === "comment") {
+      api.listPosts(space.id).then(setPosts).catch(() => {});
+      if (kind === "comment" && commentsForRef.current) {
         api
-          .mySpaces()
-          .then((list) => {
-            const s = list.find((x) => x.id === space.id);
-            if (s) setSpace(s);
-          })
+          .listComments(space.id, commentsForRef.current)
+          .then(setComments)
           .catch(() => {});
       }
-    };
-
-    const connect = () => {
-      socket = new WebSocket(api.spaceSocketUrl(space.id, token));
-      socket.onmessage = (e) => {
-        try {
-          const ev = JSON.parse(e.data) as { kind?: string };
-          if (ev.kind) handle(ev.kind);
-        } catch {
-          /* message non-JSON ignoré */
-        }
-      };
-      socket.onclose = () => {
-        if (!stopped) retry = setTimeout(connect, 3000);
-      };
-      socket.onerror = () => socket?.close();
-    };
-    connect();
-
-    return () => {
-      stopped = true;
-      if (retry) clearTimeout(retry);
-      socket?.close();
-    };
-  }, [space.id]);
+      // Si je regarde déjà le blog, le nouveau contenu est "vu".
+      if (kind === "post" && tabRef.current === "blog") markSeen("blog");
+    } else if (kind === "challenge") {
+      api.listChallenges(space.id).then(setChallenges).catch(() => {});
+      if (tabRef.current === "challenges") markSeen("challenges");
+    } else if (kind === "mood") {
+      api.listMoods(space.id).then(setMoods).catch(() => {});
+    } else if (kind === "seen") {
+      api.listSeen(space.id).then(setSeen).catch(() => {});
+    } else if (kind === "space") {
+      api
+        .mySpaces()
+        .then((list) => {
+          const s = list.find((x) => x.id === space.id);
+          if (s) setSpace(s);
+        })
+        .catch(() => {});
+    }
+  });
 
   // Au retour sur l'app (focus / onglet redevenu visible), on resynchronise les
   // données manquées pendant l'absence (le WS ne rejoue pas l'historique).
@@ -345,7 +311,7 @@ export function SpaceApp({
   };
 
   const deletePost = async (postId: string) => {
-    if (!window.confirm(t("blog.confirmDelete"))) return;
+    if (!confirmAction(t("blog.confirmDelete"))) return;
     try {
       await api.deletePost(space.id, postId);
       setPosts((prev) => prev.filter((p) => p.id !== postId));
@@ -430,7 +396,7 @@ export function SpaceApp({
   };
 
   const deleteChallenge = async (id: string) => {
-    if (!window.confirm(t("challenges.confirmDelete"))) return;
+    if (!confirmAction(t("challenges.confirmDelete"))) return;
     try {
       await api.deleteChallenge(space.id, id);
       setChallenges((prev) => prev.filter((c) => c.id !== id));
@@ -475,36 +441,6 @@ export function SpaceApp({
       api.listMoods(space.id).then(setMoods).catch(() => {});
     } catch (e) {
       console.error("changement du mode mystère échoué", e);
-    }
-  };
-
-  type SuggestionDraft = {
-    title: string;
-    description: string;
-    intensity: Intensity;
-  };
-  const addSuggestion = async (s: SuggestionDraft) => {
-    try {
-      await api.createSuggestion(space.id, { ...s, locale: lang });
-      loadSuggestions();
-    } catch (e) {
-      console.error("ajout de proposition échoué", e);
-    }
-  };
-  const editSuggestion = async (id: string, s: SuggestionDraft) => {
-    try {
-      await api.updateSuggestion(space.id, id, { ...s, locale: lang });
-      loadSuggestions();
-    } catch (e) {
-      console.error("édition de proposition échouée", e);
-    }
-  };
-  const removeSuggestion = async (id: string) => {
-    try {
-      await api.deleteSuggestion(space.id, id);
-      loadSuggestions();
-    } catch (e) {
-      console.error("suppression de proposition échouée", e);
     }
   };
 
@@ -632,52 +568,15 @@ export function SpaceApp({
     );
   }
 
-  // ----- mapping API -> props des écrans -----
-
-  const postData: PostData[] = posts.map((p) => ({
-    id: p.id,
-    author: { name: p.authorName, glyph: p.authorName.charAt(0) },
-    timeLabel: relativeTime(p.createdAt),
-    title: p.title ?? undefined,
-    body: p.body,
-    media: p.mediaId
-      ? {
-          alt: t("blog.sharedPhotoAlt"),
-          kind: p.mediaMime?.startsWith("video/") ? "video" : "image",
-          viewOnce: p.mediaViewOnce ?? false,
-          consumed: p.mediaConsumed ?? false,
-          loader: () => api.fetchMediaObjectUrl(space.id, p.mediaId as string),
-        }
-      : undefined,
-    reactionCounts: p.reactionCounts,
-    myReactions: p.myReactions,
-    verdict: p.verdict,
-    commentCount: p.commentCount,
-    draft: p.draft,
-    isMine: p.authorId === user.id,
-    seenByPartner:
-      p.authorId === user.id &&
-      !p.draft &&
-      !!partnerBlogSeen &&
-      p.createdAt <= partnerBlogSeen,
-  }));
-
-  const challengeData: ChallengeData[] = challenges.map((c) => ({
-    id: c.id,
-    title: c.title,
-    description: c.description,
-    intensity: c.intensity,
-    status: c.status,
-    deadlineLabel: c.deadlineLabel ?? undefined,
-    perspective: c.proposerId === user.id ? "proposer" : "recipient",
-  }));
-
-  const commentViews = comments.map((c) => ({
-    id: c.id,
-    authorName: c.authorName,
-    body: c.body,
-    timeLabel: relativeTime(c.createdAt),
-  }));
+  // ----- mapping API -> props des écrans (conversions pures, cf. mappers.ts) -----
+  const postData: PostData[] = toPostData(posts, {
+    t,
+    spaceId: space.id,
+    userId: user.id,
+    partnerBlogSeen,
+  });
+  const challengeData: ChallengeData[] = toChallengeData(challenges, user.id);
+  const commentViews = toCommentViews(comments);
 
   return (
     <AppShell

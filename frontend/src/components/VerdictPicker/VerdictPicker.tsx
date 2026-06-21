@@ -1,7 +1,8 @@
 import { cn } from "../../lib/cn";
+import type { Verdict } from "../../domain/types";
 
-// L'évaluation discrète d'un fantasme/défi (optionnel mais recommandé).
-export type Verdict = "hot" | "curious" | "notForMe";
+// L'évaluation discrète d'un fantasme/défi (type de domaine, re-exporté ici).
+export type { Verdict };
 
 interface VerdictOption {
   id: Verdict;

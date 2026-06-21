@@ -1,8 +1,4 @@
-import type {
-  ChallengeStatus,
-  Intensity,
-} from "../components/ChallengeCard/challenge";
-import type { Verdict } from "../components/VerdictPicker/VerdictPicker";
+import type { ChallengeStatus, Intensity, Verdict } from "../domain/types";
 import type {
   ApiChallenge,
   ApiComment,

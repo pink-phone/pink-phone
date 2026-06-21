@@ -1,28 +1,8 @@
-// Machine à états des défis. Miroir de l'enum Rust ChallengeStatus.
-export type ChallengeStatus =
-  | "proposed"
-  | "challengeAccepted"
-  | "maybeMaybe"
-  | "jobDone";
-
-export type Intensity = "soft" | "hot";
-
-export const INTENSITY_LABEL: Record<Intensity, string> = {
-  soft: "Soft",
-  hot: "Hot",
-};
-
-interface StatusMeta {
-  label: string;
-  hint: string;
-}
-
-export const STATUS_META: Record<ChallengeStatus, StatusMeta> = {
-  proposed: { label: "Proposé", hint: "En attente de réponse…" },
-  challengeAccepted: { label: "En cours", hint: "Challenge accepted ✨" },
-  maybeMaybe: { label: "À adapter", hint: "Maybe, maybe… on en reparle" },
-  jobDone: { label: "Terminé", hint: "Job done — validé à deux 🎉" },
-};
+// Types de domaine (machine à états + intensité) : définis dans `domain/types`
+// (couche neutre, miroir Rust), re-exportés ici par commodité pour les
+// composants/écrans qui les consomment déjà via ce chemin.
+import type { ChallengeStatus, Intensity } from "../../domain/types";
+export type { ChallengeStatus, Intensity };
 
 export interface ChallengePreset {
   title: string;
