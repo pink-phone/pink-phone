@@ -97,6 +97,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Applique les migrations au démarrage.
     sqlx::migrate!("./migrations").run(&pool).await?;
 
+    // Sous-commande de maintenance ponctuelle : chiffre les médias déjà en clair,
+    // puis quitte (ne démarre pas le serveur). Lancer avec MEDIA_KEY défini :
+    //   docker compose run --rm api pinkphone-api backfill-media-encryption
+    if std::env::args().nth(1).as_deref() == Some("backfill-media-encryption") {
+        let key = config
+            .media_key_bytes()
+            .ok_or("MEDIA_KEY absente/invalide : impossible de chiffrer les médias")?;
+        routes::media::backfill_encryption(&pool, &config.media_dir, &key).await?;
+        return Ok(());
+    }
+
     let http = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(10))
         .build()?;

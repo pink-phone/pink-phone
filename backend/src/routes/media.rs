@@ -24,7 +24,7 @@ use crate::routes::ensure_member;
 use crate::state::AppState;
 
 /// Chiffre `plaintext` en AES-256-GCM ; renvoie nonce(12o) ++ ciphertext.
-fn encrypt(key: &[u8; 32], plaintext: &[u8]) -> Option<Vec<u8>> {
+pub(crate) fn encrypt(key: &[u8; 32], plaintext: &[u8]) -> Option<Vec<u8>> {
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key));
     let mut nonce = [0u8; 12];
     OsRng.fill_bytes(&mut nonce);
@@ -411,6 +411,70 @@ fn unsatisfiable_response(total: u64) -> Response {
         resp.headers_mut().insert(CONTENT_RANGE, cr);
     }
     resp
+}
+
+/// Sous-commande de maintenance : chiffre au repos les médias encore EN CLAIR
+/// (`encrypted = false`). Sûr et **ré-exécutable** : chaque média est écrit dans
+/// un NOUVEAU fichier (nouveau storage_key), la ligne est basculée de façon
+/// atomique (`UPDATE … WHERE encrypted = false`), puis l'ancien fichier en clair
+/// est supprimé. Un crash en cours ne laisse au pire qu'un fichier orphelin
+/// inoffensif (jamais de double-chiffrement ni de corruption). Idempotent.
+pub async fn backfill_encryption(
+    pool: &sqlx::PgPool,
+    media_dir: &str,
+    key: &[u8; 32],
+) -> Result<(), Box<dyn std::error::Error>> {
+    let rows: Vec<(Uuid, String)> =
+        sqlx::query_as("SELECT id, storage_key FROM media WHERE encrypted = false")
+            .fetch_all(pool)
+            .await?;
+    if rows.is_empty() {
+        tracing::info!("backfill chiffrement : aucun média en clair, rien à faire.");
+        return Ok(());
+    }
+    tracing::info!(count = rows.len(), "backfill chiffrement : médias en clair à traiter");
+
+    let mut done = 0usize;
+    for (id, old_key) in rows {
+        let old_path = media_path(media_dir, &old_key);
+        let plaintext = match tokio::fs::read(&old_path).await {
+            Ok(b) => b,
+            Err(e) => {
+                tracing::warn!(%id, key = %old_key, error = ?e, "fichier absent, ignoré");
+                continue;
+            }
+        };
+        let cipher = encrypt(key, &plaintext).ok_or("échec du chiffrement")?;
+
+        // Écrit le ciphertext dans un nouveau fichier (nouveau storage_key).
+        let new_key = Uuid::new_v4().to_string();
+        let new_path = media_path(media_dir, &new_key);
+        tokio::fs::write(&new_path, &cipher).await?;
+
+        // Bascule atomique de la ligne. Si 0 ligne (déjà fait en concurrence), on
+        // nettoie le fichier qu'on vient d'écrire.
+        let updated = sqlx::query(
+            "UPDATE media SET storage_key = $2, encrypted = true
+             WHERE id = $1 AND encrypted = false",
+        )
+        .bind(id)
+        .bind(&new_key)
+        .execute(pool)
+        .await?;
+        if updated.rows_affected() == 0 {
+            let _ = tokio::fs::remove_file(&new_path).await;
+            continue;
+        }
+
+        // L'ancien fichier en clair n'est plus référencé : on le supprime.
+        if let Err(e) = tokio::fs::remove_file(&old_path).await {
+            tracing::warn!(%id, key = %old_key, error = ?e,
+                "ancien fichier en clair non supprimé (à nettoyer manuellement)");
+        }
+        done += 1;
+    }
+    tracing::info!(done, "backfill chiffrement terminé.");
+    Ok(())
 }
 
 #[cfg(test)]
