@@ -1,15 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import * as api from "../api/client";
-import { logClientError } from "../clientLog";
 import { confirmAction } from "../lib/confirm";
 import type {
   ApiChallenge,
-  ApiComment,
   ApiPost,
   Member,
-  SeenEntry,
-  MoodEntry,
   NotifMode,
   Space,
   UserPublic,
@@ -37,12 +33,15 @@ import {
   type ChallengeDraft,
 } from "../components/ChallengeComposer/ChallengeComposer";
 
-import type { ChallengeStatus } from "../components/ChallengeCard/challenge";
 import type { ReactionId } from "../components/ReactionBar/ReactionBar";
 import type { ChallengeData, PostData } from "../types/view";
 
 import { useSpaceSocket } from "./hooks/useSpaceSocket";
 import { useSuggestions } from "./hooks/useSuggestions";
+import { usePosts } from "./hooks/usePosts";
+import { useChallenges } from "./hooks/useChallenges";
+import { useMoods } from "./hooks/useMoods";
+import { useSeen } from "./hooks/useSeen";
 import { toChallengeData, toCommentViews, toPostData } from "./mappers";
 
 /** L'app branchée sur un Space réel : charge et pilote les données via l'API. */
@@ -61,10 +60,42 @@ export function SpaceApp({
   const [tab, setTab] = useState<TabId>("dashboard");
   const [ready, setReady] = useState(false);
   const [members, setMembers] = useState<Member[]>([]);
-  const [moods, setMoods] = useState<MoodEntry[]>([]);
-  const [posts, setPosts] = useState<ApiPost[]>([]);
-  const [challenges, setChallenges] = useState<ApiChallenge[]>([]);
-  const [seen, setSeen] = useState<SeenEntry[]>([]);
+
+  // Domaines extraits en hooks (état + refetch stable + mutations). SpaceApp
+  // garde l'orchestration : chargement initial groupé, gate `ready`, WS, resync.
+  const {
+    posts,
+    refetch: refetchPosts,
+    add: addPostH,
+    edit: editPostH,
+    remove: removePost,
+    publish: publishPost,
+    toggleReaction,
+    commentsFor,
+    comments,
+    commentsLoading,
+    commentBusy,
+    openComments,
+    closeComments,
+    addComment,
+    refetchOpenComments,
+  } = usePosts(space.id);
+  const {
+    challenges,
+    refetch: refetchChallenges,
+    add: addChallengeH,
+    transition,
+    edit: editChallengeH,
+    remove: removeChallenge,
+  } = useChallenges(space.id);
+  const {
+    moods,
+    refetch: refetchMoods,
+    setMood,
+    clearMood,
+  } = useMoods(space.id, user.id, space.blindMood);
+  const { seen, refetch: refetchSeen, markSeen } = useSeen(space.id, user.id);
+
   // Banque de propositions : domaine autonome, extrait dans son propre hook.
   const {
     suggestions,
@@ -91,70 +122,48 @@ export function SpaceApp({
     () => localStorage.getItem("pp_hot_anim") !== "off",
   );
 
-  // Fil de commentaires (chargé à l'ouverture).
-  const [commentsFor, setCommentsFor] = useState<string | null>(null);
-  const [comments, setComments] = useState<ApiComment[]>([]);
-  const [commentsLoading, setCommentsLoading] = useState(false);
-  const [commentBusy, setCommentBusy] = useState(false);
-  // Post dont le fil est ouvert, lu par le WS sans recréer la connexion.
-  const commentsForRef = useRef<string | null>(null);
-  useEffect(() => {
-    commentsForRef.current = commentsFor;
-  }, [commentsFor]);
   // Onglet courant lu par le WS (sans recréer la connexion).
   const tabRef = useRef<TabId>(tab);
   useEffect(() => {
     tabRef.current = tab;
   }, [tab]);
 
-  // Marque un fil comme vu (met à jour le "vu" local de l'utilisateur courant).
-  const markSeen = (feature: "blog" | "challenges") => {
-    api
-      .markSeen(space.id, feature)
-      .then((entry) =>
-        setSeen((prev) => [
-          ...prev.filter(
-            (s) => !(s.userId === user.id && s.feature === feature),
-          ),
-          entry,
-        ]),
-      )
-      .catch(() => {});
-  };
-
   // En ouvrant le Blog ou les Défis, on marque le fil comme vu.
   useEffect(() => {
     if (!ready) return;
     if (tab === "blog") markSeen("blog");
     else if (tab === "challenges") markSeen("challenges");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tab, ready, space.id]);
+  }, [tab, ready, markSeen]);
 
+  // Chargement initial groupé : membres + réglages (locaux à SpaceApp) et les
+  // refetch des domaines. `ready` bascule quand tout est settled (les refetch
+  // avalent leurs erreurs → un domaine en échec ne bloque pas les autres).
   useEffect(() => {
     let alive = true;
     Promise.all([
-      api.members(space.id),
-      api.listMoods(space.id),
-      api.listPosts(space.id),
-      api.listChallenges(space.id),
-      api.getSettings().catch(() => ({ notifMode: "ghost" as NotifMode })),
-      api.listSeen(space.id).catch(() => [] as SeenEntry[]),
-    ])
-      .then(([m, mo, p, c, s, sn]) => {
-        if (!alive) return;
-        setMembers(m);
-        setMoods(mo);
-        setPosts(p);
-        setChallenges(c);
-        setNotifMode(s.notifMode);
-        setSeen(sn);
-      })
-      .catch((e) => console.error("chargement de l'espace échoué", e))
-      .finally(() => alive && setReady(true));
+      api
+        .members(space.id)
+        .then((m) => {
+          if (alive) setMembers(m);
+        })
+        .catch(() => {}),
+      refetchMoods(),
+      refetchPosts(),
+      refetchChallenges(),
+      refetchSeen(),
+      api
+        .getSettings()
+        .then((s) => {
+          if (alive) setNotifMode(s.notifMode);
+        })
+        .catch(() => {}),
+    ]).finally(() => {
+      if (alive) setReady(true);
+    });
     return () => {
       alive = false;
     };
-  }, [space.id]);
+  }, [space.id, refetchMoods, refetchPosts, refetchChallenges, refetchSeen]);
 
   // Applique la préférence "effet braise" globalement (classe sur <html>) + persiste.
   useEffect(() => {
@@ -167,22 +176,17 @@ export function SpaceApp({
   // vie de la socket (reconnexion, nettoyage) est dans `useSpaceSocket`.
   useSpaceSocket(space.id, token, (kind) => {
     if (kind === "post" || kind === "reaction" || kind === "comment") {
-      api.listPosts(space.id).then(setPosts).catch(() => {});
-      if (kind === "comment" && commentsForRef.current) {
-        api
-          .listComments(space.id, commentsForRef.current)
-          .then(setComments)
-          .catch(() => {});
-      }
+      refetchPosts();
+      if (kind === "comment") refetchOpenComments();
       // Si je regarde déjà le blog, le nouveau contenu est "vu".
       if (kind === "post" && tabRef.current === "blog") markSeen("blog");
     } else if (kind === "challenge") {
-      api.listChallenges(space.id).then(setChallenges).catch(() => {});
+      refetchChallenges();
       if (tabRef.current === "challenges") markSeen("challenges");
     } else if (kind === "mood") {
-      api.listMoods(space.id).then(setMoods).catch(() => {});
+      refetchMoods();
     } else if (kind === "seen") {
-      api.listSeen(space.id).then(setSeen).catch(() => {});
+      refetchSeen();
     } else if (kind === "space") {
       api
         .mySpaces()
@@ -199,10 +203,10 @@ export function SpaceApp({
   useEffect(() => {
     const resync = () => {
       if (document.visibilityState !== "visible") return;
-      api.listPosts(space.id).then(setPosts).catch(() => {});
-      api.listChallenges(space.id).then(setChallenges).catch(() => {});
-      api.listMoods(space.id).then(setMoods).catch(() => {});
-      api.listSeen(space.id).then(setSeen).catch(() => {});
+      refetchPosts();
+      refetchChallenges();
+      refetchMoods();
+      refetchSeen();
     };
     document.addEventListener("visibilitychange", resync);
     window.addEventListener("focus", resync);
@@ -210,7 +214,7 @@ export function SpaceApp({
       document.removeEventListener("visibilitychange", resync);
       window.removeEventListener("focus", resync);
     };
-  }, [space.id]);
+  }, [refetchPosts, refetchChallenges, refetchMoods, refetchSeen]);
 
   // Retour Android / swipe iOS ferment la surface ouverte (au lieu de quitter).
   useBackClose(showSettings, () => setShowSettings(false));
@@ -220,7 +224,7 @@ export function SpaceApp({
     setEditingPost(null);
     setEditingChallenge(null);
   });
-  useBackClose(commentsFor !== null, () => setCommentsFor(null));
+  useBackClose(commentsFor !== null, closeComments);
 
   if (!ready) return <Splash message={t("splash.loadingSpace")} />;
 
@@ -259,150 +263,36 @@ export function SpaceApp({
     (p) => p.lastCommentAt && (!myBlogSeen || p.lastCommentAt > myBlogSeen),
   ).length;
 
-  const onMoodChange = (mood: string) => {
-    api
-      .setMood(space.id, mood)
-      .then((entry) => {
-        setMoods((prev) => [
-          ...prev.filter((m) => m.userId !== entry.userId),
-          entry,
-        ]);
-        // En mode « à l'aveugle », poser mon humeur révèle celle du partenaire
-        // (le backend ne la renvoyait pas tant que je n'avais pas voté).
-        if (space.blindMood) {
-          api.listMoods(space.id).then(setMoods).catch(() => {});
-        }
-      })
-      .catch((e) => console.error("mise à jour du mood échouée", e));
-  };
-
-  const onMoodClear = () => {
-    api
-      .clearMood(space.id)
-      .then(() => {
-        setMoods((prev) => prev.filter((m) => m.userId !== user.id));
-        // En « surprise mutuelle », ne plus avoir voté re-masque l'humeur de l'autre.
-        if (space.blindMood) {
-          api.listMoods(space.id).then(setMoods).catch(() => {});
-        }
-      })
-      .catch((e) => console.error("retrait du mood échoué", e));
-  };
-
+  // Handlers fins : les mutations vivent dans les hooks de domaine ; SpaceApp ne
+  // garde que la fermeture de feuille (succès) et la confirmation de suppression.
   const addPost = async (draft: PostDraft) => {
-    try {
-      let mediaId: string | undefined;
-      if (draft.file) {
-        const media = await api.uploadMedia(space.id, draft.file, draft.viewOnce);
-        mediaId = media.id;
-      }
-      const post = await api.createPost(space.id, {
-        title: draft.title,
-        body: draft.body,
-        mediaId,
-        draft: draft.draft,
-      });
-      setPosts((prev) => [post, ...prev]);
-      setOpenSheet(null);
-    } catch (e) {
-      console.error("publication échouée", e);
-      logClientError(`addPost échec : ${String(e)}`, "blog/createPost");
-    }
-  };
-
-  const deletePost = async (postId: string) => {
-    if (!confirmAction(t("blog.confirmDelete"))) return;
-    try {
-      await api.deletePost(space.id, postId);
-      setPosts((prev) => prev.filter((p) => p.id !== postId));
-    } catch (e) {
-      console.error("suppression du post échouée", e);
-    }
-  };
-
-  const publishPost = async (postId: string) => {
-    try {
-      const updated = await api.publishPost(space.id, postId);
-      setPosts((prev) => prev.map((p) => (p.id === postId ? updated : p)));
-    } catch (e) {
-      console.error("publication du brouillon échouée", e);
-    }
+    if (await addPostH(draft)) setOpenSheet(null);
   };
 
   const editPost = async (postId: string, draft: PostDraft) => {
-    try {
-      let mediaId: string | undefined;
-      let clearMedia = false;
-      if (draft.file) {
-        const media = await api.uploadMedia(space.id, draft.file, draft.viewOnce);
-        mediaId = media.id;
-      } else if (draft.removeMedia) {
-        clearMedia = true;
-      }
-      const updated = await api.updatePost(space.id, postId, {
-        title: draft.title ?? "",
-        body: draft.body,
-        draft: draft.draft,
-        mediaId,
-        clearMedia,
-      });
-      setPosts((prev) => prev.map((p) => (p.id === postId ? updated : p)));
+    if (await editPostH(postId, draft)) {
       setOpenSheet(null);
       setEditingPost(null);
-    } catch (e) {
-      console.error("édition du brouillon échouée", e);
-      logClientError(`editPost échec : ${String(e)}`, "blog/updatePost");
     }
+  };
+
+  const deletePost = (postId: string) => {
+    if (confirmAction(t("blog.confirmDelete"))) removePost(postId);
   };
 
   const addChallenge = async (draft: ChallengeDraft) => {
-    try {
-      const challenge = await api.createChallenge(space.id, {
-        title: draft.title,
-        description: draft.description,
-        intensity: draft.intensity,
-        deadlineLabel: draft.deadlineLabel,
-      });
-      setChallenges((prev) => [challenge, ...prev]);
-      setOpenSheet(null);
-    } catch (e) {
-      console.error("proposition de défi échouée", e);
-    }
-  };
-
-  const transition = (id: string, status: ChallengeStatus) => {
-    api
-      .transitionChallenge(space.id, id, status)
-      .then((updated) =>
-        setChallenges((prev) => prev.map((c) => (c.id === id ? updated : c))),
-      )
-      .catch((e) => console.error("transition de défi échouée", e));
+    if (await addChallengeH(draft)) setOpenSheet(null);
   };
 
   const editChallenge = async (id: string, draft: ChallengeDraft) => {
-    try {
-      const updated = await api.updateChallenge(space.id, id, {
-        title: draft.title,
-        description: draft.description,
-        intensity: draft.intensity,
-        deadlineLabel: draft.deadlineLabel,
-      });
-      setChallenges((prev) => prev.map((c) => (c.id === id ? updated : c)));
+    if (await editChallengeH(id, draft)) {
       setOpenSheet(null);
       setEditingChallenge(null);
-    } catch (e) {
-      console.error("édition de défi échouée", e);
     }
   };
 
-  const deleteChallenge = async (id: string) => {
-    if (!confirmAction(t("challenges.confirmDelete"))) return;
-    try {
-      await api.deleteChallenge(space.id, id);
-      setChallenges((prev) => prev.filter((c) => c.id !== id));
-    } catch (e) {
-      console.error("suppression du défi échouée", e);
-    }
+  const deleteChallenge = (id: string) => {
+    if (confirmAction(t("challenges.confirmDelete"))) removeChallenge(id);
   };
 
   const renameSpace = async (name: string) => {
@@ -438,66 +328,9 @@ export function SpaceApp({
     try {
       setSpace(await api.updateSpace(space.id, { blindMood }));
       // Mon vote conditionne la visibilité du mood partenaire : on resynchronise.
-      api.listMoods(space.id).then(setMoods).catch(() => {});
+      refetchMoods();
     } catch (e) {
       console.error("changement du mode mystère échoué", e);
-    }
-  };
-
-  const toggleReaction = async (postId: string, reaction: string) => {
-    const post = posts.find((p) => p.id === postId);
-    if (!post) return;
-    const mine = post.myReactions.includes(reaction);
-    try {
-      const summary = mine
-        ? await api.removeReaction(space.id, postId, reaction)
-        : await api.addReaction(space.id, postId, reaction);
-      setPosts((prev) =>
-        prev.map((p) =>
-          p.id === postId
-            ? {
-                ...p,
-                reactionCounts: summary.reactionCounts,
-                myReactions: summary.myReactions,
-              }
-            : p,
-        ),
-      );
-    } catch (e) {
-      console.error("réaction échouée", e);
-    }
-  };
-
-  const openComments = async (postId: string) => {
-    setCommentsFor(postId);
-    setComments([]);
-    setCommentsLoading(true);
-    try {
-      setComments(await api.listComments(space.id, postId));
-    } catch (e) {
-      console.error("chargement des commentaires échoué", e);
-    } finally {
-      setCommentsLoading(false);
-    }
-  };
-
-  const addComment = async (body: string) => {
-    if (!commentsFor) return;
-    setCommentBusy(true);
-    try {
-      const comment = await api.addComment(space.id, commentsFor, body);
-      setComments((prev) => [...prev, comment]);
-      setPosts((prev) =>
-        prev.map((p) =>
-          p.id === commentsFor
-            ? { ...p, commentCount: p.commentCount + 1 }
-            : p,
-        ),
-      );
-    } catch (e) {
-      console.error("commentaire échoué", e);
-    } finally {
-      setCommentBusy(false);
     }
   };
 
@@ -603,8 +436,8 @@ export function SpaceApp({
           partnerMoodHidden={blindHidden}
           inviteId={space.id}
           myMood={myMood}
-          onMoodChange={onMoodChange}
-          onMoodClear={onMoodClear}
+          onMoodChange={setMood}
+          onMoodClear={clearMood}
           onOpenSettings={() => setShowSettings(true)}
           newPosts={newPosts}
           newComments={newComments}
@@ -740,7 +573,7 @@ export function SpaceApp({
         loading={commentsLoading}
         busy={commentBusy}
         onAdd={addComment}
-        onClose={() => setCommentsFor(null)}
+        onClose={closeComments}
       />
     </AppShell>
   );
