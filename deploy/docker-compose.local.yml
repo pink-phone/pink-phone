@@ -40,6 +40,7 @@ services:
       DB_HOST: db
       DB_PASSWORD: pink
       # Throwaway secret so the dev-config guard lets the API boot — NOT secure.
+      # Must stay >= 32 chars (the startup guard rejects shorter secrets when exposed).
       JWT_SECRET: local-demo-only-not-for-production
       BIND_ADDR: 0.0.0.0:8080
       MEDIA_DIR: /data/media

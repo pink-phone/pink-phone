@@ -94,7 +94,7 @@ docker compose up -d        # pulls the images, no build
 ```
 
 - The API **runs migrations on startup** (no manual step).
-- The API refuses to start if it's exposed with a dev `JWT_SECRET` — by design.
+- The API refuses to start if it's exposed with a dev `JWT_SECRET` **or one shorter than 32 characters** — by design.
 
 ## 5. Reverse proxy (TLS) — example (nginx)
 
