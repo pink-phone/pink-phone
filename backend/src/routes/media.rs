@@ -63,6 +63,14 @@ fn media_path(dir: &str, key: &str) -> PathBuf {
     PathBuf::from(dir).join(key)
 }
 
+/// Le Content-Type déclaré à l'upload est stocké tel quel et renvoyé à la lecture.
+/// On le borne donc à de vrais médias (image/vidéo) pour ne pas servir plus tard
+/// un `text/html`/`application/javascript` arbitraire (SEC-008). Le frontend
+/// n'envoie déjà que `accept="image/*,video/*"`.
+fn mime_allowed(mime: &str) -> bool {
+    matches!(mime.split('/').next(), Some("image") | Some("video"))
+}
+
 /// Plage `Range` demandée, bornes inclusives.
 enum RangeReq {
     /// Aucun en-tête `Range` (ou ignoré) → ressource entière.
@@ -184,6 +192,11 @@ async fn upload(
     }
 
     let (bytes, mime) = data.ok_or(ApiError::BadRequest("champ 'file' manquant".into()))?;
+    if !mime_allowed(&mime) {
+        return Err(ApiError::BadRequest(format!(
+            "type de média non autorisé : {mime}"
+        )));
+    }
 
     // Chiffrement au repos si une clé est configurée (sinon stockage en clair).
     let (to_write, encrypted) = match state.config.media_key_bytes() {
@@ -252,6 +265,26 @@ async fn stream(
     // s'authentifie sur tout le blob ; le view_once se consomme après lecture).
     // Le Range est honoré en tranchant le tampon déjà déchiffré.
     if media.view_once || media.encrypted {
+        // view_once : on RÉCLAME le média de façon atomique AVANT de le lire. En cas
+        // de requêtes concurrentes, une seule gagne l'UPDATE (transition
+        // false→true) ; l'autre obtient 0 ligne → NotFound. Sans ça, les deux
+        // passeraient le check `consumed` puis liraient le fichier (race), et le
+        // média éphémère serait servi plusieurs fois (SEC-004).
+        if media.view_once {
+            let claimed: Option<Uuid> = sqlx::query_scalar(
+                "UPDATE media SET consumed = true
+                 WHERE id = $1 AND consumed = false AND view_once = true
+                 RETURNING id",
+            )
+            .bind(media.id)
+            .fetch_optional(&state.pool)
+            .await?;
+            if claimed.is_none() {
+                tracing::debug!(%media_id, "média éphémère déjà réclamé (course)");
+                return Err(ApiError::NotFound);
+            }
+        }
+
         let raw = tokio::fs::read(&path).await.map_err(|e| {
             tracing::error!(%media_id, key = %media.storage_key, error = ?e,
                 "lecture du fichier média échouée (absent sur disque ?)");
@@ -273,12 +306,9 @@ async fn stream(
         };
 
         if media.view_once {
-            // Une seule lecture : on supprime le fichier et on marque consommé.
+            // Déjà marqué consommé (claim atomique ci-dessus) : on supprime juste
+            // le fichier sur disque.
             let _ = tokio::fs::remove_file(&path).await;
-            sqlx::query("UPDATE media SET consumed = true WHERE id = $1")
-                .bind(media.id)
-                .execute(&state.pool)
-                .await?;
         }
 
         let total = bytes.len() as u64;
@@ -415,6 +445,19 @@ mod tests {
         assert!(matches!(range("bytes=-0", 1000), RangeReq::Unsatisfiable));
         // Ressource vide : aucune plage n'est satisfiable.
         assert!(matches!(range("bytes=0-0", 0), RangeReq::Unsatisfiable));
+    }
+
+    #[test]
+    fn mime_liste_blanche() {
+        assert!(mime_allowed("image/jpeg"));
+        assert!(mime_allowed("image/png"));
+        assert!(mime_allowed("video/mp4"));
+        assert!(mime_allowed("video/quicktime"));
+        assert!(!mime_allowed("text/html"));
+        assert!(!mime_allowed("application/javascript"));
+        assert!(!mime_allowed("application/octet-stream"));
+        assert!(!mime_allowed(""));
+        assert!(!mime_allowed("imagexml")); // pas de "/" → pas image/*
     }
 
     #[test]

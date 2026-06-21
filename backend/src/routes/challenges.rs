@@ -101,7 +101,6 @@ async fn create_challenge(
         space_id,
         auth.user_id,
         "Nouveau défi".into(),
-        challenge.title.clone(),
     );
 
     Ok(Json(challenge))

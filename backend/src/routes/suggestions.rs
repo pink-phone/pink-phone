@@ -122,10 +122,13 @@ async fn update_suggestion(
 ) -> ApiResult<Json<ChallengeSuggestion>> {
     ensure_member(&state.pool, auth.user_id, space_id).await?;
     validate(&body)?;
+    // Restreint au créateur (SEC-013), comme la suppression de post/défi : un
+    // membre n'édite que ses propres suggestions du salon (le seed global a
+    // `space_id IS NULL` et n'est donc jamais ciblé ici).
     let item: Option<ChallengeSuggestion> = sqlx::query_as(
         "UPDATE challenge_suggestions
          SET title = $3, description = $4, intensity = $5
-         WHERE id = $1 AND space_id = $2
+         WHERE id = $1 AND space_id = $2 AND created_by = $6
          RETURNING id, space_id, title, description, intensity",
     )
     .bind(sid)
@@ -133,6 +136,7 @@ async fn update_suggestion(
     .bind(body.title.trim())
     .bind(body.description.trim())
     .bind(&body.intensity)
+    .bind(auth.user_id)
     .fetch_optional(&state.pool)
     .await?;
     item.map(Json).ok_or(ApiError::NotFound)
@@ -145,11 +149,14 @@ async fn delete_suggestion(
     Path((space_id, sid)): Path<(Uuid, Uuid)>,
 ) -> ApiResult<StatusCode> {
     ensure_member(&state.pool, auth.user_id, space_id).await?;
+    // Restreint au créateur (SEC-013), comme la suppression de post/défi.
     let res = sqlx::query(
-        "DELETE FROM challenge_suggestions WHERE id = $1 AND space_id = $2",
+        "DELETE FROM challenge_suggestions
+         WHERE id = $1 AND space_id = $2 AND created_by = $3",
     )
     .bind(sid)
     .bind(space_id)
+    .bind(auth.user_id)
     .execute(&state.pool)
     .await?;
     if res.rows_affected() == 0 {

@@ -244,9 +244,6 @@ async fn create_post(
             space_id,
             auth.user_id,
             "Nouveau message".into(),
-            post.title
-                .clone()
-                .unwrap_or_else(|| "Un nouveau récit t'attend".into()),
         );
     }
     Ok(Json(post))
@@ -415,9 +412,6 @@ async fn update_post(
             space_id,
             auth.user_id,
             "Nouveau message".into(),
-            post.title
-                .clone()
-                .unwrap_or_else(|| "Un nouveau récit t'attend".into()),
         );
     }
     Ok(Json(post))

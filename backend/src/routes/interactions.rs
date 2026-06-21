@@ -253,13 +253,11 @@ async fn add_comment(
     .await?;
 
     state.emit(space_id, auth.user_id, "comment");
-    let preview: String = comment.body.chars().take(80).collect();
     crate::notifications::notify_members(
         &state,
         space_id,
         auth.user_id,
         "Nouveau commentaire".into(),
-        preview,
     );
 
     Ok(Json(comment))

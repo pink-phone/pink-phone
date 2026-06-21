@@ -14,16 +14,17 @@ struct SubRow {
     auth: String,
 }
 
+/// Corps générique des notifications push : le contenu intime (titre de récit,
+/// aperçu de commentaire, humeur précise) ne doit JAMAIS apparaître sur l'écran
+/// de verrouillage (SEC-012). On notifie le *type* d'événement via `title`, et on
+/// invite à ouvrir l'app — le contenu se découvre dans l'app authentifiée.
+const GENERIC_BODY: &str = "Ouvre l'app pour voir 🌸";
+
 /// Notifie (best-effort, en tâche de fond) les autres membres du space dont le
 /// mode est 'push', via Web Push. Ne bloque jamais la requête appelante.
-/// Les abonnements morts (404/410) sont purgés.
-pub fn notify_members(
-    state: &AppState,
-    space_id: Uuid,
-    actor_id: Uuid,
-    title: String,
-    body: String,
-) {
+/// Les abonnements morts (404/410) sont purgés. `title` = type d'événement
+/// (générique) ; le corps est invariant (cf. `GENERIC_BODY`).
+pub fn notify_members(state: &AppState, space_id: Uuid, actor_id: Uuid, title: String) {
     let pool = state.pool.clone();
     let config = state.config.clone();
 
@@ -56,7 +57,7 @@ pub fn notify_members(
             return;
         }
 
-        let payload = json!({ "title": title, "body": body }).to_string();
+        let payload = json!({ "title": title, "body": GENERIC_BODY }).to_string();
         let client = HyperWebPushClient::new();
 
         for sub in subs {
