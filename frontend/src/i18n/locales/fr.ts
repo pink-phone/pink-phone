@@ -220,6 +220,11 @@ export const fr = {
   },
   settings: {
     title: "Réglages",
+    logoutAll: "Déconnecter tous les appareils",
+    logoutAllHint:
+      "En cas de perte ou de vol : invalide toutes les sessions, partout (toi compris). Reconnexion nécessaire.",
+    logoutAllConfirm:
+      "Déconnecter tous les appareils ? Toutes les sessions seront invalidées et tu devras te reconnecter.",
     notifications: "Notifications",
     pushUnavailable:
       "Le push n'est pas disponible sur cet appareil — le résumé ou le mode fantôme restent possibles.",

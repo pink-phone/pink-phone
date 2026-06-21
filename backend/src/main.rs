@@ -87,7 +87,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         PgConnectOptions::from_str(&config.database_url)?
     };
     let pool = PgPoolOptions::new()
-        .max_connections(5)
+        .max_connections(10)
+        // Échoue vite (10 s) plutôt que de laisser une requête pendre si le pool
+        // est saturé — évite un empilement silencieux sous charge (SEC-018).
+        .acquire_timeout(std::time::Duration::from_secs(10))
         .connect_with(connect_options)
         .await?;
 

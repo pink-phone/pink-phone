@@ -376,6 +376,15 @@ export function SpaceApp({
           onReactionsChange={changeReactions}
           onBack={() => setShowSettings(false)}
           onLogout={logout}
+          onLogoutAll={async () => {
+            if (!confirmAction(t("settings.logoutAllConfirm"))) return;
+            try {
+              await api.logoutAll();
+            } catch (e) {
+              console.error("révocation des sessions échouée", e);
+            }
+            logout();
+          }}
         />
       </div>
     );

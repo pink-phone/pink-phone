@@ -7,7 +7,7 @@ use serde::Deserialize;
 use tokio::sync::broadcast::error::RecvError;
 use uuid::Uuid;
 
-use crate::auth::verify_token;
+use crate::auth::authenticate;
 use crate::error::ApiError;
 use crate::routes::ensure_member;
 use crate::state::AppState;
@@ -29,7 +29,7 @@ async fn ws_handler(
     Query(q): Query<WsQuery>,
     ws: WebSocketUpgrade,
 ) -> Result<Response, ApiError> {
-    let user_id = verify_token(&state.config.jwt_secret, &q.token)?;
+    let user_id = authenticate(&state, &q.token).await?;
     ensure_member(&state.pool, user_id, space_id).await?;
     Ok(ws.on_upgrade(move |socket| handle_socket(socket, state, space_id, user_id)))
 }
