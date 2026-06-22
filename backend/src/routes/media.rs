@@ -199,8 +199,16 @@ async fn upload(
     }
 
     // Chiffrement au repos si une clé est configurée (sinon stockage en clair).
+    // AES-GCM sur un fichier (jusqu'à 100 Mo) est CPU-bound → `spawn_blocking`
+    // pour ne pas bloquer un thread du runtime async (RUST-02).
     let (to_write, encrypted) = match state.config.media_key_bytes() {
-        Some(key) => (encrypt(&key, &bytes).ok_or(ApiError::Internal)?, true),
+        Some(key) => {
+            let ct = tokio::task::spawn_blocking(move || encrypt(&key, &bytes))
+                .await
+                .map_err(|_| ApiError::Internal)?
+                .ok_or(ApiError::Internal)?;
+            (ct, true)
+        }
         None => (bytes, false),
     };
 
@@ -296,11 +304,15 @@ async fn stream(
                     "média chiffré mais MEDIA_KEY absente/invalide à la lecture");
                 ApiError::Internal
             })?;
-            decrypt(&key, &raw).ok_or_else(|| {
-                tracing::error!(%media_id,
-                    "déchiffrement AES échoué (MEDIA_KEY a-t-elle changé ?)");
-                ApiError::Internal
-            })?
+            // Déchiffrement AES-GCM CPU-bound → hors du runtime async (RUST-02).
+            tokio::task::spawn_blocking(move || decrypt(&key, &raw))
+                .await
+                .map_err(|_| ApiError::Internal)?
+                .ok_or_else(|| {
+                    tracing::error!(%media_id,
+                        "déchiffrement AES échoué (MEDIA_KEY a-t-elle changé ?)");
+                    ApiError::Internal
+                })?
         } else {
             raw
         };

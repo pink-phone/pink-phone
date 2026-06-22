@@ -59,7 +59,7 @@ export function ContextMenu({ items, ariaLabel, className }: ContextMenuProps) {
                 className={cn(
                   "block w-full px-4 py-2 text-left text-sm transition-colors duration-200 ease-felt",
                   item.danger
-                    ? "text-bordeaux-300 hover:bg-bordeaux-700/30"
+                    ? "text-spice-300 hover:bg-bordeaux-700/30"
                     : "text-taupe-200 hover:bg-charcoal-700",
                 )}
               >

@@ -110,7 +110,7 @@ export function ChallengeBankManager({
                   type="button"
                   onClick={() => onDelete(s.id)}
                   aria-label={t("challengeBank.delete")}
-                  className="rounded-full px-1.5 py-0.5 text-sm text-taupe-400 transition-colors duration-300 ease-felt hover:text-bordeaux-300"
+                  className="rounded-full px-1.5 py-0.5 text-sm text-taupe-400 transition-colors duration-300 ease-felt hover:text-spice-300"
                 >
                   🗑
                 </button>

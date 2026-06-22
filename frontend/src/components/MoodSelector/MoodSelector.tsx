@@ -112,7 +112,7 @@ export function MoodSelector({
       {/* Ligne dédiée : humeur libre — tuile à la même taille que les autres. */}
       {allowCustom && (
         <>
-          <div className="flex items-center gap-3 text-[11px] uppercase tracking-[0.15em] text-taupe-500">
+          <div className="flex items-center gap-3 text-[11px] uppercase tracking-[0.15em] text-taupe-400">
             <span className="h-px flex-1 bg-charcoal-600/50" />
             {t("moods.or")}
             <span className="h-px flex-1 bg-charcoal-600/50" />

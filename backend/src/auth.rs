@@ -15,8 +15,13 @@ use crate::error::{ApiError, ApiResult};
 use crate::state::AppState;
 
 // ---------- Mots de passe (Argon2id) ----------
+//
+// Argon2 est CPU-bound (~100-500 ms) : on l'exécute via `spawn_blocking` pour ne
+// PAS bloquer un thread du runtime async (RUST-01). Les fonctions publiques sont
+// donc `async` et prennent des `String` possédées (contrainte `'static` de
+// `spawn_blocking`).
 
-pub fn hash_password(password: &str) -> ApiResult<String> {
+fn hash_sync(password: &str) -> ApiResult<String> {
     let salt = SaltString::generate(&mut OsRng);
     Argon2::default()
         .hash_password(password.as_bytes(), &salt)
@@ -24,7 +29,7 @@ pub fn hash_password(password: &str) -> ApiResult<String> {
         .map_err(|_| ApiError::Internal)
 }
 
-pub fn verify_password(password: &str, hash: &str) -> bool {
+fn verify_sync(password: &str, hash: &str) -> bool {
     match PasswordHash::new(hash) {
         Ok(parsed) => Argon2::default()
             .verify_password(password.as_bytes(), &parsed)
@@ -37,26 +42,34 @@ pub fn verify_password(password: &str, hash: &str) -> bool {
     }
 }
 
+pub async fn hash_password(password: String) -> ApiResult<String> {
+    tokio::task::spawn_blocking(move || hash_sync(&password))
+        .await
+        .map_err(|_| ApiError::Internal)?
+}
+
 /// Hash Argon2id « leurre », calculé une fois, pour exécuter une vérification même
 /// quand l'email est inconnu. Uniformise le temps de réponse du login : sans ça,
 /// un email inexistant répond instantanément alors qu'un email connu paie un
 /// Argon2 (~200 ms), révélant l'existence d'un compte par canal temporel (SEC-010).
 fn dummy_hash() -> &'static str {
     static DUMMY: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-    DUMMY.get_or_init(|| hash_password("pp-timing-dummy").unwrap_or_default())
+    DUMMY.get_or_init(|| hash_sync("pp-timing-dummy").unwrap_or_default())
 }
 
 /// Vérifie le mot de passe contre `hash` s'il existe, sinon contre le hash leurre
 /// (temps de calcul comparable que le compte existe ou non). Renvoie toujours
-/// `false` dans le cas leurre.
-pub fn verify_login(password: &str, hash: Option<&str>) -> bool {
-    match hash {
-        Some(h) => verify_password(password, h),
+/// `false` dans le cas leurre. Tout le calcul Argon2 court sur `spawn_blocking`.
+pub async fn verify_login(password: String, hash: Option<String>) -> bool {
+    tokio::task::spawn_blocking(move || match hash {
+        Some(h) => verify_sync(&password, &h),
         None => {
-            let _ = verify_password(password, dummy_hash());
+            let _ = verify_sync(&password, dummy_hash());
             false
         }
-    }
+    })
+    .await
+    .unwrap_or(false)
 }
 
 // ---------- JWT ----------
