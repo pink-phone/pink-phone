@@ -28,6 +28,8 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    /** Code machine stable renvoyé par l'API (API-15), ex. "not_found". */
+    public code?: string,
   ) {
     super(message);
     this.name = "ApiError";
@@ -81,11 +83,11 @@ async function req<T>(path: string, opts: ReqOptions = {}): Promise<T> {
   });
 
   if (!res.ok) {
-    const msg = await res
+    const body = await res
       .json()
-      .then((b: { error?: string }) => b.error)
+      .then((b: { error?: string; code?: string }) => b)
       .catch(() => undefined);
-    throw new ApiError(res.status, msg ?? res.statusText);
+    throw new ApiError(res.status, body?.error ?? res.statusText, body?.code);
   }
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;

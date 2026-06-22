@@ -30,6 +30,8 @@ export interface PostData {
   commentCount: number;
   /** Brouillon (visible du seul auteur). */
   draft?: boolean;
+  /** Le post a été édité après publication (updatedAt > createdAt) — API-10. */
+  edited?: boolean;
   /** Le post appartient à l'utilisateur courant (active suppression/publication). */
   isMine?: boolean;
   /** Mon post a été vu par le/la partenaire (accusé de lecture). */

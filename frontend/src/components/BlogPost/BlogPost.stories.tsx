@@ -85,6 +85,11 @@ export const MienVu: Story = {
   args: { author: { name: "Toi", glyph: "T" }, isMine: true, seenByPartner: true },
 };
 
+/** Post édité après publication : mention « · modifié » près de l'horodatage. */
+export const Modifié: Story = {
+  args: { edited: true },
+};
+
 /** Brouillon : pastille + bouton "Publier", pas d'interactions tant qu'il n'est pas publié. */
 export const Brouillon: Story = {
   args: {

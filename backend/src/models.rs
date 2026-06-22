@@ -78,6 +78,7 @@ pub struct PostRow {
     pub media_mime: Option<String>,
     pub draft: bool,
     pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 /// Post enrichi renvoyé au frontend (réactions, verdict, nb de commentaires).
@@ -98,6 +99,7 @@ pub struct Post {
     pub media_mime: Option<String>,
     pub draft: bool,
     pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
     pub reaction_counts: std::collections::HashMap<String, i64>,
     pub my_reactions: Vec<String>,
     pub verdict: Option<String>,

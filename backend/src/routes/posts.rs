@@ -164,6 +164,7 @@ async fn enrich(
             media_mime: p.media_mime,
             draft: p.draft,
             created_at: p.created_at,
+            updated_at: p.updated_at,
         })
         .collect())
 }
@@ -182,7 +183,8 @@ async fn list_posts(
     let rows: Vec<PostRow> = sqlx::query_as(
         "SELECT p.id, p.author_id, u.display_name AS author_name,
                 p.title, p.body, p.media_id, m.view_once AS media_view_once,
-                m.consumed AS media_consumed, m.mime AS media_mime, p.draft, p.created_at
+                m.consumed AS media_consumed, m.mime AS media_mime, p.draft,
+                p.created_at, p.updated_at
          FROM posts p
          JOIN users u ON u.id = p.author_id
          LEFT JOIN media m ON m.id = p.media_id
@@ -235,11 +237,12 @@ async fn create_post(
         "WITH inserted AS (
              INSERT INTO posts (space_id, author_id, title, body, media_id, draft)
              VALUES ($1, $2, $3, $4, $5, $6)
-             RETURNING id, author_id, title, body, media_id, draft, created_at
+             RETURNING id, author_id, title, body, media_id, draft, created_at, updated_at
          )
          SELECT i.id, i.author_id, u.display_name AS author_name,
                 i.title, i.body, i.media_id, m.view_once AS media_view_once,
-                m.consumed AS media_consumed, m.mime AS media_mime, i.draft, i.created_at
+                m.consumed AS media_consumed, m.mime AS media_mime, i.draft,
+                i.created_at, i.updated_at
          FROM inserted i
          JOIN users u ON u.id = i.author_id
          LEFT JOIN media m ON m.id = i.media_id",
@@ -378,16 +381,25 @@ async fn update_post(
     }
 
     let new_draft = body.draft.unwrap_or(was_draft);
+    // `updated_at` ne bouge que si le CONTENU change (API-10) : une simple
+    // publication de brouillon (`{draft:false}` seul) n'est pas une « édition »
+    // et ne doit pas marquer le post comme modifié.
+    let content_changed = body.title.is_some()
+        || body.body.is_some()
+        || body.media_id.is_some()
+        || body.clear_media;
 
     let row: PostRow = sqlx::query_as(
         "WITH updated AS (
-             UPDATE posts SET title = $3, body = $4, media_id = $5, draft = $6
+             UPDATE posts SET title = $3, body = $4, media_id = $5, draft = $6,
+                              updated_at = CASE WHEN $7 THEN now() ELSE updated_at END
              WHERE id = $1 AND space_id = $2
-             RETURNING id, author_id, title, body, media_id, draft, created_at
+             RETURNING id, author_id, title, body, media_id, draft, created_at, updated_at
          )
          SELECT up.id, up.author_id, u.display_name AS author_name,
                 up.title, up.body, up.media_id, m.view_once AS media_view_once,
-                m.consumed AS media_consumed, m.mime AS media_mime, up.draft, up.created_at
+                m.consumed AS media_consumed, m.mime AS media_mime, up.draft,
+                up.created_at, up.updated_at
          FROM updated up
          JOIN users u ON u.id = up.author_id
          LEFT JOIN media m ON m.id = up.media_id",
@@ -398,6 +410,7 @@ async fn update_post(
     .bind(&new_body)
     .bind(new_media)
     .bind(new_draft)
+    .bind(content_changed)
     .fetch_one(&state.pool)
     .await?;
 

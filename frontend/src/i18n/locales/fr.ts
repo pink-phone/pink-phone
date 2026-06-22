@@ -129,6 +129,7 @@ export const fr = {
     confirmDelete: "Supprimer ce post ? C'est définitif.",
     publishDraft: "Publier ce brouillon",
     edit: "Éditer",
+    edited: "modifié",
     seenByPartner: "Vu",
     commentsLeave: "Laisser un mot",
     commentsCount_one: "{{count}} commentaire",

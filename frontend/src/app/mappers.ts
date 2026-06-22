@@ -42,6 +42,7 @@ export function toPostData(
     verdict: p.verdict,
     commentCount: p.commentCount,
     draft: p.draft,
+    edited: !p.draft && p.updatedAt > p.createdAt,
     isMine: p.authorId === userId,
     seenByPartner:
       p.authorId === userId &&
