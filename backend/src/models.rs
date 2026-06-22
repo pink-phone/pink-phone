@@ -54,7 +54,8 @@ pub struct Member {
 #[serde(rename_all = "camelCase")]
 pub struct Mood {
     pub user_id: Uuid,
-    pub status: String,
+    /// `None` = humeur masquée (vote à l'aveugle, avant que je vote) — API-08.
+    pub status: Option<String>,
     pub updated_at: DateTime<Utc>,
 }
 

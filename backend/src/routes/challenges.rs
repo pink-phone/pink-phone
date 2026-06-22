@@ -1,6 +1,6 @@
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::Deserialize;
 use uuid::Uuid;
@@ -19,9 +19,11 @@ pub fn router() -> Router<AppState> {
             "/api/spaces/{id}/challenges",
             get(list_challenges).post(create_challenge),
         )
+        // Transition de la machine à états = action (effets de bord/notif) →
+        // POST .../transitions plutôt qu'un PATCH /status (API-05).
         .route(
-            "/api/spaces/{id}/challenges/{cid}/status",
-            axum::routing::patch(transition),
+            "/api/spaces/{id}/challenges/{cid}/transitions",
+            post(transition),
         )
         .route(
             "/api/spaces/{id}/challenges/{cid}",
@@ -40,7 +42,8 @@ pub struct CreateChallengeBody {
 
 #[derive(Deserialize)]
 pub struct TransitionBody {
-    pub status: String,
+    /// État cible de la transition.
+    pub to: String,
 }
 
 async fn list_challenges(
@@ -125,17 +128,17 @@ async fn transition(
     .await?;
     let (current, proposer_id) = row.ok_or(ApiError::NotFound)?;
 
-    if !challenge_transition_allowed(&current, &body.status) {
+    if !challenge_transition_allowed(&current, &body.to) {
         return Err(ApiError::Conflict(format!(
             "transition {current} → {} interdite",
-            body.status
+            body.to
         )));
     }
 
     // SEC-015 : répondre à une proposition (l'accepter ou demander à l'adapter)
     // est la prérogative du DESTINATAIRE — le proposeur ne peut pas accepter à sa
     // place. La validation finale (`jobDone`) reste ouverte aux deux.
-    if is_proposal_response(&body.status) && proposer_id == auth.user_id {
+    if is_proposal_response(&body.to) && proposer_id == auth.user_id {
         return Err(ApiError::Forbidden);
     }
 
@@ -145,7 +148,7 @@ async fn transition(
          RETURNING id, proposer_id, title, description, intensity, status,
                    deadline_label, created_at, updated_at",
     )
-    .bind(&body.status)
+    .bind(&body.to)
     .bind(challenge_id)
     .bind(space_id)
     .fetch_one(&state.pool)

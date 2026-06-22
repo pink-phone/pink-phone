@@ -14,11 +14,11 @@ use crate::state::AppState;
 pub fn router() -> Router<AppState> {
     Router::new()
         .route(
-            "/api/spaces/{id}/challenge-suggestions",
+            "/api/spaces/{id}/suggestions",
             get(list_suggestions).post(create_suggestion),
         )
         .route(
-            "/api/spaces/{id}/challenge-suggestions/{sid}",
+            "/api/spaces/{id}/suggestions/{sid}",
             patch(update_suggestion).delete(delete_suggestion),
         )
 }

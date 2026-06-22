@@ -460,7 +460,7 @@ export function SpaceApp({
           partnerMood={
             partnerHasMood
               ? {
-                  mood: partnerMoodEntry!.status,
+                  mood: partnerMoodEntry!.status!,
                   timeLabel: relativeTime(partnerMoodEntry!.updatedAt),
                 }
               : undefined
