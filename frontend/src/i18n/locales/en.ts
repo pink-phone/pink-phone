@@ -140,6 +140,7 @@ export const en: Resources = {
     bodyLabel: "Your story",
     bodyPlaceholder: "Tell it, take your time…",
     photoOptional: "Photo or video (optional)",
+    attachFile: "Attach a photo or video",
     photoChange: "Photo or video (change)",
     ephemeralAttached: "✦ Ephemeral media already attached",
     attachedAlt: "Attached media",

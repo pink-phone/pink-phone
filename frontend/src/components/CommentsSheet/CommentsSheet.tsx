@@ -76,7 +76,9 @@ export function CommentsSheet({
         )}
 
         <form
-          className="space-y-2"
+          // Collé au bas de la feuille : reste visible au-dessus du clavier
+          // virtuel iOS quand la liste défile (UI-UX4).
+          className="sticky bottom-0 space-y-2 bg-charcoal-800 pb-1 pt-2"
           onSubmit={(e) => {
             e.preventDefault();
             submit();

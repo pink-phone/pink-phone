@@ -59,12 +59,16 @@ export function ChallengeCard({
   // Défi "chaud" (hot/hard) encore en jeu : halo de braise + particules.
   const showEmber = intensity === "hot" && status !== "jobDone";
 
+  const done = status === "jobDone";
   return (
     <Surface
-      tone={status === "jobDone" ? "deep" : "velvet"}
+      // « Mission accomplie » : carte calme et estompée (archivée), distincte des
+      // états chauds en cours qui portaient le même bordeaux « deep » (UI-UX7).
+      tone="velvet"
       className={cn(
         "relative w-full overflow-hidden",
         showEmber && "shadow-ember animate-ember-breathe motion-reduce:animate-none",
+        done && "opacity-75",
         className,
       )}
     >
