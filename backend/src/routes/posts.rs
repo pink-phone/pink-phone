@@ -73,6 +73,15 @@ struct CountRow {
     n: i64,
 }
 
+/// Enrichit une seule ligne (création/édition) sans `remove(0)` fragile (RUST-09).
+async fn enrich_one(pool: &sqlx::PgPool, row: PostRow, user_id: Uuid) -> ApiResult<Post> {
+    enrich(pool, vec![row], user_id)
+        .await?
+        .into_iter()
+        .next()
+        .ok_or(ApiError::Internal)
+}
+
 /// Enrichit des posts bruts avec leurs interactions (réactions / verdict / nb
 /// de commentaires), en quelques requêtes groupées plutôt qu'une par post.
 async fn enrich(
@@ -234,8 +243,7 @@ async fn create_post(
     .fetch_one(&state.pool)
     .await?;
 
-    let mut enriched = enrich(&state.pool, vec![row], auth.user_id).await?;
-    let post = enriched.remove(0);
+    let post = enrich_one(&state.pool, row, auth.user_id).await?;
     // Un brouillon ne fait pas signe au/à la partenaire.
     if !post.draft {
         state.emit(space_id, auth.user_id, "post");
@@ -398,8 +406,7 @@ async fn update_post(
         }
     }
 
-    let mut enriched = enrich(&state.pool, vec![row], auth.user_id).await?;
-    let post = enriched.remove(0);
+    let post = enrich_one(&state.pool, row, auth.user_id).await?;
     // Le partenaire rafraîchit si le post est (devenu) visible : publié, ou
     // statut changé (publication/remise en brouillon). Éditer un brouillon qui
     // reste brouillon ne concerne que l'auteur.

@@ -153,8 +153,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let bind_addr = config.bind_addr.clone();
     let state = AppState {
         pool,
-        config,
+        config: std::sync::Arc::new(config),
         http,
+        push_client: std::sync::Arc::new(web_push::HyperWebPushClient::new()),
         oidc_states,
         oidc_tickets,
         events,

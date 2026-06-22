@@ -302,13 +302,19 @@ async fn upsert_oidc_user(
     email: &str,
     display: &str,
 ) -> ApiResult<Uuid> {
+    // Les 3 étapes (lookup par sub, liaison par email, création) dans UNE
+    // transaction (RUST-05) ; l'index unique partiel sur `oidc_sub` (migration
+    // 0018) garantit en plus l'absence de doublon même en cas de course.
+    let mut tx = state.pool.begin().await?;
+
     if let Some(id) = sqlx::query_scalar::<_, Uuid>(
         "SELECT id FROM users WHERE oidc_sub = $1",
     )
     .bind(sub)
-    .fetch_optional(&state.pool)
+    .fetch_optional(&mut *tx)
     .await?
     {
+        tx.commit().await?;
         return Ok(id);
     }
 
@@ -317,9 +323,10 @@ async fn upsert_oidc_user(
     )
     .bind(sub)
     .bind(email)
-    .fetch_optional(&state.pool)
+    .fetch_optional(&mut *tx)
     .await?
     {
+        tx.commit().await?;
         return Ok(id);
     }
 
@@ -330,7 +337,8 @@ async fn upsert_oidc_user(
     .bind(email)
     .bind(display)
     .bind(sub)
-    .fetch_one(&state.pool)
+    .fetch_one(&mut *tx)
     .await?;
+    tx.commit().await?;
     Ok(id)
 }

@@ -1,8 +1,8 @@
 use serde_json::json;
 use uuid::Uuid;
 use web_push::{
-    ContentEncoding, HyperWebPushClient, SubscriptionInfo, VapidSignatureBuilder,
-    WebPushClient, WebPushError, WebPushMessageBuilder, URL_SAFE_NO_PAD,
+    ContentEncoding, SubscriptionInfo, VapidSignatureBuilder, WebPushClient,
+    WebPushError, WebPushMessageBuilder, URL_SAFE_NO_PAD,
 };
 
 use crate::state::AppState;
@@ -27,6 +27,7 @@ const GENERIC_BODY: &str = "Ouvre l'app pour voir 🌸";
 pub fn notify_members(state: &AppState, space_id: Uuid, actor_id: Uuid, title: String) {
     let pool = state.pool.clone();
     let config = state.config.clone();
+    let push_client = state.push_client.clone();
 
     tokio::spawn(async move {
         if config.vapid_private_key.is_empty() {
@@ -58,7 +59,7 @@ pub fn notify_members(state: &AppState, space_id: Uuid, actor_id: Uuid, title: S
         }
 
         let payload = json!({ "title": title, "body": GENERIC_BODY }).to_string();
-        let client = HyperWebPushClient::new();
+        let client = push_client;
 
         for sub in subs {
             let info = SubscriptionInfo::new(
