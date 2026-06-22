@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "../../lib/cn";
 
 export interface ContextMenuItem {
@@ -18,6 +18,21 @@ export interface ContextMenuProps {
 /** Menu contextuel « ⋯ » : déclencheur + liste d'actions (modifier, supprimer…). */
 export function ContextMenu({ items, ariaLabel, className }: ContextMenuProps) {
   const [open, setOpen] = useState(false);
+  // Ouvre vers le HAUT si le déclencheur est dans le bas de l'écran (sinon le
+  // menu sortait sous le bord, ex. dernière tuile de la banque).
+  const [openUp, setOpenUp] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+
+  const toggle = () => {
+    setOpen((o) => {
+      const next = !o;
+      if (next && triggerRef.current) {
+        const rect = triggerRef.current.getBoundingClientRect();
+        setOpenUp(rect.bottom > window.innerHeight * 0.6);
+      }
+      return next;
+    });
+  };
 
   // Échap referme le menu (cohérent avec Sheet) — UI-A11Y4.
   useEffect(() => {
@@ -34,11 +49,12 @@ export function ContextMenu({ items, ariaLabel, className }: ContextMenuProps) {
   return (
     <div className={cn("relative", className)}>
       <button
+        ref={triggerRef}
         type="button"
         aria-label={ariaLabel}
         aria-haspopup="menu"
         aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggle}
         className="rounded-full px-2 py-1 text-base leading-none text-taupe-400 transition-colors duration-300 ease-felt hover:text-blush-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
       >
         ⋯
@@ -56,7 +72,10 @@ export function ContextMenu({ items, ariaLabel, className }: ContextMenuProps) {
           />
           <div
             role="menu"
-            className="absolute right-0 z-50 mt-1 min-w-36 overflow-hidden rounded-2xl border border-charcoal-600/60 bg-charcoal-800 bg-felt-velvet py-1 shadow-felt"
+            className={cn(
+              "absolute right-0 z-50 min-w-36 overflow-hidden rounded-2xl border border-charcoal-600/60 bg-charcoal-800 bg-felt-velvet py-1 shadow-felt",
+              openUp ? "bottom-full mb-1" : "top-full mt-1",
+            )}
           >
             {items.map((item, i) => (
               <button
