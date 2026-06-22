@@ -77,9 +77,9 @@ export function ContextMenu({ items, ariaLabel, className }: ContextMenuProps) {
               openUp ? "bottom-full mb-1" : "top-full mt-1",
             )}
           >
-            {items.map((item, i) => (
+            {items.map((item) => (
               <button
-                key={i}
+                key={item.label}
                 type="button"
                 role="menuitem"
                 onClick={() => {

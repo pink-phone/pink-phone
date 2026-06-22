@@ -1,7 +1,12 @@
 // Types des réponses de l'API Rust. Les chaînes (status/mood/intensity) sont
 // alignées 1:1 sur les types de domaine (miroir des enums Rust), couche neutre
 // dont dépendent aussi bien l'infra réseau que la présentation.
-import type { ChallengeStatus, Intensity, Verdict } from "../domain/types";
+import type {
+  ChallengeStatus,
+  Intensity,
+  ReactionId,
+  Verdict,
+} from "../domain/types";
 
 export interface UserPublic {
   id: string;
@@ -20,8 +25,8 @@ export interface Space {
   name: string;
   /** Fuseau IANA du salon (renouvellement du mood à minuit). Défaut serveur: Europe/Paris. */
   timezone: string;
-  /** Réactions prédéfinies actives, dans l'ordre d'affichage. */
-  reactions: string[];
+  /** Réactions prédéfinies actives, dans l'ordre d'affichage (ensemble connu). */
+  reactions: ReactionId[];
   /** Autorise une réaction emoji libre. */
   allowCustomReactions: boolean;
   /** Vote d'humeur à l'aveugle : masque l'humeur du partenaire tant que je n'ai pas voté. */

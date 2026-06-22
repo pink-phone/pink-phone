@@ -44,6 +44,9 @@ export function Root() {
   if (loading || (!user && !authConfig)) return <Splash />;
 
   if (!user) {
+    // `authConfig` est forcément chargé ici (sinon le Splash ci-dessus) — garde
+    // explicite pour le narrowing TS, plutôt qu'un `authConfig!` (REACT-08).
+    if (!authConfig) return <Splash />;
     const onSubmit = async (mode: AuthMode, d: AuthSubmit) => {
       setBusy(true);
       setError(null);
@@ -59,8 +62,8 @@ export function Root() {
     return (
       <AuthScreen
         onSubmit={onSubmit}
-        passwordEnabled={authConfig!.passwordEnabled}
-        oidcEnabled={authConfig!.oidcEnabled}
+        passwordEnabled={authConfig.passwordEnabled}
+        oidcEnabled={authConfig.oidcEnabled}
         onOidcLogin={() => {
           window.location.href = api.oidcLoginUrl();
         }}

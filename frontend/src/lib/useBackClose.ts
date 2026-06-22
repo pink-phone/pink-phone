@@ -7,6 +7,13 @@ import { useEffect, useRef } from "react";
  * À l'ouverture, on empile une entrée d'historique ; un retour la dépile et
  * appelle `close`. Si la surface est fermée autrement (✕, Échap…), on consomme
  * l'entrée empilée pour ne pas laisser d'historique fantôme.
+ *
+ * ⚠️ NON StrictMode-safe en DEV (REACT-05) : le double-invoke de StrictMode
+ * (mount → cleanup → remount) peut empiler une entrée fantôme transitoire. C'est
+ * **inoffensif en production** (StrictMode ne double-invoke qu'en dev), et toute
+ * tentative de « corriger » en manipulant `pushState`/`back` autour du
+ * double-invoke risque d'introduire de vrais bugs de navigation en prod — on
+ * accepte donc le comportement dev plutôt que de fragiliser la navigation réelle.
  */
 export function useBackClose(open: boolean, close: () => void): void {
   const closeRef = useRef(close);
