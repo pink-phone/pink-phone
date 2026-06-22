@@ -336,6 +336,17 @@ export const deleteSuggestion = (spaceId: string, sid: string) =>
     method: "DELETE",
   });
 
+/** Masque (#70) ou réaffiche une suggestion pour ce salon. */
+export const setSuggestionHidden = (
+  spaceId: string,
+  sid: string,
+  hidden: boolean,
+) =>
+  req<void>(`/api/spaces/${spaceId}/suggestions/${sid}/hidden`, {
+    method: "PUT",
+    json: { hidden },
+  });
+
 export const createChallenge = (
   spaceId: string,
   body: {
@@ -343,6 +354,8 @@ export const createChallenge = (
     description: string;
     intensity: Intensity;
     deadlineLabel?: string;
+    /** Suggestion de la banque dont ce défi est issu (#69). */
+    sourceSuggestionId?: string;
   },
 ) =>
   req<ApiChallenge>(`/api/spaces/${spaceId}/challenges`, {

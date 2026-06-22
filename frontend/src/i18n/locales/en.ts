@@ -221,6 +221,10 @@ export const en: Resources = {
     catalogue: "All suggestions",
     mine: "My suggestions",
     ownTag: "Yours",
+    done: "Already done",
+    hiddenTag: "Hidden",
+    hide: "Hide",
+    unhide: "Unhide",
   },
   comments: {
     sheetTitle: "Talk",

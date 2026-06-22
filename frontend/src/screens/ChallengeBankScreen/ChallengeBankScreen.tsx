@@ -17,6 +17,10 @@ export interface BankItem {
   intensity: Intensity;
   /** Proposition propre au salon (éditable) vs banque commune. */
   isOwn: boolean;
+  /** Un défi issu de cette idée a déjà été réalisé dans le salon (#69). */
+  done?: boolean;
+  /** Idée masquée par le salon (#70) : grisée + hors des inspirations. */
+  hidden?: boolean;
 }
 
 type SuggestionDraft = {
@@ -28,10 +32,12 @@ type SuggestionDraft = {
 export interface ChallengeBankScreenProps {
   suggestions: BankItem[];
   /** Proposer ce défi au/à la partenaire (crée un défi « proposed », #62). */
-  onPropose: (s: SuggestionDraft) => void;
+  onPropose: (s: SuggestionDraft, sourceId: string) => void;
   onAdd: (s: SuggestionDraft) => void;
   onUpdate: (id: string, s: SuggestionDraft) => void;
   onDelete: (id: string) => void;
+  /** Masque (#70) / réaffiche une idée pour le salon. */
+  onSetHidden: (id: string, hidden: boolean) => void;
   onBack?: () => void;
 }
 
@@ -45,6 +51,7 @@ export function ChallengeBankScreen({
   onAdd,
   onUpdate,
   onDelete,
+  onSetHidden,
   onBack,
 }: ChallengeBankScreenProps) {
   const { t } = useTranslation();
@@ -119,11 +126,29 @@ export function ChallengeBankScreen({
             <ul className="space-y-2">
               {items.map((s) => (
                 <li key={s.id}>
-                  <Surface tone="velvet" className="space-y-1">
+                  <Surface
+                    tone="velvet"
+                    className={`space-y-1 ${s.hidden ? "opacity-50" : ""}`}
+                  >
                     <div className="flex items-center gap-2">
                       <span className="min-w-0 flex-1 font-serif text-sm text-blush-100">
+                        {s.done && (
+                          <span
+                            aria-hidden
+                            className="mr-1 text-spice-300"
+                            title={t("challengeBank.done")}
+                          >
+                            ✓
+                          </span>
+                        )}
                         {s.title}
                       </span>
+                      {s.done && (
+                        <Badge tone="soft">{t("challengeBank.done")}</Badge>
+                      )}
+                      {s.hidden && (
+                        <Badge tone="neutral">{t("challengeBank.hiddenTag")}</Badge>
+                      )}
                       {s.isOwn && (
                         <Badge tone="accent">{t("challengeBank.ownTag")}</Badge>
                       )}
@@ -133,11 +158,21 @@ export function ChallengeBankScreen({
                           {
                             label: t("challengeBank.propose"),
                             onClick: () =>
-                              onPropose({
-                                title: s.title,
-                                description: s.description,
-                                intensity: s.intensity,
-                              }),
+                              onPropose(
+                                {
+                                  title: s.title,
+                                  description: s.description,
+                                  intensity: s.intensity,
+                                },
+                                s.id,
+                              ),
+                          },
+                          {
+                            // #70 : masquer / réafficher pour le salon.
+                            label: s.hidden
+                              ? t("challengeBank.unhide")
+                              : t("challengeBank.hide"),
+                            onClick: () => onSetHidden(s.id, !s.hidden),
                           },
                           ...(s.isOwn
                             ? [

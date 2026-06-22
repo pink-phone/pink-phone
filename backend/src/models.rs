@@ -155,6 +155,13 @@ pub struct ChallengeSuggestion {
     pub intensity: String,
     /// Langue de l'idée (« fr »/« en ») — renvoyée à la création (API-16).
     pub locale: String,
+    /// Un défi issu de cette suggestion a déjà été réalisé dans le salon (#69).
+    /// Calculé seulement au listing → défaut `false` ailleurs (create/update).
+    #[sqlx(default)]
+    pub done: bool,
+    /// Suggestion masquée par le salon (#70). Idem : calculé au listing.
+    #[sqlx(default)]
+    pub hidden: bool,
 }
 
 /// "Vu" d'un fil (blog/défis) par un membre — horodatage de dernière consultation.

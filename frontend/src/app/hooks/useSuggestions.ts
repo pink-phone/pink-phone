@@ -52,6 +52,15 @@ export function useSuggestions(spaceId: string, lang: string) {
       console.error("suppression de proposition échouée", e);
     }
   };
+  // Masque / réaffiche une suggestion pour ce salon (#70).
+  const setHidden = async (id: string, hidden: boolean) => {
+    try {
+      await api.setSuggestionHidden(spaceId, id, hidden);
+      reload();
+    } catch (e) {
+      console.error("masquage de proposition échoué", e);
+    }
+  };
 
-  return { suggestions, add, edit, remove };
+  return { suggestions, add, edit, remove, setHidden };
 }

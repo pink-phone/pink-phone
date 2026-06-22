@@ -126,6 +126,10 @@ export interface ChallengeSuggestion {
   intensity: Intensity;
   /** Langue de l'idée (« fr »/« en ») — renvoyée par l'API (API-16). */
   locale: string;
+  /** Un défi issu de cette suggestion a déjà été réalisé dans le salon (#69). */
+  done: boolean;
+  /** Suggestion masquée par le salon (#70). */
+  hidden: boolean;
 }
 
 export interface MediaCreated {
