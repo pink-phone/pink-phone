@@ -269,6 +269,7 @@ export const en: Resources = {
     allowCustom: "Free reactions",
     allowCustomHint: "Allow a free emoji reaction via the ＋ button.",
     spacesSection: "My spaces",
+    spacesHint: "{{count}} spaces",
     spaceCurrent: "current",
     spaceCreate: "Create another space",
     spaceCreateAction: "Create",
