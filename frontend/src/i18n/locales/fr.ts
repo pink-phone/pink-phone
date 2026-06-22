@@ -269,6 +269,7 @@ export const fr = {
     allowCustom: "Réactions libres",
     allowCustomHint: "Autorise une réaction emoji libre via le bouton ＋.",
     spacesSection: "Mes salons",
+    spacesHint: "{{count}} salons",
     spaceCurrent: "actuel",
     spaceCreate: "Créer un autre salon",
     spaceCreateAction: "Créer",

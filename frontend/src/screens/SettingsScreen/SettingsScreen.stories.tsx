@@ -58,15 +58,32 @@ export const Interactif: Story = {
   },
 };
 
-/** Multi-space (#67) : sélecteur de salon + créer / rejoindre un autre salon. */
+/** Multi-space (#67) : ≥ 2 salons → section dépliée d'office, sélecteur visible. */
 export const PlusieursSalons: Story = {
-  name: "Plusieurs salons",
+  name: "Plusieurs salons (déplié)",
   args: {
     currentSpaceId: "a",
     spaces: [
       { id: "a", name: "Pink Phone" },
       { id: "b", name: "Escapade" },
     ],
+    onSwitchSpace: fn(),
+    onCreateSpace: fn(),
+    onJoinSpace: fn(),
+  },
+  render: (args) => (
+    <div className="w-[380px]">
+      <SettingsScreen {...args} />
+    </div>
+  ),
+};
+
+/** Cas couple (1 salon) : section « Mes salons » repliée (juste l'en-tête). */
+export const UnSeulSalon: Story = {
+  name: "Un seul salon (replié)",
+  args: {
+    currentSpaceId: "a",
+    spaces: [{ id: "a", name: "Pink Phone" }],
     onSwitchSpace: fn(),
     onCreateSpace: fn(),
     onJoinSpace: fn(),
