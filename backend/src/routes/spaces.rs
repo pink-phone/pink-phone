@@ -156,6 +156,10 @@ pub struct InviteCreated {
     pub token: Uuid,
 }
 
+/// Plafond d'invitations actives (non utilisées, non expirées) par salon —
+/// borne l'accumulation de tokens (SEC-NEW-004). Large devant les 8 membres max.
+const MAX_ACTIVE_INVITES: i64 = 10;
+
 /// Génère une invitation à usage unique (valable 7 jours) pour ce salon.
 async fn create_invite(
     State(state): State<AppState>,
@@ -163,6 +167,19 @@ async fn create_invite(
     Path(space_id): Path<Uuid>,
 ) -> ApiResult<(StatusCode, Json<InviteCreated>)> {
     ensure_member(&state.pool, auth.user_id, space_id).await?;
+    // Anti-accumulation : on borne les invitations actives par salon (SEC-NEW-004).
+    let active: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM space_invites
+         WHERE space_id = $1 AND used_at IS NULL AND expires_at > now()",
+    )
+    .bind(space_id)
+    .fetch_one(&state.pool)
+    .await?;
+    if active >= MAX_ACTIVE_INVITES {
+        return Err(ApiError::Conflict(
+            "trop d'invitations actives pour ce salon".into(),
+        ));
+    }
     let token: Uuid = sqlx::query_scalar(
         "INSERT INTO space_invites (space_id, created_by, expires_at)
          VALUES ($1, $2, now() + interval '7 days') RETURNING token",
@@ -215,7 +232,10 @@ async fn join_by_invite(
     .fetch_one(&mut *tx)
     .await?;
 
-    // Déjà membre : on renvoie le salon sans consommer l'invitation.
+    // Déjà membre : on renvoie le salon sans consommer l'invitation (ré-jointure
+    // idempotente). Conséquence (SEC-NEW-003, comportement assumé) : un token
+    // n'est consommé que par un NOUVEAU membre ; un membre déjà présent peut le
+    // ré-utiliser sans le dépenser — sans gain de privilège (il a déjà accès).
     let already: Option<Uuid> = sqlx::query_scalar(
         "SELECT user_id FROM space_memberships WHERE user_id = $1 AND space_id = $2",
     )
@@ -273,4 +293,21 @@ async fn members(
     .fetch_all(&state.pool)
     .await?;
     Ok(Json(members))
+}
+
+/// Purge périodique des invitations devenues inutiles (consommées ou expirées) —
+/// borne la table `space_invites` (SEC-NEW-004). Best-effort (erreur journalisée).
+pub async fn purge_stale_invites(pool: &sqlx::PgPool) {
+    match sqlx::query(
+        "DELETE FROM space_invites WHERE used_at IS NOT NULL OR expires_at < now()",
+    )
+    .execute(pool)
+    .await
+    {
+        Ok(res) if res.rows_affected() > 0 => {
+            tracing::info!(count = res.rows_affected(), "invitations périmées purgées");
+        }
+        Ok(_) => {}
+        Err(e) => tracing::warn!(error = ?e, "purge des invitations échouée"),
+    }
 }
