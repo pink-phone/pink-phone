@@ -39,6 +39,8 @@ pub struct CreateChallengeBody {
     pub description: String,
     pub intensity: String,
     pub deadline_label: Option<String>,
+    /// Suggestion de la banque dont ce défi est issu (#69), si proposé depuis elle.
+    pub source_suggestion_id: Option<Uuid>,
 }
 
 #[derive(Deserialize)]
@@ -89,8 +91,9 @@ async fn create_challenge(
 
     let challenge: Challenge = sqlx::query_as(
         "INSERT INTO challenges
-            (space_id, proposer_id, title, description, intensity, deadline_label)
-         VALUES ($1, $2, $3, $4, $5, $6)
+            (space_id, proposer_id, title, description, intensity, deadline_label,
+             source_suggestion_id)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)
          RETURNING id, proposer_id, title, description, intensity, status,
                    deadline_label, created_at, updated_at",
     )
@@ -105,6 +108,7 @@ async fn create_challenge(
             .map(str::trim)
             .filter(|s| !s.is_empty()),
     )
+    .bind(body.source_suggestion_id)
     .fetch_one(&state.pool)
     .await?;
 

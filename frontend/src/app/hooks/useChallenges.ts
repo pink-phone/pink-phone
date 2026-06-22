@@ -47,13 +47,17 @@ export function useChallenges(spaceId: string) {
     }
   };
 
-  const add = async (draft: ChallengeDraft): Promise<boolean> => {
+  const add = async (
+    draft: ChallengeDraft,
+    sourceSuggestionId?: string,
+  ): Promise<boolean> => {
     try {
       const challenge = await api.createChallenge(spaceId, {
         title: draft.title,
         description: draft.description,
         intensity: draft.intensity,
         deadlineLabel: draft.deadlineLabel,
+        sourceSuggestionId,
       });
       setChallenges((prev) => [challenge, ...prev]);
       return true;

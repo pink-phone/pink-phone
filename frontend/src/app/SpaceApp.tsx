@@ -111,6 +111,7 @@ export function SpaceApp({
     add: addSuggestion,
     edit: editSuggestion,
     remove: removeSuggestion,
+    setHidden: setSuggestionHidden,
   } = useSuggestions(space.id, lang);
   const [openSheet, setOpenSheet] = useState<"post" | "challenge" | null>(null);
   // Brouillon en cours d'édition (sinon la feuille "post" crée un nouveau post).
@@ -434,10 +435,13 @@ export function SpaceApp({
             description: s.description,
             intensity: s.intensity,
             isOwn: s.spaceId !== null,
+            done: s.done,
+            hidden: s.hidden,
           }))}
-          onPropose={async (s) => {
-            // Proposer depuis la banque = créer un défi « proposed » (#62).
-            if (await addChallengeH(s)) {
+          onPropose={async (s, sourceId) => {
+            // Proposer depuis la banque = créer un défi « proposed » (#62) en
+            // gardant le lien vers la suggestion d'origine (#69).
+            if (await addChallengeH(s, sourceId)) {
               setShowBank(false);
               setTab("challenges");
             }
@@ -445,6 +449,7 @@ export function SpaceApp({
           onAdd={addSuggestion}
           onUpdate={editSuggestion}
           onDelete={removeSuggestion}
+          onSetHidden={setSuggestionHidden}
           onBack={() => setShowBank(false)}
         />
       </div>
@@ -611,7 +616,8 @@ export function SpaceApp({
             setOpenSheet(null);
             setEditingChallenge(null);
           }}
-          suggestions={suggestions}
+          // Les idées masquées (#70) sortent des inspirations du composer.
+          suggestions={suggestions.filter((s) => !s.hidden)}
         />
       </Sheet>
 

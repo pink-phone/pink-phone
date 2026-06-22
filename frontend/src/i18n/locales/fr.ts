@@ -221,6 +221,10 @@ export const fr = {
     catalogue: "Toutes les propositions",
     mine: "Mes propositions",
     ownTag: "Perso",
+    done: "Déjà fait",
+    hiddenTag: "Masqué",
+    hide: "Masquer",
+    unhide: "Réafficher",
   },
   comments: {
     sheetTitle: "Échanger",
