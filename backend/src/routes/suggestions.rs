@@ -11,8 +11,6 @@ use crate::models::{ChallengeSuggestion, INTENSITIES};
 use crate::routes::ensure_member;
 use crate::state::AppState;
 
-const LOCALES: [&str; 2] = ["fr", "en"];
-
 pub fn router() -> Router<AppState> {
     Router::new()
         .route(
@@ -30,10 +28,11 @@ struct ListQuery {
     lang: Option<String>,
 }
 
-fn norm_locale(lang: Option<&str>) -> String {
+/// Normalise la langue vers un littéral statique connu (défaut « fr »). RUST-15.
+fn norm_locale(lang: Option<&str>) -> &'static str {
     match lang {
-        Some(l) if LOCALES.contains(&l) => l.to_string(),
-        _ => "fr".to_string(),
+        Some("en") => "en",
+        _ => "fr",
     }
 }
 
@@ -54,7 +53,7 @@ async fn list_suggestions(
                  ORDER BY created_at";
     let mut items: Vec<ChallengeSuggestion> = sqlx::query_as(query)
         .bind(space_id)
-        .bind(&lang)
+        .bind(lang)
         .fetch_all(&state.pool)
         .await?;
     if items.is_empty() && lang != "fr" {
@@ -104,7 +103,7 @@ async fn create_suggestion(
     )
     .bind(space_id)
     .bind(auth.user_id)
-    .bind(&locale)
+    .bind(locale)
     .bind(body.title.trim())
     .bind(body.description.trim())
     .bind(&body.intensity)

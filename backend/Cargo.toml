@@ -7,7 +7,17 @@ license = "AGPL-3.0-or-later"
 
 [dependencies]
 axum = { version = "0.8", features = ["multipart", "macros", "ws"] }
-tokio = { version = "1", features = ["full"] }
+# Features ciblées (RUST-13) plutôt que "full" : ce qui est réellement utilisé
+# (runtime multi-thread + spawn_blocking, macros, fs, io, net, sync, time).
+tokio = { version = "1", features = [
+    "rt-multi-thread",
+    "macros",
+    "fs",
+    "io-util",
+    "net",
+    "sync",
+    "time",
+] }
 tower = "0.5"
 tower-http = { version = "0.6", features = ["cors", "trace"] }
 

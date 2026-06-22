@@ -6,6 +6,7 @@ use std::sync::{Arc, Mutex};
 use std::time::Instant;
 use tokio::sync::broadcast;
 use uuid::Uuid;
+use web_push::HyperWebPushClient;
 
 /// Données d'un flux OIDC en cours, gardées entre /login et /callback.
 pub struct OidcFlow {
@@ -29,17 +30,21 @@ pub struct SpaceEvent {
     pub space_id: Uuid,
     /// Auteur de la mutation : son propre client n'a pas besoin de rafraîchir.
     pub actor_id: Uuid,
-    /// "post" | "challenge" | "mood" | "comment" | "reaction".
-    pub kind: String,
+    /// "post" | "challenge" | "mood" | "comment" | "reaction" | "seen" | "space".
+    /// Toujours un littéral statique → pas d'allocation par événement (RUST-07).
+    pub kind: &'static str,
 }
 
-/// État partagé injecté dans tous les handlers.
+/// État partagé injecté dans tous les handlers. `config` et `push_client` sont des
+/// `Arc` → `AppState::clone` (par requête) reste O(1) (RUST-08/03).
 #[derive(Clone)]
 pub struct AppState {
     pub pool: PgPool,
-    pub config: Config,
+    pub config: Arc<Config>,
     /// Client HTTP réutilisable (discovery OIDC, échange de code, JWKS).
     pub http: reqwest::Client,
+    /// Client Web Push réutilisable (connexions HTTP/TLS amorties — RUST-03).
+    pub push_client: Arc<HyperWebPushClient>,
     /// États OIDC en cours, indexés par `state` (anti-CSRF). TTL court.
     pub oidc_states: Arc<Mutex<HashMap<String, OidcFlow>>>,
     /// Jetons en attente d'échange post-callback OIDC, indexés par code éphémère.
@@ -51,11 +56,11 @@ pub struct AppState {
 impl AppState {
     /// Diffuse un événement de mutation aux WebSockets connectés (best-effort :
     /// ignoré s'il n'y a aucun abonné).
-    pub fn emit(&self, space_id: Uuid, actor_id: Uuid, kind: &str) {
+    pub fn emit(&self, space_id: Uuid, actor_id: Uuid, kind: &'static str) {
         let _ = self.events.send(SpaceEvent {
             space_id,
             actor_id,
-            kind: kind.to_string(),
+            kind,
         });
     }
 }
