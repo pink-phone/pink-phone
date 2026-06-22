@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import * as api from "../api/client";
 import { confirmAction } from "../lib/confirm";
@@ -237,9 +237,25 @@ export function SpaceApp({
   });
   useBackClose(commentsFor !== null, closeComments);
 
+  // Dérivés mémoïsés (REACT-04) — AVANT tout `return` conditionnel (règle des
+  // hooks). `toPostData` instancie un Intl.RelativeTimeFormat par post : on évite
+  // de le refaire à chaque rendu (changement d'onglet, ouverture de feuille…).
+  const partner = members.find((m) => m.id !== user.id);
+  const partnerBlogSeen = partner
+    ? seen.find((s) => s.userId === partner.id && s.feature === "blog")?.seenAt
+    : undefined;
+  const postData = useMemo<PostData[]>(
+    () => toPostData(posts, { t, spaceId: space.id, userId: user.id, partnerBlogSeen }),
+    [posts, t, space.id, user.id, partnerBlogSeen],
+  );
+  const challengeData = useMemo<ChallengeData[]>(
+    () => toChallengeData(challenges, user.id),
+    [challenges, user.id],
+  );
+  const commentViews = useMemo(() => toCommentViews(comments), [comments]);
+
   if (!ready) return <Splash message={t("splash.loadingSpace")} />;
 
-  const partner = members.find((m) => m.id !== user.id);
   const myMood = moods.find((m) => m.userId === user.id)?.status ?? null;
   const partnerMoodEntry = partner
     ? moods.find((m) => m.userId === partner.id)
@@ -255,7 +271,6 @@ export function SpaceApp({
     seen.find((s) => s.userId === userId && s.feature === feature)?.seenAt;
   const myBlogSeen = seenAt(user.id, "blog");
   const myChallSeen = seenAt(user.id, "challenges");
-  const partnerBlogSeen = partner ? seenAt(partner.id, "blog") : undefined;
 
   // Nouveautés = contenu de l'autre, créé après mon dernier "vu".
   const newPosts = posts.filter(
@@ -381,7 +396,7 @@ export function SpaceApp({
           onRenameSpace={renameSpace}
           onTimezoneChange={changeTimezone}
           onBlindMoodChange={changeBlindMood}
-          reactions={space.reactions as ReactionId[]}
+          reactions={space.reactions}
           allowCustomReactions={space.allowCustomReactions}
           onReactionsChange={changeReactions}
           onBack={() => setShowSettings(false)}
@@ -427,15 +442,6 @@ export function SpaceApp({
     );
   }
 
-  // ----- mapping API -> props des écrans (conversions pures, cf. mappers.ts) -----
-  const postData: PostData[] = toPostData(posts, {
-    t,
-    spaceId: space.id,
-    userId: user.id,
-    partnerBlogSeen,
-  });
-  const challengeData: ChallengeData[] = toChallengeData(challenges, user.id);
-  const commentViews = toCommentViews(comments);
 
   return (
     <AppShell
@@ -479,7 +485,7 @@ export function SpaceApp({
           onCompose={() => setOpenSheet("post")}
           onToggleReaction={toggleReaction}
           onOpenComments={openComments}
-          reactionOrder={space.reactions as ReactionId[]}
+          reactionOrder={space.reactions}
           allowCustomReactions={space.allowCustomReactions}
           onDeletePost={deletePost}
           onPublishPost={publishPost}

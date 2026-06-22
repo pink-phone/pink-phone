@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
   type ReactNode,
 } from "react";
@@ -120,13 +121,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
-  return (
-    <AuthContext.Provider
-      value={{ user, token, loading, login, register, logout }}
-    >
-      {children}
-    </AuthContext.Provider>
+  // Valeur mémoïsée (REACT-13) : ne change de référence que sur une transition
+  // d'auth réelle, pas à chaque rendu du provider → pas de re-render inutile des
+  // consommateurs (`login`/`register`/`logout` sont stables via useCallback).
+  const value = useMemo(
+    () => ({ user, token, loading, login, register, logout }),
+    [user, token, loading, login, register, logout],
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth(): AuthContextValue {
