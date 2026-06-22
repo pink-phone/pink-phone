@@ -153,6 +153,8 @@ pub struct ChallengeSuggestion {
     pub title: String,
     pub description: String,
     pub intensity: String,
+    /// Langue de l'idée (« fr »/« en ») — renvoyée à la création (API-16).
+    pub locale: String,
 }
 
 /// "Vu" d'un fil (blog/défis) par un membre — horodatage de dernière consultation.
@@ -183,6 +185,12 @@ pub const INTENSITIES: [&str; 2] = ["soft", "hot"];
 pub const MOODS: [&str; 5] = ["calm", "flirty", "veryHot", "tired", "cuddleNeeded"];
 pub const REACTIONS: [&str; 5] = ["heart", "fire", "smirk", "breath", "hush"];
 pub const VERDICTS: [&str; 3] = ["hot", "curious", "notForMe"];
+/// États de la machine à états des défis, dans l'ordre d'affichage. Source de
+/// vérité du type TS `ChallengeStatus` (généré — API-13) ; seul le codegen le
+/// consomme aujourd'hui côté Rust (la machine à états vit dans les `match`).
+#[cfg_attr(not(test), allow(dead_code))]
+pub const CHALLENGE_STATUSES: [&str; 4] =
+    ["proposed", "challengeAccepted", "maybeMaybe", "jobDone"];
 
 /// Transitions valides de la machine à états des défis.
 pub fn challenge_transition_allowed(from: &str, to: &str) -> bool {
@@ -200,6 +208,66 @@ pub fn challenge_transition_allowed(from: &str, to: &str) -> bool {
 /// l'effectuer lui-même (SEC-015). La validation finale (`jobDone`) en est exclue.
 pub fn is_proposal_response(to: &str) -> bool {
     matches!(to, "challengeAccepted" | "maybeMaybe")
+}
+
+/// Génération du module de types de domaine TypeScript depuis les constantes Rust
+/// (source de vérité unique — API-13). Le test `types_ts_a_jour` régénère
+/// `frontend/src/domain/types.ts` et échoue s'il était périmé : un statut/mood/
+/// réaction ne se modifie qu'ICI, plus de miroir Rust↔TS à maintenir à la main.
+#[cfg(test)]
+mod domain_codegen {
+    use super::*;
+
+    fn ts_union(values: &[&str]) -> String {
+        values
+            .iter()
+            .map(|v| format!("\"{v}\""))
+            .collect::<Vec<_>>()
+            .join(" | ")
+    }
+
+    /// Contenu attendu de `frontend/src/domain/types.ts`.
+    fn render() -> String {
+        format!(
+            "// ⚠️ FICHIER GÉNÉRÉ — ne pas éditer à la main.\n\
+             // Source de vérité : les constantes de `backend/src/models.rs`,\n\
+             // régénéré par le test `domain_codegen` (`cargo test`) — API-13.\n\
+             //\n\
+             // Caveat : moods et réactions voyagent en `string` à la frontière (une\n\
+             // valeur prédéfinie OU un emoji/libellé libre). Ces unions décrivent\n\
+             // l'ensemble *connu*, validé côté serveur, pas un enum fermé.\n\
+             \n\
+             export type ChallengeStatus = {challenge};\n\
+             export type Intensity = {intensity};\n\
+             export type Verdict = {verdict};\n\
+             export type ReactionId = {reaction};\n\
+             export type MoodId = {mood};\n",
+            challenge = ts_union(&CHALLENGE_STATUSES),
+            intensity = ts_union(&INTENSITIES),
+            verdict = ts_union(&VERDICTS),
+            reaction = ts_union(&REACTIONS),
+            mood = ts_union(&MOODS),
+        )
+    }
+
+    #[test]
+    fn types_ts_a_jour() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../frontend/src/domain/types.ts");
+        // Build backend-only (hors monorepo) : le front n'est pas là → on saute.
+        if !path.parent().is_some_and(|p| p.exists()) {
+            return;
+        }
+        let expected = render();
+        let current = std::fs::read_to_string(&path).unwrap_or_default();
+        if current != expected {
+            std::fs::write(&path, &expected).expect("écriture de types.ts");
+            panic!(
+                "frontend/src/domain/types.ts était périmé → régénéré (API-13). \
+                 Relance `cargo test` et recommit le fichier."
+            );
+        }
+    }
 }
 
 #[cfg(test)]
