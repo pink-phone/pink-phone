@@ -62,7 +62,7 @@ export function Sheet({ open, title, onClose, children, className }: SheetProps)
             type="button"
             onClick={onClose}
             aria-label={t("common.close")}
-            className="rounded-full px-2 py-1 text-taupe-400 transition-colors duration-300 ease-felt hover:text-blush-100"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full text-taupe-300 transition-colors duration-300 ease-felt hover:text-blush-100"
           >
             ✕
           </button>

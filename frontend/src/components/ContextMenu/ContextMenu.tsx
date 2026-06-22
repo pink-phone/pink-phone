@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "../../lib/cn";
 
 export interface ContextMenuItem {
@@ -18,6 +18,17 @@ export interface ContextMenuProps {
 /** Menu contextuel « ⋯ » : déclencheur + liste d'actions (modifier, supprimer…). */
 export function ContextMenu({ items, ariaLabel, className }: ContextMenuProps) {
   const [open, setOpen] = useState(false);
+
+  // Échap referme le menu (cohérent avec Sheet) — UI-A11Y4.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [open]);
+
   if (items.length === 0) return null;
 
   return (

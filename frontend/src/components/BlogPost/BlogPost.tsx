@@ -87,7 +87,7 @@ export function BlogPost({
         </span>
         <div className="leading-tight">
           <p className="font-serif text-lg text-blush-100">{author.name}</p>
-          <p className="text-xs text-taupe-400">{timeLabel}</p>
+          <p className="text-xs text-taupe-300">{timeLabel}</p>
         </div>
         <div className="ml-auto flex items-center gap-2">
           {draft && <Badge tone="neutral">{t("blog.draftBadge")}</Badge>}
@@ -156,7 +156,7 @@ export function BlogPost({
             <button
               type="button"
               onClick={onOpenComments}
-              className="text-xs text-taupe-400 transition-colors duration-300 ease-felt hover:text-spice-300"
+              className="text-xs text-taupe-300 transition-colors duration-300 ease-felt hover:text-spice-300"
             >
               💬{" "}
               {commentCount > 0

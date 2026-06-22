@@ -5,9 +5,10 @@ type Variant = "primary" | "secondary" | "ghost";
 type Size = "sm" | "md";
 
 const VARIANTS: Record<Variant, string> = {
-  // Rose Épicé — action principale
+  // Rose Épicé — action principale. Défaut spice-600 (contraste AA ~5.3:1 avec
+  // blush-50 ; spice-500 échouait à 3.95:1 — UI-A11Y2), éclairci au survol.
   primary:
-    "bg-spice-500 text-blush-50 shadow-felt-sm hover:bg-spice-400 active:bg-spice-600",
+    "bg-spice-600 text-blush-50 shadow-felt-sm hover:bg-spice-500 active:bg-spice-600",
   // Surface feutrée discrète
   secondary:
     "bg-charcoal-700 text-taupe-200 border border-charcoal-600/70 hover:border-spice-400/50 hover:text-blush-100",

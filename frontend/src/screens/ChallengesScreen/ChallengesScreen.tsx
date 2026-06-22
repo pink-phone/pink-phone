@@ -53,6 +53,12 @@ export function ChallengesScreen({
         </div>
       </header>
 
+      {challenges.length === 0 && (
+        <p className="py-12 text-center text-sm text-taupe-300">
+          {t("challenges.empty")}
+        </p>
+      )}
+
       {SECTION_ORDER.map((status) => {
         const items = challenges.filter((c) => c.status === status);
         if (items.length === 0) return null;

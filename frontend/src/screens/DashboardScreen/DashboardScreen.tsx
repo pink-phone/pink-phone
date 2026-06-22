@@ -130,7 +130,7 @@ export function DashboardScreen({
             type="button"
             onClick={onOpenSettings}
             aria-label={t("dashboard.settings")}
-            className="absolute right-0 top-1 rounded-full px-2 py-1 text-xl text-taupe-400 transition-colors duration-300 ease-felt hover:text-spice-300"
+            className="absolute right-0 top-0 inline-flex h-11 w-11 items-center justify-center rounded-full text-xl text-taupe-300 transition-colors duration-300 ease-felt hover:text-spice-300"
           >
             ⚙️
           </button>

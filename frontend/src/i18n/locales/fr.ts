@@ -158,6 +158,7 @@ export const fr = {
   },
   challenges: {
     title: "Nos défis",
+    empty: "Aucun défi pour l'instant. Lance le premier… 🔥",
     new: "＋ Lancer un défi",
     bank: "📚 Banque",
     deleteChallenge: "Supprimer ce défi",

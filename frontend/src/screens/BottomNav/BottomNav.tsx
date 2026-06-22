@@ -49,7 +49,7 @@ export function BottomNav({ active, onChange, badges = {}, className }: BottomNa
             className={cn(
               "relative flex flex-1 flex-col items-center gap-0.5 rounded-2xl py-2",
               "transition-all duration-300 ease-felt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500",
-              isActive ? "text-spice-300" : "text-taupe-400 hover:text-taupe-200",
+              isActive ? "text-spice-300" : "text-taupe-300 hover:text-taupe-100",
             )}
           >
             <span

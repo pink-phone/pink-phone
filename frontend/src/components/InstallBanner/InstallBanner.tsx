@@ -21,7 +21,9 @@ export function InstallBanner({
   return (
     <div
       className={cn(
-        "fixed inset-x-0 bottom-0 z-50 animate-slide-up px-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))]",
+        // Posé AU-DESSUS de la BottomNav (≈ 3,5rem + safe-area) pour ne pas
+        // masquer les onglets (UI-UX1). La nav gère déjà la safe-area iOS.
+        "fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-50 animate-slide-up px-3 pb-2",
         className,
       )}
     >
@@ -33,7 +35,7 @@ export function InstallBanner({
           <p className="font-serif text-sm text-blush-100">
             {t("install.title")}
           </p>
-          <p className="text-xs text-taupe-400">
+          <p className="text-xs text-taupe-300">
             {mode === "android" ? t("install.android") : t("install.ios")}
           </p>
         </div>
