@@ -1,6 +1,6 @@
 import type { TFunction } from "i18next";
 import * as api from "../api/client";
-import type { ApiChallenge, ApiComment, ApiPost } from "../api/types";
+import type { ApiChallenge, ApiComment, ApiPost, SeenEntry } from "../api/types";
 import type { ChallengeData, PostData } from "../types/view";
 import type { CommentView } from "../components/CommentsSheet/CommentsSheet";
 import { relativeTime } from "../lib/time";
@@ -9,6 +9,25 @@ import { relativeTime } from "../lib/time";
 // orchestration : aucune dépendance à l'état React, testables telles quelles.
 // `CommentView` est le type de prop de `CommentsSheet` (le composant le possède).
 export type { CommentView };
+
+/**
+ * « Vu par tous » (#52) : l'horodatage à partir duquel TOUS les membres donnés
+ * ont consulté `feature` (= le MIN de leurs derniers « vu »). `undefined` si la
+ * liste est vide ou si l'un d'eux ne l'a jamais consulté. Pour un couple (1 seul
+ * membre), revient au « vu » de l'unique partenaire (comportement d'origine).
+ */
+export function seenByAllAt(
+  memberIds: string[],
+  seen: SeenEntry[],
+  feature: string,
+): string | undefined {
+  if (memberIds.length === 0) return undefined;
+  const ats = memberIds.map(
+    (id) => seen.find((s) => s.userId === id && s.feature === feature)?.seenAt,
+  );
+  if (ats.some((a) => !a)) return undefined;
+  return ats.reduce((a, b) => (a! < b! ? a : b));
+}
 
 interface PostMapOptions {
   t: TFunction;

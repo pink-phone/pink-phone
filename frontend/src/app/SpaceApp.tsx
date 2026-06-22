@@ -42,7 +42,7 @@ import { usePosts } from "./hooks/usePosts";
 import { useChallenges } from "./hooks/useChallenges";
 import { useMoods } from "./hooks/useMoods";
 import { useSeen } from "./hooks/useSeen";
-import { toChallengeData, toCommentViews, toPostData } from "./mappers";
+import { seenByAllAt, toChallengeData, toCommentViews, toPostData } from "./mappers";
 
 /** L'app branchée sur un Space réel : charge et pilote les données via l'API. */
 export function SpaceApp({
@@ -262,16 +262,12 @@ export function SpaceApp({
   // Multi-partenaires (#52) : les AUTRES membres (≥ 0). Couple = exactement 1.
   const partners = members.filter((m) => m.id !== user.id);
   // « Vu par tous » : un post est lu quand TOUS les autres ont ouvert le blog
-  // après sa création → on prend le MIN de leurs derniers « vu » (undefined si
-  // l'un ne l'a jamais ouvert). Pour un couple, = le « vu » de l'unique partenaire.
-  const partnerBlogSeen = (() => {
-    if (partners.length === 0) return undefined;
-    const seenAts = partners.map(
-      (p) => seen.find((s) => s.userId === p.id && s.feature === "blog")?.seenAt,
-    );
-    if (seenAts.some((x) => !x)) return undefined;
-    return seenAts.reduce((a, b) => (a! < b! ? a : b));
-  })();
+  // après sa création (cf. `seenByAllAt`). Pour un couple = le « vu » du partenaire.
+  const partnerBlogSeen = seenByAllAt(
+    partners.map((p) => p.id),
+    seen,
+    "blog",
+  );
   const postData = useMemo<PostData[]>(
     () => toPostData(posts, { t, spaceId: space.id, userId: user.id, partnerBlogSeen }),
     [posts, t, space.id, user.id, partnerBlogSeen],
