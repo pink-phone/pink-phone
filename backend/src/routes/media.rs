@@ -160,7 +160,7 @@ async fn upload(
     auth: AuthUser,
     Path(space_id): Path<Uuid>,
     mut multipart: Multipart,
-) -> ApiResult<Json<MediaCreated>> {
+) -> ApiResult<(StatusCode, Json<MediaCreated>)> {
     ensure_member(&state.pool, auth.user_id, space_id).await?;
 
     let mut data: Option<(Vec<u8>, String)> = None;
@@ -233,7 +233,7 @@ async fn upload(
     .fetch_one(&state.pool)
     .await?;
 
-    Ok(Json(MediaCreated { id, mime, view_once }))
+    Ok((StatusCode::CREATED, Json(MediaCreated { id, mime, view_once })))
 }
 
 /// Lecture authentifiée : vérifie l'appartenance au space puis stream les octets.

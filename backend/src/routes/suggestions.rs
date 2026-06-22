@@ -91,7 +91,7 @@ async fn create_suggestion(
     auth: AuthUser,
     Path(space_id): Path<Uuid>,
     Json(body): Json<SuggestionBody>,
-) -> ApiResult<Json<ChallengeSuggestion>> {
+) -> ApiResult<(StatusCode, Json<ChallengeSuggestion>)> {
     ensure_member(&state.pool, auth.user_id, space_id).await?;
     validate(&body)?;
     let locale = norm_locale(body.locale.as_deref());
@@ -109,7 +109,7 @@ async fn create_suggestion(
     .bind(&body.intensity)
     .fetch_one(&state.pool)
     .await?;
-    Ok(Json(item))
+    Ok((StatusCode::CREATED, Json(item)))
 }
 
 /// Édite une suggestion DU SALON (pas le seed global).

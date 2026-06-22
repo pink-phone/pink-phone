@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use axum::extract::{Path, State};
+use axum::http::StatusCode;
 use axum::routing::{get, put};
 use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
@@ -232,7 +233,7 @@ async fn add_comment(
     auth: AuthUser,
     Path((space_id, post_id)): Path<(Uuid, Uuid)>,
     Json(body): Json<CommentBody>,
-) -> ApiResult<Json<Comment>> {
+) -> ApiResult<(StatusCode, Json<Comment>)> {
     guard(&state.pool, auth.user_id, space_id, post_id).await?;
     if body.body.trim().is_empty() {
         return Err(ApiError::BadRequest("commentaire vide".into()));
@@ -260,7 +261,7 @@ async fn add_comment(
         "Nouveau commentaire".into(),
     );
 
-    Ok(Json(comment))
+    Ok((StatusCode::CREATED, Json(comment)))
 }
 
 #[cfg(test)]

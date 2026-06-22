@@ -1,4 +1,5 @@
 use axum::extract::{Path, State};
+use axum::http::StatusCode;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::Deserialize;
@@ -42,7 +43,7 @@ async fn create_space(
     State(state): State<AppState>,
     auth: AuthUser,
     Json(body): Json<CreateSpaceBody>,
-) -> ApiResult<Json<Space>> {
+) -> ApiResult<(StatusCode, Json<Space>)> {
     let name = body.name.trim();
     if name.is_empty() {
         return Err(ApiError::BadRequest("nom d'espace requis".into()));
@@ -66,7 +67,7 @@ async fn create_space(
     .await?;
     tx.commit().await?;
 
-    Ok(Json(space))
+    Ok((StatusCode::CREATED, Json(space)))
 }
 
 /// Met à jour le salon (nom et/ou fuseau). Tout membre peut l'éditer.

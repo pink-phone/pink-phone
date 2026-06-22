@@ -67,7 +67,7 @@ async fn create_challenge(
     auth: AuthUser,
     Path(space_id): Path<Uuid>,
     Json(body): Json<CreateChallengeBody>,
-) -> ApiResult<Json<Challenge>> {
+) -> ApiResult<(StatusCode, Json<Challenge>)> {
     ensure_member(&state.pool, auth.user_id, space_id).await?;
     if body.title.trim().is_empty() || body.description.trim().is_empty() {
         return Err(ApiError::BadRequest("titre et description requis".into()));
@@ -105,7 +105,7 @@ async fn create_challenge(
         "Nouveau défi".into(),
     );
 
-    Ok(Json(challenge))
+    Ok((StatusCode::CREATED, Json(challenge)))
 }
 
 async fn transition(

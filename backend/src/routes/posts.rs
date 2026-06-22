@@ -198,7 +198,7 @@ async fn create_post(
     auth: AuthUser,
     Path(space_id): Path<Uuid>,
     Json(body): Json<CreatePostBody>,
-) -> ApiResult<Json<Post>> {
+) -> ApiResult<(StatusCode, Json<Post>)> {
     ensure_member(&state.pool, auth.user_id, space_id).await?;
     // Un post peut être un simple média : on exige un récit OU un média.
     if body.body.trim().is_empty() && body.media_id.is_none() {
@@ -254,7 +254,7 @@ async fn create_post(
             "Nouveau message".into(),
         );
     }
-    Ok(Json(post))
+    Ok((StatusCode::CREATED, Json(post)))
 }
 
 /// Suppression d'un post (auteur uniquement). Les interactions partent en
