@@ -16,6 +16,11 @@ COPY src ./src
 COPY migrations ./migrations
 RUN touch src/main.rs && cargo build --release
 
+# Tests = porte de la CI (#65) : un test cassé fait échouer le build d'image,
+# donc rien de cassé ne part en prod. Sans DB (tests = logique pure) ; le test de
+# codegen `domain_codegen` se saute ici car `../frontend` est absent du contexte.
+RUN cargo test --release
+
 FROM debian:bookworm-slim
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates libssl3 \
