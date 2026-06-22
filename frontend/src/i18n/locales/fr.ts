@@ -82,6 +82,7 @@ export const fr = {
     inviteHint: "À usage unique, valable 7 jours. Partagez-le à votre partenaire.",
     moodQuestion: "Comment te sens-tu ?",
     moodSharedWith: "Ton humeur est partagée avec {{name}}.",
+    moodSharedGroup: "Ton humeur est partagée avec le salon.",
     moodSaved: "Ton humeur est enregistrée.",
     moodRenews: "Elle se renouvelle chaque jour.",
     moodPrompt: "Choisis ton humeur du jour pour lui faire signe.",
@@ -280,6 +281,7 @@ export const fr = {
     timezoneHint: "Sert au renouvellement de l'humeur à minuit.",
     inviteId: "Identifiant d'invitation",
     members: "Membres",
+    inviteMember: "Inviter un membre",
     securitySection: "Sécurité",
   },
   lock: {

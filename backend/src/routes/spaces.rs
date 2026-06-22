@@ -11,8 +11,10 @@ use crate::models::{Member, Space, REACTIONS};
 use crate::routes::ensure_member;
 use crate::state::{AppState, EventKind};
 
-// V1 : un espace accueille au plus 2 partenaires (le modèle reste multi-ready).
-const MAX_MEMBERS: i64 = 2;
+// Un salon accueille jusqu'à 8 membres (#52 multi-partenaires) : le couple reste
+// le cas par défaut, mais le polyamour / les petits groupes sont permis. Plafond
+// de sûreté (pas illimité) — le modèle de données est multi-ready depuis V1.
+const MAX_MEMBERS: i64 = 8;
 
 pub fn router() -> Router<AppState> {
     Router::new()

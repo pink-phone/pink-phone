@@ -7,15 +7,25 @@ import { FireEmbers } from "../../components/FireEmbers/FireEmbers";
 import { MOODS } from "../../components/MoodSelector/moods";
 import { parseCustomMood } from "../../components/MoodSelector/MoodSelector";
 import { cn } from "../../lib/cn";
-import type { MoodSnapshot, Person } from "../../types/view";
+import type { Person } from "../../types/view";
+
+/** Une autre personne du salon + son humeur du jour (multi-partenaires #52). */
+export interface DashboardPartner extends Person {
+  id: string;
+  /** Id de mood prédéfini, emoji libre, ou null (pas encore d'humeur). */
+  mood: string | null;
+  timeLabel?: string;
+  /** Vote à l'aveugle : humeur masquée tant que je n'ai pas posé la mienne. */
+  moodHidden?: boolean;
+}
 
 export interface DashboardScreenProps {
   spaceName: string;
-  /** Absent tant que le/la partenaire n'a pas rejoint l'espace. */
-  partner?: Person;
-  partnerMood?: MoodSnapshot;
-  /** Vote à l'aveugle actif ET je n'ai pas encore posé mon humeur → masque celle du partenaire. */
-  partnerMoodHidden?: boolean;
+  /**
+   * Les AUTRES membres du salon (hors moi). Vide tant que personne n'a rejoint.
+   * 1 = couple (formulation au singulier), ≥ 2 = groupe (formulation au pluriel).
+   */
+  partners: DashboardPartner[];
   /** Token d'invitation généré (à partager) — null tant qu'on n'a pas cliqué. */
   inviteToken?: string | null;
   /** Génère un token d'invitation à usage unique. */
@@ -107,9 +117,7 @@ function MoodCard({
 /** Accueil du Space : la météo sexuelle d'un coup d'œil. */
 export function DashboardScreen({
   spaceName,
-  partner,
-  partnerMood,
-  partnerMoodHidden = false,
+  partners,
   inviteToken,
   onCreateInvite,
   myMood,
@@ -122,6 +130,9 @@ export function DashboardScreen({
   onOpen,
 }: DashboardScreenProps) {
   const { t } = useTranslation();
+  // Couple (1 autre) vs groupe (≥ 2 autres) : seule la formulation « partagée »
+  // change à partir de 3 personnes — le couple garde le wording d'origine (#52).
+  const isGroup = partners.length >= 2;
 
   return (
     <div className="space-y-6">
@@ -142,16 +153,19 @@ export function DashboardScreen({
         )}
       </header>
 
-      {partner ? (
-        /* La météo du jour : les deux humeurs côte à côte, la perche sans un mot. */
+      {partners.length > 0 ? (
+        /* La météo du jour : mon humeur + celle de chaque membre, côte à côte. */
         <div className="grid grid-cols-2 gap-3">
           <MoodCard name={t("dashboard.you")} moodId={myMood} />
-          <MoodCard
-            name={partner.name}
-            moodId={partnerMood?.mood ?? null}
-            timeLabel={partnerMood?.timeLabel}
-            hidden={partnerMoodHidden}
-          />
+          {partners.map((p) => (
+            <MoodCard
+              key={p.id}
+              name={p.name}
+              moodId={p.mood}
+              timeLabel={p.timeLabel}
+              hidden={p.moodHidden}
+            />
+          ))}
         </div>
       ) : (
         /* Espace en attente : inviter le/la partenaire */
@@ -218,9 +232,11 @@ export function DashboardScreen({
         />
         {myMood ? (
           <p className="text-center text-xs text-taupe-400">
-            {partner
-              ? t("dashboard.moodSharedWith", { name: partner.name })
-              : t("dashboard.moodSaved")}{" "}
+            {partners.length === 0
+              ? t("dashboard.moodSaved")
+              : isGroup
+                ? t("dashboard.moodSharedGroup")
+                : t("dashboard.moodSharedWith", { name: partners[0].name })}{" "}
             {t("dashboard.moodRenews")}
           </p>
         ) : (
