@@ -259,10 +259,19 @@ export function SpaceApp({
   // Dérivés mémoïsés (REACT-04) — AVANT tout `return` conditionnel (règle des
   // hooks). `toPostData` instancie un Intl.RelativeTimeFormat par post : on évite
   // de le refaire à chaque rendu (changement d'onglet, ouverture de feuille…).
-  const partner = members.find((m) => m.id !== user.id);
-  const partnerBlogSeen = partner
-    ? seen.find((s) => s.userId === partner.id && s.feature === "blog")?.seenAt
-    : undefined;
+  // Multi-partenaires (#52) : les AUTRES membres (≥ 0). Couple = exactement 1.
+  const partners = members.filter((m) => m.id !== user.id);
+  // « Vu par tous » : un post est lu quand TOUS les autres ont ouvert le blog
+  // après sa création → on prend le MIN de leurs derniers « vu » (undefined si
+  // l'un ne l'a jamais ouvert). Pour un couple, = le « vu » de l'unique partenaire.
+  const partnerBlogSeen = (() => {
+    if (partners.length === 0) return undefined;
+    const seenAts = partners.map(
+      (p) => seen.find((s) => s.userId === p.id && s.feature === "blog")?.seenAt,
+    );
+    if (seenAts.some((x) => !x)) return undefined;
+    return seenAts.reduce((a, b) => (a! < b! ? a : b));
+  })();
   const postData = useMemo<PostData[]>(
     () => toPostData(posts, { t, spaceId: space.id, userId: user.id, partnerBlogSeen }),
     [posts, t, space.id, user.id, partnerBlogSeen],
@@ -276,14 +285,21 @@ export function SpaceApp({
   if (!ready) return <Splash message={t("splash.loadingSpace")} />;
 
   const myMood = moods.find((m) => m.userId === user.id)?.status ?? null;
-  const partnerMoodEntry = partner
-    ? moods.find((m) => m.userId === partner.id)
-    : undefined;
-  // En « surprise mutuelle », le partenaire a voté mais son statut est vidé tant
-  // que je n'ai pas voté → on n'affiche le cache flouté QUE s'il a posé.
-  const partnerHasMood = !!partnerMoodEntry?.status;
-  const partnerVoted = !!partnerMoodEntry;
-  const blindHidden = space.blindMood && !myMood && partnerVoted;
+  // Carte météo de chaque autre membre. En « surprise mutuelle », tant que je
+  // n'ai pas voté le statut des autres est vidé par l'API → on masque (cache
+  // flouté) ceux qui ont voté ; les autres restent « pas encore d'humeur ».
+  const partnerCards = partners.map((p) => {
+    const entry = moods.find((m) => m.userId === p.id);
+    const voted = !!entry;
+    return {
+      id: p.id,
+      name: p.displayName,
+      glyph: p.displayName.charAt(0),
+      mood: entry?.status ?? null,
+      timeLabel: entry ? relativeTime(entry.updatedAt) : undefined,
+      moodHidden: space.blindMood && !myMood && voted,
+    };
+  });
 
   // ----- "Vu" : badges nouveautés + accusés de lecture -----
   const seenAt = (userId: string, feature: string) =>
@@ -412,6 +428,8 @@ export function SpaceApp({
             blindMood: space.blindMood,
           }}
           members={members.map((m) => ({ id: m.id, name: m.displayName }))}
+          inviteToken={inviteToken}
+          onCreateInvite={createInvite}
           spaces={spaces.map((s) => ({ id: s.id, name: s.name }))}
           currentSpaceId={space.id}
           onSwitchSpace={onSwitchSpace}
@@ -480,20 +498,7 @@ export function SpaceApp({
       {tab === "dashboard" && (
         <DashboardScreen
           spaceName={space.name}
-          partner={
-            partner
-              ? { name: partner.displayName, glyph: partner.displayName.charAt(0) }
-              : undefined
-          }
-          partnerMood={
-            partnerHasMood
-              ? {
-                  mood: partnerMoodEntry!.status!,
-                  timeLabel: relativeTime(partnerMoodEntry!.updatedAt),
-                }
-              : undefined
-          }
-          partnerMoodHidden={blindHidden}
+          partners={partnerCards}
           inviteToken={inviteToken}
           onCreateInvite={createInvite}
           myMood={myMood}

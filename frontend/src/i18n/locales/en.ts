@@ -82,6 +82,7 @@ export const en: Resources = {
     inviteHint: "Single-use, valid 7 days. Share it with your partner.",
     moodQuestion: "How are you feeling?",
     moodSharedWith: "Your mood is shared with {{name}}.",
+    moodSharedGroup: "Your mood is shared with the space.",
     moodSaved: "Your mood is saved.",
     moodRenews: "It refreshes every day.",
     moodPrompt: "Pick your mood of the day to send a sign.",
@@ -280,6 +281,7 @@ export const en: Resources = {
     timezoneHint: "Used for the daily mood reset at midnight.",
     inviteId: "Invite ID",
     members: "Members",
+    inviteMember: "Invite a member",
     securitySection: "Security",
   },
   lock: {

@@ -1,8 +1,19 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
 import { useState } from "react";
-import { DashboardScreen } from "./DashboardScreen";
-import { PARTNER, PARTNER_MOOD, SPACE_NAME } from "../../mock/data";
+import {
+  DashboardScreen,
+  type DashboardPartner,
+} from "./DashboardScreen";
+import { SPACE_NAME } from "../../mock/data";
+
+const CAMILLE: DashboardPartner = {
+  id: "p1",
+  name: "Camille",
+  glyph: "C",
+  mood: "flirty",
+  timeLabel: "il y a 10 min",
+};
 
 const meta = {
   title: "Écrans/DashboardScreen",
@@ -11,8 +22,7 @@ const meta = {
   parameters: { layout: "centered" },
   args: {
     spaceName: SPACE_NAME,
-    partner: PARTNER,
-    partnerMood: PARTNER_MOOD,
+    partners: [CAMILLE],
     myMood: null,
     onMoodChange: fn(),
   },
@@ -39,9 +49,30 @@ export const ParDéfaut: Story = {
   },
 };
 
+/** Groupe (≥ 3 personnes, #52) : plusieurs cartes météo + formulation au pluriel. */
+export const Groupe: Story = {
+  name: "Salon à plusieurs",
+  args: {
+    partners: [
+      CAMILLE,
+      { id: "p2", name: "Alex", glyph: "A", mood: "calm", timeLabel: "il y a 1 h" },
+      { id: "p3", name: "Sam", glyph: "S", mood: null },
+    ],
+    myMood: "veryHot",
+  },
+  render: (args) => (
+    <div className="w-[380px]">
+      <DashboardScreen {...args} />
+    </div>
+  ),
+};
+
 export const Mystère: Story = {
   name: "Humeur à l'aveugle (partenaire masqué)",
-  args: { partnerMoodHidden: true, myMood: null },
+  args: {
+    partners: [{ ...CAMILLE, moodHidden: true }],
+    myMood: null,
+  },
   render: (args) => {
     const [myMood, setMyMood] = useState<string | null>(args.myMood);
     return (
@@ -50,7 +81,10 @@ export const Mystère: Story = {
           {...args}
           myMood={myMood}
           // Une fois mon humeur posée, la carte du partenaire se dévoile.
-          partnerMoodHidden={args.partnerMoodHidden && !myMood}
+          partners={args.partners.map((p) => ({
+            ...p,
+            moodHidden: p.moodHidden && !myMood,
+          }))}
           onMoodChange={(m) => {
             setMyMood(m);
             args.onMoodChange?.(m);
@@ -74,8 +108,7 @@ export const Nouveautés: Story = {
 export const Solo: Story = {
   name: "Espace en attente (sans partenaire)",
   args: {
-    partner: undefined,
-    partnerMood: undefined,
+    partners: [],
     inviteToken: "a1b2c3d4-1234-5678-9abc-def012345678",
     onCreateInvite: () => {},
   },

@@ -80,6 +80,9 @@ export interface SettingsScreenProps {
     blindMood?: boolean;
   };
   members?: { id: string; name: string }[];
+  /** Invitation d'un nouveau membre dans CE salon (#52) — token + générateur. */
+  inviteToken?: string | null;
+  onCreateInvite?: () => void;
   /** Tous les salons de l'utilisateur (multi-space #67) — affiche le sélecteur. */
   spaces?: { id: string; name: string }[];
   currentSpaceId?: string;
@@ -111,6 +114,8 @@ export function SettingsScreen({
   onHotAnimChange,
   space,
   members,
+  inviteToken,
+  onCreateInvite,
   spaces,
   currentSpaceId,
   onSwitchSpace,
@@ -396,15 +401,30 @@ export function SettingsScreen({
               </p>
             </div>
 
-            {/* Membres */}
+            {/* Membres + invitation d'un nouveau membre (#52) */}
             {members && members.length > 0 && (
-              <div className="space-y-1">
+              <div className="space-y-2">
                 <span className="block text-xs font-medium text-taupe-200">
                   {t("settings.members")}
                 </span>
                 <p className="text-sm text-taupe-300">
                   {members.map((m) => m.name).join(" · ")}
                 </p>
+                {onCreateInvite &&
+                  (inviteToken ? (
+                    <>
+                      <code className="block select-all break-all rounded-2xl bg-charcoal-900/60 px-3 py-2 text-xs text-spice-300">
+                        {inviteToken}
+                      </code>
+                      <p className="text-[11px] text-taupe-400">
+                        {t("dashboard.inviteHint")}
+                      </p>
+                    </>
+                  ) : (
+                    <Button variant="secondary" size="sm" onClick={onCreateInvite}>
+                      {t("settings.inviteMember")}
+                    </Button>
+                  ))}
               </div>
             )}
 
