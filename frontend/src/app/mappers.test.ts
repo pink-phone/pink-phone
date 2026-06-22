@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { TFunction } from "i18next";
-import { toPostData, toChallengeData, toCommentViews } from "./mappers";
-import type { ApiChallenge, ApiComment, ApiPost } from "../api/types";
+import { seenByAllAt, toPostData, toChallengeData, toCommentViews } from "./mappers";
+import type { ApiChallenge, ApiComment, ApiPost, SeenEntry } from "../api/types";
 
 // `t` factice : renvoie la clé (les conversions n'ont pas besoin du vrai i18n).
 const t = ((key: string) => key) as unknown as TFunction;
@@ -169,5 +169,32 @@ describe("toCommentViews", () => {
     const [vm] = toCommentViews(comments);
     expect(vm).toMatchObject({ id: "k1", authorName: "Sam", body: "joli" });
     expect(typeof vm.timeLabel).toBe("string");
+  });
+});
+
+describe("seenByAllAt (#52 — vu par tous)", () => {
+  const seen: SeenEntry[] = [
+    { userId: "a", feature: "blog", seenAt: "2026-06-20T10:00:00.000Z" },
+    { userId: "b", feature: "blog", seenAt: "2026-06-20T12:00:00.000Z" },
+    { userId: "a", feature: "challenges", seenAt: "2026-06-21T00:00:00.000Z" },
+  ];
+
+  it("couple (1 membre) : renvoie le « vu » de ce membre", () => {
+    expect(seenByAllAt(["a"], seen, "blog")).toBe("2026-06-20T10:00:00.000Z");
+  });
+
+  it("groupe : renvoie le MIN des « vu » (= quand le dernier a lu)", () => {
+    expect(seenByAllAt(["a", "b"], seen, "blog")).toBe(
+      "2026-06-20T10:00:00.000Z",
+    );
+  });
+
+  it("undefined si un membre n'a jamais ouvert le fil", () => {
+    expect(seenByAllAt(["a", "b"], seen, "challenges")).toBeUndefined();
+    expect(seenByAllAt(["a", "c"], seen, "blog")).toBeUndefined();
+  });
+
+  it("undefined si aucun membre", () => {
+    expect(seenByAllAt([], seen, "blog")).toBeUndefined();
   });
 });

@@ -7,9 +7,7 @@ import { useAuth } from "../auth/AuthContext";
 import { OnboardingScreen } from "../screens/OnboardingScreen/OnboardingScreen";
 import { Splash } from "../screens/Splash/Splash";
 import { SpaceApp } from "./SpaceApp";
-
-// Salon courant mémorisé par appareil (multi-space, #67).
-const CURRENT_SPACE_KEY = "pp_space";
+import { CURRENT_SPACE_KEY, pickCurrentSpace } from "./currentSpace";
 
 /**
  * Aiguille vers l'onboarding (aucun salon) ou l'app (salon courant). Gère le
@@ -83,7 +81,7 @@ export function SpaceGate({ user }: { user: UserPublic }) {
   }
 
   // Salon courant : celui mémorisé s'il existe encore, sinon le premier.
-  const current = spaces.find((s) => s.id === currentId) ?? spaces[0];
+  const current = pickCurrentSpace(spaces, currentId) ?? spaces[0];
 
   // Créer / rejoindre un AUTRE salon depuis l'app (Réglages). On bascule dessus.
   const createSpace = async (name: string) => {
