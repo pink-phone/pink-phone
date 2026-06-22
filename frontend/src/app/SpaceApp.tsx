@@ -65,7 +65,10 @@ export function SpaceApp({
   // garde l'orchestration : chargement initial groupé, gate `ready`, WS, resync.
   const {
     posts,
+    postsHasMore,
+    postsLoadingMore,
     refetch: refetchPosts,
+    loadMore: loadMorePosts,
     add: addPostH,
     edit: editPostH,
     remove: removePost,
@@ -74,15 +77,21 @@ export function SpaceApp({
     commentsFor,
     comments,
     commentsLoading,
+    commentsHasMore,
+    commentsLoadingMore,
     commentBusy,
     openComments,
     closeComments,
     addComment,
+    loadMoreComments,
     refetchOpenComments,
   } = usePosts(space.id);
   const {
     challenges,
+    hasMore: challengesHasMore,
+    loadingMore: challengesLoadingMore,
     refetch: refetchChallenges,
+    loadMore: loadMoreChallenges,
     add: addChallengeH,
     transition,
     edit: editChallengeH,
@@ -482,6 +491,9 @@ export function SpaceApp({
       {tab === "blog" && (
         <BlogScreen
           posts={postData}
+          hasMore={postsHasMore}
+          loadingMore={postsLoadingMore}
+          onLoadMore={loadMorePosts}
           onCompose={() => setOpenSheet("post")}
           onToggleReaction={toggleReaction}
           onOpenComments={openComments}
@@ -502,6 +514,9 @@ export function SpaceApp({
       {tab === "challenges" && (
         <ChallengesScreen
           challenges={challengeData}
+          hasMore={challengesHasMore}
+          loadingMore={challengesLoadingMore}
+          onLoadMore={loadMoreChallenges}
           onNew={() => setOpenSheet("challenge")}
           onOpenBank={() => setShowBank(true)}
           onAccept={(id) => transition(id, "challengeAccepted")}
@@ -605,6 +620,9 @@ export function SpaceApp({
         comments={commentViews}
         loading={commentsLoading}
         busy={commentBusy}
+        hasMore={commentsHasMore}
+        loadingMore={commentsLoadingMore}
+        onLoadMore={loadMoreComments}
         onAdd={addComment}
         onClose={closeComments}
       />

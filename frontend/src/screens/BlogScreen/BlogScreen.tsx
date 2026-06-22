@@ -15,6 +15,11 @@ export interface BlogScreenProps {
   /** Config des réactions du salon (ordre + réactions libres). */
   reactionOrder?: ReactionId[];
   allowCustomReactions?: boolean;
+  /** Reste-t-il des posts plus anciens à charger ? (pagination par curseur) */
+  hasMore?: boolean;
+  /** Chargement de la page suivante en cours. */
+  loadingMore?: boolean;
+  onLoadMore?: () => void;
 }
 
 /** Le fil du blog intime ("à tête reposée"). */
@@ -28,6 +33,9 @@ export function BlogScreen({
   onEditPost,
   reactionOrder,
   allowCustomReactions,
+  hasMore,
+  loadingMore,
+  onLoadMore,
 }: BlogScreenProps) {
   const { t } = useTranslation();
   return (
@@ -69,6 +77,17 @@ export function BlogScreen({
               onEdit={() => onEditPost?.(post.id)}
             />
           ))}
+          {hasMore && (
+            <Button
+              variant="secondary"
+              size="sm"
+              className="mx-auto"
+              disabled={loadingMore}
+              onClick={onLoadMore}
+            >
+              {loadingMore ? t("common.loading") : t("common.loadMore")}
+            </Button>
+          )}
         </div>
       )}
     </div>

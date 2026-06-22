@@ -34,3 +34,7 @@ type Story = StoryObj<typeof meta>;
 export const ParDéfaut: Story = {};
 export const Vide: Story = { args: { comments: [] } };
 export const Chargement: Story = { args: { comments: [], loading: true } };
+export const MessagesPlusAnciens: Story = {
+  name: "Avec « plus anciens »",
+  args: { hasMore: true, onLoadMore: fn() },
+};

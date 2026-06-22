@@ -3,7 +3,7 @@ use std::path::Path as FsPath;
 
 use chrono::{DateTime, Utc};
 
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::routing::{delete, get};
 use axum::{Json, Router};
@@ -13,8 +13,9 @@ use uuid::Uuid;
 use crate::auth::AuthUser;
 use crate::error::{ApiError, ApiResult};
 use crate::models::{Post, PostRow};
+use crate::pagination::{Page, PageParams};
 use crate::routes::ensure_member;
-use crate::state::AppState;
+use crate::state::{AppState, EventKind};
 
 pub fn router() -> Router<AppState> {
     Router::new()
@@ -171,10 +172,13 @@ async fn list_posts(
     State(state): State<AppState>,
     auth: AuthUser,
     Path(space_id): Path<Uuid>,
-) -> ApiResult<Json<Vec<Post>>> {
+    Query(page): Query<PageParams>,
+) -> ApiResult<Json<Page<Post>>> {
     ensure_member(&state.pool, auth.user_id, space_id).await?;
+    let limit = page.limit();
 
-    // Les brouillons ne sont visibles que de leur auteur.
+    // Les brouillons ne sont visibles que de leur auteur. Pagination par curseur
+    // `before` (created_at) ; on fetch `limit + 1` pour déduire `has_more`.
     let rows: Vec<PostRow> = sqlx::query_as(
         "SELECT p.id, p.author_id, u.display_name AS author_name,
                 p.title, p.body, p.media_id, m.view_once AS media_view_once,
@@ -183,14 +187,20 @@ async fn list_posts(
          JOIN users u ON u.id = p.author_id
          LEFT JOIN media m ON m.id = p.media_id
          WHERE p.space_id = $1 AND (p.draft = false OR p.author_id = $2)
-         ORDER BY p.created_at DESC",
+           AND ($3::timestamptz IS NULL OR p.created_at < $3)
+         ORDER BY p.created_at DESC
+         LIMIT $4",
     )
     .bind(space_id)
     .bind(auth.user_id)
+    .bind(page.before)
+    .bind(limit + 1)
     .fetch_all(&state.pool)
     .await?;
 
-    Ok(Json(enrich(&state.pool, rows, auth.user_id).await?))
+    let Page { items: rows, has_more } = Page::from_rows(rows, limit);
+    let items = enrich(&state.pool, rows, auth.user_id).await?;
+    Ok(Json(Page { items, has_more }))
 }
 
 async fn create_post(
@@ -246,7 +256,7 @@ async fn create_post(
     let post = enrich_one(&state.pool, row, auth.user_id).await?;
     // Un brouillon ne fait pas signe au/à la partenaire.
     if !post.draft {
-        state.emit(space_id, auth.user_id, "post");
+        state.emit(space_id, auth.user_id, EventKind::Post);
         crate::notifications::notify_members(
             &state,
             space_id,
@@ -295,7 +305,7 @@ async fn delete_post(
         }
     }
 
-    state.emit(space_id, auth.user_id, "post");
+    state.emit(space_id, auth.user_id, EventKind::Post);
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -411,7 +421,7 @@ async fn update_post(
     // statut changé (publication/remise en brouillon). Éditer un brouillon qui
     // reste brouillon ne concerne que l'auteur.
     if !post.draft || post.draft != was_draft {
-        state.emit(space_id, auth.user_id, "post");
+        state.emit(space_id, auth.user_id, EventKind::Post);
     }
     if was_draft && !post.draft {
         crate::notifications::notify_members(

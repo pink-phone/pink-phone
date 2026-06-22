@@ -47,10 +47,13 @@ async fn list_suggestions(
     ensure_member(&state.pool, auth.user_id, space_id).await?;
     let lang = norm_locale(q.lang.as_deref());
 
+    // Banque curatée (seed + propres au salon) : pas de pagination par curseur,
+    // mais un plafond de sûreté pour ne jamais charger une liste non bornée (RUST-12).
     let query = "SELECT id, space_id, title, description, intensity
                  FROM challenge_suggestions
                  WHERE (space_id IS NULL OR space_id = $1) AND locale = $2
-                 ORDER BY created_at";
+                 ORDER BY created_at
+                 LIMIT 500";
     let mut items: Vec<ChallengeSuggestion> = sqlx::query_as(query)
         .bind(space_id)
         .bind(lang)

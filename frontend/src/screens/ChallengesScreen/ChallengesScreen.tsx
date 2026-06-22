@@ -13,6 +13,11 @@ export interface ChallengesScreenProps {
   onComplete?: (id: string) => void;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
+  /** Reste-t-il des défis plus anciens à charger ? (pagination par curseur) */
+  hasMore?: boolean;
+  /** Chargement de la page suivante en cours. */
+  loadingMore?: boolean;
+  onLoadMore?: () => void;
 }
 
 // Ordre des sections (la liste "En cours" vit en haut). Titres via i18n.
@@ -33,6 +38,9 @@ export function ChallengesScreen({
   onComplete,
   onEdit,
   onDelete,
+  hasMore,
+  loadingMore,
+  onLoadMore,
 }: ChallengesScreenProps) {
   const { t } = useTranslation();
   return (
@@ -89,6 +97,20 @@ export function ChallengesScreen({
           </section>
         );
       })}
+
+      {hasMore && (
+        <div className="flex">
+          <Button
+            variant="secondary"
+            size="sm"
+            className="mx-auto"
+            disabled={loadingMore}
+            onClick={onLoadMore}
+          >
+            {loadingMore ? t("common.loading") : t("common.loadMore")}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,4 +1,4 @@
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::routing::{get, post};
 use axum::{Json, Router};
@@ -10,8 +10,9 @@ use crate::error::{ApiError, ApiResult};
 use crate::models::{
     challenge_transition_allowed, is_proposal_response, Challenge, INTENSITIES,
 };
+use crate::pagination::{Page, PageParams};
 use crate::routes::ensure_member;
-use crate::state::AppState;
+use crate::state::{AppState, EventKind};
 
 pub fn router() -> Router<AppState> {
     Router::new()
@@ -50,19 +51,26 @@ async fn list_challenges(
     State(state): State<AppState>,
     auth: AuthUser,
     Path(space_id): Path<Uuid>,
-) -> ApiResult<Json<Vec<Challenge>>> {
+    Query(page): Query<PageParams>,
+) -> ApiResult<Json<Page<Challenge>>> {
     ensure_member(&state.pool, auth.user_id, space_id).await?;
+    let limit = page.limit();
 
-    let items: Vec<Challenge> = sqlx::query_as(
+    let rows: Vec<Challenge> = sqlx::query_as(
         "SELECT id, proposer_id, title, description, intensity, status,
                 deadline_label, created_at, updated_at
-         FROM challenges WHERE space_id = $1
-         ORDER BY created_at DESC",
+         FROM challenges
+         WHERE space_id = $1
+           AND ($2::timestamptz IS NULL OR created_at < $2)
+         ORDER BY created_at DESC
+         LIMIT $3",
     )
     .bind(space_id)
+    .bind(page.before)
+    .bind(limit + 1)
     .fetch_all(&state.pool)
     .await?;
-    Ok(Json(items))
+    Ok(Json(Page::from_rows(rows, limit)))
 }
 
 async fn create_challenge(
@@ -100,7 +108,7 @@ async fn create_challenge(
     .fetch_one(&state.pool)
     .await?;
 
-    state.emit(space_id, auth.user_id, "challenge");
+    state.emit(space_id, auth.user_id, EventKind::Challenge);
     crate::notifications::notify_members(
         &state,
         space_id,
@@ -154,7 +162,7 @@ async fn transition(
     .fetch_one(&state.pool)
     .await?;
 
-    state.emit(space_id, auth.user_id, "challenge");
+    state.emit(space_id, auth.user_id, EventKind::Challenge);
     Ok(Json(challenge))
 }
 
@@ -206,7 +214,7 @@ async fn update_challenge(
     .fetch_one(&state.pool)
     .await?;
 
-    state.emit(space_id, auth.user_id, "challenge");
+    state.emit(space_id, auth.user_id, EventKind::Challenge);
     Ok(Json(challenge))
 }
 
@@ -236,6 +244,6 @@ async fn delete_challenge(
         .execute(&state.pool)
         .await?;
 
-    state.emit(space_id, auth.user_id, "challenge");
+    state.emit(space_id, auth.user_id, EventKind::Challenge);
     Ok(StatusCode::NO_CONTENT)
 }

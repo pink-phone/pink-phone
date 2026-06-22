@@ -121,7 +121,7 @@ describe("useChallenges", () => {
   });
 
   it("remove retire le défi de la liste", async () => {
-    a.listChallenges.mockResolvedValue([mk("c1"), mk("c2")]);
+    a.listChallenges.mockResolvedValue({ items: [mk("c1"), mk("c2")], hasMore: false });
     a.deleteChallenge.mockResolvedValue(undefined as never);
     const { result } = renderHook(() => useChallenges("s1"));
     await act(async () => {
@@ -171,7 +171,7 @@ describe("usePosts", () => {
   });
 
   it("toggleReaction applique le résumé renvoyé par l'API", async () => {
-    a.listPosts.mockResolvedValue([post("p1")]);
+    a.listPosts.mockResolvedValue({ items: [post("p1")], hasMore: false });
     a.addReaction.mockResolvedValue({
       reactionCounts: { fire: 1 },
       myReactions: ["fire"],
@@ -188,8 +188,11 @@ describe("usePosts", () => {
   });
 
   it("addComment ajoute le commentaire et incrémente le compteur du post", async () => {
-    a.listPosts.mockResolvedValue([post("p1", { commentCount: 2 })]);
-    a.listComments.mockResolvedValue([]);
+    a.listPosts.mockResolvedValue({
+      items: [post("p1", { commentCount: 2 })],
+      hasMore: false,
+    });
+    a.listComments.mockResolvedValue({ items: [], hasMore: false });
     a.addComment.mockResolvedValue({
       id: "k1",
       authorId: "me",

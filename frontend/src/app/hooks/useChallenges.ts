@@ -1,24 +1,51 @@
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import * as api from "../../api/client";
 import type { ApiChallenge } from "../../api/types";
 import type { ChallengeDraft } from "../../components/ChallengeComposer/ChallengeComposer";
 import type { ChallengeStatus } from "../../domain/types";
+import { appendOlder, mergeHead } from "./paginate";
 
 /**
- * Domaine « défis » : liste + machine à états + CRUD. Les `add`/`edit`
- * renvoient un booléen de succès (l'appelant ferme la feuille seulement alors).
- * La confirmation de suppression reste à l'appelant (concern UI/i18n).
+ * Domaine « défis » : liste paginée (curseur) + machine à états + CRUD. Les
+ * `add`/`edit` renvoient un booléen de succès (l'appelant ferme la feuille
+ * seulement alors). La confirmation de suppression reste à l'appelant (UI/i18n).
  */
 export function useChallenges(spaceId: string) {
   const [challenges, setChallenges] = useState<ApiChallenge[]>([]);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  // Des pages plus anciennes ont-elles déjà été chargées ? Si oui, un refetch de
+  // la tête (resync WS) ne doit pas réécraser `hasMore` avec celui de la 1ʳᵉ page.
+  const loadedOlder = useRef(false);
 
+  // Refetch de la tête : reflète les créations/suppressions distantes et préserve
+  // les pages plus anciennes déjà chargées (modèle resync temps-réel).
   const refetch = useCallback(async () => {
     try {
-      setChallenges(await api.listChallenges(spaceId));
+      const page = await api.listChallenges(spaceId);
+      setChallenges((prev) => mergeHead(page.items, prev));
+      if (!loadedOlder.current) setHasMore(page.hasMore);
     } catch {
       /* best-effort */
     }
   }, [spaceId]);
+
+  // Charge la page suivante (éléments plus anciens que le dernier affiché).
+  const loadMore = async () => {
+    const cursor = challenges[challenges.length - 1]?.createdAt;
+    if (!cursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const page = await api.listChallenges(spaceId, cursor);
+      loadedOlder.current = true;
+      setChallenges((prev) => appendOlder(prev, page.items));
+      setHasMore(page.hasMore);
+    } catch (e) {
+      console.error("chargement de défis plus anciens échoué", e);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const add = async (draft: ChallengeDraft): Promise<boolean> => {
     try {
@@ -70,5 +97,5 @@ export function useChallenges(spaceId: string) {
     }
   };
 
-  return { challenges, refetch, add, transition, edit, remove };
+  return { challenges, hasMore, loadingMore, refetch, loadMore, add, transition, edit, remove };
 }

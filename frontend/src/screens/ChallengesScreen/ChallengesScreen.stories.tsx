@@ -26,3 +26,13 @@ export const ParDéfaut: Story = {
     </div>
   ),
 };
+
+export const AvecPagination: Story = {
+  name: "Avec « voir plus »",
+  args: { hasMore: true },
+  render: (args) => (
+    <div className="w-[380px]">
+      <ChallengesScreen {...args} />
+    </div>
+  ),
+};

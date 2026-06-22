@@ -20,6 +20,11 @@ export interface CommentsSheetProps {
   loading?: boolean;
   /** Envoi d'un commentaire en cours. */
   busy?: boolean;
+  /** Reste-t-il des commentaires plus anciens à charger ? */
+  hasMore?: boolean;
+  /** Chargement des commentaires plus anciens en cours. */
+  loadingMore?: boolean;
+  onLoadMore?: () => void;
 }
 
 /** Fil de commentaires d'un post, dans une feuille modale. */
@@ -30,6 +35,9 @@ export function CommentsSheet({
   onAdd,
   loading,
   busy,
+  hasMore,
+  loadingMore,
+  onLoadMore,
 }: CommentsSheetProps) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState("");
@@ -54,6 +62,19 @@ export function CommentsSheet({
           </p>
         ) : (
           <ul className="space-y-3">
+            {hasMore && (
+              <li className="flex">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="mx-auto"
+                  disabled={loadingMore}
+                  onClick={onLoadMore}
+                >
+                  {loadingMore ? t("common.loading") : t("comments.loadOlder")}
+                </Button>
+              </li>
+            )}
             {comments.map((c) => (
               <li
                 key={c.id}

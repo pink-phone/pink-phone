@@ -3,34 +3,64 @@ import * as api from "../../api/client";
 import type { ApiComment, ApiPost } from "../../api/types";
 import type { PostDraft } from "../../components/PostComposer/PostComposer";
 import { logClientError } from "../../clientLog";
+import { appendOlder, mergeHead, mergeTail } from "./paginate";
 
 /**
- * Domaine « blog » : posts + fil de commentaires (couplés via le compteur de
- * commentaires). `refetch` et `refetchOpenComments` sont stables (`[spaceId]`)
- * pour le WS / la resync. `add`/`edit` renvoient un booléen de succès (l'appelant
- * ferme la feuille seulement alors) ; la confirmation de suppression reste à lui.
+ * Domaine « blog » : posts + fil de commentaires, tous deux paginés par curseur
+ * (RUST-12). `refetch` et `refetchOpenComments` sont stables (`[spaceId]`) pour
+ * le WS / la resync : ils refetchent la tête (la plus récente) et la fusionnent
+ * avec les pages plus anciennes déjà chargées. `add`/`edit` renvoient un booléen
+ * de succès (l'appelant ferme la feuille seulement alors) ; la confirmation de
+ * suppression reste à lui.
  */
 export function usePosts(spaceId: string) {
   const [posts, setPosts] = useState<ApiPost[]>([]);
+  const [postsHasMore, setPostsHasMore] = useState(false);
+  const [postsLoadingMore, setPostsLoadingMore] = useState(false);
   const [commentsFor, setCommentsFor] = useState<string | null>(null);
   const [comments, setComments] = useState<ApiComment[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
+  const [commentsHasMore, setCommentsHasMore] = useState(false);
+  const [commentsLoadingMore, setCommentsLoadingMore] = useState(false);
   const [commentBusy, setCommentBusy] = useState(false);
   // Post dont le fil est ouvert, lu par le WS sans recréer la connexion.
   const commentsForRef = useRef<string | null>(null);
+  // Des pages plus anciennes ont-elles été chargées ? (cf. useChallenges)
+  const postsLoadedOlder = useRef(false);
   // Miroir de `posts` lu de façon synchrone par `toggleReaction` : évite une
   // closure périmée (un refetch WS entre le rendu et le clic ferait sinon
   // décider add/remove sur un ancien `myReactions`) — REACT-01.
   const postsRef = useRef(posts);
   postsRef.current = posts;
+  // Miroir de `comments` pour `loadMoreComments` (lit le plus ancien affiché).
+  const commentsRef = useRef(comments);
+  commentsRef.current = comments;
 
   const refetch = useCallback(async () => {
     try {
-      setPosts(await api.listPosts(spaceId));
+      const page = await api.listPosts(spaceId);
+      setPosts((prev) => mergeHead(page.items, prev));
+      if (!postsLoadedOlder.current) setPostsHasMore(page.hasMore);
     } catch {
       /* best-effort */
     }
   }, [spaceId]);
+
+  const loadMore = async () => {
+    const cursor = postsRef.current[postsRef.current.length - 1]?.createdAt;
+    if (!cursor || postsLoadingMore) return;
+    setPostsLoadingMore(true);
+    try {
+      const page = await api.listPosts(spaceId, cursor);
+      postsLoadedOlder.current = true;
+      setPosts((prev) => appendOlder(prev, page.items));
+      setPostsHasMore(page.hasMore);
+    } catch (e) {
+      console.error("chargement de posts plus anciens échoué", e);
+    } finally {
+      setPostsLoadingMore(false);
+    }
+  };
 
   const add = async (draft: PostDraft): Promise<boolean> => {
     try {
@@ -126,13 +156,35 @@ export function usePosts(spaceId: string) {
     setCommentsFor(postId);
     commentsForRef.current = postId;
     setComments([]);
+    setCommentsHasMore(false);
     setCommentsLoading(true);
     try {
-      setComments(await api.listComments(spaceId, postId));
+      // L'API renvoie les plus récents d'abord ; on réordonne en chronologique.
+      const page = await api.listComments(spaceId, postId);
+      setComments(page.items.slice().reverse());
+      setCommentsHasMore(page.hasMore);
     } catch (e) {
       console.error("chargement des commentaires échoué", e);
     } finally {
       setCommentsLoading(false);
+    }
+  };
+
+  // Charge les commentaires plus anciens (curseur = le plus ancien affiché),
+  // préfixés au fil (affichage chronologique).
+  const loadMoreComments = async () => {
+    const postId = commentsForRef.current;
+    const oldest = commentsRef.current[0]?.createdAt;
+    if (!postId || !oldest || commentsLoadingMore) return;
+    setCommentsLoadingMore(true);
+    try {
+      const page = await api.listComments(spaceId, postId, oldest);
+      setComments((prev) => [...page.items.slice().reverse(), ...prev]);
+      setCommentsHasMore(page.hasMore);
+    } catch (e) {
+      console.error("chargement de commentaires plus anciens échoué", e);
+    } finally {
+      setCommentsLoadingMore(false);
     }
   };
 
@@ -160,16 +212,26 @@ export function usePosts(spaceId: string) {
     }
   };
 
-  // Rafraîchit le fil ouvert (appelé par le WS sur un événement "comment").
+  // Rafraîchit le fil ouvert (appelé par le WS sur un événement "comment") : on
+  // refetch la tête (les plus récents) et on la fusionne avec les commentaires
+  // plus anciens déjà chargés.
   const refetchOpenComments = useCallback(() => {
     const postId = commentsForRef.current;
     if (!postId) return;
-    api.listComments(spaceId, postId).then(setComments).catch(() => {});
+    api
+      .listComments(spaceId, postId)
+      .then((page) =>
+        setComments((prev) => mergeTail(page.items.slice().reverse(), prev)),
+      )
+      .catch(() => {});
   }, [spaceId]);
 
   return {
     posts,
+    postsHasMore,
+    postsLoadingMore,
     refetch,
+    loadMore,
     add,
     edit,
     remove,
@@ -179,10 +241,13 @@ export function usePosts(spaceId: string) {
     commentsFor,
     comments,
     commentsLoading,
+    commentsHasMore,
+    commentsLoadingMore,
     commentBusy,
     openComments,
     closeComments,
     addComment,
+    loadMoreComments,
     refetchOpenComments,
   };
 }

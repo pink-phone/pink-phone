@@ -8,6 +8,7 @@ export const en: Resources = {
     back: "Back",
     logout: "Log out",
     loading: "Loading…",
+    loadMore: "Show more",
     send: "Send",
     save: "Save",
     edit: "Edit",
@@ -225,6 +226,7 @@ export const en: Resources = {
     empty: "Nobody reacted yet. Start the conversation.",
     replyLabel: "Your reply",
     replyPlaceholder: "A word, a desire…",
+    loadOlder: "Older messages",
   },
   settings: {
     title: "Settings",

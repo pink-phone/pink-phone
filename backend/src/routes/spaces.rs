@@ -9,7 +9,7 @@ use crate::auth::AuthUser;
 use crate::error::{ApiError, ApiResult};
 use crate::models::{Member, Space, REACTIONS};
 use crate::routes::ensure_member;
-use crate::state::AppState;
+use crate::state::{AppState, EventKind};
 
 // V1 : un espace accueille au plus 2 partenaires (le modèle reste multi-ready).
 const MAX_MEMBERS: i64 = 2;
@@ -127,7 +127,7 @@ async fn update_space(
     .fetch_one(&state.pool)
     .await?;
 
-    state.emit(space_id, auth.user_id, "space");
+    state.emit(space_id, auth.user_id, EventKind::Space);
     Ok(Json(space))
 }
 
