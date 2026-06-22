@@ -39,11 +39,11 @@ export function SpaceGate({ user }: { user: UserPublic }) {
         setBusy(false);
       }
     };
-    const onJoin = async (id: string) => {
+    const onJoin = async (token: string) => {
       setBusy(true);
       setError(null);
       try {
-        setSpaces([await api.joinSpace(id)]);
+        setSpaces([await api.joinByInvite(token.trim())]);
       } catch (e) {
         setError(msg(e));
       } finally {

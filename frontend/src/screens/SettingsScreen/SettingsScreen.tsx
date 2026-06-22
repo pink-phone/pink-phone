@@ -77,7 +77,6 @@ export interface SettingsScreenProps {
   space?: {
     name: string;
     timezone: string;
-    inviteId: string;
     blindMood?: boolean;
   };
   members?: { id: string; name: string }[];
@@ -275,15 +274,6 @@ export function SettingsScreen({
               </div>
             )}
 
-            {/* Identifiant d'invitation */}
-            <div className="space-y-1">
-              <span className="block text-xs font-medium text-taupe-200">
-                {t("settings.inviteId")}
-              </span>
-              <code className="block select-all break-all rounded-2xl bg-charcoal-900/60 px-3 py-2 text-xs text-spice-300">
-                {space.inviteId}
-              </code>
-            </div>
 
             {/* Vote d'humeur à l'aveugle */}
             {onBlindMoodChange && (

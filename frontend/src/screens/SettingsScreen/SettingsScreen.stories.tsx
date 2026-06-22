@@ -17,7 +17,6 @@ const meta = {
     space: {
       name: "Pink Phone",
       timezone: "Europe/Paris",
-      inviteId: "a1b2c3d4-0000-0000-0000-000000000000",
       blindMood: false,
     },
     members: [

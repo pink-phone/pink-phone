@@ -73,7 +73,12 @@ export const Nouveautés: Story = {
 
 export const Solo: Story = {
   name: "Espace en attente (sans partenaire)",
-  args: { partner: undefined, partnerMood: undefined, inviteId: "a1b2c3d4-…" },
+  args: {
+    partner: undefined,
+    partnerMood: undefined,
+    inviteToken: "a1b2c3d4-1234-5678-9abc-def012345678",
+    onCreateInvite: () => {},
+  },
   render: (args) => (
     <div className="w-[380px]">
       <DashboardScreen {...args} />

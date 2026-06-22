@@ -18,8 +18,9 @@ pub fn router() -> Router<AppState> {
     Router::new()
         .route("/api/spaces", post(create_space))
         .route("/api/spaces/me", get(my_spaces))
+        .route("/api/spaces/join", post(join_by_invite))
         .route("/api/spaces/{id}", axum::routing::patch(update_space))
-        .route("/api/spaces/{id}/join", post(join_space))
+        .route("/api/spaces/{id}/invites", post(create_invite))
         .route("/api/spaces/{id}/members", get(members))
 }
 
@@ -147,22 +148,83 @@ async fn my_spaces(
     Ok(Json(spaces))
 }
 
-async fn join_space(
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct InviteCreated {
+    pub token: Uuid,
+}
+
+/// Génère une invitation à usage unique (valable 7 jours) pour ce salon.
+async fn create_invite(
     State(state): State<AppState>,
     auth: AuthUser,
     Path(space_id): Path<Uuid>,
-) -> ApiResult<Json<Space>> {
+) -> ApiResult<(StatusCode, Json<InviteCreated>)> {
+    ensure_member(&state.pool, auth.user_id, space_id).await?;
+    let token: Uuid = sqlx::query_scalar(
+        "INSERT INTO space_invites (space_id, created_by, expires_at)
+         VALUES ($1, $2, now() + interval '7 days') RETURNING token",
+    )
+    .bind(space_id)
+    .bind(auth.user_id)
+    .fetch_one(&state.pool)
+    .await?;
+    Ok((StatusCode::CREATED, Json(InviteCreated { token })))
+}
+
+#[derive(Deserialize)]
+pub struct JoinBody {
+    pub token: Uuid,
+}
+
+/// Rejoint un salon via un token d'invitation (SEC-005). Atomique : verrouille le
+/// salon pour sérialiser le contrôle de la limite de membres (corrige le TOCTOU),
+/// vérifie l'invitation (non utilisée, non expirée) et la consomme.
+async fn join_by_invite(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Json(body): Json<JoinBody>,
+) -> ApiResult<(StatusCode, Json<Space>)> {
     let mut tx = state.pool.begin().await?;
 
-    let space: Option<Space> =
+    // Invitation verrouillée le temps de la transaction.
+    let invite: Option<(Uuid, Option<chrono::DateTime<chrono::Utc>>, bool)> =
         sqlx::query_as(
-            "SELECT id, name, timezone, reactions, allow_custom_reactions, blind_mood, created_at
-             FROM spaces WHERE id = $1",
+            "SELECT space_id, used_at, (expires_at < now()) AS expired
+             FROM space_invites WHERE token = $1 FOR UPDATE",
         )
-            .bind(space_id)
-            .fetch_optional(&mut *tx)
-            .await?;
-    let space = space.ok_or(ApiError::NotFound)?;
+        .bind(body.token)
+        .fetch_optional(&mut *tx)
+        .await?;
+    let (space_id, used_at, expired) =
+        invite.ok_or(ApiError::BadRequest("invitation invalide".into()))?;
+    if used_at.is_some() {
+        return Err(ApiError::Conflict("invitation déjà utilisée".into()));
+    }
+    if expired {
+        return Err(ApiError::Conflict("invitation expirée".into()));
+    }
+
+    let space: Space = sqlx::query_as(
+        "SELECT id, name, timezone, reactions, allow_custom_reactions, blind_mood, created_at
+         FROM spaces WHERE id = $1 FOR UPDATE",
+    )
+    .bind(space_id)
+    .fetch_one(&mut *tx)
+    .await?;
+
+    // Déjà membre : on renvoie le salon sans consommer l'invitation.
+    let already: Option<Uuid> = sqlx::query_scalar(
+        "SELECT user_id FROM space_memberships WHERE user_id = $1 AND space_id = $2",
+    )
+    .bind(auth.user_id)
+    .bind(space_id)
+    .fetch_optional(&mut *tx)
+    .await?;
+    if already.is_some() {
+        tx.commit().await?;
+        return Ok((StatusCode::OK, Json(space)));
+    }
 
     let count: i64 = sqlx::query_scalar(
         "SELECT count(*) FROM space_memberships WHERE space_id = $1",
@@ -174,19 +236,21 @@ async fn join_space(
         return Err(ApiError::Conflict("cet espace est déjà complet".into()));
     }
 
-    // ON CONFLICT : rejoindre deux fois est idempotent.
     sqlx::query(
-        "INSERT INTO space_memberships (user_id, space_id, role)
-         VALUES ($1, $2, 'partner')
-         ON CONFLICT (user_id, space_id) DO NOTHING",
+        "INSERT INTO space_memberships (user_id, space_id, role) VALUES ($1, $2, 'partner')",
     )
     .bind(auth.user_id)
     .bind(space_id)
     .execute(&mut *tx)
     .await?;
+    sqlx::query("UPDATE space_invites SET used_at = now(), used_by = $1 WHERE token = $2")
+        .bind(auth.user_id)
+        .bind(body.token)
+        .execute(&mut *tx)
+        .await?;
     tx.commit().await?;
 
-    Ok(Json(space))
+    Ok((StatusCode::CREATED, Json(space)))
 }
 
 async fn members(

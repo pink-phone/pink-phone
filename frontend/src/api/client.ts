@@ -177,8 +177,13 @@ export const updateSpace = (
   },
 ) => req<Space>(`/api/spaces/${spaceId}`, { method: "PATCH", json: body });
 
-export const joinSpace = (spaceId: string) =>
-  req<Space>(`/api/spaces/${spaceId}/join`, { method: "POST" });
+/** Génère un token d'invitation à usage unique (valable 7 jours) pour ce salon. */
+export const createInvite = (spaceId: string) =>
+  req<{ token: string }>(`/api/spaces/${spaceId}/invites`, { method: "POST" });
+
+/** Rejoint un salon via un token d'invitation (SEC-005). */
+export const joinByInvite = (token: string) =>
+  req<Space>("/api/spaces/join", { method: "POST", json: { token } });
 
 export const members = (spaceId: string) =>
   req<Member[]>(`/api/spaces/${spaceId}/members`);
