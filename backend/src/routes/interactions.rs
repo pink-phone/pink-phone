@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use axum::extract::{Path, State};
+use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::routing::{get, put};
 use axum::{Json, Router};
@@ -10,8 +10,9 @@ use uuid::Uuid;
 use crate::auth::AuthUser;
 use crate::error::{ApiError, ApiResult};
 use crate::models::{Comment, ReactionSummary, REACTIONS, VERDICTS};
+use crate::pagination::{Page, PageParams};
 use crate::routes::ensure_member;
-use crate::state::AppState;
+use crate::state::{AppState, EventKind};
 
 pub fn router() -> Router<AppState> {
     Router::new()
@@ -128,7 +129,7 @@ async fn add_reaction(
     .bind(reaction)
     .execute(&state.pool)
     .await?;
-    state.emit(space_id, auth.user_id, "reaction");
+    state.emit(space_id, auth.user_id, EventKind::Reaction);
     Ok(Json(reaction_summary(&state.pool, post_id, auth.user_id).await?))
 }
 
@@ -146,7 +147,7 @@ async fn remove_reaction(
     .bind(&reaction)
     .execute(&state.pool)
     .await?;
-    state.emit(space_id, auth.user_id, "reaction");
+    state.emit(space_id, auth.user_id, EventKind::Reaction);
     Ok(Json(reaction_summary(&state.pool, post_id, auth.user_id).await?))
 }
 
@@ -213,19 +214,28 @@ async fn list_comments(
     State(state): State<AppState>,
     auth: AuthUser,
     Path((space_id, post_id)): Path<(Uuid, Uuid)>,
-) -> ApiResult<Json<Vec<Comment>>> {
+    Query(page): Query<PageParams>,
+) -> ApiResult<Json<Page<Comment>>> {
     guard(&state.pool, auth.user_id, space_id, post_id).await?;
+    let limit = page.limit();
+    // On pagine du plus RÉCENT vers le plus ancien (curseur `before`) : la page
+    // par défaut renvoie les derniers commentaires, et « charger plus ancien »
+    // remonte le fil. Le client réordonne en chronologique pour l'affichage.
     let comments: Vec<Comment> = sqlx::query_as(
         "SELECT c.id, c.author_id, u.display_name AS author_name, c.body, c.created_at
          FROM post_comments c
          JOIN users u ON u.id = c.author_id
          WHERE c.post_id = $1
-         ORDER BY c.created_at",
+           AND ($2::timestamptz IS NULL OR c.created_at < $2)
+         ORDER BY c.created_at DESC
+         LIMIT $3",
     )
     .bind(post_id)
+    .bind(page.before)
+    .bind(limit + 1)
     .fetch_all(&state.pool)
     .await?;
-    Ok(Json(comments))
+    Ok(Json(Page::from_rows(comments, limit)))
 }
 
 async fn add_comment(
@@ -253,7 +263,7 @@ async fn add_comment(
     .fetch_one(&state.pool)
     .await?;
 
-    state.emit(space_id, auth.user_id, "comment");
+    state.emit(space_id, auth.user_id, EventKind::Comment);
     crate::notifications::notify_members(
         &state,
         space_id,

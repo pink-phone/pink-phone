@@ -74,3 +74,13 @@ export const Vide: Story = {
     </div>
   ),
 };
+
+export const AvecPagination: Story = {
+  name: "Avec « voir plus »",
+  args: { hasMore: true },
+  render: (args) => (
+    <div className="w-[380px]">
+      <BlogScreen {...args} />
+    </div>
+  ),
+};

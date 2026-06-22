@@ -7,7 +7,7 @@ use crate::auth::AuthUser;
 use crate::error::{ApiError, ApiResult};
 use crate::models::SeenEntry;
 use crate::routes::ensure_member;
-use crate::state::AppState;
+use crate::state::{AppState, EventKind};
 
 const FEATURES: [&str; 2] = ["blog", "challenges"];
 
@@ -57,6 +57,6 @@ async fn mark_seen(
     .await?;
 
     // Notifie l'autre membre pour mettre à jour les accusés de lecture en direct.
-    state.emit(space_id, auth.user_id, "seen");
+    state.emit(space_id, auth.user_id, EventKind::Seen);
     Ok(Json(entry))
 }

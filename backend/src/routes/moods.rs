@@ -9,7 +9,7 @@ use crate::auth::AuthUser;
 use crate::error::{ApiError, ApiResult};
 use crate::models::{Mood, MOODS};
 use crate::routes::ensure_member;
-use crate::state::AppState;
+use crate::state::{AppState, EventKind};
 
 pub fn router() -> Router<AppState> {
     Router::new()
@@ -59,7 +59,7 @@ async fn set_mood(
     .fetch_one(&state.pool)
     .await?;
 
-    state.emit(space_id, auth.user_id, "mood");
+    state.emit(space_id, auth.user_id, EventKind::Mood);
 
     // Une humeur « chaude » ou « taquine » fait signe au/à la partenaire (même
     // si l'humeur est renvoyée à l'identique).
@@ -114,7 +114,7 @@ async fn clear_mood(
         .bind(space_id)
         .execute(&state.pool)
         .await?;
-    state.emit(space_id, auth.user_id, "mood");
+    state.emit(space_id, auth.user_id, EventKind::Mood);
     Ok(StatusCode::NO_CONTENT)
 }
 

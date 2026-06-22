@@ -1,6 +1,6 @@
 use aes_gcm::aead::{Aead, KeyInit};
 use aes_gcm::{Aes256Gcm, Key, Nonce};
-use axum::body::Body;
+use axum::body::{Body, Bytes};
 use axum::extract::{Multipart, Path, State};
 use axum::http::header::{
     ACCEPT_RANGES, CACHE_CONTROL, CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE, RANGE,
@@ -163,7 +163,9 @@ async fn upload(
 ) -> ApiResult<(StatusCode, Json<MediaCreated>)> {
     ensure_member(&state.pool, auth.user_id, space_id).await?;
 
-    let mut data: Option<(Vec<u8>, String)> = None;
+    // On garde le `Bytes` tel quel (déjà possédé, partage Arc) plutôt qu'un
+    // `to_vec()` qui recopierait jusqu'à 100 Mo pour rien (RUST-06).
+    let mut data: Option<(Bytes, String)> = None;
     let mut view_once = false;
 
     while let Some(field) = multipart
@@ -181,7 +183,7 @@ async fn upload(
                     .bytes()
                     .await
                     .map_err(|_| ApiError::BadRequest("lecture du fichier échouée".into()))?;
-                data = Some((bytes.to_vec(), mime));
+                data = Some((bytes, mime));
             }
             Some("viewOnce") => {
                 let v = field.text().await.unwrap_or_default();
@@ -207,7 +209,7 @@ async fn upload(
                 .await
                 .map_err(|_| ApiError::Internal)?
                 .ok_or(ApiError::Internal)?;
-            (ct, true)
+            (Bytes::from(ct), true)
         }
         None => (bytes, false),
     };

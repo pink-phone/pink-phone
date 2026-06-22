@@ -7,6 +7,7 @@ export const fr = {
     back: "Retour",
     logout: "Se déconnecter",
     loading: "Chargement…",
+    loadMore: "Voir plus",
     send: "Envoyer",
     save: "Enregistrer",
     edit: "Modifier",
@@ -225,6 +226,7 @@ export const fr = {
     empty: "Personne n'a encore réagi. Lance la discussion.",
     replyLabel: "Ta réponse",
     replyPlaceholder: "Un mot, une envie…",
+    loadOlder: "Messages plus anciens",
   },
   settings: {
     title: "Réglages",

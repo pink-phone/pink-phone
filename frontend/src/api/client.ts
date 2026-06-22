@@ -10,6 +10,7 @@ import type {
   MediaCreated,
   MoodEntry,
   NotifMode,
+  Page,
   SeenEntry,
   ReactionSummary,
   Settings,
@@ -104,6 +105,11 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 3): Promise<T> {
     }
   }
   throw lastErr;
+}
+
+/** Construit `?before=<iso>` pour les listes paginées (vide si pas de curseur). */
+function pageQuery(before?: string): string {
+  return before ? `?before=${encodeURIComponent(before)}` : "";
 }
 
 // ---------- Auth ----------
@@ -205,8 +211,9 @@ export const clearMood = (spaceId: string) =>
 
 // ---------- Posts ----------
 
-export const listPosts = (spaceId: string) =>
-  req<ApiPost[]>(`/api/spaces/${spaceId}/posts`);
+/** Liste paginée (curseur `before` = createdAt du plus ancien déjà chargé). */
+export const listPosts = (spaceId: string, before?: string) =>
+  req<Page<ApiPost>>(`/api/spaces/${spaceId}/posts${pageQuery(before)}`);
 
 export const createPost = (
   spaceId: string,
@@ -271,8 +278,11 @@ export const setVerdict = (spaceId: string, postId: string, verdict: Verdict) =>
     { method: "PUT", json: { verdict } },
   );
 
-export const listComments = (spaceId: string, postId: string) =>
-  req<ApiComment[]>(`/api/spaces/${spaceId}/posts/${postId}/comments`);
+/** Commentaires paginés (les plus récents d'abord ; `before` remonte le fil). */
+export const listComments = (spaceId: string, postId: string, before?: string) =>
+  req<Page<ApiComment>>(
+    `/api/spaces/${spaceId}/posts/${postId}/comments${pageQuery(before)}`,
+  );
 
 export const addComment = (spaceId: string, postId: string, body: string) =>
   req<ApiComment>(`/api/spaces/${spaceId}/posts/${postId}/comments`, {
@@ -282,8 +292,10 @@ export const addComment = (spaceId: string, postId: string, body: string) =>
 
 // ---------- Défis ----------
 
-export const listChallenges = (spaceId: string) =>
-  req<ApiChallenge[]>(`/api/spaces/${spaceId}/challenges`);
+export const listChallenges = (spaceId: string, before?: string) =>
+  req<Page<ApiChallenge>>(
+    `/api/spaces/${spaceId}/challenges${pageQuery(before)}`,
+  );
 
 /** Banque de propositions (globales + propres au salon), dans la langue donnée. */
 export const listChallengeSuggestions = (spaceId: string, lang: string) =>

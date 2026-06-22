@@ -15,7 +15,10 @@ use uuid::Uuid;
 
 use crate::auth::issue_token;
 use crate::error::{ApiError, ApiResult};
-use crate::state::{AppState, LoginTicket, OidcFlow};
+use crate::state::{AppState, LoginTicket, OidcCache, OidcFlow, OidcMeta};
+
+/// Durée de vie du cache discovery/JWKS (RUST-04).
+const OIDC_CACHE_TTL: Duration = Duration::from_secs(3600);
 
 pub fn router() -> Router<AppState> {
     Router::new()
@@ -51,7 +54,8 @@ struct Discovery {
     jwks_uri: String,
 }
 
-async fn discover(state: &AppState) -> ApiResult<Discovery> {
+/// Récupère discovery + JWKS depuis le provider (sans cache) et valide l'issuer.
+async fn fetch_oidc_metadata(state: &AppState) -> ApiResult<(OidcMeta, JwkSet)> {
     let url = format!(
         "{}/.well-known/openid-configuration",
         state.config.oidc_issuer.trim_end_matches('/')
@@ -77,7 +81,45 @@ async fn discover(state: &AppState) -> ApiResult<Discovery> {
         );
         return Err(ApiError::Unauthorized);
     }
-    Ok(disc)
+    let jwks: JwkSet = state
+        .http
+        .get(&disc.jwks_uri)
+        .send()
+        .await?
+        .error_for_status()?
+        .json()
+        .await?;
+    let meta = OidcMeta {
+        issuer: disc.issuer,
+        authorization_endpoint: disc.authorization_endpoint,
+        token_endpoint: disc.token_endpoint,
+    };
+    Ok((meta, jwks))
+}
+
+/// Discovery + JWKS, servis depuis le cache s'il est encore frais (RUST-04),
+/// sinon refetch + mise en cache. Verrou std relâché autour de chaque `await`.
+async fn oidc_metadata(state: &AppState) -> ApiResult<(OidcMeta, JwkSet)> {
+    {
+        let cache = state.oidc_cache.lock().unwrap();
+        if let Some(c) = cache.as_ref() {
+            if c.fetched.elapsed() < OIDC_CACHE_TTL {
+                return Ok((c.meta.clone(), c.jwks.clone()));
+            }
+        }
+    }
+    let (meta, jwks) = fetch_oidc_metadata(state).await?;
+    store_oidc_cache(state, &meta, &jwks);
+    Ok((meta, jwks))
+}
+
+fn store_oidc_cache(state: &AppState, meta: &OidcMeta, jwks: &JwkSet) {
+    let mut cache = state.oidc_cache.lock().unwrap();
+    *cache = Some(OidcCache {
+        meta: meta.clone(),
+        jwks: jwks.clone(),
+        fetched: Instant::now(),
+    });
 }
 
 fn random_b64(len: usize) -> String {
@@ -92,7 +134,7 @@ async fn login(State(state): State<AppState>) -> ApiResult<Redirect> {
     if !state.config.oidc_enabled() {
         return Err(ApiError::NotFound);
     }
-    let disc = discover(&state).await?;
+    let (meta, _) = oidc_metadata(&state).await?;
 
     let csrf = random_b64(16);
     let nonce = random_b64(16);
@@ -113,7 +155,7 @@ async fn login(State(state): State<AppState>) -> ApiResult<Redirect> {
         );
     }
 
-    let mut url = url::Url::parse(&disc.authorization_endpoint)
+    let mut url = url::Url::parse(&meta.authorization_endpoint)
         .map_err(|_| ApiError::Internal)?;
     url.query_pairs_mut()
         .append_pair("response_type", "code")
@@ -230,12 +272,12 @@ async fn callback_inner(
     }
     .ok_or(ApiError::BadRequest("state inconnu ou expiré".into()))?;
 
-    let disc = discover(state).await?;
+    let (meta, jwks) = oidc_metadata(state).await?;
 
     // Échange du code contre les tokens (client confidentiel + PKCE).
     let token: TokenResponse = state
         .http
-        .post(&disc.token_endpoint)
+        .post(&meta.token_endpoint)
         .form(&[
             ("grant_type", "authorization_code"),
             ("code", &code),
@@ -254,22 +296,23 @@ async fn callback_inner(
     let header =
         decode_header(&token.id_token).map_err(|_| ApiError::Unauthorized)?;
     let kid = header.kid.ok_or(ApiError::Unauthorized)?;
-    let jwks: JwkSet = state
-        .http
-        .get(&disc.jwks_uri)
-        .send()
-        .await?
-        .error_for_status()?
-        .json()
-        .await?;
-    let jwk = jwks.find(&kid).ok_or(ApiError::Unauthorized)?;
-    let key = DecodingKey::from_jwk(jwk).map_err(|_| ApiError::Unauthorized)?;
+    // `kid` connu du JWKS en cache ? Sinon, l'IdP a probablement tourné ses clés :
+    // on force un refetch immédiat (au-delà du TTL) avant d'abandonner (RUST-04).
+    let key = match jwks.find(&kid) {
+        Some(jwk) => DecodingKey::from_jwk(jwk).map_err(|_| ApiError::Unauthorized)?,
+        None => {
+            let (meta, fresh) = fetch_oidc_metadata(state).await?;
+            store_oidc_cache(state, &meta, &fresh);
+            let jwk = fresh.find(&kid).ok_or(ApiError::Unauthorized)?;
+            DecodingKey::from_jwk(jwk).map_err(|_| ApiError::Unauthorized)?
+        }
+    };
 
     let mut validation = Validation::new(Algorithm::RS256);
     validation.set_audience(&[&state.config.oidc_client_id]);
     // Issuer autoritatif issu de la discovery (évite tout écart de slash final
     // entre OIDC_ISSUER configuré et le claim `iss` du jeton).
-    validation.set_issuer(&[disc.issuer.as_str()]);
+    validation.set_issuer(&[meta.issuer.as_str()]);
     let claims = decode::<IdClaims>(&token.id_token, &key, &validation)
         .map_err(|_| ApiError::Unauthorized)?
         .claims;

@@ -8,6 +8,15 @@ import type {
   Verdict,
 } from "../domain/types";
 
+/**
+ * Page renvoyée par les listes paginées (curseur `before`, RUST-12/API-11) :
+ * les éléments + s'il en reste de plus anciens à charger.
+ */
+export interface Page<T> {
+  items: T[];
+  hasMore: boolean;
+}
+
 export interface UserPublic {
   id: string;
   email: string;

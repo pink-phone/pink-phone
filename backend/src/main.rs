@@ -3,6 +3,7 @@ mod config;
 mod error;
 mod models;
 mod notifications;
+mod pagination;
 mod routes;
 mod state;
 
@@ -135,6 +136,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let oidc_tickets = std::sync::Arc::new(std::sync::Mutex::new(
         std::collections::HashMap::new(),
     ));
+    let oidc_cache = std::sync::Arc::new(std::sync::Mutex::new(None));
     // Bus d'événements temps réel (WebSockets). Le receiver initial est jeté ;
     // chaque connexion s'abonne via `events.subscribe()`.
     let (events, _) = tokio::sync::broadcast::channel(256);
@@ -158,6 +160,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         push_client: std::sync::Arc::new(web_push::HyperWebPushClient::new()),
         oidc_states,
         oidc_tickets,
+        oidc_cache,
         events,
     };
 
