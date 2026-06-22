@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "../../lib/cn";
 
@@ -34,6 +34,10 @@ export function LockScreen({
 }: LockScreenProps) {
   const { t } = useTranslation();
   const [entry, setEntry] = useState("");
+  // Timer de soumission différée, nettoyé au démontage (REACT-06) : évite un
+  // `onSubmit` tardif si le composant disparaît dans les 120 ms.
+  const submitTimer = useRef<ReturnType<typeof setTimeout>>();
+  useEffect(() => () => clearTimeout(submitTimer.current), []);
 
   // Une erreur (code refusé) vide la saisie pour réessayer.
   useEffect(() => {
@@ -46,7 +50,7 @@ export function LockScreen({
     setEntry(next);
     if (next.length === pinLength) {
       // Laisse le dernier point s'afficher avant de soumettre.
-      setTimeout(() => onSubmit(next), 120);
+      submitTimer.current = setTimeout(() => onSubmit(next), 120);
     }
   };
 

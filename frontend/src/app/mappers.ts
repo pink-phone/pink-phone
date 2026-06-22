@@ -2,17 +2,13 @@ import type { TFunction } from "i18next";
 import * as api from "../api/client";
 import type { ApiChallenge, ApiComment, ApiPost } from "../api/types";
 import type { ChallengeData, PostData } from "../types/view";
+import type { CommentView } from "../components/CommentsSheet/CommentsSheet";
 import { relativeTime } from "../lib/time";
 
 // Conversions pures réponses API → vue-modèles des écrans. Isolées de la couche
 // orchestration : aucune dépendance à l'état React, testables telles quelles.
-
-export interface CommentView {
-  id: string;
-  authorName: string;
-  body: string;
-  timeLabel: string;
-}
+// `CommentView` est le type de prop de `CommentsSheet` (le composant le possède).
+export type { CommentView };
 
 interface PostMapOptions {
   t: TFunction;
