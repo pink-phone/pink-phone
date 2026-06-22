@@ -8,13 +8,24 @@ import { OnboardingScreen } from "../screens/OnboardingScreen/OnboardingScreen";
 import { Splash } from "../screens/Splash/Splash";
 import { SpaceApp } from "./SpaceApp";
 
-/** Aiguille vers l'onboarding (aucun espace) ou l'app (espace existant). */
+// Salon courant mémorisé par appareil (multi-space, #67).
+const CURRENT_SPACE_KEY = "pp_space";
+
+/**
+ * Aiguille vers l'onboarding (aucun salon) ou l'app (salon courant). Gère le
+ * multi-space (#67) : liste des salons de l'utilisateur, salon courant persisté,
+ * bascule + création/jointure d'un autre salon. `SpaceApp` est monté avec une
+ * `key` = id du salon courant → tout son état se réinitialise à la bascule.
+ */
 export function SpaceGate({ user }: { user: UserPublic }) {
   const { t } = useTranslation();
   const { logout } = useAuth();
   const msg = (e: unknown) =>
     e instanceof ApiError ? e.message : t("errors.generic");
   const [spaces, setSpaces] = useState<Space[] | null>(null);
+  const [currentId, setCurrentId] = useState<string | null>(() =>
+    localStorage.getItem(CURRENT_SPACE_KEY),
+  );
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
@@ -25,6 +36,11 @@ export function SpaceGate({ user }: { user: UserPublic }) {
       .catch(() => setSpaces([]));
   }, []);
 
+  const switchSpace = (id: string) => {
+    setCurrentId(id);
+    localStorage.setItem(CURRENT_SPACE_KEY, id);
+  };
+
   if (spaces === null) return <Splash message={t("splash.loadingSpace")} />;
 
   if (spaces.length === 0) {
@@ -32,7 +48,9 @@ export function SpaceGate({ user }: { user: UserPublic }) {
       setBusy(true);
       setError(null);
       try {
-        setSpaces([await api.createSpace(name)]);
+        const s = await api.createSpace(name);
+        setSpaces([s]);
+        switchSpace(s.id);
       } catch (e) {
         setError(msg(e));
       } finally {
@@ -43,7 +61,9 @@ export function SpaceGate({ user }: { user: UserPublic }) {
       setBusy(true);
       setError(null);
       try {
-        setSpaces([await api.joinByInvite(token.trim())]);
+        const s = await api.joinByInvite(token.trim());
+        setSpaces([s]);
+        switchSpace(s.id);
       } catch (e) {
         setError(msg(e));
       } finally {
@@ -62,5 +82,32 @@ export function SpaceGate({ user }: { user: UserPublic }) {
     );
   }
 
-  return <SpaceApp space={spaces[0]} user={user} />;
+  // Salon courant : celui mémorisé s'il existe encore, sinon le premier.
+  const current = spaces.find((s) => s.id === currentId) ?? spaces[0];
+
+  // Créer / rejoindre un AUTRE salon depuis l'app (Réglages). On bascule dessus.
+  const createSpace = async (name: string) => {
+    const s = await api.createSpace(name);
+    setSpaces((prev) => [...(prev ?? []), s]);
+    switchSpace(s.id);
+  };
+  const joinSpace = async (token: string) => {
+    const s = await api.joinByInvite(token.trim());
+    setSpaces((prev) =>
+      prev?.some((x) => x.id === s.id) ? prev : [...(prev ?? []), s],
+    );
+    switchSpace(s.id);
+  };
+
+  return (
+    <SpaceApp
+      key={current.id}
+      space={current}
+      spaces={spaces}
+      user={user}
+      onSwitchSpace={switchSpace}
+      onCreateSpace={createSpace}
+      onJoinSpace={joinSpace}
+    />
+  );
 }

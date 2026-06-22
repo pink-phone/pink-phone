@@ -80,6 +80,12 @@ export interface SettingsScreenProps {
     blindMood?: boolean;
   };
   members?: { id: string; name: string }[];
+  /** Tous les salons de l'utilisateur (multi-space #67) — affiche le sélecteur. */
+  spaces?: { id: string; name: string }[];
+  currentSpaceId?: string;
+  onSwitchSpace?: (id: string) => void;
+  onCreateSpace?: (name: string) => Promise<void> | void;
+  onJoinSpace?: (token: string) => Promise<void> | void;
   onRenameSpace?: (name: string) => void;
   onTimezoneChange?: (timezone: string) => void;
   /** Active/désactive le vote d'humeur à l'aveugle (portée salon). */
@@ -105,6 +111,11 @@ export function SettingsScreen({
   onHotAnimChange,
   space,
   members,
+  spaces,
+  currentSpaceId,
+  onSwitchSpace,
+  onCreateSpace,
+  onJoinSpace,
   onRenameSpace,
   onTimezoneChange,
   onBlindMoodChange,
@@ -176,6 +187,25 @@ export function SettingsScreen({
   // Édition du nom du salon (resynchronisé si le nom change ailleurs).
   const [spaceName, setSpaceName] = useState(space?.name ?? "");
   useEffect(() => setSpaceName(space?.name ?? ""), [space?.name]);
+
+  // Multi-space (#67) : créer / rejoindre un autre salon depuis les réglages.
+  const [newSpaceName, setNewSpaceName] = useState("");
+  const [joinToken, setJoinToken] = useState("");
+  const [spaceBusy, setSpaceBusy] = useState(false);
+  const [spaceError, setSpaceError] = useState<string | null>(null);
+  const runSpaceAction = async (fn: () => Promise<void> | void) => {
+    setSpaceBusy(true);
+    setSpaceError(null);
+    try {
+      await fn();
+      setNewSpaceName("");
+      setJoinToken("");
+    } catch {
+      setSpaceError(t("errors.generic"));
+    } finally {
+      setSpaceBusy(false);
+    }
+  };
   const tzOptions = TIMEZONES.length ? TIMEZONES : TZ_FALLBACK;
   const tzList =
     space && !tzOptions.includes(space.timezone)
@@ -196,6 +226,110 @@ export function SettingsScreen({
         )}
         <h1 className="font-serif text-2xl text-blush-100">{t("settings.title")}</h1>
       </header>
+
+      {spaces && spaces.length > 0 && (
+        <section className="space-y-3">
+          <h2 className="text-xs uppercase tracking-[0.15em] text-taupe-400">
+            {t("settings.spacesSection")}
+          </h2>
+          <Surface tone="velvet" className="space-y-4">
+            {/* Sélecteur de salon courant */}
+            <div
+              role="radiogroup"
+              aria-label={t("settings.spacesSection")}
+              className="space-y-2"
+            >
+              {spaces.map((s) => {
+                const active = s.id === currentSpaceId;
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    disabled={active}
+                    onClick={() => onSwitchSpace?.(s.id)}
+                    className={cn(
+                      "flex w-full items-center justify-between rounded-2xl border px-3 py-2 text-sm",
+                      "transition-all duration-300 ease-felt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500",
+                      active
+                        ? "border-spice-500/70 bg-bordeaux-700 text-blush-100 shadow-glow"
+                        : "border-charcoal-600/60 bg-charcoal-800 text-taupe-200 hover:border-spice-400/40",
+                    )}
+                  >
+                    <span className="truncate">{s.name}</span>
+                    {active && (
+                      <span className="ml-2 shrink-0 text-xs text-blush-200">
+                        {t("settings.spaceCurrent")}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Créer un autre salon */}
+            {onCreateSpace && (
+              <form
+                className="flex items-end gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const v = newSpaceName.trim();
+                  if (v) void runSpaceAction(() => onCreateSpace(v));
+                }}
+              >
+                <TextField
+                  label={t("settings.spaceCreate")}
+                  value={newSpaceName}
+                  onChange={(e) => setNewSpaceName(e.target.value)}
+                  className="flex-1"
+                />
+                <Button
+                  type="submit"
+                  size="sm"
+                  loading={spaceBusy}
+                  disabled={!newSpaceName.trim() || spaceBusy}
+                >
+                  {t("settings.spaceCreateAction")}
+                </Button>
+              </form>
+            )}
+
+            {/* Rejoindre un autre salon via un code d'invitation */}
+            {onJoinSpace && (
+              <form
+                className="flex items-end gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const v = joinToken.trim();
+                  if (v) void runSpaceAction(() => onJoinSpace(v));
+                }}
+              >
+                <TextField
+                  label={t("settings.spaceJoin")}
+                  value={joinToken}
+                  onChange={(e) => setJoinToken(e.target.value)}
+                  placeholder={t("onboarding.joinPlaceholder")}
+                  className="flex-1"
+                />
+                <Button
+                  type="submit"
+                  size="sm"
+                  variant="secondary"
+                  loading={spaceBusy}
+                  disabled={!joinToken.trim() || spaceBusy}
+                >
+                  {t("settings.spaceJoinAction")}
+                </Button>
+              </form>
+            )}
+
+            {spaceError && (
+              <p className="text-xs text-spice-300">{spaceError}</p>
+            )}
+          </Surface>
+        </section>
+      )}
 
       {space && (
         <section className="space-y-3">
