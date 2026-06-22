@@ -140,6 +140,7 @@ export const fr = {
     bodyLabel: "Ton récit",
     bodyPlaceholder: "Raconte, à tête reposée…",
     photoOptional: "Photo ou vidéo (optionnel)",
+    attachFile: "Joindre une photo ou vidéo",
     photoChange: "Photo ou vidéo (changer)",
     ephemeralAttached: "✦ Média éphémère déjà joint",
     attachedAlt: "Média joint",

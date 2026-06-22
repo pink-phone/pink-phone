@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Surface } from "../../components/Surface/Surface";
 import { MoodSelector } from "../../components/MoodSelector/MoodSelector";
@@ -172,31 +173,19 @@ export function DashboardScreen({
           </h2>
           <div className="flex flex-wrap gap-2">
             {newPosts > 0 && (
-              <button
-                type="button"
-                onClick={() => onOpen?.("blog")}
-                className="inline-flex items-center gap-1.5 rounded-full border border-spice-500/70 bg-bordeaux-700 px-3 py-1.5 text-sm text-blush-100 shadow-glow transition-transform duration-300 ease-felt hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
-              >
+              <NewsPill onClick={() => onOpen?.("blog")}>
                 📖 {t("dashboard.newPosts", { count: newPosts })}
-              </button>
+              </NewsPill>
             )}
             {newComments > 0 && (
-              <button
-                type="button"
-                onClick={() => onOpen?.("blog")}
-                className="inline-flex items-center gap-1.5 rounded-full border border-spice-500/70 bg-bordeaux-700 px-3 py-1.5 text-sm text-blush-100 shadow-glow transition-transform duration-300 ease-felt hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
-              >
+              <NewsPill onClick={() => onOpen?.("blog")}>
                 💬 {t("dashboard.newComments", { count: newComments })}
-              </button>
+              </NewsPill>
             )}
             {newChallenges > 0 && (
-              <button
-                type="button"
-                onClick={() => onOpen?.("challenges")}
-                className="inline-flex items-center gap-1.5 rounded-full border border-spice-500/70 bg-bordeaux-700 px-3 py-1.5 text-sm text-blush-100 shadow-glow transition-transform duration-300 ease-felt hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
-              >
+              <NewsPill onClick={() => onOpen?.("challenges")}>
                 🎲 {t("dashboard.newChallenges", { count: newChallenges })}
-              </button>
+              </NewsPill>
             )}
           </div>
         </section>
@@ -226,5 +215,24 @@ export function DashboardScreen({
         )}
       </section>
     </div>
+  );
+}
+
+/** Pastille « Du nouveau » (📖/💬/🎲) — surface chaude avec léger glow. */
+function NewsPill({
+  onClick,
+  children,
+}: {
+  onClick?: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center gap-1.5 rounded-full border border-spice-500/70 bg-bordeaux-700 px-3 py-1.5 text-sm text-blush-100 shadow-glow transition-transform duration-300 ease-felt hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+    >
+      {children}
+    </button>
   );
 }

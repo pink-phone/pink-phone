@@ -235,18 +235,28 @@ export function SettingsScreen({
               >
                 {t("settings.timezone")}
               </label>
-              <select
-                id="space-tz"
-                value={space.timezone}
-                onChange={(e) => onTimezoneChange?.(e.target.value)}
-                className="w-full rounded-2xl border border-charcoal-600/60 bg-charcoal-800 px-3 py-2 text-sm text-taupe-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
-              >
-                {tzList.map((tz) => (
-                  <option key={tz} value={tz}>
-                    {tz}
-                  </option>
-                ))}
-              </select>
+              {/* Chevron custom (UI-UX8) : le picker natif reste utilisé au tap
+                  (liste IANA longue), mais sans le chevron natif iOS hétérogène. */}
+              <div className="relative">
+                <select
+                  id="space-tz"
+                  value={space.timezone}
+                  onChange={(e) => onTimezoneChange?.(e.target.value)}
+                  className="w-full appearance-none rounded-2xl border border-charcoal-600/60 bg-charcoal-800 px-3 py-2 pr-9 text-sm text-taupe-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+                >
+                  {tzList.map((tz) => (
+                    <option key={tz} value={tz}>
+                      {tz}
+                    </option>
+                  ))}
+                </select>
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute inset-y-0 right-3 flex items-center text-taupe-300"
+                >
+                  ▾
+                </span>
+              </div>
               <p className="text-[11px] text-taupe-400">
                 {t("settings.timezoneHint")}
               </p>

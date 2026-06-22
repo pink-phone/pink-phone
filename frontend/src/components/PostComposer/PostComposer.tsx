@@ -59,6 +59,9 @@ export function PostComposer({ onSubmit, onCancel, initial }: PostComposerProps)
   const [title, setTitle] = useState(initial?.title ?? "");
   const [body, setBody] = useState(initial?.body ?? "");
   const [file, setFile] = useState<File | null>(null);
+  // Input fichier natif masqué, déclenché par un Button (le rendu natif iOS de
+  // `<input type=file>` ignore le style — UI-UX5).
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [viewOnce, setViewOnce] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   // Photo déjà jointe au brouillon, tant qu'on ne la remplace/retire pas.
@@ -173,14 +176,26 @@ export function PostComposer({ onSubmit, onCancel, initial }: PostComposerProps)
         ) : null}
 
         <input
+          ref={fileInputRef}
           type="file"
           accept="image/*,video/*"
+          className="hidden"
           onChange={(e) => {
             setFile(e.target.files?.[0] ?? null);
             setRemoveMedia(false);
           }}
-          className="block w-full text-xs text-taupe-300 file:mr-3 file:rounded-2xl file:border-0 file:bg-charcoal-700 file:px-3 file:py-2 file:text-xs file:text-taupe-100 hover:file:bg-charcoal-600"
         />
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          className="w-full"
+          onClick={() => fileInputRef.current?.click()}
+        >
+          <span className="truncate">
+            📎 {file ? file.name : t("postComposer.attachFile")}
+          </span>
+        </Button>
 
         {editing && removeMedia && !file && (
           <p className="text-[11px] text-taupe-400">

@@ -177,7 +177,11 @@ export function SafeMedia({
       {/* Voile + invite tant que ce n'est pas révélé */}
       {!isRevealed && !isConsumed && (
         <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1 bg-charcoal-900/40 p-4 text-center text-blush-100 backdrop-blur-[2px]">
-          <span className="text-3xl">{kind === "video" ? "🎬" : "🤫"}</span>
+          {/* Léger battement : signale que le média se « révèle » (geste à
+              découvrir). Respecte prefers-reduced-motion (UI-UX6). */}
+          <span className="animate-[pulse_2.4s_ease-in-out_infinite] text-3xl motion-reduce:animate-none">
+            {kind === "video" ? "🎬" : "🤫"}
+          </span>
           <p className="font-serif text-base">{t("safeMedia.secret")}</p>
           <p className="text-xs text-taupe-200/80">
             {t(kind === "video" ? "safeMedia.holdToWatch" : "safeMedia.holdToReveal")}
