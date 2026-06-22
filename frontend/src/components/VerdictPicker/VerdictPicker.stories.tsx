@@ -3,7 +3,9 @@ import { useState } from "react";
 import { VerdictPicker, type Verdict } from "./VerdictPicker";
 
 const meta = {
-  title: "Blog/VerdictPicker",
+  // Composant non câblé dans l'app (le verdict est persisté côté back mais pas
+  // exposé dans l'UI — cf. backlog #9). Gardé pour expérimentation / réactivation.
+  title: "Expérimental/VerdictPicker",
   component: VerdictPicker,
   tags: ["autodocs"],
   parameters: {
