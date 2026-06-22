@@ -211,6 +211,7 @@ export const en: Resources = {
     addTitle: "New idea",
     editTitle: "Edit idea",
     propose: "Dare my partner",
+    fork: "Copy to my ideas",
     delete: "Delete",
     edit: "Edit",
     catalogue: "All suggestions",

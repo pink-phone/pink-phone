@@ -211,6 +211,7 @@ export const fr = {
     addTitle: "Nouvelle idée",
     editTitle: "Modifier l'idée",
     propose: "Proposer au partenaire",
+    fork: "Copier dans mes idées",
     delete: "Supprimer",
     edit: "Éditer",
     catalogue: "Toutes les propositions",

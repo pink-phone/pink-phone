@@ -148,7 +148,19 @@ export function ChallengeBankScreen({
                                   danger: true,
                                 },
                               ]
-                            : []),
+                            : [
+                                // Forker : copie une idée du seed dans MES
+                                // propositions (devient alors éditable) — #63bis.
+                                {
+                                  label: t("challengeBank.fork"),
+                                  onClick: () =>
+                                    onAdd({
+                                      title: s.title,
+                                      description: s.description,
+                                      intensity: s.intensity,
+                                    }),
+                                },
+                              ]),
                         ]}
                       />
                     </div>
