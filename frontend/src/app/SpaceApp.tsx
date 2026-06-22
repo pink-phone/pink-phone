@@ -401,6 +401,13 @@ export function SpaceApp({
             intensity: s.intensity,
             isOwn: s.spaceId !== null,
           }))}
+          onPropose={async (s) => {
+            // Proposer depuis la banque = créer un défi « proposed » (#62).
+            if (await addChallengeH(s)) {
+              setShowBank(false);
+              setTab("challenges");
+            }
+          }}
           onAdd={addSuggestion}
           onUpdate={editSuggestion}
           onDelete={removeSuggestion}

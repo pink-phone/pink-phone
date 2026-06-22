@@ -3,7 +3,9 @@ import { fn } from "storybook/test";
 import { ChallengeBankManager } from "./ChallengeBankManager";
 
 const meta = {
-  title: "Défis/ChallengeBankManager",
+  // Non câblé dans l'app depuis #63 : la gestion de la banque est désormais
+  // intégrée aux cartes de ChallengeBankScreen (⋯). Gardé pour réactivation.
+  title: "Expérimental/ChallengeBankManager",
   component: ChallengeBankManager,
   tags: ["autodocs"],
   parameters: { layout: "padded" },

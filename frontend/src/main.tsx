@@ -53,6 +53,21 @@ registerSW({
 // `user-scalable=no` est ignoré). En PWA installée, le meta suffit déjà.
 document.addEventListener("gesturestart", (e) => e.preventDefault());
 
+// Au focus d'un champ, on le recentre dans sa zone scrollable pour qu'il ne
+// reste pas masqué par le clavier virtuel (surtout iOS, où le clavier ne réduit
+// pas `dvh`) — backlog #64. Délai laissant le clavier s'ouvrir.
+document.addEventListener("focusin", (e) => {
+  const el = e.target;
+  if (
+    el instanceof HTMLElement &&
+    el.matches("input, textarea, select, [contenteditable='true']")
+  ) {
+    setTimeout(() => {
+      el.scrollIntoView({ block: "center", behavior: "smooth" });
+    }, 300);
+  }
+});
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />

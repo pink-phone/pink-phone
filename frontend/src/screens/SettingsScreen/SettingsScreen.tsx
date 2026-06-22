@@ -45,9 +45,10 @@ const TZ_FALLBACK = [
 ];
 
 // Modes de notif : id + emoji + flag "bientôt" ; titres/descriptions via i18n.
-const MODES: { id: NotifMode; emoji: string; soon?: boolean }[] = [
+// « digest » (résumé quotidien) retiré du picker : la livraison email n'est pas
+// implémentée (backlog #66). Le type NotifMode garde la valeur (inoffensive).
+const MODES: { id: NotifMode; emoji: string }[] = [
   { id: "push", emoji: "🔔" },
-  { id: "digest", emoji: "📬", soon: true },
   { id: "ghost", emoji: "🌙" },
 ];
 
@@ -359,11 +360,6 @@ export function SettingsScreen({
                       >
                         {t(MODE_KEYS[mode.id].title)}
                       </span>
-                      {mode.soon && (
-                        <span className="rounded-full bg-charcoal-700 px-2 py-0.5 text-[10px] text-taupe-300">
-                          {t("settings.soon")}
-                        </span>
-                      )}
                     </span>
                     <span
                       className={cn(
