@@ -49,7 +49,7 @@ async fn list_suggestions(
 
     // Banque curatée (seed + propres au salon) : pas de pagination par curseur,
     // mais un plafond de sûreté pour ne jamais charger une liste non bornée (RUST-12).
-    let query = "SELECT id, space_id, title, description, intensity
+    let query = "SELECT id, space_id, title, description, intensity, locale
                  FROM challenge_suggestions
                  WHERE (space_id IS NULL OR space_id = $1) AND locale = $2
                  ORDER BY created_at
@@ -103,7 +103,7 @@ async fn create_suggestion(
         "INSERT INTO challenge_suggestions
             (space_id, created_by, locale, title, description, intensity)
          VALUES ($1, $2, $3, $4, $5, $6)
-         RETURNING id, space_id, title, description, intensity",
+         RETURNING id, space_id, title, description, intensity, locale",
     )
     .bind(space_id)
     .bind(auth.user_id)
@@ -132,7 +132,7 @@ async fn update_suggestion(
         "UPDATE challenge_suggestions
          SET title = $3, description = $4, intensity = $5
          WHERE id = $1 AND space_id = $2 AND created_by = $6
-         RETURNING id, space_id, title, description, intensity",
+         RETURNING id, space_id, title, description, intensity, locale",
     )
     .bind(sid)
     .bind(space_id)

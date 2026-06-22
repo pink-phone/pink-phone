@@ -124,6 +124,8 @@ export interface ChallengeSuggestion {
   title: string;
   description: string;
   intensity: Intensity;
+  /** Langue de l'idée (« fr »/« en ») — renvoyée par l'API (API-16). */
+  locale: string;
 }
 
 export interface MediaCreated {
