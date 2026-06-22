@@ -48,9 +48,18 @@ import { toChallengeData, toCommentViews, toPostData } from "./mappers";
 export function SpaceApp({
   space: initialSpace,
   user,
+  spaces = [],
+  onSwitchSpace,
+  onCreateSpace,
+  onJoinSpace,
 }: {
   space: Space;
   user: UserPublic;
+  /** Tous les salons de l'utilisateur (multi-space, #67). */
+  spaces?: Space[];
+  onSwitchSpace?: (id: string) => void;
+  onCreateSpace?: (name: string) => Promise<void>;
+  onJoinSpace?: (token: string) => Promise<void>;
 }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.resolvedLanguage ?? i18n.language;
@@ -403,6 +412,11 @@ export function SpaceApp({
             blindMood: space.blindMood,
           }}
           members={members.map((m) => ({ id: m.id, name: m.displayName }))}
+          spaces={spaces.map((s) => ({ id: s.id, name: s.name }))}
+          currentSpaceId={space.id}
+          onSwitchSpace={onSwitchSpace}
+          onCreateSpace={onCreateSpace}
+          onJoinSpace={onJoinSpace}
           onRenameSpace={renameSpace}
           onTimezoneChange={changeTimezone}
           onBlindMoodChange={changeBlindMood}

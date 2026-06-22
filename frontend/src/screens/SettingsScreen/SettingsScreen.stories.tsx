@@ -58,6 +58,26 @@ export const Interactif: Story = {
   },
 };
 
+/** Multi-space (#67) : sélecteur de salon + créer / rejoindre un autre salon. */
+export const PlusieursSalons: Story = {
+  name: "Plusieurs salons",
+  args: {
+    currentSpaceId: "a",
+    spaces: [
+      { id: "a", name: "Pink Phone" },
+      { id: "b", name: "Escapade" },
+    ],
+    onSwitchSpace: fn(),
+    onCreateSpace: fn(),
+    onJoinSpace: fn(),
+  },
+  render: (args) => (
+    <div className="w-[380px]">
+      <SettingsScreen {...args} />
+    </div>
+  ),
+};
+
 export const PushIndisponible: Story = {
   args: { notifMode: "ghost", pushSupported: false },
   render: (args) => (
