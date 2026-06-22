@@ -191,7 +191,7 @@ export const members = (spaceId: string) =>
 // ---------- Mood ----------
 
 export const setMood = (spaceId: string, status: string) =>
-  req<MoodEntry>(`/api/spaces/${spaceId}/mood`, {
+  req<MoodEntry>(`/api/spaces/${spaceId}/moods/me`, {
     method: "PUT",
     json: { status },
   });
@@ -201,7 +201,7 @@ export const listMoods = (spaceId: string) =>
 
 /** Retire mon humeur du jour (désélection). */
 export const clearMood = (spaceId: string) =>
-  req<void>(`/api/spaces/${spaceId}/mood`, { method: "DELETE" });
+  req<void>(`/api/spaces/${spaceId}/moods/me`, { method: "DELETE" });
 
 // ---------- Posts ----------
 
@@ -288,7 +288,7 @@ export const listChallenges = (spaceId: string) =>
 /** Banque de propositions (globales + propres au salon), dans la langue donnée. */
 export const listChallengeSuggestions = (spaceId: string, lang: string) =>
   req<ChallengeSuggestion[]>(
-    `/api/spaces/${spaceId}/challenge-suggestions?lang=${encodeURIComponent(lang)}`,
+    `/api/spaces/${spaceId}/suggestions?lang=${encodeURIComponent(lang)}`,
   );
 
 type SuggestionInput = {
@@ -300,7 +300,7 @@ type SuggestionInput = {
 
 /** Ajoute une proposition propre au salon. */
 export const createSuggestion = (spaceId: string, body: SuggestionInput) =>
-  req<ChallengeSuggestion>(`/api/spaces/${spaceId}/challenge-suggestions`, {
+  req<ChallengeSuggestion>(`/api/spaces/${spaceId}/suggestions`, {
     method: "POST",
     json: body,
   });
@@ -312,13 +312,13 @@ export const updateSuggestion = (
   body: SuggestionInput,
 ) =>
   req<ChallengeSuggestion>(
-    `/api/spaces/${spaceId}/challenge-suggestions/${sid}`,
+    `/api/spaces/${spaceId}/suggestions/${sid}`,
     { method: "PATCH", json: body },
   );
 
 /** Supprime une proposition du salon. */
 export const deleteSuggestion = (spaceId: string, sid: string) =>
-  req<void>(`/api/spaces/${spaceId}/challenge-suggestions/${sid}`, {
+  req<void>(`/api/spaces/${spaceId}/suggestions/${sid}`, {
     method: "DELETE",
   });
 
@@ -342,8 +342,8 @@ export const transitionChallenge = (
   status: ChallengeStatus,
 ) =>
   req<ApiChallenge>(
-    `/api/spaces/${spaceId}/challenges/${challengeId}/status`,
-    { method: "PATCH", json: { status } },
+    `/api/spaces/${spaceId}/challenges/${challengeId}/transitions`,
+    { method: "POST", json: { to: status } },
   );
 
 export const updateChallenge = (
@@ -407,15 +407,11 @@ export const getVapidKey = () =>
   req<VapidKey>("/api/notifications/vapid");
 
 export const subscribePush = (subscription: PushSubscriptionJSON) =>
-  req<{ ok: boolean }>("/api/me/push", {
-    method: "POST",
-    json: subscription,
-  });
+  req<void>("/api/me/push", { method: "POST", json: subscription });
 
 export const unsubscribePush = (endpoint: string) =>
-  req<{ ok: boolean }>("/api/me/push", {
+  req<void>(`/api/me/push?endpoint=${encodeURIComponent(endpoint)}`, {
     method: "DELETE",
-    json: { endpoint },
   });
 
 /** Récupère le média authentifié et renvoie une object URL (à révoquer). */

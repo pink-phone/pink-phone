@@ -1,4 +1,5 @@
-use axum::extract::State;
+use axum::extract::{Query, State};
+use axum::http::StatusCode;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
@@ -97,7 +98,7 @@ async fn subscribe(
     State(state): State<AppState>,
     auth: AuthUser,
     Json(body): Json<SubscribeBody>,
-) -> ApiResult<Json<serde_json::Value>> {
+) -> ApiResult<StatusCode> {
     sqlx::query(
         "INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth)
          VALUES ($1, $2, $3, $4)
@@ -112,25 +113,26 @@ async fn subscribe(
     .bind(&body.keys.auth)
     .execute(&state.pool)
     .await?;
-    Ok(Json(serde_json::json!({ "ok": true })))
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[derive(Deserialize)]
-pub struct UnsubscribeBody {
+pub struct UnsubscribeQuery {
     pub endpoint: String,
 }
 
+/// Désabonnement : l'endpoint passe en query (API-06, plus de corps sur un DELETE).
 async fn unsubscribe(
     State(state): State<AppState>,
     auth: AuthUser,
-    Json(body): Json<UnsubscribeBody>,
-) -> ApiResult<Json<serde_json::Value>> {
+    Query(q): Query<UnsubscribeQuery>,
+) -> ApiResult<StatusCode> {
     sqlx::query(
         "DELETE FROM push_subscriptions WHERE endpoint = $1 AND user_id = $2",
     )
-    .bind(&body.endpoint)
+    .bind(&q.endpoint)
     .bind(auth.user_id)
     .execute(&state.pool)
     .await?;
-    Ok(Json(serde_json::json!({ "ok": true })))
+    Ok(StatusCode::NO_CONTENT)
 }

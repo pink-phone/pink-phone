@@ -13,8 +13,9 @@ use crate::state::AppState;
 
 pub fn router() -> Router<AppState> {
     Router::new()
-        .route("/api/spaces/{id}/mood", put(set_mood).delete(clear_mood))
+        // `/moods` = collection ; `/moods/me` = mon humeur (cohérent /auth/me — API-01).
         .route("/api/spaces/{id}/moods", get(list_moods))
+        .route("/api/spaces/{id}/moods/me", put(set_mood).delete(clear_mood))
 }
 
 #[derive(Deserialize)]
@@ -153,7 +154,7 @@ async fn list_moods(
             .into_iter()
             .map(|mut m| {
                 if m.user_id != auth.user_id {
-                    m.status = String::new();
+                    m.status = None; // masqué → null (API-08)
                 }
                 m
             })

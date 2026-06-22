@@ -42,8 +42,11 @@ export interface Member {
 
 export interface MoodEntry {
   userId: string;
-  /** Id de mood prédéfini OU emoji libre (mood custom). */
-  status: string;
+  /**
+   * Id de mood prédéfini OU emoji libre (mood custom). `null` = humeur masquée
+   * (vote à l'aveugle, avant que j'aie posé la mienne — API-08).
+   */
+  status: string | null;
   updatedAt: string;
 }
 
