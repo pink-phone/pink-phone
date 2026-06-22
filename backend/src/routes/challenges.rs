@@ -88,6 +88,21 @@ async fn create_challenge(
     if !INTENSITIES.contains(&body.intensity.as_str()) {
         return Err(ApiError::BadRequest("intensité inconnue".into()));
     }
+    // La suggestion d'origine (#69) doit être visible du salon : seed global OU
+    // propre à ce salon — pas une suggestion privée d'un autre salon (SEC-NEW-002).
+    if let Some(sid) = body.source_suggestion_id {
+        let ok: Option<Uuid> = sqlx::query_scalar(
+            "SELECT id FROM challenge_suggestions
+             WHERE id = $1 AND (space_id IS NULL OR space_id = $2)",
+        )
+        .bind(sid)
+        .bind(space_id)
+        .fetch_optional(&state.pool)
+        .await?;
+        if ok.is_none() {
+            return Err(ApiError::BadRequest("suggestion introuvable".into()));
+        }
+    }
 
     let challenge: Challenge = sqlx::query_as(
         "INSERT INTO challenges
