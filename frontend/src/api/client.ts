@@ -115,7 +115,7 @@ export const register = (
 ) =>
   req<AuthResponse>("/api/auth/register", {
     method: "POST",
-    json: { email, display_name: displayName, password },
+    json: { email, displayName, password },
   });
 
 export const login = (email: string, password: string) =>

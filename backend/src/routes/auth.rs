@@ -18,8 +18,10 @@ pub fn router() -> Router<AppState> {
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct RegisterBody {
     pub email: String,
+    /// JSON `displayName` (camelCase, cohérent avec le reste de l'API — API-07).
     pub display_name: String,
     pub password: String,
 }
@@ -40,7 +42,7 @@ pub struct AuthResponse {
 async fn register(
     State(state): State<AppState>,
     Json(body): Json<RegisterBody>,
-) -> ApiResult<Json<AuthResponse>> {
+) -> ApiResult<(StatusCode, Json<AuthResponse>)> {
     if !state.config.password_auth_enabled {
         return Err(ApiError::Forbidden);
     }
@@ -73,7 +75,7 @@ async fn register(
     })?;
 
     let token = issue_token(&state.config.jwt_secret, user.id)?;
-    Ok(Json(AuthResponse { token, user }))
+    Ok((StatusCode::CREATED, Json(AuthResponse { token, user })))
 }
 
 async fn login(
