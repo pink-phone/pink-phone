@@ -69,8 +69,8 @@ async fn create_challenge(
     Json(body): Json<CreateChallengeBody>,
 ) -> ApiResult<(StatusCode, Json<Challenge>)> {
     ensure_member(&state.pool, auth.user_id, space_id).await?;
-    if body.title.trim().is_empty() || body.description.trim().is_empty() {
-        return Err(ApiError::BadRequest("titre et description requis".into()));
+    if body.title.trim().is_empty() {
+        return Err(ApiError::BadRequest("titre requis".into()));
     }
     if !INTENSITIES.contains(&body.intensity.as_str()) {
         return Err(ApiError::BadRequest("intensité inconnue".into()));
@@ -163,8 +163,8 @@ async fn update_challenge(
     Json(body): Json<CreateChallengeBody>,
 ) -> ApiResult<Json<Challenge>> {
     ensure_member(&state.pool, auth.user_id, space_id).await?;
-    if body.title.trim().is_empty() || body.description.trim().is_empty() {
-        return Err(ApiError::BadRequest("titre et description requis".into()));
+    if body.title.trim().is_empty() {
+        return Err(ApiError::BadRequest("titre requis".into()));
     }
     if !INTENSITIES.contains(&body.intensity.as_str()) {
         return Err(ApiError::BadRequest("intensité inconnue".into()));

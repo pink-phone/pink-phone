@@ -57,7 +57,8 @@ export function ChallengeComposer({
   }, [bank, round]);
   const canReshuffle = bank.length > VISIBLE_SUGGESTIONS;
 
-  const canSubmit = title.trim().length > 0 && description.trim().length > 0;
+  // Description optionnelle (#68) : un titre suffit.
+  const canSubmit = title.trim().length > 0;
   const [submitting, setSubmitting] = useState(false);
   const mounted = useRef(true);
   useEffect(() => () => {
