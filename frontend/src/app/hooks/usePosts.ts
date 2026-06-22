@@ -18,6 +18,11 @@ export function usePosts(spaceId: string) {
   const [commentBusy, setCommentBusy] = useState(false);
   // Post dont le fil est ouvert, lu par le WS sans recréer la connexion.
   const commentsForRef = useRef<string | null>(null);
+  // Miroir de `posts` lu de façon synchrone par `toggleReaction` : évite une
+  // closure périmée (un refetch WS entre le rendu et le clic ferait sinon
+  // décider add/remove sur un ancien `myReactions`) — REACT-01.
+  const postsRef = useRef(posts);
+  postsRef.current = posts;
 
   const refetch = useCallback(async () => {
     try {
@@ -94,7 +99,7 @@ export function usePosts(spaceId: string) {
   };
 
   const toggleReaction = async (postId: string, reaction: string) => {
-    const post = posts.find((p) => p.id === postId);
+    const post = postsRef.current.find((p) => p.id === postId);
     if (!post) return;
     const mine = post.myReactions.includes(reaction);
     try {

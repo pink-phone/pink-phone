@@ -102,7 +102,8 @@ export function SafeMedia({
       hasRevealedOnce.current = true;
       onReveal?.();
     }
-  }, [isConsumed, loader, resolvedSrc, loading, failed, onReveal]);
+    // `failed` n'est pas lu ici (la garde `!loading` suffit) → hors deps (REACT-07).
+  }, [isConsumed, loader, resolvedSrc, loading, onReveal]);
 
   const hide = useCallback(() => {
     setIsRevealed(false);

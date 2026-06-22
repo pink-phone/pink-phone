@@ -1,4 +1,5 @@
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { cn } from "../../lib/cn";
 
 export interface SheetProps {
@@ -14,12 +15,21 @@ export interface SheetProps {
  * (fade + slide-up), pas de popup agressif. Échap ou clic sur le voile ferme.
  */
 export function Sheet({ open, title, onClose, children, className }: SheetProps) {
+  const { t } = useTranslation();
+  // `onClose` est souvent une lambda inline (recréée à chaque rendu du parent) :
+  // on la lit via une ref pour ne pas réabonner le listener Échap à chaque rendu
+  // (REACT-02). L'effet ne dépend donc que de `open`.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCloseRef.current();
+    };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
 
@@ -32,7 +42,7 @@ export function Sheet({ open, title, onClose, children, className }: SheetProps)
     >
       <button
         type="button"
-        aria-label="Fermer"
+        aria-label={t("common.close")}
         onClick={onClose}
         className="absolute inset-0 animate-fade-in bg-charcoal-900/70 backdrop-blur-sm"
       />
@@ -51,7 +61,7 @@ export function Sheet({ open, title, onClose, children, className }: SheetProps)
           <button
             type="button"
             onClick={onClose}
-            aria-label="Fermer"
+            aria-label={t("common.close")}
             className="rounded-full px-2 py-1 text-taupe-400 transition-colors duration-300 ease-felt hover:text-blush-100"
           >
             ✕

@@ -15,10 +15,10 @@ export function useSpaceSocket(
   token: string | null,
   onEvent: (kind: string) => void,
 ) {
+  // Mise à jour de ref directe (synchrone, pendant le rendu) : pas besoin d'un
+  // useEffect dédié — la ref est à jour avant le prochain message WS (REACT-03).
   const onEventRef = useRef(onEvent);
-  useEffect(() => {
-    onEventRef.current = onEvent;
-  }, [onEvent]);
+  onEventRef.current = onEvent;
 
   useEffect(() => {
     if (!token) return;
