@@ -62,9 +62,9 @@ export const fr = {
     spaceNameLabel: "Nom de l'espace",
     create: "Créer",
     joinTitle: "Rejoindre un espace",
-    spaceIdLabel: "Identifiant de l'espace",
-    joinPlaceholder: "collez l'id partagé par votre partenaire",
-    joinHint: "Votre partenaire le trouve dans les réglages de l'espace.",
+    spaceIdLabel: "Code d'invitation",
+    joinPlaceholder: "collez le code partagé par votre partenaire",
+    joinHint: "Votre partenaire le génère depuis l'accueil de son espace.",
     join: "Rejoindre",
   },
   dashboard: {
@@ -76,7 +76,9 @@ export const fr = {
     updatedAt: "Mis à jour {{time}}",
     waitingPartnerTitle: "En attente de votre partenaire",
     waitingPartnerText:
-      "Partagez-lui l'identifiant de l'espace pour qu'il/elle vous rejoigne.",
+      "Générez un code d'invitation et partagez-le pour qu'il/elle vous rejoigne.",
+    createInvite: "Créer un code d'invitation",
+    inviteHint: "À usage unique, valable 7 jours. Partagez-le à votre partenaire.",
     moodQuestion: "Comment te sens-tu ?",
     moodSharedWith: "Ton humeur est partagée avec {{name}}.",
     moodSaved: "Ton humeur est enregistrée.",

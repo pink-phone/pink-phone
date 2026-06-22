@@ -43,7 +43,7 @@ Le contenu appartient à un `Space`, jamais directement à un user :
 | `GET /api/auth/config` | méthodes dispo (`passwordEnabled`, `oidcEnabled`) |
 | `GET /api/auth/oidc/login` · `…/callback` | SSO OIDC (Authorization Code + PKCE) |
 | `POST /api/spaces` · `GET /api/spaces/me` | créer / lister ses espaces |
-| `POST /api/spaces/{id}/join` · `GET .../members` | rejoindre / membres |
+| `POST /api/spaces/{id}/invites` · `POST /api/spaces/join` · `GET .../members` | inviter (token usage unique, 7 j) / rejoindre via token / membres |
 | `PUT /api/spaces/{id}/mood` · `GET .../moods` | humeur (upsert) / liste (mood « du jour » : seuls les < 24h sont renvoyés) |
 | `GET`·`POST /api/spaces/{id}/posts` | blog : lister (enrichi réactions/verdict/nb commentaires) / créer |
 | `POST .../posts/{pid}/reactions` · `DELETE .../reactions/{r}` | réaction emoji (toggle) → résumé |

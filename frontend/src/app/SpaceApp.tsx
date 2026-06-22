@@ -111,6 +111,17 @@ export function SpaceApp({
     null,
   );
 
+  // Invitation (SEC-005) : token généré à la demande, partagé au partenaire.
+  const [inviteToken, setInviteToken] = useState<string | null>(null);
+  const createInvite = async () => {
+    try {
+      const { token } = await api.createInvite(space.id);
+      setInviteToken(token);
+    } catch (e) {
+      console.error("création d'invitation échouée", e);
+    }
+  };
+
   // Réglages / notifications.
   const [showSettings, setShowSettings] = useState(false);
   const [showBank, setShowBank] = useState(false);
@@ -364,7 +375,6 @@ export function SpaceApp({
           space={{
             name: space.name,
             timezone: space.timezone,
-            inviteId: space.id,
             blindMood: space.blindMood,
           }}
           members={members.map((m) => ({ id: m.id, name: m.displayName }))}
@@ -450,7 +460,8 @@ export function SpaceApp({
               : undefined
           }
           partnerMoodHidden={blindHidden}
-          inviteId={space.id}
+          inviteToken={inviteToken}
+          onCreateInvite={createInvite}
           myMood={myMood}
           onMoodChange={setMood}
           onMoodClear={clearMood}

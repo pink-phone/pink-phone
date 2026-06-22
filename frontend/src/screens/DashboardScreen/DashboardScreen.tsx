@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Surface } from "../../components/Surface/Surface";
+import { Button } from "../../components/Button/Button";
 import { MoodSelector } from "../../components/MoodSelector/MoodSelector";
 import { FireEmbers } from "../../components/FireEmbers/FireEmbers";
 import { MOODS } from "../../components/MoodSelector/moods";
@@ -15,8 +16,10 @@ export interface DashboardScreenProps {
   partnerMood?: MoodSnapshot;
   /** Vote à l'aveugle actif ET je n'ai pas encore posé mon humeur → masque celle du partenaire. */
   partnerMoodHidden?: boolean;
-  /** Id de l'espace, à partager pour inviter (affiché si pas de partenaire). */
-  inviteId?: string;
+  /** Token d'invitation généré (à partager) — null tant qu'on n'a pas cliqué. */
+  inviteToken?: string | null;
+  /** Génère un token d'invitation à usage unique. */
+  onCreateInvite?: () => void;
   /** Mood courant : id prédéfini OU emoji libre (mood custom). */
   myMood: string | null;
   onMoodChange: (mood: string) => void;
@@ -107,7 +110,8 @@ export function DashboardScreen({
   partner,
   partnerMood,
   partnerMoodHidden = false,
-  inviteId,
+  inviteToken,
+  onCreateInvite,
   myMood,
   onMoodChange,
   onMoodClear,
@@ -151,17 +155,28 @@ export function DashboardScreen({
         </div>
       ) : (
         /* Espace en attente : inviter le/la partenaire */
-        <Surface tone="velvet" className="space-y-2 text-center">
+        <Surface tone="velvet" className="space-y-3 text-center">
           <p className="font-serif text-lg text-blush-100">
             {t("dashboard.waitingPartnerTitle")}
           </p>
           <p className="text-sm text-taupe-300">
             {t("dashboard.waitingPartnerText")}
           </p>
-          {inviteId && (
-            <code className="block select-all break-all rounded-2xl bg-charcoal-900/60 px-3 py-2 text-xs text-spice-300">
-              {inviteId}
-            </code>
+          {inviteToken ? (
+            <>
+              <code className="block select-all break-all rounded-2xl bg-charcoal-900/60 px-3 py-2 text-xs text-spice-300">
+                {inviteToken}
+              </code>
+              <p className="text-[11px] text-taupe-400">
+                {t("dashboard.inviteHint")}
+              </p>
+            </>
+          ) : (
+            onCreateInvite && (
+              <Button size="sm" onClick={onCreateInvite}>
+                {t("dashboard.createInvite")}
+              </Button>
+            )
           )}
         </Surface>
       )}
