@@ -141,10 +141,9 @@ async fn transition(
     let (current, proposer_id) = row.ok_or(ApiError::NotFound)?;
 
     if !challenge_transition_allowed(&current, &body.to) {
-        return Err(ApiError::Conflict(format!(
-            "transition {current} → {} interdite",
-            body.to
-        )));
+        // Message statique : ne pas refléter `body.to` (entrée client non bornée)
+        // dans la réponse (SEC-NEW-001).
+        return Err(ApiError::Conflict("transition non autorisée".into()));
     }
 
     // SEC-015 : répondre à une proposition (l'accepter ou demander à l'adapter)
