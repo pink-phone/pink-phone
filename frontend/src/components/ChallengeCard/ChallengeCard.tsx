@@ -103,7 +103,7 @@ export function ChallengeCard({
         <h3 className="font-serif text-xl text-blush-100">{title}</h3>
         <p className="text-sm leading-relaxed text-taupe-200">{description}</p>
 
-        <div className="flex items-center justify-between text-xs text-taupe-400">
+        <div className="flex items-center justify-between text-xs text-taupe-300">
           <span>{t(`challenges.status.${status}.hint`)}</span>
           {deadlineLabel && (
             <span>{t("challenges.deadline", { label: deadlineLabel })}</span>

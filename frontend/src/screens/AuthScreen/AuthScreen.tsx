@@ -124,8 +124,13 @@ export function AuthScreen({
             </p>
           )}
 
-          <Button type="submit" className="w-full" disabled={!canSubmit || busy}>
-            {busy ? "…" : isRegister ? t("auth.submitRegister") : t("auth.submitLogin")}
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={!canSubmit || busy}
+            loading={busy}
+          >
+            {isRegister ? t("auth.submitRegister") : t("auth.submitLogin")}
           </Button>
         </form>
         )}

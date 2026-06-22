@@ -158,6 +158,7 @@ export const en: Resources = {
   },
   challenges: {
     title: "Our dares",
+    empty: "No dares yet. Send the first one… 🔥",
     new: "＋ Send a dare",
     bank: "📚 Bank",
     deleteChallenge: "Delete this dare",
