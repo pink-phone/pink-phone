@@ -44,6 +44,11 @@ describe("mergeTail (listes chronologiques, commentaires)", () => {
     const head = [item("b", "2"), item("d", "4")];
     expect(mergeTail(head, prev).map((x) => x.id)).toEqual(["a", "b", "d"]);
   });
+
+  it("tête vide ⇒ liste inchangée (miroir de mergeHead)", () => {
+    const prev = [item("a", "1")];
+    expect(mergeTail([], prev)).toBe(prev);
+  });
 });
 
 describe("appendOlder", () => {
@@ -51,5 +56,26 @@ describe("appendOlder", () => {
     const prev = [item("c", "3"), item("b", "2")];
     const older = [item("b", "2"), item("a", "1")];
     expect(appendOlder(prev, older).map((x) => x.id)).toEqual(["c", "b", "a"]);
+  });
+
+  it("older vide ⇒ liste inchangée", () => {
+    const prev = [item("c", "3")];
+    expect(appendOlder(prev, []).map((x) => x.id)).toEqual(["c"]);
+  });
+
+  it("prev vide ⇒ tous les éléments older", () => {
+    const older = [item("b", "2"), item("a", "1")];
+    expect(appendOlder([], older).map((x) => x.id)).toEqual(["b", "a"]);
+  });
+});
+
+describe("mergeHead — cas limite au curseur", () => {
+  it("élément de prev au même createdAt que le curseur mais absent de head est retiré", () => {
+    // b a le même timestamp que c (= cutoff "3") mais n'est pas dans head :
+    // la règle est createdAt < cutoff, donc b n'est PAS conservé dans older.
+    // Comportement attendu (sémantique du curseur API).
+    const prev = [item("c", "3"), item("b", "3"), item("a", "1")];
+    const head = [item("c", "3")];
+    expect(mergeHead(head, prev).map((x) => x.id)).toEqual(["c", "a"]);
   });
 });
