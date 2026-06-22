@@ -164,7 +164,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         events,
     };
 
-    // Purge périodique des médias orphelins (toutes les heures ; 1er passage immédiat).
+    // Purges périodiques (toutes les heures ; 1er passage immédiat) : médias
+    // orphelins + invitations consommées/expirées (SEC-NEW-004).
     {
         let pool = state.pool.clone();
         let media_dir = state.config.media_dir.clone();
@@ -174,6 +175,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             loop {
                 tick.tick().await;
                 crate::routes::media::purge_orphan_media(&pool, &media_dir).await;
+                crate::routes::spaces::purge_stale_invites(&pool).await;
             }
         });
     }
