@@ -7,7 +7,13 @@ const meta = {
   component: ChallengeBankScreen,
   tags: ["autodocs"],
   parameters: { layout: "centered" },
-  args: { onAdd: fn(), onUpdate: fn(), onDelete: fn(), onBack: fn() },
+  args: {
+    onPropose: fn(),
+    onAdd: fn(),
+    onUpdate: fn(),
+    onDelete: fn(),
+    onBack: fn(),
+  },
 } satisfies Meta<typeof ChallengeBankScreen>;
 
 export default meta;
