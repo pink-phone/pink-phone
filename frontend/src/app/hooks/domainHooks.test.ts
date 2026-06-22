@@ -162,6 +162,7 @@ describe("usePosts", () => {
     mediaMime: null,
     draft: false,
     createdAt: "t",
+    updatedAt: "t",
     reactionCounts: {},
     myReactions: [] as string[],
     verdict: null,

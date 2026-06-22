@@ -75,6 +75,8 @@ export interface ApiPost {
   /** Brouillon : visible du seul auteur, non notifié tant qu'il n'est pas publié. */
   draft: boolean;
   createdAt: string;
+  /** Dernière modification de contenu (= createdAt si jamais édité) — API-10. */
+  updatedAt: string;
   // Clés = id de réaction prédéfinie OU emoji libre (réaction custom).
   reactionCounts: Record<string, number>;
   myReactions: string[];

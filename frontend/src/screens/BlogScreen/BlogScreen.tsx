@@ -65,6 +65,7 @@ export function BlogScreen({
               myReactions={post.myReactions}
               commentCount={post.commentCount}
               draft={post.draft}
+              edited={post.edited}
               isMine={post.isMine}
               seenByPartner={post.seenByPartner}
               reactionOrder={reactionOrder}

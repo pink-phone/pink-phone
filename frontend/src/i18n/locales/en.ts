@@ -129,6 +129,7 @@ export const en: Resources = {
     confirmDelete: "Delete this post? This is permanent.",
     publishDraft: "Publish this draft",
     edit: "Edit",
+    edited: "edited",
     seenByPartner: "Seen",
     commentsLeave: "Leave a word",
     commentsCount_one: "{{count}} comment",

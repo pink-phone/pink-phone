@@ -19,6 +19,7 @@ function post(overrides: Partial<ApiPost> = {}): ApiPost {
     mediaMime: null,
     draft: false,
     createdAt: "2026-06-20T10:00:00.000Z",
+    updatedAt: "2026-06-20T10:00:00.000Z",
     reactionCounts: {},
     myReactions: [],
     verdict: null,
@@ -52,6 +53,22 @@ describe("toPostData", () => {
     });
     expect(mine.isMine).toBe(true);
     expect(other.isMine).toBe(false);
+  });
+
+  it("edited: vrai si updatedAt > createdAt (post publié), faux sinon ou en brouillon", () => {
+    const opts = { t, spaceId: "s1", userId: "me" };
+    const [jamais] = toPostData([post()], opts); // updatedAt == createdAt
+    const [modifie] = toPostData(
+      [post({ updatedAt: "2026-06-20T11:00:00.000Z" })],
+      opts,
+    );
+    const [brouillon] = toPostData(
+      [post({ draft: true, updatedAt: "2026-06-20T11:00:00.000Z" })],
+      opts,
+    );
+    expect(jamais.edited).toBe(false);
+    expect(modifie.edited).toBe(true);
+    expect(brouillon.edited).toBe(false);
   });
 
   it("pas de média => media undefined ; média vidéo => kind video + loader", () => {

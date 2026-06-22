@@ -42,6 +42,8 @@ export interface BlogPostProps {
   onOpenComments?: () => void;
   /** Brouillon : affiche une pastille et (si `isMine`) le bouton Publier. */
   draft?: boolean;
+  /** Post édité après publication : ajoute « · modifié » près de l'horodatage. */
+  edited?: boolean;
   /** Post de l'utilisateur courant : débloque suppression et publication. */
   isMine?: boolean;
   onDelete?: () => void;
@@ -68,6 +70,7 @@ export function BlogPost({
   commentCount = 0,
   onOpenComments,
   draft = false,
+  edited = false,
   isMine = false,
   onDelete,
   onPublish,
@@ -87,7 +90,12 @@ export function BlogPost({
         </span>
         <div className="leading-tight">
           <p className="font-serif text-lg text-blush-100">{author.name}</p>
-          <p className="text-xs text-taupe-300">{timeLabel}</p>
+          <p className="text-xs text-taupe-300">
+            {timeLabel}
+            {edited && (
+              <span className="text-taupe-400"> · {t("blog.edited")}</span>
+            )}
+          </p>
         </div>
         <div className="ml-auto flex items-center gap-2">
           {draft && <Badge tone="neutral">{t("blog.draftBadge")}</Badge>}

@@ -3,7 +3,10 @@ use axum::response::{IntoResponse, Response};
 use axum::Json;
 use serde_json::json;
 
-/// Erreur applicative uniforme. Se transforme en réponse JSON `{ "error": ... }`.
+/// Erreur applicative uniforme. Se transforme en réponse JSON
+/// `{ "error": <message lisible>, "code": <code machine stable> }` (API-15) : le
+/// `message` peut être traduit/reformulé, le `code` est un identifiant stable que
+/// le client peut tester sans dépendre du texte.
 #[derive(Debug, thiserror::Error)]
 pub enum ApiError {
     #[error("{0}")]
@@ -20,17 +23,37 @@ pub enum ApiError {
     Internal,
 }
 
-impl IntoResponse for ApiError {
-    fn into_response(self) -> Response {
-        let status = match self {
+impl ApiError {
+    fn status(&self) -> StatusCode {
+        match self {
             ApiError::BadRequest(_) => StatusCode::BAD_REQUEST,
             ApiError::Unauthorized => StatusCode::UNAUTHORIZED,
             ApiError::Forbidden => StatusCode::FORBIDDEN,
             ApiError::NotFound => StatusCode::NOT_FOUND,
             ApiError::Conflict(_) => StatusCode::CONFLICT,
             ApiError::Internal => StatusCode::INTERNAL_SERVER_ERROR,
-        };
-        (status, Json(json!({ "error": self.to_string() }))).into_response()
+        }
+    }
+
+    /// Code machine stable (snake_case), indépendant du message (API-15).
+    fn code(&self) -> &'static str {
+        match self {
+            ApiError::BadRequest(_) => "bad_request",
+            ApiError::Unauthorized => "unauthorized",
+            ApiError::Forbidden => "forbidden",
+            ApiError::NotFound => "not_found",
+            ApiError::Conflict(_) => "conflict",
+            ApiError::Internal => "internal",
+        }
+    }
+}
+
+impl IntoResponse for ApiError {
+    fn into_response(self) -> Response {
+        let status = self.status();
+        let code = self.code();
+        let body = json!({ "error": self.to_string(), "code": code });
+        (status, Json(body)).into_response()
     }
 }
 
