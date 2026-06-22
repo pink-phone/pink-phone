@@ -71,7 +71,8 @@ export function ChallengeBankScreen({
     setFormOpen(true);
   };
 
-  const canSubmit = title.trim().length > 0 && description.trim().length > 0;
+  // Description optionnelle (#68) : un titre suffit.
+  const canSubmit = title.trim().length > 0;
   const submit = () => {
     if (!canSubmit) return;
     const payload = {
@@ -151,7 +152,9 @@ export function ChallengeBankScreen({
                         ]}
                       />
                     </div>
-                    <p className="text-xs text-taupe-300">{s.description}</p>
+                    {s.description && (
+                      <p className="text-xs text-taupe-300">{s.description}</p>
+                    )}
                   </Surface>
                 </li>
               ))}

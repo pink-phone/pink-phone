@@ -76,8 +76,9 @@ pub struct SuggestionBody {
 }
 
 fn validate(body: &SuggestionBody) -> ApiResult<()> {
-    if body.title.trim().is_empty() || body.description.trim().is_empty() {
-        return Err(ApiError::BadRequest("titre et description requis".into()));
+    // Description optionnelle (#68) : un titre suffit.
+    if body.title.trim().is_empty() {
+        return Err(ApiError::BadRequest("titre requis".into()));
     }
     if !INTENSITIES.contains(&body.intensity.as_str()) {
         return Err(ApiError::BadRequest("intensité inconnue".into()));
