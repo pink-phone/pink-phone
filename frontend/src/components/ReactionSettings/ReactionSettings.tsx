@@ -71,7 +71,7 @@ export function ReactionSettings({
               type="button"
               onClick={() => remove(id)}
               aria-label={t("settings.reactionDisable")}
-              className="rounded-full px-1.5 text-taupe-400 transition-colors duration-300 ease-felt hover:text-bordeaux-300"
+              className="rounded-full px-1.5 text-taupe-400 transition-colors duration-300 ease-felt hover:text-spice-300"
             >
               ✕
             </button>

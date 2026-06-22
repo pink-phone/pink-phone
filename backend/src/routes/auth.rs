@@ -56,7 +56,7 @@ async fn register(
     // libre — oracle temporel), et un email déjà pris ne renvoie qu'un message
     // GÉNÉRIQUE (jamais « cet email existe »). L'unicité est garantie par la
     // contrainte DB (`ON CONFLICT DO NOTHING` → aussi à l'abri d'une course).
-    let hash = hash_password(&body.password)?;
+    let hash = hash_password(body.password).await?;
     let user: Option<UserPublic> = sqlx::query_as(
         "INSERT INTO users (email, display_name, password_hash)
          VALUES ($1, $2, $3)
@@ -94,8 +94,8 @@ async fn login(
 
     // On vérifie TOUJOURS (hash réel ou leurre) avant de trancher, pour ne pas
     // révéler par le temps de réponse si l'email existe (SEC-010).
-    let hash = user.as_ref().and_then(|u| u.password_hash.as_deref());
-    let ok = verify_login(&body.password, hash);
+    let hash = user.as_ref().and_then(|u| u.password_hash.clone());
+    let ok = verify_login(body.password, hash).await;
     let user = user.ok_or(ApiError::Unauthorized)?;
     if !ok {
         return Err(ApiError::Unauthorized);

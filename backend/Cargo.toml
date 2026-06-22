@@ -48,3 +48,9 @@ rand = "0.8"
 # Chiffrement des médias au repos (AES-256-GCM).
 aes-gcm = "0.10"
 url = "2"
+
+# Build de prod : LTO léger (binaire plus compact/rapide) + strip des symboles
+# de debug (image Docker plus petite). Coût de compilation négligeable (RUST-14).
+[profile.release]
+lto = "thin"
+strip = "debuginfo"
