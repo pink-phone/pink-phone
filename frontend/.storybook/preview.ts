@@ -1,6 +1,8 @@
 import type { Preview } from "@storybook/react-vite";
 // Charge les tokens DA + Tailwind dans Storybook (mêmes styles que l'app).
 import "../src/index.css";
+// Rétablit le scroll que l'app verrouille volontairement sur le body (après index.css).
+import "./storybook.css";
 // Initialise i18n pour que les composants utilisant useTranslation s'affichent.
 import "../src/i18n";
 

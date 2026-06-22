@@ -1,0 +1,12 @@
+/* Storybook n'est PAS la PWA : on rétablit le scroll que l'app verrouille
+   volontairement sur le body (cf. src/index.css — fix scroll iOS, le scroll y
+   vit dans <main>). Sans ça, les stories plus hautes que le viewport mobile
+   sont impossibles à faire défiler. Chargé APRÈS index.css dans preview.ts. */
+html,
+body,
+#storybook-root {
+  height: auto !important;
+  min-height: 100%;
+  overflow: visible !important;
+  overscroll-behavior: auto !important;
+}
