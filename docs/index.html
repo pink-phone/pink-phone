@@ -1,0 +1,277 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Pink Phone — a couple's secret garden, self-hosted</title>
+    <meta
+      name="description"
+      content="An intimate, self-hosted PWA for two: a shared journal, a daily 'weather of desire', and playful dares. Outside the app stores. Open source (AGPL-3.0)."
+    />
+    <meta name="theme-color" content="#1b1614" />
+
+    <!-- Open Graph / social preview -->
+    <meta property="og:title" content="Pink Phone — a couple's secret garden" />
+    <meta
+      property="og:description"
+      content="A private, self-hosted PWA for two: shared journal, 'weather of desire', and playful dares. No app store, no third parties."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="screenshots/dashboard.png" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Playfair+Display:ital,wght@0,500;0,700;1,500&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      :root {
+        --charcoal: #1b1614;
+        --charcoal-2: #241d1a;
+        --charcoal-3: #2e2521;
+        --taupe: #b9a89c;
+        --taupe-dim: #8d7f75;
+        --blush: #f6e7dc;
+        --blush-2: #f0d8c8;
+        --spice: #d4805a;
+        --spice-soft: #e0a182;
+        --bordeaux: #7e2738;
+        --line: rgba(212, 128, 90, 0.16);
+      }
+
+      * { box-sizing: border-box; }
+
+      html { scroll-behavior: smooth; }
+
+      body {
+        margin: 0;
+        font-family: "Inter", system-ui, sans-serif;
+        color: var(--taupe);
+        background:
+          radial-gradient(1200px 600px at 80% -10%, rgba(126, 39, 56, 0.35), transparent 60%),
+          radial-gradient(900px 500px at -10% 10%, rgba(212, 128, 90, 0.14), transparent 55%),
+          var(--charcoal);
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      h1, h2, h3 { font-family: "Playfair Display", Georgia, serif; color: var(--blush); font-weight: 700; line-height: 1.15; }
+
+      a { color: var(--spice-soft); }
+
+      .wrap { max-width: 1060px; margin: 0 auto; padding: 0 24px; }
+
+      /* ---------- Hero ---------- */
+      header.hero { text-align: center; padding: 88px 0 40px; }
+      .badge {
+        display: inline-block;
+        font-size: 12px;
+        letter-spacing: 0.18em;
+        text-transform: uppercase;
+        color: var(--taupe-dim);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        padding: 6px 14px;
+        margin-bottom: 22px;
+      }
+      header.hero h1 { font-size: clamp(40px, 8vw, 72px); margin: 0 0 6px; }
+      header.hero h1 .flame { -webkit-text-fill-color: initial; }
+      .tagline { font-family: "Playfair Display", serif; font-style: italic; font-size: clamp(18px, 3.5vw, 24px); color: var(--blush-2); margin: 0 auto 10px; max-width: 640px; }
+      .sub { max-width: 600px; margin: 0 auto 30px; color: var(--taupe); }
+
+      .cta { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+      .btn {
+        display: inline-flex; align-items: center; gap: 8px;
+        text-decoration: none; font-weight: 600; font-size: 15px;
+        padding: 13px 22px; border-radius: 16px;
+        transition: transform 0.3s cubic-bezier(0.22, 0.61, 0.36, 1), box-shadow 0.3s, border-color 0.3s;
+      }
+      .btn-primary { background: var(--bordeaux); color: var(--blush); box-shadow: 0 10px 30px -12px rgba(126, 39, 56, 0.9); border: 1px solid rgba(212, 128, 90, 0.45); }
+      .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 16px 40px -14px rgba(126, 39, 56, 1); }
+      .btn-ghost { color: var(--blush-2); border: 1px solid var(--line); }
+      .btn-ghost:hover { transform: translateY(-2px); border-color: rgba(212, 128, 90, 0.5); }
+
+      .pills { display: flex; gap: 10px 18px; justify-content: center; flex-wrap: wrap; margin-top: 26px; font-size: 13px; color: var(--taupe-dim); }
+      .pills span::before { content: "·"; margin-right: 8px; color: var(--spice); }
+      .pills span:first-child::before { content: ""; margin: 0; }
+
+      /* ---------- Sections ---------- */
+      section { padding: 56px 0; }
+      .section-label { text-align: center; font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--taupe-dim); margin-bottom: 8px; }
+      .section-title { text-align: center; font-size: clamp(26px, 5vw, 36px); margin: 0 0 36px; }
+
+      /* ---------- Features ---------- */
+      .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; }
+      .card {
+        background: linear-gradient(180deg, rgba(46, 37, 33, 0.7), rgba(36, 29, 26, 0.7));
+        border: 1px solid var(--line);
+        border-radius: 22px;
+        padding: 24px;
+        transition: transform 0.3s ease, border-color 0.3s ease;
+      }
+      .card:hover { transform: translateY(-3px); border-color: rgba(212, 128, 90, 0.4); }
+      .card .emoji { font-size: 26px; }
+      .card h3 { font-size: 19px; margin: 12px 0 6px; }
+      .card p { margin: 0; font-size: 14.5px; }
+
+      /* ---------- Screenshots ---------- */
+      .shots { display: flex; gap: 18px; overflow-x: auto; padding: 8px 4px 22px; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
+      .shot { scroll-snap-align: center; flex: 0 0 auto; text-align: center; }
+      .shot img {
+        width: 230px; max-width: 62vw; height: auto;
+        border-radius: 26px;
+        border: 1px solid var(--line);
+        box-shadow: 0 24px 60px -20px rgba(0, 0, 0, 0.7);
+        background: var(--charcoal-2);
+      }
+      .shot figcaption { margin-top: 12px; font-size: 13px; color: var(--taupe-dim); }
+      .shots-hint { text-align: center; font-size: 12.5px; color: var(--taupe-dim); margin-top: -8px; }
+
+      /* ---------- Stack / privacy ---------- */
+      .two { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+      @media (max-width: 720px) { .two { grid-template-columns: 1fr; } }
+      .panel { background: rgba(36, 29, 26, 0.6); border: 1px solid var(--line); border-radius: 22px; padding: 26px; }
+      .panel h3 { font-size: 20px; margin: 0 0 14px; }
+      .panel ul { margin: 0; padding-left: 18px; }
+      .panel li { margin: 7px 0; font-size: 14.5px; }
+      .panel li strong { color: var(--blush-2); font-weight: 600; }
+
+      /* ---------- CTA band ---------- */
+      .band { text-align: center; background: linear-gradient(180deg, rgba(126, 39, 56, 0.22), rgba(36, 29, 26, 0.4)); border: 1px solid var(--line); border-radius: 28px; padding: 44px 26px; }
+      .band h2 { font-size: clamp(24px, 5vw, 34px); margin: 0 0 10px; }
+      .band p { max-width: 540px; margin: 0 auto 24px; }
+
+      /* ---------- Footer ---------- */
+      footer { text-align: center; padding: 48px 0 60px; color: var(--taupe-dim); font-size: 13.5px; border-top: 1px solid var(--line); margin-top: 40px; }
+      footer a { color: var(--taupe); }
+    </style>
+  </head>
+
+  <body>
+    <header class="hero">
+      <div class="wrap">
+        <span class="badge">Self-hosted · No app store</span>
+        <h1>Pink&nbsp;Phone <span class="flame">🔥</span></h1>
+        <p class="tagline">A couple's secret garden.</p>
+        <p class="sub">
+          An intimate PWA — not a dating app, not a social network — just for two
+          (or a small group you trust). A laid-back shared journal, a daily
+          "weather of desire", and playful dares. You host it. Your data stays
+          on your server.
+        </p>
+        <div class="cta">
+          <a class="btn btn-primary" href="https://github.com/pink-phone/pink-phone">★ View on GitHub</a>
+          <a class="btn btn-ghost" href="https://github.com/pink-phone/pink-phone/blob/main/INSTALL.md">Self-host it →</a>
+        </div>
+        <div class="pills">
+          <span>React PWA</span><span>Rust / Axum</span><span>Postgres</span>
+          <span>Encrypted media</span><span>AGPL-3.0</span>
+        </div>
+      </div>
+    </header>
+
+    <section>
+      <div class="wrap">
+        <p class="section-label">What it is</p>
+        <h2 class="section-title">Three quiet little rituals</h2>
+        <div class="grid">
+          <div class="card">
+            <div class="emoji">📖</div>
+            <h3>A shared journal</h3>
+            <p>Stories, photos &amp; videos, emoji reactions (free/custom ones too) and comments. Drafts you can polish before sending.</p>
+          </div>
+          <div class="card">
+            <div class="emoji">🌦️</div>
+            <h3>Weather of desire</h3>
+            <p>Share your mood in one tap; it resets at midnight in your timezone. A hot or playful mood gently nudges the other.</p>
+          </div>
+          <div class="card">
+            <div class="emoji">🎲</div>
+            <h3>Playful dares</h3>
+            <p>Send little challenges with a tiny state machine — proposed → accepted / adjust → mission accomplished — plus a curated idea bank.</p>
+          </div>
+          <div class="card">
+            <div class="emoji">🤫</div>
+            <h3>Sensual &amp; safe media</h3>
+            <p>Blurred by default, revealed by press-and-hold. Optional <em>view-once</em> mode, and encryptable at rest (AES-256-GCM).</p>
+          </div>
+          <div class="card">
+            <div class="emoji">⚡</div>
+            <h3>Live &amp; in sync</h3>
+            <p>WebSocket real-time: new posts, moods, reactions and "✓✓ Seen" read receipts sync instantly. "What's new" badges at home.</p>
+          </div>
+          <div class="card">
+            <div class="emoji">🔒</div>
+            <h3>Private by design</h3>
+            <p>Self-hosted, no third parties, no telemetry. Email/password or OIDC/SSO, optional device PIN lock. FR / EN, dark &amp; cosy.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <p class="section-label">A look inside</p>
+        <h2 class="section-title">Soft, warm, deliberately not flat</h2>
+        <div class="shots">
+          <figure class="shot"><img src="screenshots/dashboard.png" alt="Home — the daily weather of desire" loading="lazy" /><figcaption>Home</figcaption></figure>
+          <figure class="shot"><img src="screenshots/blog.png" alt="The shared journal" loading="lazy" /><figcaption>Journal</figcaption></figure>
+          <figure class="shot"><img src="screenshots/blog-comments.png" alt="Comments on a post" loading="lazy" /><figcaption>Comments</figcaption></figure>
+          <figure class="shot"><img src="screenshots/challenges.png" alt="Dares and their state" loading="lazy" /><figcaption>Dares</figcaption></figure>
+          <figure class="shot"><img src="screenshots/challenge-bank.png" alt="The dare idea bank" loading="lazy" /><figcaption>Idea bank</figcaption></figure>
+          <figure class="shot"><img src="screenshots/settings.png" alt="Settings" loading="lazy" /><figcaption>Settings</figcaption></figure>
+        </div>
+        <p class="shots-hint">Generated from Storybook with mock data — no real content. Swipe →</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap two">
+        <div class="panel">
+          <h3>🧱 The stack</h3>
+          <ul>
+            <li><strong>Front</strong> — React 18 + TypeScript + Tailwind, shipped as an installable PWA (service worker, offline fonts).</li>
+            <li><strong>Back</strong> — Rust / Axum + Tokio, Postgres via sqlx, JWT + Argon2id, Web Push, WebSocket.</li>
+            <li><strong>Deploy</strong> — one Docker Compose: Postgres + API + nginx serving the PWA and reverse-proxying <code>/api</code> (same-origin).</li>
+            <li><strong>Storybook-first</strong> — every component is built and validated in isolation before it reaches a screen.</li>
+          </ul>
+        </div>
+        <div class="panel">
+          <h3>🛡️ Yours, and only yours</h3>
+          <ul>
+            <li>Media served only through an <strong>authenticated</strong> route — never from a public folder.</li>
+            <li><strong>Encrypted at rest</strong> (AES-256-GCM) with a key you control; key rotation supported.</li>
+            <li>Session revocation, content scoped per space, no cross-space leakage.</li>
+            <li><strong>AGPL-3.0</strong>, no analytics, no external calls — runs entirely on your box.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <div class="band">
+          <h2>Host it in a couple of minutes</h2>
+          <p>Pull the published images, set three secrets, put a reverse proxy in front for TLS. That's it.</p>
+          <div class="cta">
+            <a class="btn btn-primary" href="https://github.com/pink-phone/pink-phone/blob/main/INSTALL.md">Read the install guide</a>
+            <a class="btn btn-ghost" href="https://github.com/pink-phone/pink-phone">Browse the code</a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      <div class="wrap">
+        <p>
+          Pink&nbsp;Phone — open source under
+          <a href="https://github.com/pink-phone/pink-phone/blob/main/LICENSE">AGPL-3.0</a>.
+          Built for two. ·
+          <a href="https://github.com/pink-phone/pink-phone">GitHub</a>
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>
