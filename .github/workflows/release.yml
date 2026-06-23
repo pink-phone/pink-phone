@@ -1,6 +1,12 @@
 # Public release (manual): creates the tag, builds the images and publishes them
 # to Docker Hub, then creates the GitHub release.
 #
+# Multi-arch SANS émulation QEMU (#72) : chaque architecture est buildée NATIVEMENT
+# sur son propre runner (amd64 = ubuntu-latest, arm64 = ubuntu-24.04-arm, gratuit
+# sur repo public), poussée PAR DIGEST, puis un job d'assemblage fusionne les deux
+# en un manifest multi-arch. Bien plus rapide que `buildx --platform a,b` qui
+# compilait l'arch non native sous QEMU (très lent, surtout la compilation Rust).
+#
 # Prérequis (Settings → Secrets and variables → Actions du dépôt GitHub) :
 #   - DOCKERHUB_USERNAME : namespace Docker Hub (= nom des images <user>/pinkphone-*).
 #   - DOCKERHUB_TOKEN    : access token Docker Hub (write).
@@ -22,8 +28,12 @@ env:
   WEB_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/pinkphone-web
 
 jobs:
-  release:
+  # 1. Valide la version, crée et pousse le tag (une seule fois).
+  prepare:
     runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.v.outputs.tag }}
+      version: ${{ steps.v.outputs.version }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -47,7 +57,25 @@ jobs:
           git tag "${{ steps.v.outputs.tag }}"
           git push origin "${{ steps.v.outputs.tag }}"
 
-      - uses: docker/setup-qemu-action@v3 # émulation arm64 sur runner amd64
+  # 2. Build natif par architecture (en parallèle), push par digest.
+  build:
+    needs: prepare
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Nom de plateforme sans slash (pour les artefacts)
+        env:
+          platform: ${{ matrix.platform }}
+        run: echo "PLATFORM_PAIR=${platform//\//-}" >> "$GITHUB_ENV"
 
       - uses: docker/setup-buildx-action@v3
 
@@ -56,30 +84,92 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build & push API
+      - name: Build & push API (natif, par digest)
+        id: api
         uses: docker/build-push-action@v6
         with:
           context: ./backend
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: |
-            ${{ env.API_IMAGE }}:latest
-            ${{ env.API_IMAGE }}:${{ steps.v.outputs.version }}
+          platforms: ${{ matrix.platform }}
+          outputs: type=image,name=${{ env.API_IMAGE }},push-by-digest=true,name-canonical=true,push=true
 
-      - name: Build & push Web
+      - name: Build & push Web (natif, par digest)
+        id: web
         uses: docker/build-push-action@v6
         with:
           context: ./frontend
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: |
-            ${{ env.WEB_IMAGE }}:latest
-            ${{ env.WEB_IMAGE }}:${{ steps.v.outputs.version }}
+          platforms: ${{ matrix.platform }}
+          outputs: type=image,name=${{ env.WEB_IMAGE }},push-by-digest=true,name-canonical=true,push=true
+
+      - name: Exporter les digests
+        env:
+          API_DIGEST: ${{ steps.api.outputs.digest }}
+          WEB_DIGEST: ${{ steps.web.outputs.digest }}
+        run: |
+          mkdir -p /tmp/digests/api /tmp/digests/web
+          touch "/tmp/digests/api/${API_DIGEST#sha256:}"
+          touch "/tmp/digests/web/${WEB_DIGEST#sha256:}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digests-api-${{ env.PLATFORM_PAIR }}
+          path: /tmp/digests/api/*
+          if-no-files-found: error
+          retention-days: 1
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digests-web-${{ env.PLATFORM_PAIR }}
+          path: /tmp/digests/web/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # 3. Assemble les digests par arch en un manifest multi-arch + tags, puis release.
+  merge:
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: /tmp/api
+          pattern: digests-api-*
+          merge-multiple: true
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: /tmp/web
+          pattern: digests-web-*
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Assembler le manifest API (multi-arch)
+        working-directory: /tmp/api
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          docker buildx imagetools create \
+            -t "${API_IMAGE}:latest" -t "${API_IMAGE}:${VERSION}" \
+            $(printf "${API_IMAGE}@sha256:%s " *)
+
+      - name: Assembler le manifest Web (multi-arch)
+        working-directory: /tmp/web
+        env:
+          VERSION: ${{ needs.prepare.outputs.version }}
+        run: |
+          docker buildx imagetools create \
+            -t "${WEB_IMAGE}:latest" -t "${WEB_IMAGE}:${VERSION}" \
+            $(printf "${WEB_IMAGE}@sha256:%s " *)
 
       - name: Créer la release GitHub
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ steps.v.outputs.tag }}" \
-            --title "${{ steps.v.outputs.tag }}" \
+          gh release create "${{ needs.prepare.outputs.tag }}" \
+            --repo "${{ github.repository }}" \
+            --title "${{ needs.prepare.outputs.tag }}" \
             --generate-notes
