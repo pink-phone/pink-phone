@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Sheet } from "../Sheet/Sheet";
 import { TextArea } from "../form/TextArea";
 import { Button } from "../Button/Button";
 import { ContextMenu } from "../ContextMenu/ContextMenu";
+import { UnreadDivider } from "../UnreadDivider/UnreadDivider";
 
 export interface CommentView {
   id: string;
@@ -12,6 +13,8 @@ export interface CommentView {
   timeLabel: string;
   /** Le commentaire appartient à l'utilisateur courant (active modifier/supprimer). */
   isMine?: boolean;
+  /** Commentaire de l'autre, arrivé depuis mon dernier passage : pilote la ligne « non lus ». */
+  unread?: boolean;
 }
 
 export interface CommentsSheetProps {
@@ -76,6 +79,9 @@ export function CommentsSheet({
     cancelEdit();
   };
 
+  // Index du premier commentaire non lu (les non-lus sont en bas du fil chrono).
+  const firstUnread = comments.findIndex((c) => c.unread);
+
   return (
     <Sheet open={open} title={t("comments.sheetTitle")} onClose={onClose}>
       <div className="space-y-4">
@@ -102,9 +108,16 @@ export function CommentsSheet({
                 </Button>
               </li>
             )}
-            {comments.map((c) => (
+            {comments.map((c, i) => (
+              <Fragment key={c.id}>
+                {/* Fil chronologique : les non-lus sont en bas. La ligne « non
+                    lus » se pose juste AVANT le premier commentaire non lu. */}
+                {i === firstUnread && (
+                  <li>
+                    <UnreadDivider label={t("common.unread")} />
+                  </li>
+                )}
               <li
-                key={c.id}
                 className="rounded-2xl bg-charcoal-900/40 px-3 py-2"
               >
                 <div className="flex items-baseline justify-between gap-2">
@@ -168,6 +181,7 @@ export function CommentsSheet({
                   </p>
                 )}
               </li>
+              </Fragment>
             ))}
           </ul>
         )}

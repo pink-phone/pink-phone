@@ -223,5 +223,36 @@ describe("toCommentViews", () => {
     expect(vm).toMatchObject({ id: "k1", authorName: "Sam", body: "joli" });
     expect(typeof vm.timeLabel).toBe("string");
   });
+
+  it("isMine + unread: commentaire de l'autre après mon dernier vu", () => {
+    const c = (o: Partial<ApiComment>): ApiComment => ({
+      id: "k",
+      authorId: "u2",
+      authorName: "Sam",
+      body: "x",
+      createdAt: "2026-06-20T13:00:00.000Z",
+      ...o,
+    });
+    const seen = "2026-06-20T12:00:00.000Z";
+    // De l'autre, après le vu → non lu, pas isMine
+    expect(toCommentViews([c({})], "me", seen)[0]).toMatchObject({
+      isMine: false,
+      unread: true,
+    });
+    // Le mien → isMine, jamais non lu
+    expect(
+      toCommentViews([c({ authorId: "me" })], "me", seen)[0],
+    ).toMatchObject({ isMine: true, unread: false });
+    // De l'autre mais avant le vu → lu
+    expect(
+      toCommentViews(
+        [c({ createdAt: "2026-06-20T11:00:00.000Z" })],
+        "me",
+        seen,
+      )[0].unread,
+    ).toBe(false);
+    // Pas de snapshot → pas de ligne
+    expect(toCommentViews([c({})], "me")[0].unread).toBe(false);
+  });
 });
 

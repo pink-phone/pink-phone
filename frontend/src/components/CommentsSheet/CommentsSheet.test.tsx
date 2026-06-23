@@ -102,6 +102,27 @@ describe("CommentsSheet", () => {
     expect(screen.getByRole("button", { name: /…/ })).toBeDisabled();
   });
 
+  it("affiche la ligne « non lus » avant le premier commentaire non lu", () => {
+    render(
+      <CommentsSheet
+        {...base}
+        comments={[
+          { ...comment("c1"), isMine: true },
+          { ...comment("c2"), unread: true },
+        ]}
+      />,
+    );
+    const sep = screen.getByRole("separator", { name: /non lus/i });
+    expect(sep).toBeInTheDocument();
+  });
+
+  it("aucun non-lu : pas de ligne « non lus »", () => {
+    render(
+      <CommentsSheet {...base} comments={[comment("c1"), comment("c2")]} />,
+    );
+    expect(screen.queryByRole("separator", { name: /non lus/i })).toBeNull();
+  });
+
   it("commentaire d'autrui : pas de menu d'actions", () => {
     render(
       <CommentsSheet
