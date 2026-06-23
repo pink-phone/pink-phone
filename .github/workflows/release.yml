@@ -50,6 +50,7 @@ jobs:
     outputs:
       tag: ${{ steps.v.outputs.tag }}
       version: ${{ steps.v.outputs.version }}
+      previous: ${{ steps.v.outputs.previous }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -59,6 +60,7 @@ jobs:
         id: v
         run: |
           git fetch --tags --force
+          LATEST=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
           VER="${{ inputs.version }}"
           if [ -n "$VER" ]; then
             # Version explicite : on valide juste le format vX.Y.Z.
@@ -69,8 +71,7 @@ jobs:
             FROM="(explicite)"
           else
             # Auto : incrément depuis le dernier tag selon `bump`.
-            LATEST=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-            V="${LATEST#v}"
+            V="${LATEST#v}"; [ -z "$V" ] && V="0.0.0"
             MAJOR="${V%%.*}"; REST="${V#*.}"; MINOR="${REST%%.*}"; PATCH="${REST#*.}"
             case "${{ inputs.bump }}" in
               major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
@@ -78,13 +79,14 @@ jobs:
               patch) PATCH=$((PATCH + 1)) ;;
             esac
             TAG="v${MAJOR}.${MINOR}.${PATCH}"
-            FROM="(depuis $LATEST, bump ${{ inputs.bump }})"
+            FROM="(depuis ${LATEST:-le début}, bump ${{ inputs.bump }})"
           fi
           if git rev-parse "$TAG" >/dev/null 2>&1; then
             echo "::error::Le tag $TAG existe déjà"; exit 1
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+          echo "previous=$LATEST" >> "$GITHUB_OUTPUT"
           echo "**$TAG** $FROM" >> "$GITHUB_STEP_SUMMARY"
 
   # 2. Build natif par architecture (en parallèle), push par digest.
@@ -195,14 +197,30 @@ jobs:
             -t "${WEB_IMAGE}:latest" -t "${WEB_IMAGE}:${VERSION}" \
             $(printf "${WEB_IMAGE}@sha256:%s " *)
 
-      # Crée le tag (sur le commit courant) ET la release, via l'API — pas de
-      # `git push` (contournement de la permission `workflows` manquante).
+      # Notes = liste des commits depuis le tag précédent (pas `--generate-notes`,
+      # qui se base sur les PR — or ce repo n'en a pas, miroir oblige → notes
+      # vides). Crée le tag (sur le commit courant) ET la release via l'API — pas
+      # de `git push` (contournement de la permission `workflows` manquante).
       - name: Créer le tag + la release GitHub
         env:
           GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          TAG: ${{ needs.prepare.outputs.tag }}
+          PREV: ${{ needs.prepare.outputs.previous }}
+          SHA: ${{ github.sha }}
         run: |
-          gh release create "${{ needs.prepare.outputs.tag }}" \
-            --repo "${{ github.repository }}" \
-            --target "${{ github.sha }}" \
-            --title "${{ needs.prepare.outputs.tag }}" \
-            --generate-notes
+          if [ -n "$PREV" ] && gh api "repos/$REPO/compare/$PREV...$SHA" >/dev/null 2>&1; then
+            NOTES=$(gh api "repos/$REPO/compare/$PREV...$SHA" \
+              --jq '.commits[] | "- " + (.commit.message | split("\n")[0]) + " (" + .sha[0:7] + ")"')
+            LINK="**Full Changelog**: https://github.com/$REPO/compare/$PREV...$TAG"
+          else
+            NOTES="- Première release."
+            LINK="**Full Changelog**: https://github.com/$REPO/commits/$TAG"
+          fi
+          [ -z "$NOTES" ] && NOTES="- (aucun changement listé)"
+          BODY=$(printf '%s\n\n%s\n' "$NOTES" "$LINK")
+          gh release create "$TAG" \
+            --repo "$REPO" \
+            --target "$SHA" \
+            --title "$TAG" \
+            --notes "$BODY"
