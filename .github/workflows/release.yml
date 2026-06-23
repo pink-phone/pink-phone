@@ -13,17 +13,22 @@
 
 name: Release & publish
 
-# On choisit juste le type d'incrément ; la version exacte est calculée dans le
-# job depuis le dernier tag → run-name ne peut afficher que le type (la version
-# n'est pas connue au dispatch). Le numéro calculé apparaît dans le résumé du job
-# et le titre de la release.
-run-name: Release · ${{ inputs.bump }}
+# Deux usages : soit on remplit `version` (ex: v1.4.0) et elle fait foi, soit on
+# la laisse vide et la version est calculée depuis le dernier tag selon `bump`.
+# Le run-name ne peut afficher que des inputs (figé au dispatch, avant le job) :
+# si `version` est vide (auto-bump), le numéro calculé apparaît dans le résumé du
+# job + le titre de la release.
+run-name: Release · ${{ inputs.version }} (${{ inputs.bump }})
 
 on:
   workflow_dispatch:
     inputs:
+      version:
+        description: "Version exacte (ex: v1.4.0). Vide = auto depuis `bump`."
+        required: false
+        default: ""
       bump:
-        description: "Type d'incrément (depuis le dernier tag)"
+        description: "Type d'incrément si `version` est vide"
         type: choice
         options: [patch, minor, major]
         default: patch
@@ -50,25 +55,37 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Calculer la prochaine version
+      - name: Calculer la version
         id: v
         run: |
           git fetch --tags --force
-          LATEST=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          V="${LATEST#v}"
-          MAJOR="${V%%.*}"; REST="${V#*.}"; MINOR="${REST%%.*}"; PATCH="${REST#*.}"
-          case "${{ inputs.bump }}" in
-            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
-            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
-            patch) PATCH=$((PATCH + 1)) ;;
-          esac
-          TAG="v${MAJOR}.${MINOR}.${PATCH}"
+          VER="${{ inputs.version }}"
+          if [ -n "$VER" ]; then
+            # Version explicite : on valide juste le format vX.Y.Z.
+            if [[ ! "$VER" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "::error::Format attendu vX.Y.Z (reçu: $VER)"; exit 1
+            fi
+            TAG="$VER"
+            FROM="(explicite)"
+          else
+            # Auto : incrément depuis le dernier tag selon `bump`.
+            LATEST=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+            V="${LATEST#v}"
+            MAJOR="${V%%.*}"; REST="${V#*.}"; MINOR="${REST%%.*}"; PATCH="${REST#*.}"
+            case "${{ inputs.bump }}" in
+              major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+              minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+              patch) PATCH=$((PATCH + 1)) ;;
+            esac
+            TAG="v${MAJOR}.${MINOR}.${PATCH}"
+            FROM="(depuis $LATEST, bump ${{ inputs.bump }})"
+          fi
           if git rev-parse "$TAG" >/dev/null 2>&1; then
             echo "::error::Le tag $TAG existe déjà"; exit 1
           fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
-          echo "**$TAG** (depuis \`$LATEST\`, bump \`${{ inputs.bump }}\`)" >> "$GITHUB_STEP_SUMMARY"
+          echo "**$TAG** $FROM" >> "$GITHUB_STEP_SUMMARY"
 
   # 2. Build natif par architecture (en parallèle), push par digest.
   build:
