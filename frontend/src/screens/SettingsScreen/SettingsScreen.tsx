@@ -148,9 +148,9 @@ export function SettingsScreen({
 
   // Verrouillage local par code PIN (concern appareil, comme le thème/la langue).
   const [pinSet, setPinSet] = useState(isPinSet());
-  const [pinFlow, setPinFlow] = useState<null | "set" | "confirm" | "disable">(
-    null,
-  );
+  const [pinFlow, setPinFlow] = useState<
+    null | "set" | "confirm" | "bio-prompt" | "disable"
+  >(null);
   const [firstPin, setFirstPin] = useState("");
   const [pinError, setPinError] = useState<string | null>(null);
   // Déverrouillage biométrique (device-local, en complément du PIN). La dispo
@@ -192,7 +192,15 @@ export function SettingsScreen({
       if (pin === firstPin) {
         await storePin(pin);
         setPinSet(true);
-        closePinFlow();
+        // Si la biométrie est disponible, proposer de l'activer immédiatement —
+        // c'est le meilleur moment (l'utilisateur vient de configurer son code).
+        if (bioSupported) {
+          setFirstPin("");
+          setPinError(null);
+          setPinFlow("bio-prompt");
+        } else {
+          closePinFlow();
+        }
       } else {
         setPinError(t("lock.mismatch"));
         setFirstPin("");
@@ -223,6 +231,13 @@ export function SettingsScreen({
       subtitle: t("lock.disableSubtitle"),
     },
   };
+  // Titre de la feuille modale — calculé hors du JSX pour rester type-safe avec
+  // "bio-prompt" (qui n'a pas d'entrée dans pinSheet).
+  const sheetTitle = (() => {
+    if (!pinFlow) return "";
+    if (pinFlow === "bio-prompt") return t("lock.bioPromptTitle");
+    return pinSheet[pinFlow].title;
+  })();
 
   // Édition du nom du salon (resynchronisé si le nom change ailleurs).
   const [spaceName, setSpaceName] = useState(space?.name ?? "");
@@ -750,6 +765,13 @@ export function SettingsScreen({
             </Button>
           )}
 
+          {/* Indice : biométrie disponible une fois le code activé (appareil compatible). */}
+          {!pinSet && bioSupported && (
+            <p className="text-[11px] text-taupe-400">
+              {t("lock.bioHint")}
+            </p>
+          )}
+
           {/* Biométrie : repli du PIN, donc proposée seulement si un PIN existe
               ET si l'appareil a un capteur (FaceID/Touch ID/empreinte). */}
           {pinSet && bioSupported && (
@@ -809,22 +831,55 @@ export function SettingsScreen({
 
       <Sheet
         open={pinFlow !== null}
-        title={pinFlow ? pinSheet[pinFlow].title : ""}
+        title={sheetTitle}
         onClose={closePinFlow}
       >
-        <div className="flex justify-center pb-4">
-          {pinFlow && (
-            <LockScreen
-              key={pinFlow}
-              title={pinSheet[pinFlow].title}
-              subtitle={pinSheet[pinFlow].subtitle}
-              error={pinError}
-              pinLength={PIN_LENGTH}
-              onSubmit={handlePinSubmit}
-              onCancel={closePinFlow}
-            />
-          )}
-        </div>
+        {pinFlow === "bio-prompt" ? (
+          /* Étape de proposition biométrique : juste après la confirmation du PIN.
+             Pas de pavé numérique — on propose simplement d'enrôler la biométrie. */
+          <div className="flex flex-col items-center gap-6 pb-4 pt-2 text-center">
+            <span aria-hidden className="text-5xl">
+              🔓
+            </span>
+            <p className="text-sm text-taupe-300">
+              {t("lock.bioPromptSubtitle")}
+            </p>
+            <div className="flex w-full flex-col gap-3">
+              <Button
+                className="w-full"
+                loading={bioBusy}
+                onClick={async () => {
+                  setBioBusy(true);
+                  try {
+                    if (await enableBiometric()) setBioEnabled(true);
+                  } finally {
+                    setBioBusy(false);
+                  }
+                  closePinFlow();
+                }}
+              >
+                {t("lock.bioPromptEnable")}
+              </Button>
+              <Button variant="ghost" className="w-full" onClick={closePinFlow}>
+                {t("lock.bioPromptSkip")}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex justify-center pb-4">
+            {pinFlow && (
+              <LockScreen
+                key={pinFlow}
+                title={pinSheet[pinFlow].title}
+                subtitle={pinSheet[pinFlow].subtitle}
+                error={pinError}
+                pinLength={PIN_LENGTH}
+                onSubmit={handlePinSubmit}
+                onCancel={closePinFlow}
+              />
+            )}
+          </div>
+        )}
       </Sheet>
     </div>
   );

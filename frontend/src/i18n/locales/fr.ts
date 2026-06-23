@@ -315,6 +315,12 @@ export const fr = {
     bioSettingOff: "Utilise FaceID / Touch ID / empreinte au lieu du code.",
     bioEnable: "Activer la biométrie",
     bioDisable: "Désactiver la biométrie",
+    bioPromptTitle: "Ajouter la biométrie ?",
+    bioPromptSubtitle:
+      "Déverrouillez avec FaceID / Touch ID. Le code reste le repli si elle échoue.",
+    bioPromptEnable: "Activer maintenant",
+    bioPromptSkip: "Pas maintenant",
+    bioHint: "FaceID / Touch ID disponible une fois le code activé.",
   },
   install: {
     title: "Installer Pink Phone",
