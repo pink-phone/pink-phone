@@ -88,13 +88,16 @@ export function BlogPost({
   return (
     <Surface
       tone="velvet"
-      className={cn(
-        "w-full space-y-4",
-        // Brouillon : carte légèrement grisée pour le distinguer d'un post publié.
-        draft && "opacity-60",
-        className,
-      )}
+      className={cn("w-full space-y-4", draft && "relative", className)}
     >
+      {/* Brouillon : liseré pointillé « croquis en cours » (overlay additif, ne
+          touche pas à la bordure de la Surface ni à la lisibilité). */}
+      {draft && (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute inset-0 rounded-3xl border-2 border-dashed border-taupe-300/30"
+        />
+      )}
       <header className="flex items-center gap-3">
         <span
           aria-hidden
@@ -112,7 +115,11 @@ export function BlogPost({
           </p>
         </div>
         <div className="ml-auto flex items-center gap-2">
-          {draft && <Badge tone="neutral">{t("blog.draftBadge")}</Badge>}
+          {draft && (
+            <Badge tone="soft" icon={<span aria-hidden>✎</span>}>
+              {t("blog.draftBadge")}
+            </Badge>
+          )}
           {isMine && (onEdit || onDelete) && (
             <ContextMenu
               ariaLabel={t("common.actions")}
