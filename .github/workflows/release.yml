@@ -31,7 +31,9 @@ env:
   WEB_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/pinkphone-web
 
 jobs:
-  # 1. Valide la version, crée et pousse le tag (une seule fois).
+  # 1. Valide la version. Le tag est créé À LA FIN, par l'API (gh release create
+  #    --target), et non par `git push` : le GITHUB_TOKEN n'a pas la permission
+  #    `workflows` et un push de ref touchant .github/workflows/ serait rejeté.
   prepare:
     runs-on: ubuntu-latest
     outputs:
@@ -54,11 +56,6 @@ jobs:
           fi
           echo "tag=$VER" >> "$GITHUB_OUTPUT"
           echo "version=${VER#v}" >> "$GITHUB_OUTPUT"
-
-      - name: Créer et pousser le tag
-        run: |
-          git tag "${{ steps.v.outputs.tag }}"
-          git push origin "${{ steps.v.outputs.tag }}"
 
   # 2. Build natif par architecture (en parallèle), push par digest.
   build:
@@ -168,11 +165,14 @@ jobs:
             -t "${WEB_IMAGE}:latest" -t "${WEB_IMAGE}:${VERSION}" \
             $(printf "${WEB_IMAGE}@sha256:%s " *)
 
-      - name: Créer la release GitHub
+      # Crée le tag (sur le commit courant) ET la release, via l'API — pas de
+      # `git push` (contournement de la permission `workflows` manquante).
+      - name: Créer le tag + la release GitHub
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "${{ needs.prepare.outputs.tag }}" \
             --repo "${{ github.repository }}" \
+            --target "${{ github.sha }}" \
             --title "${{ needs.prepare.outputs.tag }}" \
             --generate-notes
