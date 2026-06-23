@@ -12,6 +12,7 @@
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
     "screenshots": "node scripts/screenshots.mjs",
+    "og": "node scripts/og-image.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },
