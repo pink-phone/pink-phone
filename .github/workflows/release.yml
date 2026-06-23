@@ -214,10 +214,10 @@ jobs:
               --jq '.commits[] | "- " + (.commit.message | split("\n")[0]) + " (" + .sha[0:7] + ")"')
             LINK="**Full Changelog**: https://github.com/$REPO/compare/$PREV...$TAG"
           else
-            NOTES="- Première release."
+            NOTES="- First release."
             LINK="**Full Changelog**: https://github.com/$REPO/commits/$TAG"
           fi
-          [ -z "$NOTES" ] && NOTES="- (aucun changement listé)"
+          [ -z "$NOTES" ] && NOTES="- (no changes listed)"
           BODY=$(printf '%s\n\n%s\n' "$NOTES" "$LINK")
           gh release create "$TAG" \
             --repo "$REPO" \
