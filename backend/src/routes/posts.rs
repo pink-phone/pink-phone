@@ -35,6 +35,8 @@ pub struct CreatePostBody {
     /// Brouillon : visible du seul auteur, sans notification.
     #[serde(default)]
     pub draft: bool,
+    /// Média téléchargeable (#78). Absent ⇒ on prend le défaut du salon.
+    pub allow_download: Option<bool>,
 }
 
 #[derive(Deserialize)]
@@ -53,6 +55,8 @@ pub struct UpdatePostBody {
     pub clear_media: bool,
     /// Publication d'un brouillon (`false`) ou remise en brouillon (`true`).
     pub draft: Option<bool>,
+    /// Présent ⇒ change l'autorisation de téléchargement du média (#78).
+    pub allow_download: Option<bool>,
 }
 
 #[derive(sqlx::FromRow)]
@@ -163,6 +167,7 @@ async fn enrich(
             media_consumed: p.media_consumed,
             media_mime: p.media_mime,
             draft: p.draft,
+            allow_download: p.allow_download,
             created_at: p.created_at,
             updated_at: p.updated_at,
         })
@@ -184,7 +189,7 @@ async fn list_posts(
         "SELECT p.id, p.author_id, u.display_name AS author_name,
                 p.title, p.body, p.media_id, m.view_once AS media_view_once,
                 m.consumed AS media_consumed, m.mime AS media_mime, p.draft,
-                p.created_at, p.updated_at
+                p.allow_download, p.created_at, p.updated_at
          FROM posts p
          JOIN users u ON u.id = p.author_id
          LEFT JOIN media m ON m.id = p.media_id
@@ -233,16 +238,25 @@ async fn create_post(
         }
     }
 
+    // Téléchargeable : valeur explicite du post sinon le défaut du salon (#78).
+    let allow_download = match body.allow_download {
+        Some(v) => v,
+        None => sqlx::query_scalar("SELECT allow_media_download FROM spaces WHERE id = $1")
+            .bind(space_id)
+            .fetch_one(&state.pool)
+            .await?,
+    };
+
     let row: PostRow = sqlx::query_as(
         "WITH inserted AS (
-             INSERT INTO posts (space_id, author_id, title, body, media_id, draft)
-             VALUES ($1, $2, $3, $4, $5, $6)
-             RETURNING id, author_id, title, body, media_id, draft, created_at, updated_at
+             INSERT INTO posts (space_id, author_id, title, body, media_id, draft, allow_download)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
+             RETURNING id, author_id, title, body, media_id, draft, allow_download, created_at, updated_at
          )
          SELECT i.id, i.author_id, u.display_name AS author_name,
                 i.title, i.body, i.media_id, m.view_once AS media_view_once,
                 m.consumed AS media_consumed, m.mime AS media_mime, i.draft,
-                i.created_at, i.updated_at
+                i.allow_download, i.created_at, i.updated_at
          FROM inserted i
          JOIN users u ON u.id = i.author_id
          LEFT JOIN media m ON m.id = i.media_id",
@@ -253,6 +267,7 @@ async fn create_post(
     .bind(body.body.trim())
     .bind(body.media_id)
     .bind(body.draft)
+    .bind(allow_download)
     .fetch_one(&state.pool)
     .await?;
 
@@ -398,15 +413,16 @@ async fn update_post(
     let row: PostRow = sqlx::query_as(
         "WITH updated AS (
              UPDATE posts SET title = $3, body = $4, media_id = $5, draft = $6,
+                              allow_download = COALESCE($9, allow_download),
                               created_at = CASE WHEN $8 THEN now() ELSE created_at END,
                               updated_at = CASE WHEN ($7 OR $8) THEN now() ELSE updated_at END
              WHERE id = $1 AND space_id = $2
-             RETURNING id, author_id, title, body, media_id, draft, created_at, updated_at
+             RETURNING id, author_id, title, body, media_id, draft, allow_download, created_at, updated_at
          )
          SELECT up.id, up.author_id, u.display_name AS author_name,
                 up.title, up.body, up.media_id, m.view_once AS media_view_once,
                 m.consumed AS media_consumed, m.mime AS media_mime, up.draft,
-                up.created_at, up.updated_at
+                up.allow_download, up.created_at, up.updated_at
          FROM updated up
          JOIN users u ON u.id = up.author_id
          LEFT JOIN media m ON m.id = up.media_id",
@@ -419,6 +435,7 @@ async fn update_post(
     .bind(new_draft)
     .bind(content_changed)
     .bind(publishing)
+    .bind(body.allow_download)
     .fetch_one(&state.pool)
     .await?;
 

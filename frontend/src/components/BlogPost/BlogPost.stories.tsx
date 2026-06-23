@@ -66,6 +66,13 @@ export const MédiaSeul: Story = {
   },
 };
 
+/** Média téléchargeable (#78) : un bouton de téléchargement apparaît sur la photo. */
+export const MédiaTéléchargeable: Story = {
+  args: {
+    media: { src: DEMO_SRC, alt: "Photo partagée", downloadable: true },
+  },
+};
+
 export const MédiaÉphémère: Story = {
   args: {
     body: "Juste pour toi, et juste pour ce soir. Regarde vite. 🤫",

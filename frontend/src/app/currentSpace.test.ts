@@ -9,6 +9,7 @@ const space = (id: string): Space => ({
   reactions: [],
   allowCustomReactions: true,
   blindMood: false,
+  allowMediaDownload: false,
   createdAt: "2026-06-20T10:00:00.000Z",
 });
 

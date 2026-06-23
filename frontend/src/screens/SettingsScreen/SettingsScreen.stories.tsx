@@ -18,6 +18,7 @@ const meta = {
       name: "Pink Phone",
       timezone: "Europe/Paris",
       blindMood: false,
+      allowMediaDownload: false,
     },
     members: [
       { id: "1", name: "You" },
@@ -26,6 +27,7 @@ const meta = {
     onRenameSpace: fn(),
     onTimezoneChange: fn(),
     onBlindMoodChange: fn(),
+    onAllowMediaDownloadChange: fn(),
     onBack: fn(),
     onLogout: fn(),
   },

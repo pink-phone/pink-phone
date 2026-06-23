@@ -11,6 +11,8 @@ export interface PostDraft {
   body: string;
   file?: File;
   viewOnce: boolean;
+  /** Le média joint est téléchargeable (#78). Forcé à false si éphémère. */
+  allowDownload: boolean;
   /** Enregistré comme brouillon (non publié, non notifié). */
   draft: boolean;
   /** Édition : retirer la photo déjà jointe (sans en attacher de nouvelle). */
@@ -25,6 +27,11 @@ export interface PostComposerProps {
    */
   onSubmit: (draft: PostDraft) => void | Promise<void>;
   onCancel?: () => void;
+  /**
+   * Valeur initiale du toggle « téléchargeable » (#78) : défaut du salon pour un
+   * nouveau post, valeur courante du post en édition. Défaut false.
+   */
+  defaultAllowDownload?: boolean;
   /**
    * Valeurs initiales (édition d'un brouillon). `media` décrit la photo déjà
    * jointe : un média éphémère n'est pas affiché (il serait consommé), un média
@@ -51,7 +58,12 @@ function fileKind(file: File): "image" | "video" {
 }
 
 /** Formulaire de rédaction d'un post du blog intime. */
-export function PostComposer({ onSubmit, onCancel, initial }: PostComposerProps) {
+export function PostComposer({
+  onSubmit,
+  onCancel,
+  initial,
+  defaultAllowDownload = false,
+}: PostComposerProps) {
   const { t } = useTranslation();
   const editing = initial !== undefined;
   // Édition d'un post déjà publié : on enregistre (reste publié), pas de brouillon.
@@ -63,6 +75,7 @@ export function PostComposer({ onSubmit, onCancel, initial }: PostComposerProps)
   // `<input type=file>` ignore le style — UI-UX5).
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [viewOnce, setViewOnce] = useState(false);
+  const [allowDownload, setAllowDownload] = useState(defaultAllowDownload);
   const [preview, setPreview] = useState<string | null>(null);
   // Photo déjà jointe au brouillon, tant qu'on ne la remplace/retire pas.
   const [removeMedia, setRemoveMedia] = useState(false);
@@ -88,6 +101,10 @@ export function PostComposer({ onSubmit, onCancel, initial }: PostComposerProps)
 
   // Un post peut être un simple média : on accepte un récit OU une photo/vidéo.
   const hasMedia = file !== null || existingMedia !== null;
+  // Éphémère effectif : du nouveau fichier, sinon du média déjà joint.
+  const effectiveViewOnce = file ? viewOnce : (existingMedia?.viewOnce ?? false);
+  // Le téléchargement n'a de sens que pour un média NON éphémère.
+  const showDownloadToggle = hasMedia && !effectiveViewOnce;
   const canSubmit = body.trim().length > 0 || hasMedia;
   const busy = pending !== null;
 
@@ -100,6 +117,8 @@ export function PostComposer({ onSubmit, onCancel, initial }: PostComposerProps)
         body: body.trim(),
         file: file ?? undefined,
         viewOnce: file ? viewOnce : false,
+        // Un média éphémère n'est jamais téléchargeable.
+        allowDownload: effectiveViewOnce ? false : allowDownload,
         draft,
         removeMedia: removeMedia && !file,
       });
@@ -226,6 +245,16 @@ export function PostComposer({ onSubmit, onCancel, initial }: PostComposerProps)
             hint={t("postComposer.ephemeralHint")}
           />
         </div>
+      )}
+
+      {/* Téléchargeable (#78) : média présent et non éphémère. */}
+      {showDownloadToggle && (
+        <Toggle
+          checked={allowDownload}
+          onChange={setAllowDownload}
+          label={t("postComposer.downloadToggle")}
+          hint={t("postComposer.downloadHint")}
+        />
       )}
 
       <div className="space-y-2 pt-1">

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type MouseEvent } from "react";
 import { useTranslation } from "react-i18next";
 import { cn } from "../../lib/cn";
 
@@ -27,6 +27,13 @@ export interface SafeMediaProps {
    * un rechargement, sans tenter de charger un fichier qui n'existe plus).
    */
   consumed?: boolean;
+  /**
+   * Média téléchargeable (#78) : affiche un bouton de téléchargement. Sans effet
+   * sur un média éphémère (l'appelant ne doit pas l'activer pour un `viewOnce`).
+   */
+  downloadable?: boolean;
+  /** Nom de fichier proposé au téléchargement. */
+  downloadName?: string;
   /** Appelé la première fois que le média est révélé. */
   onReveal?: () => void;
   className?: string;
@@ -44,6 +51,8 @@ export function SafeMedia({
   alt,
   viewOnce = false,
   consumed = false,
+  downloadable = false,
+  downloadName = "pink-phone",
   onReveal,
   className,
 }: SafeMediaProps) {
@@ -111,6 +120,37 @@ export function SafeMedia({
       setIsConsumed(true);
     }
   }, [viewOnce]);
+
+  // Téléchargement (#78) : on s'assure d'avoir l'object URL (réutilisé du
+  // press-and-hold, ou chargé à la demande), puis on déclenche `<a download>`.
+  // stopPropagation pour ne pas armer le geste de révélation.
+  const download = useCallback(
+    async (e: MouseEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+      let url = resolvedSrc;
+      if (!url && loader) {
+        try {
+          url = await loader();
+          objectUrl.current = url;
+          setResolvedSrc(url);
+        } catch {
+          setFailed(true);
+          return;
+        }
+      }
+      if (!url) return;
+      // NB iOS PWA : le download d'un blob object-URL est capricieux (peut ouvrir
+      // au lieu d'enregistrer) — caveat connu (cf. backlog #78).
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = downloadName;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    },
+    [resolvedSrc, loader, downloadName],
+  );
 
   return (
     <div
@@ -206,6 +246,20 @@ export function SafeMedia({
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-charcoal-900/60 p-4 text-center text-sm text-blush-200">
           {t("safeMedia.unavailable")}
         </div>
+      )}
+
+      {/* Bouton de téléchargement (#78) — jamais sur un média éphémère/consommé.
+          stopPropagation au pointerdown pour ne pas armer la révélation. */}
+      {downloadable && !isConsumed && (
+        <button
+          type="button"
+          onClick={download}
+          onPointerDown={(e) => e.stopPropagation()}
+          aria-label={t("safeMedia.download")}
+          className="absolute bottom-2 right-2 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-charcoal-900/70 text-lg text-blush-100 shadow-felt-sm backdrop-blur-sm transition-colors duration-200 ease-felt hover:bg-charcoal-900/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+        >
+          ⤓
+        </button>
       )}
 
       {/* Média éphémère consommé */}

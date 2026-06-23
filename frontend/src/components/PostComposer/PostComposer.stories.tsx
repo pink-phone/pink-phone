@@ -41,9 +41,13 @@ export const Édition: Story = {
 const DEMO_PHOTO =
   "https://images.unsplash.com/photo-1519681393784-d120267933ba?w=640&q=70";
 
-/** Édition avec photo normale jointe : aperçu (révélé au press-hold), remplaçable. */
+/**
+ * Édition avec photo normale jointe : aperçu (révélé au press-hold), remplaçable.
+ * Le toggle « Téléchargeable » (#78) apparaît (média non éphémère), ici activé.
+ */
 export const ÉditionAvecPhoto: Story = {
   args: {
+    defaultAllowDownload: true,
     initial: {
       title: "Note pour plus tard…",
       body: "Une idée que je garde au chaud, je la peaufine avant de te l'envoyer.",

@@ -84,6 +84,7 @@ export interface SettingsScreenProps {
     name: string;
     timezone: string;
     blindMood?: boolean;
+    allowMediaDownload?: boolean;
   };
   members?: { id: string; name: string }[];
   /** Invitation d'un nouveau membre dans CE salon (#52) — token + générateur. */
@@ -99,6 +100,8 @@ export interface SettingsScreenProps {
   onTimezoneChange?: (timezone: string) => void;
   /** Active/désactive le vote d'humeur à l'aveugle (portée salon). */
   onBlindMoodChange?: (enabled: boolean) => void;
+  /** Défaut du salon « média téléchargeable » des nouveaux posts (#78). */
+  onAllowMediaDownloadChange?: (enabled: boolean) => void;
   /** Réactions du salon (ordre + emoji libres). Affichées si fournies. */
   reactions?: ReactionId[];
   allowCustomReactions?: boolean;
@@ -130,6 +133,7 @@ export function SettingsScreen({
   onRenameSpace,
   onTimezoneChange,
   onBlindMoodChange,
+  onAllowMediaDownloadChange,
   reactions,
   allowCustomReactions = true,
   onReactionsChange,
@@ -385,6 +389,16 @@ export function SettingsScreen({
                 onChange={onBlindMoodChange}
                 label={t("settings.blindMood")}
                 hint={t("settings.blindMoodHint")}
+              />
+            )}
+
+            {/* Défaut « média téléchargeable » des nouveaux posts (#78) */}
+            {onAllowMediaDownloadChange && (
+              <Toggle
+                checked={space.allowMediaDownload ?? false}
+                onChange={onAllowMediaDownloadChange}
+                label={t("settings.allowMediaDownload")}
+                hint={t("settings.allowMediaDownloadHint")}
               />
             )}
           </Surface>

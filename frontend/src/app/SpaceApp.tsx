@@ -433,6 +433,14 @@ export function SpaceApp({
     }
   };
 
+  const changeAllowMediaDownload = async (allowMediaDownload: boolean) => {
+    try {
+      setSpace(await api.updateSpace(space.id, { allowMediaDownload }));
+    } catch (e) {
+      console.error("changement du téléchargement médias échoué", e);
+    }
+  };
+
   const changeNotifMode = async (mode: NotifMode) => {
     setSettingsBusy(true);
     setPushError(null);
@@ -464,6 +472,7 @@ export function SpaceApp({
             name: space.name,
             timezone: space.timezone,
             blindMood: space.blindMood,
+            allowMediaDownload: space.allowMediaDownload,
           }}
           members={members.map((m) => ({ id: m.id, name: m.displayName }))}
           inviteToken={inviteToken}
@@ -476,6 +485,7 @@ export function SpaceApp({
           onRenameSpace={renameSpace}
           onTimezoneChange={changeTimezone}
           onBlindMoodChange={changeBlindMood}
+          onAllowMediaDownloadChange={changeAllowMediaDownload}
           reactions={space.reactions}
           allowCustomReactions={space.allowCustomReactions}
           onReactionsChange={changeReactions}
@@ -607,6 +617,11 @@ export function SpaceApp({
       >
         <PostComposer
           key={editingPost?.id ?? "new"}
+          // Toggle « téléchargeable » : valeur du post en édition, sinon le
+          // défaut du salon (#78).
+          defaultAllowDownload={
+            editingPost ? editingPost.allowDownload : space.allowMediaDownload
+          }
           initial={
             editingPost
               ? {
