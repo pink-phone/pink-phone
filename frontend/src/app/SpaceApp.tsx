@@ -314,8 +314,10 @@ export function SpaceApp({
     [challenges, user.id, challDividerAt],
   );
   const commentViews = useMemo(
-    () => toCommentViews(comments, user.id),
-    [comments, user.id],
+    // Même snapshot figé que le blog (#76) : un commentaire de l'autre arrivé
+    // depuis mon dernier passage au blog est « non lu ».
+    () => toCommentViews(comments, user.id, blogDividerAt),
+    [comments, user.id, blogDividerAt],
   );
 
   if (!ready) return <Splash message={t("splash.loadingSpace")} />;

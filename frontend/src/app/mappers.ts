@@ -91,6 +91,9 @@ export function toChallengeData(
 export function toCommentViews(
   comments: ApiComment[],
   userId?: string,
+  /** Mon dernier « vu » du blog, figé à l'arrivée : un commentaire de l'autre
+   * créé après est « non lu » (pilote la ligne séparatrice, comme #76). */
+  seenAt?: string | null,
 ): CommentView[] {
   return comments.map((c) => ({
     id: c.id,
@@ -98,5 +101,6 @@ export function toCommentViews(
     body: c.body,
     timeLabel: relativeTime(c.createdAt),
     isMine: c.authorId === userId,
+    unread: c.authorId !== userId && !!seenAt && c.createdAt > seenAt,
   }));
 }
