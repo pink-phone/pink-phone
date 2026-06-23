@@ -5,6 +5,18 @@ import type { PostDraft } from "../../components/PostComposer/PostComposer";
 import { logClientError } from "../../clientLog";
 import { appendOlder, mergeHead, mergeTail } from "./paginate";
 
+/** Remplace un post par son id (identité conservée pour les autres). */
+function replaceById(posts: ApiPost[], id: string, next: ApiPost): ApiPost[] {
+  return posts.map((p) => (p.id === id ? next : p));
+}
+
+/** Tri anté-chronologique (le plus récent d'abord), stable pour les ex æquo. */
+function sortByCreatedDesc(posts: ApiPost[]): ApiPost[] {
+  return [...posts].sort((a, b) =>
+    a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0,
+  );
+}
+
 /**
  * Domaine « blog » : posts + fil de commentaires, tous deux paginés par curseur
  * (RUST-12). `refetch` et `refetchOpenComments` sont stables (`[spaceId]`) pour
@@ -101,7 +113,9 @@ export function usePosts(spaceId: string) {
         mediaId,
         clearMedia,
       });
-      setPosts((prev) => prev.map((p) => (p.id === postId ? updated : p)));
+      // Publier un brouillon change son created_at (date de publication) → il doit
+      // remonter en tête. On re-trie (stable : un simple édit ne bouge rien).
+      setPosts((prev) => sortByCreatedDesc(replaceById(prev, postId, updated)));
       return true;
     } catch (e) {
       console.error("édition du brouillon échouée", e);
@@ -122,7 +136,8 @@ export function usePosts(spaceId: string) {
   const publish = async (postId: string) => {
     try {
       const updated = await api.publishPost(spaceId, postId);
-      setPosts((prev) => prev.map((p) => (p.id === postId ? updated : p)));
+      // Publié = created_at remis à maintenant → le post remonte en tête.
+      setPosts((prev) => sortByCreatedDesc(replaceById(prev, postId, updated)));
     } catch (e) {
       console.error("publication du brouillon échouée", e);
     }

@@ -334,6 +334,22 @@ describe("usePosts — pagination et mutations complémentaires", () => {
     await act(async () => { await result.current.remove("p1"); });
     expect(result.current.posts.map((p) => p.id)).toEqual(["p2"]);
   });
+
+  it("publish remonte le brouillon publié en tête (created_at = date de publication, B-E)", async () => {
+    a.listPosts.mockResolvedValue({
+      items: [
+        mk("p2", "2026-06-22T10:00:00.000Z"),
+        mk("p1", "2026-06-20T10:00:00.000Z"), // brouillon plus ancien
+      ],
+      hasMore: false,
+    });
+    // La publication renvoie le post avec un created_at = maintenant (plus récent).
+    a.publishPost.mockResolvedValue(mk("p1", "2026-06-23T10:00:00.000Z"));
+    const { result } = renderHook(() => usePosts("s1"));
+    await act(async () => { await result.current.refetch(); });
+    await act(async () => { await result.current.publish("p1"); });
+    expect(result.current.posts.map((p) => p.id)).toEqual(["p1", "p2"]);
+  });
 });
 
 // ---------------------------------------------------------------------------

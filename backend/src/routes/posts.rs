@@ -388,11 +388,18 @@ async fn update_post(
         || body.body.is_some()
         || body.media_id.is_some()
         || body.clear_media;
+    // Publication d'un brouillon (brouillon → publié) : le post « naît » dans le
+    // fil à cet instant → on repositionne created_at (et updated_at, pour ne pas
+    // le marquer « modifié ») sur now(). Sinon il garderait la date de création
+    // du brouillon et s'insérerait au mauvais endroit / fausserait les badges
+    // « nouveau » et les accusés de lecture, tous indexés sur created_at (B-E/B-F).
+    let publishing = was_draft && !new_draft;
 
     let row: PostRow = sqlx::query_as(
         "WITH updated AS (
              UPDATE posts SET title = $3, body = $4, media_id = $5, draft = $6,
-                              updated_at = CASE WHEN $7 THEN now() ELSE updated_at END
+                              created_at = CASE WHEN $8 THEN now() ELSE created_at END,
+                              updated_at = CASE WHEN ($7 OR $8) THEN now() ELSE updated_at END
              WHERE id = $1 AND space_id = $2
              RETURNING id, author_id, title, body, media_id, draft, created_at, updated_at
          )
@@ -411,6 +418,7 @@ async fn update_post(
     .bind(new_media)
     .bind(new_draft)
     .bind(content_changed)
+    .bind(publishing)
     .fetch_one(&state.pool)
     .await?;
 
