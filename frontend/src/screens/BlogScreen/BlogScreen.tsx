@@ -67,7 +67,7 @@ export function BlogScreen({
               draft={post.draft}
               edited={post.edited}
               isMine={post.isMine}
-              seenByPartner={post.seenByPartner}
+              seenBy={post.seenBy}
               reactionOrder={reactionOrder}
               allowCustomReactions={allowCustomReactions}
               className="max-w-none"

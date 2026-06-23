@@ -34,8 +34,8 @@ export interface PostData {
   edited?: boolean;
   /** Le post appartient à l'utilisateur courant (active suppression/publication). */
   isMine?: boolean;
-  /** Mon post a été vu par le/la partenaire (accusé de lecture). */
-  seenByPartner?: boolean;
+  /** Membres ayant vu mon post (accusé de lecture nominatif). Mes posts seulement. */
+  seenBy?: { name: string; timeLabel: string }[];
 }
 
 export interface ChallengeData {
