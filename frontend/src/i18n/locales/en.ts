@@ -132,6 +132,8 @@ export const en: Resources = {
     edit: "Edit",
     edited: "edited",
     seenByPartner: "Seen",
+    seenByAria: "See who has read it",
+    seenByTitle: "Seen by",
     commentsLeave: "Leave a word",
     commentsCount_one: "{{count}} comment",
     commentsCount_other: "{{count}} comments",

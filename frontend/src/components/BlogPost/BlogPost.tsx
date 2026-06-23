@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Surface } from "../Surface/Surface";
 import { Badge } from "../Badge/Badge";
@@ -50,8 +51,12 @@ export interface BlogPostProps {
   onPublish?: () => void;
   /** Édition d'un brouillon (affiché si `draft` && `isMine`). */
   onEdit?: () => void;
-  /** Mon post a été vu par le/la partenaire (accusé de lecture). */
-  seenByPartner?: boolean;
+  /**
+   * Membres ayant vu mon post (accusé de lecture). Vide/absent = pas encore vu.
+   * Le « ✓✓ Vu » s'affiche dès qu'au moins un membre a vu ; au clic, une bulle
+   * liste qui a vu (et quand).
+   */
+  seenBy?: { name: string; timeLabel: string }[];
   className?: string;
 }
 
@@ -75,10 +80,11 @@ export function BlogPost({
   onDelete,
   onPublish,
   onEdit,
-  seenByPartner = false,
+  seenBy,
   className,
 }: BlogPostProps) {
   const { t } = useTranslation();
+  const [seenOpen, setSeenOpen] = useState(false);
   return (
     <Surface tone="velvet" className={cn("w-full space-y-4", className)}>
       <header className="flex items-center gap-3">
@@ -171,10 +177,50 @@ export function BlogPost({
                 ? t("blog.commentsCount", { count: commentCount })
                 : t("blog.commentsLeave")}
             </button>
-            {isMine && seenByPartner && (
-              <span className="text-xs text-spice-300">
-                ✓✓ {t("blog.seenByPartner")}
-              </span>
+            {isMine && seenBy && seenBy.length > 0 && (
+              <div className="relative">
+                <button
+                  type="button"
+                  aria-expanded={seenOpen}
+                  aria-label={t("blog.seenByAria")}
+                  onClick={() => setSeenOpen((o) => !o)}
+                  className="text-xs text-spice-300 transition-colors duration-300 ease-felt hover:text-spice-200"
+                >
+                  ✓✓ {t("blog.seenByPartner")}
+                </button>
+                {seenOpen && (
+                  <>
+                    {/* Voile transparent : un tap à côté referme la bulle. */}
+                    <button
+                      type="button"
+                      aria-hidden
+                      tabIndex={-1}
+                      onClick={() => setSeenOpen(false)}
+                      className="fixed inset-0 z-10 cursor-default"
+                    />
+                    <div
+                      role="dialog"
+                      aria-label={t("blog.seenByTitle")}
+                      className="absolute bottom-full right-0 z-20 mb-1 min-w-[140px] rounded-2xl border border-charcoal-600/60 bg-charcoal-800 px-3 py-2 shadow-felt"
+                    >
+                      <p className="mb-1 text-[11px] uppercase tracking-wide text-taupe-400">
+                        {t("blog.seenByTitle")}
+                      </p>
+                      <ul className="space-y-1">
+                        {seenBy.map((s) => (
+                          <li
+                            key={s.name}
+                            className="flex items-baseline justify-between gap-3 text-xs"
+                          >
+                            <span className="text-blush-100">{s.name}</span>
+                            <span className="text-taupe-400">{s.timeLabel}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </>
+                )}
+              </div>
             )}
           </div>
         </>

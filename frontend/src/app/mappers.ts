@@ -1,6 +1,6 @@
 import type { TFunction } from "i18next";
 import * as api from "../api/client";
-import type { ApiChallenge, ApiComment, ApiPost, SeenEntry } from "../api/types";
+import type { ApiChallenge, ApiComment, ApiPost } from "../api/types";
 import type { ChallengeData, PostData } from "../types/view";
 import type { CommentView } from "../components/CommentsSheet/CommentsSheet";
 import { relativeTime } from "../lib/time";
@@ -10,36 +10,20 @@ import { relativeTime } from "../lib/time";
 // `CommentView` est le type de prop de `CommentsSheet` (le composant le possède).
 export type { CommentView };
 
-/**
- * « Vu par tous » (#52) : l'horodatage à partir duquel TOUS les membres donnés
- * ont consulté `feature` (= le MIN de leurs derniers « vu »). `undefined` si la
- * liste est vide ou si l'un d'eux ne l'a jamais consulté. Pour un couple (1 seul
- * membre), revient au « vu » de l'unique partenaire (comportement d'origine).
- */
-export function seenByAllAt(
-  memberIds: string[],
-  seen: SeenEntry[],
-  feature: string,
-): string | undefined {
-  if (memberIds.length === 0) return undefined;
-  const ats = memberIds.map(
-    (id) => seen.find((s) => s.userId === id && s.feature === feature)?.seenAt,
-  );
-  if (ats.some((a) => !a)) return undefined;
-  return ats.reduce((a, b) => (a! < b! ? a : b));
-}
-
 interface PostMapOptions {
   t: TFunction;
   spaceId: string;
   userId: string;
-  /** "Vu" du blog par le/la partenaire (pour l'accusé de lecture). */
-  partnerBlogSeen?: string;
+  /**
+   * Les autres membres + leur dernier « vu » du blog (pour l'accusé de lecture
+   * nominatif : qui a vu mes posts, et quand).
+   */
+  partnersSeen?: { name: string; seenAt?: string }[];
 }
 
 export function toPostData(
   posts: ApiPost[],
-  { t, spaceId, userId, partnerBlogSeen }: PostMapOptions,
+  { t, spaceId, userId, partnersSeen }: PostMapOptions,
 ): PostData[] {
   return posts.map((p) => ({
     id: p.id,
@@ -63,11 +47,14 @@ export function toPostData(
     draft: p.draft,
     edited: !p.draft && p.updatedAt > p.createdAt,
     isMine: p.authorId === userId,
-    seenByPartner:
-      p.authorId === userId &&
-      !p.draft &&
-      !!partnerBlogSeen &&
-      p.createdAt <= partnerBlogSeen,
+    // Accusé de lecture nominatif : pour MON post publié, les membres dont le
+    // dernier « vu » du blog est postérieur à sa création (#52 multi-membres).
+    seenBy:
+      p.authorId === userId && !p.draft
+        ? (partnersSeen ?? [])
+            .filter((m) => m.seenAt && p.createdAt <= m.seenAt)
+            .map((m) => ({ name: m.name, timeLabel: relativeTime(m.seenAt!) }))
+        : undefined,
   }));
 }
 

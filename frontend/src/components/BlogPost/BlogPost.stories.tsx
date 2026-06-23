@@ -82,7 +82,14 @@ export const Mien: Story = {
 
 /** Mon post, vu par le/la partenaire : accusé de lecture « ✓✓ Vu ». */
 export const MienVu: Story = {
-  args: { author: { name: "Toi", glyph: "T" }, isMine: true, seenByPartner: true },
+  args: {
+    author: { name: "Toi", glyph: "T" },
+    isMine: true,
+    seenBy: [
+      { name: "Camille", timeLabel: "il y a 5 min" },
+      { name: "Alex", timeLabel: "il y a 1 h" },
+    ],
+  },
 };
 
 /** Post édité après publication : mention « · modifié » près de l'horodatage. */

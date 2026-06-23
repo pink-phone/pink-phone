@@ -132,6 +132,8 @@ export const fr = {
     edit: "Éditer",
     edited: "modifié",
     seenByPartner: "Vu",
+    seenByAria: "Voir qui a vu",
+    seenByTitle: "Vu par",
     commentsLeave: "Laisser un mot",
     commentsCount_one: "{{count}} commentaire",
     commentsCount_other: "{{count}} commentaires",

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import type { TFunction } from "i18next";
-import { seenByAllAt, toPostData, toChallengeData, toCommentViews } from "./mappers";
-import type { ApiChallenge, ApiComment, ApiPost, SeenEntry } from "../api/types";
+import { toPostData, toChallengeData, toCommentViews } from "./mappers";
+import type { ApiChallenge, ApiComment, ApiPost } from "../api/types";
 
 // `t` factice : renvoie la clé (les conversions n'ont pas besoin du vrai i18n).
 const t = ((key: string) => key) as unknown as TFunction;
@@ -88,41 +88,37 @@ describe("toPostData", () => {
     expect(typeof withVideo.media?.loader).toBe("function");
   });
 
-  it("seenByPartner: vrai seulement pour mon post non-draft créé avant le 'vu' du partenaire", () => {
+  it("seenBy: liste nominative des membres ayant vu mon post publié (#52)", () => {
     const base = {
       authorId: "me",
       draft: false,
       createdAt: "2026-06-20T10:00:00.000Z",
     };
-    const seen = "2026-06-20T12:00:00.000Z"; // partenaire a vu après la création
+    // Camille a vu après (→ figure), Alex avant (→ pas encore vu).
+    const partnersSeen = [
+      { name: "Camille", seenAt: "2026-06-20T12:00:00.000Z" },
+      { name: "Alex", seenAt: "2026-06-20T09:00:00.000Z" },
+      { name: "Sam" }, // jamais ouvert le blog
+    ];
+    const opts = { t, spaceId: "s1", userId: "me", partnersSeen };
 
-    const [vm] = toPostData([post(base)], {
-      t,
-      spaceId: "s1",
-      userId: "me",
-      partnerBlogSeen: seen,
-    });
-    expect(vm.seenByPartner).toBe(true);
+    const [vm] = toPostData([post(base)], opts);
+    expect(vm.seenBy?.map((s) => s.name)).toEqual(["Camille"]);
 
-    // Créé APRÈS le dernier "vu" du partenaire => pas encore vu.
+    // Mon post créé APRÈS le « vu » de Camille => personne ne l'a vu.
     const [after] = toPostData(
       [post({ ...base, createdAt: "2026-06-20T13:00:00.000Z" })],
-      { t, spaceId: "s1", userId: "me", partnerBlogSeen: seen },
+      opts,
     );
-    expect(after.seenByPartner).toBe(false);
+    expect(after.seenBy).toEqual([]);
 
-    // Post du partenaire (pas le mien) => jamais d'accusé côté moi.
-    const [notMine] = toPostData([post({ ...base, authorId: "u2" })], {
-      t,
-      spaceId: "s1",
-      userId: "me",
-      partnerBlogSeen: seen,
-    });
-    expect(notMine.seenByPartner).toBe(false);
+    // Post d'un autre (pas le mien) => jamais d'accusé côté moi.
+    const [notMine] = toPostData([post({ ...base, authorId: "u2" })], opts);
+    expect(notMine.seenBy).toBeUndefined();
 
-    // Sans "vu" partenaire => false.
-    const [noSeen] = toPostData([post(base)], { t, spaceId: "s1", userId: "me" });
-    expect(noSeen.seenByPartner).toBe(false);
+    // Brouillon => pas d'accusé.
+    const [draft] = toPostData([post({ ...base, draft: true })], opts);
+    expect(draft.seenBy).toBeUndefined();
   });
 });
 
@@ -172,29 +168,3 @@ describe("toCommentViews", () => {
   });
 });
 
-describe("seenByAllAt (#52 — vu par tous)", () => {
-  const seen: SeenEntry[] = [
-    { userId: "a", feature: "blog", seenAt: "2026-06-20T10:00:00.000Z" },
-    { userId: "b", feature: "blog", seenAt: "2026-06-20T12:00:00.000Z" },
-    { userId: "a", feature: "challenges", seenAt: "2026-06-21T00:00:00.000Z" },
-  ];
-
-  it("couple (1 membre) : renvoie le « vu » de ce membre", () => {
-    expect(seenByAllAt(["a"], seen, "blog")).toBe("2026-06-20T10:00:00.000Z");
-  });
-
-  it("groupe : renvoie le MIN des « vu » (= quand le dernier a lu)", () => {
-    expect(seenByAllAt(["a", "b"], seen, "blog")).toBe(
-      "2026-06-20T10:00:00.000Z",
-    );
-  });
-
-  it("undefined si un membre n'a jamais ouvert le fil", () => {
-    expect(seenByAllAt(["a", "b"], seen, "challenges")).toBeUndefined();
-    expect(seenByAllAt(["a", "c"], seen, "blog")).toBeUndefined();
-  });
-
-  it("undefined si aucun membre", () => {
-    expect(seenByAllAt([], seen, "blog")).toBeUndefined();
-  });
-});
