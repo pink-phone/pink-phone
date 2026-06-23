@@ -118,6 +118,7 @@
 
       /* ---------- Screenshots ---------- */
       .shots { display: flex; gap: 18px; overflow-x: auto; padding: 8px 4px 22px; scroll-snap-type: x mandatory; -webkit-overflow-scrolling: touch; }
+      @media (min-width: 760px) { .shots { justify-content: center; overflow-x: visible; flex-wrap: wrap; } }
       .shot { scroll-snap-align: center; flex: 0 0 auto; text-align: center; }
       .shot img {
         width: 230px; max-width: 62vw; height: auto;
@@ -218,12 +219,9 @@
         <div class="shots">
           <figure class="shot"><img src="screenshots/dashboard.png" alt="Home — the daily weather of desire" loading="lazy" /><figcaption>Home</figcaption></figure>
           <figure class="shot"><img src="screenshots/blog.png" alt="The shared journal" loading="lazy" /><figcaption>Journal</figcaption></figure>
-          <figure class="shot"><img src="screenshots/blog-comments.png" alt="Comments on a post" loading="lazy" /><figcaption>Comments</figcaption></figure>
           <figure class="shot"><img src="screenshots/challenges.png" alt="Dares and their state" loading="lazy" /><figcaption>Dares</figcaption></figure>
-          <figure class="shot"><img src="screenshots/challenge-bank.png" alt="The dare idea bank" loading="lazy" /><figcaption>Idea bank</figcaption></figure>
-          <figure class="shot"><img src="screenshots/settings.png" alt="Settings" loading="lazy" /><figcaption>Settings</figcaption></figure>
         </div>
-        <p class="shots-hint">Generated from Storybook with mock data — no real content. Swipe →</p>
+        <p class="shots-hint">Generated from Storybook with mock data — no real content.</p>
       </div>
     </section>
 
