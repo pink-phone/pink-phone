@@ -158,6 +158,8 @@ export const fr = {
     undo: "Annuler",
     ephemeralToggle: "Éphémère (view once)",
     ephemeralHint: "Le média disparaît après une seule lecture.",
+    downloadToggle: "Téléchargeable",
+    downloadHint: "L'autre pourra enregistrer ce média.",
     previewAlt: "Aperçu",
     publish: "Publier",
     saveDraft: "Enregistrer le brouillon",
@@ -269,6 +271,9 @@ export const fr = {
     blindMood: "Surprise mutuelle",
     blindMoodHint:
       "Personne ne voit l'humeur de l'autre avant d'avoir partagé la sienne. Les deux se dévoilent en même temps.",
+    allowMediaDownload: "Médias téléchargeables",
+    allowMediaDownloadHint:
+      "Défaut des nouveaux posts : autoriser l'autre à enregistrer les médias. Réglable post par post à la publication ; sans effet sur les médias éphémères.",
     reactionsIntro: "Choisis les réactions du salon et leur ordre.",
     reactionEnable: "Activer la réaction",
     reactionDisable: "Désactiver la réaction",
@@ -339,6 +344,7 @@ export const fr = {
     goneText: "Ce souvenir n'existait que pour un instant.",
     revealAria: "{{alt}} — maintenir pour révéler",
     consumedAria: "Média éphémère déjà consommé",
+    download: "Télécharger le média",
   },
 };
 

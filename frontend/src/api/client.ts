@@ -182,6 +182,7 @@ export const updateSpace = (
     reactions?: string[];
     allowCustomReactions?: boolean;
     blindMood?: boolean;
+    allowMediaDownload?: boolean;
   },
 ) => req<Space>(`/api/spaces/${spaceId}`, { method: "PATCH", json: body });
 
@@ -219,7 +220,14 @@ export const listPosts = (spaceId: string, before?: string) =>
 
 export const createPost = (
   spaceId: string,
-  body: { title?: string; body: string; mediaId?: string; draft?: boolean },
+  body: {
+    title?: string;
+    body: string;
+    mediaId?: string;
+    draft?: boolean;
+    /** Média téléchargeable (#78). Absent ⇒ défaut du salon. */
+    allowDownload?: boolean;
+  },
 ) => req<ApiPost>(`/api/spaces/${spaceId}/posts`, { method: "POST", json: body });
 
 export const deletePost = (spaceId: string, postId: string) =>
@@ -240,6 +248,8 @@ export const updatePost = (
     mediaId?: string;
     /** Détache le média existant. */
     clearMedia?: boolean;
+    /** Change l'autorisation de téléchargement du média (#78). */
+    allowDownload?: boolean;
   },
 ) =>
   req<ApiPost>(`/api/spaces/${spaceId}/posts/${postId}`, {

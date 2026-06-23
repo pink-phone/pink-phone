@@ -86,6 +86,7 @@ export function usePosts(spaceId: string) {
         body: draft.body,
         mediaId,
         draft: draft.draft,
+        allowDownload: draft.allowDownload,
       });
       setPosts((prev) => [post, ...prev]);
       return true;
@@ -112,6 +113,7 @@ export function usePosts(spaceId: string) {
         draft: draft.draft,
         mediaId,
         clearMedia,
+        allowDownload: draft.allowDownload,
       });
       // Publier un brouillon change son created_at (date de publication) → il doit
       // remonter en tête. On re-trie (stable : un simple édit ne bouge rien).

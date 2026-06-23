@@ -40,6 +40,8 @@ export interface Space {
   allowCustomReactions: boolean;
   /** Vote d'humeur à l'aveugle : masque l'humeur du partenaire tant que je n'ai pas voté. */
   blindMood: boolean;
+  /** Défaut du salon : nouveaux posts avec média téléchargeable (#78). */
+  allowMediaDownload: boolean;
   createdAt: string;
 }
 
@@ -74,6 +76,8 @@ export interface ApiPost {
   mediaMime: string | null;
   /** Brouillon : visible du seul auteur, non notifié tant qu'il n'est pas publié. */
   draft: boolean;
+  /** Média téléchargeable (#78). Sans effet sur un média éphémère. */
+  allowDownload: boolean;
   createdAt: string;
   /** Dernière modification de contenu (= createdAt si jamais édité) — API-10. */
   updatedAt: string;

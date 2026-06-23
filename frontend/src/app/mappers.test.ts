@@ -18,6 +18,7 @@ function post(overrides: Partial<ApiPost> = {}): ApiPost {
     mediaConsumed: null,
     mediaMime: null,
     draft: false,
+    allowDownload: false,
     createdAt: "2026-06-20T10:00:00.000Z",
     updatedAt: "2026-06-20T10:00:00.000Z",
     reactionCounts: {},

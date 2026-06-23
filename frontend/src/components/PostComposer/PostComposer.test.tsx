@@ -26,4 +26,35 @@ describe("PostComposer", () => {
       draft: false,
     });
   });
+
+  it("toggle « Téléchargeable » affiché avec un média non éphémère, masqué si éphémère", () => {
+    const { rerender } = render(
+      <PostComposer
+        onSubmit={vi.fn()}
+        initial={{ body: "x", media: { viewOnce: false } }}
+      />,
+    );
+    expect(screen.getByText("Téléchargeable")).toBeInTheDocument();
+
+    rerender(
+      <PostComposer
+        onSubmit={vi.fn()}
+        initial={{ body: "x", media: { viewOnce: true } }}
+      />,
+    );
+    expect(screen.queryByText("Téléchargeable")).toBeNull();
+  });
+
+  it("onSubmit reçoit allowDownload depuis le défaut fourni", async () => {
+    const onSubmit = vi.fn();
+    render(
+      <PostComposer
+        onSubmit={onSubmit}
+        defaultAllowDownload
+        initial={{ body: "x", media: { viewOnce: false } }}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /enregistrer/i }));
+    expect(onSubmit.mock.calls[0][0]).toMatchObject({ allowDownload: true });
+  });
 });

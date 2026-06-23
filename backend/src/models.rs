@@ -37,6 +37,8 @@ pub struct Space {
     /// Vote d'humeur à l'aveugle : masque l'humeur du partenaire tant que je n'ai
     /// pas posé la mienne du jour (révélation mutuelle une fois les deux votes).
     pub blind_mood: bool,
+    /// Défaut du salon pour « média téléchargeable » des nouveaux posts (#78).
+    pub allow_media_download: bool,
     pub created_at: DateTime<Utc>,
 }
 
@@ -77,6 +79,8 @@ pub struct PostRow {
     /// Type MIME du média joint (null si aucun) — distingue image / vidéo.
     pub media_mime: Option<String>,
     pub draft: bool,
+    /// Le média joint est téléchargeable (#78). Sans effet sur un média éphémère.
+    pub allow_download: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -98,6 +102,8 @@ pub struct Post {
     /// Type MIME du média joint (null si aucun) — distingue image / vidéo.
     pub media_mime: Option<String>,
     pub draft: bool,
+    /// Le média joint est téléchargeable (#78). Sans effet sur un média éphémère.
+    pub allow_download: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub reaction_counts: std::collections::HashMap<String, i64>,

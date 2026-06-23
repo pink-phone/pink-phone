@@ -62,6 +62,18 @@ export const ÉphémèreConsommé: Story = {
   },
 };
 
+export const Téléchargeable: Story = {
+  args: { downloadable: true, downloadName: "souvenir" },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Quand le post l'autorise (#78), un bouton de téléchargement apparaît en bas à droite. Jamais affiché sur un média éphémère.",
+      },
+    },
+  },
+};
+
 export const Vidéo: Story = {
   args: {
     src: DEMO_VIDEO,

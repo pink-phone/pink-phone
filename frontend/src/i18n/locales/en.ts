@@ -158,6 +158,8 @@ export const en: Resources = {
     undo: "Undo",
     ephemeralToggle: "Ephemeral (view once)",
     ephemeralHint: "The media vanishes after a single view.",
+    downloadToggle: "Downloadable",
+    downloadHint: "Your partner will be able to save this media.",
     previewAlt: "Preview",
     publish: "Publish",
     saveDraft: "Save draft",
@@ -269,6 +271,9 @@ export const en: Resources = {
     blindMood: "Mutual surprise",
     blindMoodHint:
       "Neither of you sees the other's mood before sharing your own. Both reveal at once.",
+    allowMediaDownload: "Downloadable media",
+    allowMediaDownloadHint:
+      "Default for new posts: let your partner save media. Adjustable per post when publishing; no effect on ephemeral media.",
     reactionsIntro: "Choose the space's reactions and their order.",
     reactionEnable: "Enable reaction",
     reactionDisable: "Disable reaction",
@@ -339,5 +344,6 @@ export const en: Resources = {
     goneText: "This memory only existed for a moment.",
     revealAria: "{{alt}} — hold to reveal",
     consumedAria: "Ephemeral media already viewed",
+    download: "Download media",
   },
 };

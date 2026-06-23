@@ -24,6 +24,8 @@ export interface BlogPostMedia {
   viewOnce?: boolean;
   /** Média éphémère déjà consommé (état "Envolé…" persistant). */
   consumed?: boolean;
+  /** Le média est téléchargeable (#78) — affiche un bouton de téléchargement. */
+  downloadable?: boolean;
 }
 
 export interface BlogPostProps {
@@ -160,6 +162,7 @@ export function BlogPost({
           alt={media.alt}
           viewOnce={media.viewOnce}
           consumed={media.consumed}
+          downloadable={media.downloadable}
         />
       )}
 
