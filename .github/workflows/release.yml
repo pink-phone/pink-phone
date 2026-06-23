@@ -13,14 +13,20 @@
 
 name: Release & publish
 
-# Titre de la run dans la liste Actions = la version demandée (ex: « Release v0.1.0 »).
-run-name: Release ${{ inputs.version }}
+# On choisit juste le type d'incrément ; la version exacte est calculée dans le
+# job depuis le dernier tag → run-name ne peut afficher que le type (la version
+# n'est pas connue au dispatch). Le numéro calculé apparaît dans le résumé du job
+# et le titre de la release.
+run-name: Release · ${{ inputs.bump }}
 
 on:
   workflow_dispatch:
     inputs:
-      version:
-        description: "Tag de version à créer (ex: v0.1.0)"
+      bump:
+        description: "Type d'incrément (depuis le dernier tag)"
+        type: choice
+        options: [patch, minor, major]
+        default: patch
         required: true
 
 permissions:
@@ -44,18 +50,25 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Valider et calculer la version
+      - name: Calculer la prochaine version
         id: v
         run: |
-          VER="${{ inputs.version }}"
-          if [[ ! "$VER" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::Format attendu vX.Y.Z (reçu: $VER)"; exit 1
+          git fetch --tags --force
+          LATEST=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          V="${LATEST#v}"
+          MAJOR="${V%%.*}"; REST="${V#*.}"; MINOR="${REST%%.*}"; PATCH="${REST#*.}"
+          case "${{ inputs.bump }}" in
+            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+            patch) PATCH=$((PATCH + 1)) ;;
+          esac
+          TAG="v${MAJOR}.${MINOR}.${PATCH}"
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
+            echo "::error::Le tag $TAG existe déjà"; exit 1
           fi
-          if git rev-parse "$VER" >/dev/null 2>&1; then
-            echo "::error::Le tag $VER existe déjà"; exit 1
-          fi
-          echo "tag=$VER" >> "$GITHUB_OUTPUT"
-          echo "version=${VER#v}" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+          echo "**$TAG** (depuis \`$LATEST\`, bump \`${{ inputs.bump }}\`)" >> "$GITHUB_STEP_SUMMARY"
 
   # 2. Build natif par architecture (en parallèle), push par digest.
   build:
