@@ -86,7 +86,15 @@ export function BlogPost({
   const { t } = useTranslation();
   const [seenOpen, setSeenOpen] = useState(false);
   return (
-    <Surface tone="velvet" className={cn("w-full space-y-4", className)}>
+    <Surface
+      tone="velvet"
+      className={cn(
+        "w-full space-y-4",
+        // Brouillon : carte légèrement grisée pour le distinguer d'un post publié.
+        draft && "opacity-60",
+        className,
+      )}
+    >
       <header className="flex items-center gap-3">
         <span
           aria-hidden
