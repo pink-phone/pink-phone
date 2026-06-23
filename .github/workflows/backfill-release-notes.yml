@@ -1,0 +1,50 @@
+# One-shot manuel : (re)remplit les notes de TOUTES les releases existantes via
+# le générateur natif de GitHub (API releases/generate-notes) — #74b.
+#
+# Sûr : créer/éditer une release ne pousse aucun tag → ne déclenche aucun
+# déploiement. Idempotent : ré-exécutable, réécrit les notes à chaque fois.
+# Tourne avec le GITHUB_TOKEN du repo (pas de PAT, pas de compte externe).
+
+name: Backfill release notes
+
+run-name: Backfill release notes
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Remplir les notes des releases existantes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          git fetch --tags --force
+          # Tags en ordre semver croissant.
+          mapfile -t TAGS < <(git tag --sort=v:refname)
+          if [ ${#TAGS[@]} -eq 0 ]; then
+            echo "Aucun tag — rien à faire." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          for TAG in "${TAGS[@]}"; do
+            # Notes générées par GitHub (groupées, liens) ; le tag précédent est
+            # auto-détecté côté serveur → robuste malgré l'historique ré-écrit.
+            BODY=$(gh api "repos/$REPO/releases/generate-notes" \
+                     -f tag_name="$TAG" --jq '.body')
+            if gh release view "$TAG" >/dev/null 2>&1; then
+              gh release edit "$TAG" --notes "$BODY"
+              echo "- maj **$TAG**" >> "$GITHUB_STEP_SUMMARY"
+            else
+              gh release create "$TAG" --title "$TAG" --notes "$BODY"
+              echo "- créé **$TAG**" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
