@@ -13,6 +13,9 @@
 
 name: Release & publish
 
+# Titre de la run dans la liste Actions = la version demandée (ex: « Release v0.1.0 »).
+run-name: Release ${{ inputs.version }}
+
 on:
   workflow_dispatch:
     inputs:
