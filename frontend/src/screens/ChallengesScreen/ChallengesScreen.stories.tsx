@@ -36,3 +36,19 @@ export const AvecPagination: Story = {
     </div>
   ),
 };
+
+export const AvecNonLus: Story = {
+  name: "Avec ligne « non lus »",
+  args: {
+    // La ligne « non lus » ne s'affiche que dans les Propositions reçues.
+    challenges: SAMPLE_CHALLENGES.map((c) => ({
+      ...c,
+      unread: c.status === "proposed",
+    })),
+  },
+  render: (args) => (
+    <div className="w-[380px]">
+      <ChallengesScreen {...args} />
+    </div>
+  ),
+};

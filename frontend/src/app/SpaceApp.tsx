@@ -92,6 +92,8 @@ export function SpaceApp({
     openComments,
     closeComments,
     addComment,
+    editComment,
+    removeComment,
     loadMoreComments,
     refetchOpenComments,
   } = usePosts(space.id);
@@ -158,12 +160,33 @@ export function SpaceApp({
     tabRef.current = tab;
   }, [tab]);
 
-  // En ouvrant le Blog ou les Défis, on marque le fil comme vu.
+  // Snapshot du « dernier vu » figé à l'arrivée sur l'onglet : il positionne la
+  // ligne « non lus ». Marquer le fil comme vu (ci-dessous) ne doit pas la faire
+  // disparaître — elle reste jusqu'au prochain retour sur l'onglet. On lit le
+  // « vu » courant via une ref pour ne pas recréer l'effet à chaque refetch.
+  const seenRef = useRef(seen);
+  useEffect(() => {
+    seenRef.current = seen;
+  }, [seen]);
+  const [blogDividerAt, setBlogDividerAt] = useState<string | null>(null);
+  const [challDividerAt, setChallDividerAt] = useState<string | null>(null);
+
+  // En ouvrant le Blog ou les Défis, on fige le « vu » courant puis on marque le
+  // fil comme vu.
   useEffect(() => {
     if (!ready) return;
-    if (tab === "blog") markSeen("blog");
-    else if (tab === "challenges") markSeen("challenges");
-  }, [tab, ready, markSeen]);
+    const snap = (feature: "blog" | "challenges") =>
+      seenRef.current.find(
+        (s) => s.userId === user.id && s.feature === feature,
+      )?.seenAt ?? null;
+    if (tab === "blog") {
+      setBlogDividerAt(snap("blog"));
+      markSeen("blog");
+    } else if (tab === "challenges") {
+      setChallDividerAt(snap("challenges"));
+      markSeen("challenges");
+    }
+  }, [tab, ready, markSeen, user.id]);
 
   // Chargement initial groupé : membres + réglages (locaux à SpaceApp) et les
   // refetch des domaines. `ready` bascule quand tout est settled (les refetch
@@ -276,14 +299,24 @@ export function SpaceApp({
     [members, seen, user.id],
   );
   const postData = useMemo<PostData[]>(
-    () => toPostData(posts, { t, spaceId: space.id, userId: user.id, partnersSeen }),
-    [posts, t, space.id, user.id, partnersSeen],
+    () =>
+      toPostData(posts, {
+        t,
+        spaceId: space.id,
+        userId: user.id,
+        partnersSeen,
+        blogSeenAt: blogDividerAt,
+      }),
+    [posts, t, space.id, user.id, partnersSeen, blogDividerAt],
   );
   const challengeData = useMemo<ChallengeData[]>(
-    () => toChallengeData(challenges, user.id),
-    [challenges, user.id],
+    () => toChallengeData(challenges, user.id, challDividerAt),
+    [challenges, user.id, challDividerAt],
   );
-  const commentViews = useMemo(() => toCommentViews(comments), [comments]);
+  const commentViews = useMemo(
+    () => toCommentViews(comments, user.id),
+    [comments, user.id],
+  );
 
   if (!ready) return <Splash message={t("splash.loadingSpace")} />;
 
@@ -652,6 +685,10 @@ export function SpaceApp({
         loadingMore={commentsLoadingMore}
         onLoadMore={loadMoreComments}
         onAdd={addComment}
+        onEdit={editComment}
+        onDelete={(id) => {
+          if (confirmAction(t("comments.confirmDelete"))) removeComment(id);
+        }}
         onClose={closeComments}
       />
     </AppShell>

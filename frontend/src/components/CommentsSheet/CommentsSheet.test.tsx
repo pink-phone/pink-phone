@@ -101,4 +101,58 @@ describe("CommentsSheet", () => {
     // Le bouton affiche "…" et est désactivé.
     expect(screen.getByRole("button", { name: /…/ })).toBeDisabled();
   });
+
+  it("commentaire d'autrui : pas de menu d'actions", () => {
+    render(
+      <CommentsSheet
+        {...base}
+        comments={[comment("c1")]}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
+    expect(
+      screen.queryByRole("button", { name: /actions du commentaire/i }),
+    ).toBeNull();
+  });
+
+  it("mon commentaire : ⋯ → Supprimer appelle onDelete", async () => {
+    const onDelete = vi.fn();
+    render(
+      <CommentsSheet
+        {...base}
+        comments={[{ ...comment("c1"), isMine: true }]}
+        onEdit={vi.fn()}
+        onDelete={onDelete}
+      />,
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /actions du commentaire/i }),
+    );
+    await userEvent.click(screen.getByRole("menuitem", { name: /supprimer/i }));
+    expect(onDelete).toHaveBeenCalledWith("c1");
+  });
+
+  it("mon commentaire : ⋯ → Modifier → enregistrer appelle onEdit avec le nouveau corps", async () => {
+    const onEdit = vi.fn();
+    render(
+      <CommentsSheet
+        {...base}
+        comments={[{ ...comment("c1"), isMine: true }]}
+        onEdit={onEdit}
+        onDelete={vi.fn()}
+      />,
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /actions du commentaire/i }),
+    );
+    await userEvent.click(screen.getByRole("menuitem", { name: /modifier/i }));
+
+    const editor = screen.getByLabelText("Modifier ton commentaire");
+    await userEvent.clear(editor);
+    await userEvent.type(editor, "corrigé");
+    await userEvent.click(screen.getByRole("button", { name: /enregistrer/i }));
+
+    expect(onEdit).toHaveBeenCalledWith("c1", "corrigé");
+  });
 });

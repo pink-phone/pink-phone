@@ -1,6 +1,8 @@
+import { Fragment } from "react";
 import { useTranslation } from "react-i18next";
 import { ChallengeCard } from "../../components/ChallengeCard/ChallengeCard";
 import { Button } from "../../components/Button/Button";
+import { UnreadDivider } from "../../components/UnreadDivider/UnreadDivider";
 import type { ChallengeStatus } from "../../components/ChallengeCard/challenge";
 import type { ChallengeData } from "../../types/view";
 
@@ -70,28 +72,40 @@ export function ChallengesScreen({
       {SECTION_ORDER.map((status) => {
         const items = challenges.filter((c) => c.status === status);
         if (items.length === 0) return null;
+        // Ligne « non lus » uniquement dans les Propositions reçues (les
+        // nouveautés), posée sous le dernier défi non lu de la section.
+        let lastUnread = -1;
+        if (status === "proposed") {
+          items.forEach((c, i) => {
+            if (c.unread) lastUnread = i;
+          });
+        }
         return (
           <section key={status} className="space-y-3">
             <h2 className="text-xs uppercase tracking-[0.15em] text-taupe-400">
               {t(`challenges.sections.${status}`)}
             </h2>
             <div className="flex flex-col items-stretch gap-3">
-              {items.map((c) => (
-                <ChallengeCard
-                  key={c.id}
-                  title={c.title}
-                  description={c.description}
-                  intensity={c.intensity}
-                  status={c.status}
-                  deadlineLabel={c.deadlineLabel}
-                  perspective={c.perspective}
-                  className="max-w-none"
-                  onAccept={() => onAccept?.(c.id)}
-                  onNegotiate={() => onNegotiate?.(c.id)}
-                  onComplete={() => onComplete?.(c.id)}
-                  onEdit={() => onEdit?.(c.id)}
-                  onDelete={() => onDelete?.(c.id)}
-                />
+              {items.map((c, i) => (
+                <Fragment key={c.id}>
+                  <ChallengeCard
+                    title={c.title}
+                    description={c.description}
+                    intensity={c.intensity}
+                    status={c.status}
+                    deadlineLabel={c.deadlineLabel}
+                    perspective={c.perspective}
+                    className="max-w-none"
+                    onAccept={() => onAccept?.(c.id)}
+                    onNegotiate={() => onNegotiate?.(c.id)}
+                    onComplete={() => onComplete?.(c.id)}
+                    onEdit={() => onEdit?.(c.id)}
+                    onDelete={() => onDelete?.(c.id)}
+                  />
+                  {i === lastUnread && (
+                    <UnreadDivider label={t("common.unread")} />
+                  )}
+                </Fragment>
               ))}
             </div>
           </section>

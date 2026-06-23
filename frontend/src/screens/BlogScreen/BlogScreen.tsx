@@ -1,6 +1,8 @@
+import { Fragment } from "react";
 import { useTranslation } from "react-i18next";
 import { BlogPost } from "../../components/BlogPost/BlogPost";
 import { Button } from "../../components/Button/Button";
+import { UnreadDivider } from "../../components/UnreadDivider/UnreadDivider";
 import type { ReactionId } from "../../components/ReactionBar/ReactionBar";
 import type { PostData } from "../../types/view";
 
@@ -38,6 +40,25 @@ export function BlogScreen({
   onLoadMore,
 }: BlogScreenProps) {
   const { t } = useTranslation();
+  // Fil anté-chronologique : les non-lus sont en haut. La ligne « non lus » se
+  // pose juste sous le dernier post non lu (frontière avec le déjà-vu).
+  let lastUnread = -1;
+  posts.forEach((p, i) => {
+    if (p.unread) lastUnread = i;
+  });
+  // Un brouillon ne doit JAMAIS être dans la zone non lu (au-dessus de la ligne).
+  // Comme un brouillon fraîchement écrit est le plus récent, il s'y retrouverait.
+  // On extrait donc les brouillons de la bande au-dessus du séparateur et on les
+  // rend juste en dessous (ils restent exclus du flag `unread` côté mapper).
+  let ordered = posts;
+  let dividerAfter = lastUnread;
+  if (lastUnread >= 0) {
+    const band = posts.slice(0, lastUnread + 1);
+    const above = band.filter((p) => !p.draft);
+    const movedDrafts = band.filter((p) => p.draft);
+    ordered = [...above, ...movedDrafts, ...posts.slice(lastUnread + 1)];
+    dividerAfter = above.length - 1;
+  }
   return (
     <div className="space-y-5">
       <header className="flex items-center justify-between pt-2">
@@ -53,9 +74,9 @@ export function BlogScreen({
         </p>
       ) : (
         <div className="flex flex-col items-stretch gap-5">
-          {posts.map((post) => (
+          {ordered.map((post, i) => (
+            <Fragment key={post.id}>
             <BlogPost
-              key={post.id}
               author={post.author}
               timeLabel={post.timeLabel}
               title={post.title}
@@ -77,6 +98,10 @@ export function BlogScreen({
               onPublish={() => onPublishPost?.(post.id)}
               onEdit={() => onEditPost?.(post.id)}
             />
+              {i === dividerAfter && (
+                <UnreadDivider label={t("common.unread")} />
+              )}
+            </Fragment>
           ))}
           {hasMore && (
             <Button

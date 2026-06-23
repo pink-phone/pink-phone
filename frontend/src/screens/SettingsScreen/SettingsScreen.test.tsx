@@ -19,6 +19,13 @@ vi.mock("../../lib/pin", () => ({
   PIN_LENGTH: 4,
 }));
 
+vi.mock("../../lib/biometric", () => ({
+  isBiometricSupported: vi.fn().mockResolvedValue(false),
+  isBiometricEnabled: vi.fn().mockReturnValue(false),
+  enableBiometric: vi.fn(),
+  disableBiometric: vi.fn(),
+}));
+
 const base = {
   notifMode: "ghost" as const,
   onModeChange: vi.fn(),

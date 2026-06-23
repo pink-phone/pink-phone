@@ -13,6 +13,7 @@ export const fr = {
     edit: "Modifier",
     delete: "Supprimer",
     actions: "Actions",
+    unread: "Non lus",
   },
   app: {
     name: "Pink Phone",
@@ -235,6 +236,9 @@ export const fr = {
     replyLabel: "Ta réponse",
     replyPlaceholder: "Un mot, une envie…",
     loadOlder: "Messages plus anciens",
+    actions: "Actions du commentaire",
+    editLabel: "Modifier ton commentaire",
+    confirmDelete: "Supprimer ce commentaire ?",
   },
   settings: {
     title: "Réglages",
@@ -305,6 +309,12 @@ export const fr = {
     confirmSubtitle: "Saisis-le une seconde fois",
     disableTitle: "Entre ton code actuel",
     disableSubtitle: "Pour désactiver le verrouillage",
+    biometric: "Déverrouiller par biométrie",
+    bioSettingTitle: "Déverrouillage biométrique",
+    bioSettingOn: "Activé — FaceID / empreinte à la réouverture (le code reste le repli).",
+    bioSettingOff: "Utilise FaceID / Touch ID / empreinte au lieu du code.",
+    bioEnable: "Activer la biométrie",
+    bioDisable: "Désactiver la biométrie",
   },
   install: {
     title: "Installer Pink Phone",

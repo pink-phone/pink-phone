@@ -3,12 +3,15 @@ import { useTranslation } from "react-i18next";
 import { Sheet } from "../Sheet/Sheet";
 import { TextArea } from "../form/TextArea";
 import { Button } from "../Button/Button";
+import { ContextMenu } from "../ContextMenu/ContextMenu";
 
 export interface CommentView {
   id: string;
   authorName: string;
   body: string;
   timeLabel: string;
+  /** Le commentaire appartient à l'utilisateur courant (active modifier/supprimer). */
+  isMine?: boolean;
 }
 
 export interface CommentsSheetProps {
@@ -16,6 +19,10 @@ export interface CommentsSheetProps {
   comments: CommentView[];
   onClose: () => void;
   onAdd: (body: string) => void;
+  /** Édite un de mes commentaires (nouvelle valeur). */
+  onEdit?: (id: string, body: string) => void;
+  /** Supprime un de mes commentaires. */
+  onDelete?: (id: string) => void;
   /** Chargement de la liste. */
   loading?: boolean;
   /** Envoi d'un commentaire en cours. */
@@ -33,6 +40,8 @@ export function CommentsSheet({
   comments,
   onClose,
   onAdd,
+  onEdit,
+  onDelete,
   loading,
   busy,
   hasMore,
@@ -41,12 +50,30 @@ export function CommentsSheet({
 }: CommentsSheetProps) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState("");
+  // Édition inline : id du commentaire en cours d'édition + son brouillon.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editDraft, setEditDraft] = useState("");
 
   const submit = () => {
     const body = draft.trim();
     if (!body || busy) return;
     onAdd(body);
     setDraft("");
+  };
+
+  const startEdit = (c: CommentView) => {
+    setEditingId(c.id);
+    setEditDraft(c.body);
+  };
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditDraft("");
+  };
+  const saveEdit = (id: string) => {
+    const body = editDraft.trim();
+    if (!body) return;
+    onEdit?.(id, body);
+    cancelEdit();
   };
 
   return (
@@ -84,13 +111,62 @@ export function CommentsSheet({
                   <span className="font-serif text-sm text-blush-100">
                     {c.authorName}
                   </span>
-                  <span className="text-[11px] text-taupe-400">
-                    {c.timeLabel}
-                  </span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-[11px] text-taupe-400">
+                      {c.timeLabel}
+                    </span>
+                    {c.isMine && (onEdit || onDelete) && editingId !== c.id && (
+                      <ContextMenu
+                        ariaLabel={t("comments.actions")}
+                        items={[
+                          ...(onEdit
+                            ? [
+                                {
+                                  label: t("common.edit"),
+                                  onClick: () => startEdit(c),
+                                },
+                              ]
+                            : []),
+                          ...(onDelete
+                            ? [
+                                {
+                                  label: t("common.delete"),
+                                  danger: true,
+                                  onClick: () => onDelete(c.id),
+                                },
+                              ]
+                            : []),
+                        ]}
+                      />
+                    )}
+                  </div>
                 </div>
-                <p className="mt-0.5 whitespace-pre-line text-sm text-taupe-200">
-                  {c.body}
-                </p>
+                {editingId === c.id ? (
+                  <div className="mt-1 space-y-2">
+                    <TextArea
+                      label={t("comments.editLabel")}
+                      value={editDraft}
+                      onChange={(e) => setEditDraft(e.target.value)}
+                      rows={2}
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        disabled={!editDraft.trim()}
+                        onClick={() => saveEdit(c.id)}
+                      >
+                        {t("common.save")}
+                      </Button>
+                      <Button variant="secondary" size="sm" onClick={cancelEdit}>
+                        {t("common.cancel")}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="mt-0.5 whitespace-pre-line text-sm text-taupe-200">
+                    {c.body}
+                  </p>
+                )}
               </li>
             ))}
           </ul>

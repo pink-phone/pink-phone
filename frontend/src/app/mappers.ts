@@ -19,11 +19,17 @@ interface PostMapOptions {
    * nominatif : qui a vu mes posts, et quand).
    */
   partnersSeen?: { name: string; seenAt?: string }[];
+  /**
+   * Mon dernier « vu » du blog, figé à l'arrivée sur l'onglet : un post de
+   * l'autre créé après est « non lu » (pilote la ligne séparatrice). Absent ⇒
+   * pas de ligne.
+   */
+  blogSeenAt?: string | null;
 }
 
 export function toPostData(
   posts: ApiPost[],
-  { t, spaceId, userId, partnersSeen }: PostMapOptions,
+  { t, spaceId, userId, partnersSeen, blogSeenAt }: PostMapOptions,
 ): PostData[] {
   return posts.map((p) => ({
     id: p.id,
@@ -55,12 +61,19 @@ export function toPostData(
             .filter((m) => m.seenAt && p.createdAt <= m.seenAt)
             .map((m) => ({ name: m.name, timeLabel: relativeTime(m.seenAt!) }))
         : undefined,
+    unread:
+      p.authorId !== userId &&
+      !p.draft &&
+      !!blogSeenAt &&
+      p.createdAt > blogSeenAt,
   }));
 }
 
 export function toChallengeData(
   challenges: ApiChallenge[],
   userId: string,
+  /** Mon dernier « vu » des défis, figé à l'arrivée (cf. `blogSeenAt`). */
+  challSeenAt?: string | null,
 ): ChallengeData[] {
   return challenges.map((c) => ({
     id: c.id,
@@ -70,14 +83,20 @@ export function toChallengeData(
     status: c.status,
     deadlineLabel: c.deadlineLabel ?? undefined,
     perspective: c.proposerId === userId ? "proposer" : "recipient",
+    unread:
+      c.proposerId !== userId && !!challSeenAt && c.createdAt > challSeenAt,
   }));
 }
 
-export function toCommentViews(comments: ApiComment[]): CommentView[] {
+export function toCommentViews(
+  comments: ApiComment[],
+  userId?: string,
+): CommentView[] {
   return comments.map((c) => ({
     id: c.id,
     authorName: c.authorName,
     body: c.body,
     timeLabel: relativeTime(c.createdAt),
+    isMine: c.authorId === userId,
   }));
 }

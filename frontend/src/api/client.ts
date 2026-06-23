@@ -292,6 +292,27 @@ export const addComment = (spaceId: string, postId: string, body: string) =>
     json: { body },
   });
 
+export const updateComment = (
+  spaceId: string,
+  postId: string,
+  commentId: string,
+  body: string,
+) =>
+  req<ApiComment>(
+    `/api/spaces/${spaceId}/posts/${postId}/comments/${commentId}`,
+    { method: "PATCH", json: { body } },
+  );
+
+export const deleteComment = (
+  spaceId: string,
+  postId: string,
+  commentId: string,
+) =>
+  req<void>(
+    `/api/spaces/${spaceId}/posts/${postId}/comments/${commentId}`,
+    { method: "DELETE" },
+  );
+
 // ---------- Défis ----------
 
 export const listChallenges = (spaceId: string, before?: string) =>

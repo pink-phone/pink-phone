@@ -120,6 +120,38 @@ describe("toPostData", () => {
     const [draft] = toPostData([post({ ...base, draft: true })], opts);
     expect(draft.seenBy).toBeUndefined();
   });
+
+  it("unread: post de l'autre créé après mon dernier vu, sinon faux", () => {
+    const blogSeenAt = "2026-06-20T12:00:00.000Z";
+    const after = "2026-06-20T13:00:00.000Z";
+    const before = "2026-06-20T11:00:00.000Z";
+    const opts = { t, spaceId: "s1", userId: "me", blogSeenAt };
+    // De l'autre, après le vu → non lu
+    expect(
+      toPostData([post({ authorId: "u2", createdAt: after })], opts)[0].unread,
+    ).toBe(true);
+    // De l'autre, avant le vu → lu
+    expect(
+      toPostData([post({ authorId: "u2", createdAt: before })], opts)[0].unread,
+    ).toBe(false);
+    // Le mien → jamais "non lu"
+    expect(
+      toPostData([post({ authorId: "me", createdAt: after })], opts)[0].unread,
+    ).toBe(false);
+    // Brouillon de l'autre → pas "non lu"
+    expect(
+      toPostData([post({ authorId: "u2", createdAt: after, draft: true })], opts)[0]
+        .unread,
+    ).toBe(false);
+    // Pas de snapshot (jamais visité) → pas de ligne
+    expect(
+      toPostData([post({ authorId: "u2", createdAt: after })], {
+        t,
+        spaceId: "s1",
+        userId: "me",
+      })[0].unread,
+    ).toBe(false);
+  });
 });
 
 describe("toChallengeData", () => {
@@ -148,6 +180,31 @@ describe("toChallengeData", () => {
   it("deadlineLabel null => undefined", () => {
     expect(toChallengeData([challenge({ deadlineLabel: null })], "me")[0].deadlineLabel)
       .toBeUndefined();
+  });
+
+  it("unread: défi de l'autre créé après mon dernier vu, sinon faux", () => {
+    const seen = "2026-06-20T12:00:00.000Z";
+    const after = "2026-06-20T13:00:00.000Z";
+    const before = "2026-06-20T11:00:00.000Z";
+    // De l'autre, après le vu → non lu
+    expect(
+      toChallengeData([challenge({ proposerId: "u2", createdAt: after })], "me", seen)[0]
+        .unread,
+    ).toBe(true);
+    // De l'autre mais avant le vu → lu
+    expect(
+      toChallengeData([challenge({ proposerId: "u2", createdAt: before })], "me", seen)[0]
+        .unread,
+    ).toBe(false);
+    // Le mien → jamais "non lu"
+    expect(
+      toChallengeData([challenge({ proposerId: "me", createdAt: after })], "me", seen)[0]
+        .unread,
+    ).toBe(false);
+    // Pas de snapshot (jamais visité) → pas de ligne
+    expect(
+      toChallengeData([challenge({ proposerId: "u2", createdAt: after })], "me")[0].unread,
+    ).toBe(false);
   });
 });
 
