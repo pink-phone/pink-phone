@@ -315,6 +315,12 @@ export const en: Resources = {
     bioSettingOff: "Use FaceID / Touch ID / fingerprint instead of the code.",
     bioEnable: "Enable biometrics",
     bioDisable: "Disable biometrics",
+    bioPromptTitle: "Add biometric unlock?",
+    bioPromptSubtitle:
+      "Unlock with FaceID / Touch ID. The code stays as fallback if biometrics fail.",
+    bioPromptEnable: "Enable now",
+    bioPromptSkip: "Not now",
+    bioHint: "FaceID / Touch ID becomes available once the passcode is set.",
   },
   install: {
     title: "Install Pink Phone",

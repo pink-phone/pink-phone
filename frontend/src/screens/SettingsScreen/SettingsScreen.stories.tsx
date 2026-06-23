@@ -112,3 +112,48 @@ export const AvecErreur: Story = {
     </div>
   ),
 };
+
+/**
+ * Sécurité — code PIN activé.
+ * Simule un appareil avec PIN déjà configuré (localStorage seedé avant rendu)
+ * pour montrer les boutons « Modifier / Désactiver » et la section biométrie
+ * si l'appareil la supporte.
+ */
+export const SécuritéCodeActif: Story = {
+  name: "Sécurité — code activé",
+  beforeEach: () => {
+    // Fausse entrée PIN : le hash ne correspond à rien de réel, mais isPinSet()
+    // lit seulement la présence de la clé — pas la valeur.
+    localStorage.setItem("pp_pin", JSON.stringify({ salt: "story", hash: "story" }));
+    return () => {
+      localStorage.removeItem("pp_pin");
+    };
+  },
+  render: (args) => (
+    <div className="w-[380px]">
+      <SettingsScreen {...args} />
+    </div>
+  ),
+};
+
+/**
+ * Sécurité — code + biométrie activés.
+ * Simule le cas où le PIN ET la biométrie sont configurés (les deux clés
+ * localStorage sont présentes). Montre le bouton « Désactiver la biométrie ».
+ */
+export const SécuritéBiométrieActive: Story = {
+  name: "Sécurité — PIN + biométrie activés",
+  beforeEach: () => {
+    localStorage.setItem("pp_pin", JSON.stringify({ salt: "story", hash: "story" }));
+    localStorage.setItem("pp_bio", "c3RvcnlCaW9JZA=="); // base64 fictif
+    return () => {
+      localStorage.removeItem("pp_pin");
+      localStorage.removeItem("pp_bio");
+    };
+  },
+  render: (args) => (
+    <div className="w-[380px]">
+      <SettingsScreen {...args} />
+    </div>
+  ),
+};
