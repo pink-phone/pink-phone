@@ -32,6 +32,10 @@ pub fn router() -> Router<AppState> {
             "/api/spaces/{id}/posts/{pid}/comments",
             get(list_comments).post(add_comment),
         )
+        .route(
+            "/api/spaces/{id}/posts/{pid}/comments/{cid}",
+            axum::routing::patch(update_comment).delete(delete_comment),
+        )
 }
 
 /// Vérifie l'appartenance au space ET que le post y appartient bien.
@@ -272,6 +276,65 @@ async fn add_comment(
     );
 
     Ok((StatusCode::CREATED, Json(comment)))
+}
+
+/// Édite un commentaire (auteur uniquement). N'émet pas de notification (pas un
+/// nouveau contenu), mais émet l'event WS `comment` pour le rafraîchissement.
+async fn update_comment(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Path((space_id, post_id, comment_id)): Path<(Uuid, Uuid, Uuid)>,
+    Json(body): Json<CommentBody>,
+) -> ApiResult<Json<Comment>> {
+    guard(&state.pool, auth.user_id, space_id, post_id).await?;
+    if body.body.trim().is_empty() {
+        return Err(ApiError::BadRequest("commentaire vide".into()));
+    }
+    // L'UPDATE filtre sur post_id ET author_id : 0 ligne ⇒ inexistant ou pas le
+    // sien (on ne distingue pas → NotFound, comme delete_post).
+    let comment: Option<Comment> = sqlx::query_as(
+        "WITH updated AS (
+             UPDATE post_comments
+             SET body = $1
+             WHERE id = $2 AND post_id = $3 AND author_id = $4
+             RETURNING id, author_id, body, created_at
+         )
+         SELECT u2.id, u2.author_id, usr.display_name AS author_name, u2.body, u2.created_at
+         FROM updated u2 JOIN users usr ON usr.id = u2.author_id",
+    )
+    .bind(body.body.trim())
+    .bind(comment_id)
+    .bind(post_id)
+    .bind(auth.user_id)
+    .fetch_optional(&state.pool)
+    .await?;
+    let comment = comment.ok_or(ApiError::NotFound)?;
+
+    state.emit(space_id, auth.user_id, EventKind::Comment);
+    Ok(Json(comment))
+}
+
+/// Supprime un commentaire (auteur uniquement).
+async fn delete_comment(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Path((space_id, post_id, comment_id)): Path<(Uuid, Uuid, Uuid)>,
+) -> ApiResult<StatusCode> {
+    guard(&state.pool, auth.user_id, space_id, post_id).await?;
+    let deleted: Option<Uuid> = sqlx::query_scalar(
+        "DELETE FROM post_comments
+         WHERE id = $1 AND post_id = $2 AND author_id = $3
+         RETURNING id",
+    )
+    .bind(comment_id)
+    .bind(post_id)
+    .bind(auth.user_id)
+    .fetch_optional(&state.pool)
+    .await?;
+    deleted.ok_or(ApiError::NotFound)?;
+
+    state.emit(space_id, auth.user_id, EventKind::Comment);
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[cfg(test)]

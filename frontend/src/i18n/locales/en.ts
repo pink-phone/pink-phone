@@ -14,6 +14,7 @@ export const en: Resources = {
     edit: "Edit",
     delete: "Delete",
     actions: "Actions",
+    unread: "Unread",
   },
   app: {
     name: "Pink Phone",
@@ -235,6 +236,9 @@ export const en: Resources = {
     replyLabel: "Your reply",
     replyPlaceholder: "A word, a desire…",
     loadOlder: "Older messages",
+    actions: "Comment actions",
+    editLabel: "Edit your comment",
+    confirmDelete: "Delete this comment?",
   },
   settings: {
     title: "Settings",
@@ -305,6 +309,12 @@ export const en: Resources = {
     confirmSubtitle: "Enter it once more",
     disableTitle: "Enter your current code",
     disableSubtitle: "To turn off the lock",
+    biometric: "Unlock with biometrics",
+    bioSettingTitle: "Biometric unlock",
+    bioSettingOn: "On — FaceID / fingerprint when reopening (code stays the fallback).",
+    bioSettingOff: "Use FaceID / Touch ID / fingerprint instead of the code.",
+    bioEnable: "Enable biometrics",
+    bioDisable: "Disable biometrics",
   },
   install: {
     title: "Install Pink Phone",

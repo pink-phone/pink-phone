@@ -36,6 +36,8 @@ export interface PostData {
   isMine?: boolean;
   /** Membres ayant vu mon post (accusé de lecture nominatif). Mes posts seulement. */
   seenBy?: { name: string; timeLabel: string }[];
+  /** Post de l'autre, créé depuis mon dernier passage : pilote la ligne « non lus ». */
+  unread?: boolean;
 }
 
 export interface ChallengeData {
@@ -46,4 +48,6 @@ export interface ChallengeData {
   status: ChallengeStatus;
   deadlineLabel?: string;
   perspective?: "recipient" | "proposer";
+  /** Défi de l'autre, créé depuis mon dernier passage : pilote la ligne « non lus ». */
+  unread?: boolean;
 }

@@ -84,3 +84,16 @@ export const AvecPagination: Story = {
     </div>
   ),
 };
+
+export const AvecNonLus: Story = {
+  name: "Avec ligne « non lus »",
+  args: {
+    // Les non-lus sont en haut du fil ; la ligne se pose sous le dernier.
+    posts: SAMPLE_POSTS.map((p, i) => ({ ...p, unread: i < 2 })),
+  },
+  render: (args) => (
+    <div className="w-[380px]">
+      <BlogScreen {...args} />
+    </div>
+  ),
+};

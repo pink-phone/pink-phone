@@ -41,3 +41,11 @@ export const DéfinirUnCode: Story = {
     onCancel: () => {},
   },
 };
+
+export const AvecBiométrie: Story = {
+  name: "Avec déverrouillage biométrique",
+  args: {
+    biometricLabel: "Unlock with biometrics",
+    onBiometric: () => {},
+  },
+};

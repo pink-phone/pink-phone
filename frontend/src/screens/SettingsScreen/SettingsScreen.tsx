@@ -15,6 +15,12 @@ import {
   clearPin,
   PIN_LENGTH,
 } from "../../lib/pin";
+import {
+  isBiometricSupported,
+  isBiometricEnabled,
+  enableBiometric,
+  disableBiometric,
+} from "../../lib/biometric";
 import { cn } from "../../lib/cn";
 import { SUPPORTED_LANGS } from "../../i18n";
 import { THEMES, applyTheme, getTheme, type Theme } from "../../theme";
@@ -147,6 +153,31 @@ export function SettingsScreen({
   );
   const [firstPin, setFirstPin] = useState("");
   const [pinError, setPinError] = useState<string | null>(null);
+  // Déverrouillage biométrique (device-local, en complément du PIN). La dispo
+  // est asynchrone (platform authenticator) → détectée au montage.
+  const [bioSupported, setBioSupported] = useState(false);
+  const [bioEnabled, setBioEnabled] = useState(isBiometricEnabled());
+  const [bioBusy, setBioBusy] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    isBiometricSupported().then((ok) => alive && setBioSupported(ok));
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const toggleBiometric = async () => {
+    setBioBusy(true);
+    try {
+      if (bioEnabled) {
+        disableBiometric();
+        setBioEnabled(false);
+      } else {
+        if (await enableBiometric()) setBioEnabled(true);
+      }
+    } finally {
+      setBioBusy(false);
+    }
+  };
   const closePinFlow = () => {
     setPinFlow(null);
     setFirstPin("");
@@ -171,6 +202,10 @@ export function SettingsScreen({
       if (await verifyPin(pin)) {
         clearPin();
         setPinSet(false);
+        // Le PIN est le repli de la biométrie : sans lui, on désactive aussi la
+        // biométrie (sinon plus de repli si elle échoue).
+        disableBiometric();
+        setBioEnabled(false);
         closePinFlow();
       } else {
         setPinError(t("lock.wrong"));
@@ -713,6 +748,37 @@ export function SettingsScreen({
             >
               {t("lock.enable")}
             </Button>
+          )}
+
+          {/* Biométrie : repli du PIN, donc proposée seulement si un PIN existe
+              ET si l'appareil a un capteur (FaceID/Touch ID/empreinte). */}
+          {pinSet && bioSupported && (
+            <div className="space-y-2 border-t border-charcoal-600/40 pt-3">
+              <div className="flex items-start gap-3">
+                <span aria-hidden className="text-2xl">
+                  🔓
+                </span>
+                <div className="leading-tight">
+                  <p className="font-serif text-base text-blush-100">
+                    {t("lock.bioSettingTitle")}
+                  </p>
+                  <p className="mt-0.5 text-xs text-taupe-400">
+                    {bioEnabled
+                      ? t("lock.bioSettingOn")
+                      : t("lock.bioSettingOff")}
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant={bioEnabled ? "ghost" : "secondary"}
+                size="sm"
+                className="w-full"
+                loading={bioBusy}
+                onClick={toggleBiometric}
+              >
+                {bioEnabled ? t("lock.bioDisable") : t("lock.bioEnable")}
+              </Button>
+            </div>
           )}
         </Surface>
       </section>

@@ -227,6 +227,37 @@ export function usePosts(spaceId: string) {
     }
   };
 
+  const editComment = async (commentId: string, body: string) => {
+    const postId = commentsForRef.current;
+    if (!postId) return;
+    try {
+      const updated = await api.updateComment(spaceId, postId, commentId, body);
+      setComments((prev) =>
+        prev.map((c) => (c.id === commentId ? updated : c)),
+      );
+    } catch (e) {
+      console.error("édition du commentaire échouée", e);
+    }
+  };
+
+  const removeComment = async (commentId: string) => {
+    const postId = commentsForRef.current;
+    if (!postId) return;
+    try {
+      await api.deleteComment(spaceId, postId, commentId);
+      setComments((prev) => prev.filter((c) => c.id !== commentId));
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === postId
+            ? { ...p, commentCount: Math.max(0, p.commentCount - 1) }
+            : p,
+        ),
+      );
+    } catch (e) {
+      console.error("suppression du commentaire échouée", e);
+    }
+  };
+
   // Rafraîchit le fil ouvert (appelé par le WS sur un événement "comment") : on
   // refetch la tête (les plus récents) et on la fusionne avec les commentaires
   // plus anciens déjà chargés.
@@ -262,6 +293,8 @@ export function usePosts(spaceId: string) {
     openComments,
     closeComments,
     addComment,
+    editComment,
+    removeComment,
     loadMoreComments,
     refetchOpenComments,
   };

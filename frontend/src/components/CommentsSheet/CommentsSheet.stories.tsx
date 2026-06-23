@@ -11,6 +11,8 @@ const meta = {
     open: true,
     onClose: fn(),
     onAdd: fn(),
+    onEdit: fn(),
+    onDelete: fn(),
     comments: [
       {
         id: "1",
@@ -23,6 +25,8 @@ const meta = {
         authorName: "Toi",
         body: "Avec plaisir 😏",
         timeLabel: "à l'instant",
+        // Mon commentaire : menu ⋯ « Modifier / Supprimer ».
+        isMine: true,
       },
     ],
   },

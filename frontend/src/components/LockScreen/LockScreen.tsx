@@ -12,6 +12,10 @@ export interface LockScreenProps {
   onSubmit: (pin: string) => void;
   /** Affiche une action « Annuler » (flux des réglages, pas le verrou plein écran). */
   onCancel?: () => void;
+  /** Déverrouillage biométrique : affiche un bouton (FaceID/Touch ID/empreinte). */
+  onBiometric?: () => void;
+  /** Libellé du bouton biométrique. */
+  biometricLabel?: string;
   busy?: boolean;
   className?: string;
 }
@@ -29,6 +33,8 @@ export function LockScreen({
   pinLength = 4,
   onSubmit,
   onCancel,
+  onBiometric,
+  biometricLabel,
   busy = false,
   className,
 }: LockScreenProps) {
@@ -133,6 +139,20 @@ export function LockScreen({
           ⌫
         </button>
       </div>
+
+      {onBiometric && (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={onBiometric}
+          className="flex items-center gap-2 rounded-full px-4 py-2 text-sm text-taupe-200 transition-colors duration-200 ease-felt hover:text-blush-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500 disabled:opacity-50"
+        >
+          <span aria-hidden className="text-xl">
+            🔓
+          </span>
+          {biometricLabel ?? t("lock.biometric")}
+        </button>
+      )}
     </div>
   );
 }
