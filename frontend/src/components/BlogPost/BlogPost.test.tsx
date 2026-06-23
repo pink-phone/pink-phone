@@ -28,17 +28,13 @@ describe("BlogPost", () => {
     expect(screen.getByText("Camille")).toBeInTheDocument();
   });
 
-  it("brouillon : carte légèrement grisée (opacity), pas un post publié", () => {
+  it("brouillon : liseré pointillé « croquis », absent d'un post publié", () => {
     const { container, rerender } = render(
       <BlogPost {...base} body="x" draft />,
     );
-    expect((container.firstChild as HTMLElement).className).toContain(
-      "opacity-60",
-    );
+    expect(container.querySelector(".border-dashed")).not.toBeNull();
     rerender(<BlogPost {...base} body="x" />);
-    expect((container.firstChild as HTMLElement).className).not.toContain(
-      "opacity-60",
-    );
+    expect(container.querySelector(".border-dashed")).toBeNull();
   });
 
   it("« Vu » : caché sans seenBy, affiché dès qu'un membre a vu", () => {
