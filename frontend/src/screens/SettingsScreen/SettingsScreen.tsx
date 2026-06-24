@@ -162,6 +162,8 @@ export function SettingsScreen({
   const [bioSupported, setBioSupported] = useState(false);
   const [bioEnabled, setBioEnabled] = useState(isBiometricEnabled());
   const [bioBusy, setBioBusy] = useState(false);
+  // Échec d'enrôlement biométrie (annulé / refusé / WebAuthn KO) → feedback (UI2-11).
+  const [bioError, setBioError] = useState(false);
   useEffect(() => {
     let alive = true;
     isBiometricSupported().then((ok) => alive && setBioSupported(ok));
@@ -171,12 +173,15 @@ export function SettingsScreen({
   }, []);
   const toggleBiometric = async () => {
     setBioBusy(true);
+    setBioError(false);
     try {
       if (bioEnabled) {
         disableBiometric();
         setBioEnabled(false);
+      } else if (await enableBiometric()) {
+        setBioEnabled(true);
       } else {
-        if (await enableBiometric()) setBioEnabled(true);
+        setBioError(true);
       }
     } finally {
       setBioBusy(false);
@@ -281,7 +286,7 @@ export function SettingsScreen({
             type="button"
             onClick={onBack}
             aria-label={t("common.back")}
-            className="rounded-full px-2 py-1 text-taupe-300 transition-colors duration-300 ease-felt hover:text-blush-100"
+            className="flex h-11 w-11 items-center justify-center rounded-full text-taupe-300 transition-colors duration-300 ease-felt hover:text-blush-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
           >
             ←
           </button>
@@ -445,7 +450,7 @@ export function SettingsScreen({
           </h2>
 
           {spacesOpen && (
-            <Surface tone="velvet" className="animate-slide-up space-y-4">
+            <Surface tone="velvet" className="animate-slide-up motion-reduce:animate-none space-y-4">
               {/* Sélecteur : seulement utile à partir de 2 salons. */}
               {spaces.length >= 2 ? (
                 <div
@@ -814,6 +819,11 @@ export function SettingsScreen({
               >
                 {bioEnabled ? t("lock.bioDisable") : t("lock.bioEnable")}
               </Button>
+              {bioError && (
+                <p role="alert" className="text-xs text-spice-300">
+                  {t("lock.bioFailed")}
+                </p>
+              )}
             </div>
           )}
         </Surface>
@@ -831,11 +841,11 @@ export function SettingsScreen({
               <button
                 type="button"
                 onClick={onLogoutAll}
-                className="w-full text-center text-xs text-taupe-300 underline underline-offset-2 transition-colors duration-300 ease-felt hover:text-spice-300"
+                className="block w-full rounded-2xl px-4 py-2.5 text-center text-xs text-taupe-300 underline underline-offset-2 transition-colors duration-300 ease-felt hover:text-spice-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
               >
                 {t("settings.logoutAll")}
               </button>
-              <p className="text-center text-[11px] text-taupe-400">
+              <p className="text-center text-[11px] text-taupe-300">
                 {t("settings.logoutAllHint")}
               </p>
             </>
@@ -858,18 +868,29 @@ export function SettingsScreen({
             <p className="text-sm text-taupe-300">
               {t("lock.bioPromptSubtitle")}
             </p>
+            {bioError && (
+              <p role="alert" className="text-xs text-spice-300">
+                {t("lock.bioFailed")}
+              </p>
+            )}
             <div className="flex w-full flex-col gap-3">
               <Button
                 className="w-full"
                 loading={bioBusy}
                 onClick={async () => {
                   setBioBusy(true);
+                  setBioError(false);
                   try {
-                    if (await enableBiometric()) setBioEnabled(true);
+                    // Succès → on ferme ; échec → on garde l'étape + message (UI2-11).
+                    if (await enableBiometric()) {
+                      setBioEnabled(true);
+                      closePinFlow();
+                    } else {
+                      setBioError(true);
+                    }
                   } finally {
                     setBioBusy(false);
                   }
-                  closePinFlow();
                 }}
               >
                 {t("lock.bioPromptEnable")}

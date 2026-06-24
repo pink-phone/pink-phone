@@ -90,7 +90,7 @@ describe("CommentsSheet", () => {
     expect(submit).toBeDisabled();
   });
 
-  it("busy=true : bouton Envoyer désactivé", () => {
+  it("busy=true : bouton Envoyer désactivé (loading)", () => {
     render(
       <CommentsSheet
         {...base}
@@ -98,8 +98,9 @@ describe("CommentsSheet", () => {
         busy
       />,
     );
-    // Le bouton affiche "…" et est désactivé.
-    expect(screen.getByRole("button", { name: /…/ })).toBeDisabled();
+    // `loading` → spinner + aria-busy + désactivé (UI2-19).
+    const btn = screen.getByRole("button", { name: /envoyer/i });
+    expect(btn).toBeDisabled();
   });
 
   it("affiche la ligne « non lus » avant le premier commentaire non lu", () => {

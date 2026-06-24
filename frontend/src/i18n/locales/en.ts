@@ -95,6 +95,7 @@ export const en: Resources = {
     newComments_other: "{{count}} new comments",
     newChallenges_one: "{{count}} new dare",
     newChallenges_other: "{{count}} new dares",
+    noticesSection: "Space activity",
   },
   notice: {
     memberJoined: "{{name}} joined the space.",
@@ -326,6 +327,7 @@ export const en: Resources = {
     bioSettingOff: "Use FaceID / Touch ID / fingerprint instead of the code.",
     bioEnable: "Enable biometrics",
     bioDisable: "Disable biometrics",
+    bioFailed: "Couldn't enable biometrics. Try again.",
     bioPromptTitle: "Add biometric unlock?",
     bioPromptSubtitle:
       "Unlock with FaceID / Touch ID. The code stays as fallback if biometrics fail.",

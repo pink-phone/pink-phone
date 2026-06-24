@@ -1,4 +1,4 @@
-import { Fragment, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Sheet } from "../Sheet/Sheet";
 import { TextArea } from "../form/TextArea";
@@ -61,6 +61,7 @@ export function CommentsSheet({
   const [editDraft, setEditDraft] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
   const [editError, setEditError] = useState(false);
+  const editRef = useRef<HTMLTextAreaElement>(null);
 
   const submit = () => {
     const body = draft.trim();
@@ -73,6 +74,8 @@ export function CommentsSheet({
     setEditingId(c.id);
     setEditDraft(c.body);
     setEditError(false);
+    // Focus le champ d'édition une fois monté (UI2-10).
+    setTimeout(() => editRef.current?.focus(), 0);
   };
   const cancelEdit = () => {
     setEditingId(null);
@@ -142,7 +145,7 @@ export function CommentsSheet({
                     {c.authorName}
                   </span>
                   <div className="flex items-center gap-1">
-                    <span className="text-[11px] text-taupe-400">
+                    <span className="text-[11px] text-taupe-300">
                       {c.timeLabel}
                       {c.edited && ` · ${t("blog.edited")}`}
                     </span>
@@ -175,6 +178,7 @@ export function CommentsSheet({
                 {editingId === c.id ? (
                   <div className="mt-1 space-y-2">
                     <TextArea
+                      ref={editRef}
                       label={t("comments.editLabel")}
                       value={editDraft}
                       onChange={(e) => setEditDraft(e.target.value)}
@@ -234,9 +238,10 @@ export function CommentsSheet({
           <Button
             type="submit"
             className="w-full"
-            disabled={!draft.trim() || busy}
+            loading={busy}
+            disabled={!draft.trim()}
           >
-            {busy ? "…" : t("common.send")}
+            {t("common.send")}
           </Button>
         </form>
       </div>

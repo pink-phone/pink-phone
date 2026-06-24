@@ -205,7 +205,11 @@ export function DashboardScreen({
       )}
 
       {shownNotices.length > 0 && (
-        <section className="space-y-2">
+        <section
+          aria-label={t("dashboard.noticesSection")}
+          aria-live="polite"
+          className="space-y-2"
+        >
           {shownNotices.map((n) => {
             const meta = NOTICE_META[n.kind];
             return (
@@ -236,17 +240,20 @@ export function DashboardScreen({
           <div className="flex flex-wrap gap-2">
             {newPosts > 0 && (
               <NewsPill onClick={() => onOpen?.("blog")}>
-                📖 {t("dashboard.newPosts", { count: newPosts })}
+                <span aria-hidden>📖</span>{" "}
+                {t("dashboard.newPosts", { count: newPosts })}
               </NewsPill>
             )}
             {newComments > 0 && (
               <NewsPill onClick={() => onOpen?.("blog")}>
-                💬 {t("dashboard.newComments", { count: newComments })}
+                <span aria-hidden>💬</span>{" "}
+                {t("dashboard.newComments", { count: newComments })}
               </NewsPill>
             )}
             {newChallenges > 0 && (
               <NewsPill onClick={() => onOpen?.("challenges")}>
-                🎲 {t("dashboard.newChallenges", { count: newChallenges })}
+                <span aria-hidden>🎲</span>{" "}
+                {t("dashboard.newChallenges", { count: newChallenges })}
               </NewsPill>
             )}
           </div>

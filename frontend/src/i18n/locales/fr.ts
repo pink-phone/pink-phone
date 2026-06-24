@@ -95,6 +95,7 @@ export const fr = {
     newComments_other: "{{count}} nouveaux commentaires",
     newChallenges_one: "{{count}} nouveau défi",
     newChallenges_other: "{{count}} nouveaux défis",
+    noticesSection: "Activité du salon",
   },
   notice: {
     memberJoined: "{{name}} a rejoint le salon.",
@@ -326,6 +327,7 @@ export const fr = {
     bioSettingOff: "Utilise FaceID / Touch ID / empreinte au lieu du code.",
     bioEnable: "Activer la biométrie",
     bioDisable: "Désactiver la biométrie",
+    bioFailed: "Activation de la biométrie impossible. Réessaie.",
     bioPromptTitle: "Ajouter la biométrie ?",
     bioPromptSubtitle:
       "Déverrouillez avec FaceID / Touch ID. Le code reste le repli si elle échoue.",

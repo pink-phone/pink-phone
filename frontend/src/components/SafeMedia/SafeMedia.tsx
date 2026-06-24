@@ -274,7 +274,7 @@ export function SafeMedia({
           onClick={download}
           onPointerDown={(e) => e.stopPropagation()}
           aria-label={t("safeMedia.download")}
-          className="absolute bottom-2 right-2 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-charcoal-900/70 text-lg text-blush-100 shadow-felt-sm backdrop-blur-sm transition-colors duration-200 ease-felt hover:bg-charcoal-900/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+          className="absolute bottom-1.5 right-1.5 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-charcoal-900/70 text-lg text-blush-100 shadow-felt-sm backdrop-blur-sm transition-colors duration-200 ease-felt hover:bg-charcoal-900/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
         >
           ⤓
         </button>

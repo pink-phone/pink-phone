@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Surface } from "../Surface/Surface";
 import { Badge } from "../Badge/Badge";
@@ -90,6 +90,7 @@ export function BlogPost({
 }: BlogPostProps) {
   const { t } = useTranslation();
   const [seenOpen, setSeenOpen] = useState(false);
+  const seenPopupId = useId();
   return (
     <Surface
       tone="velvet"
@@ -209,11 +210,12 @@ export function BlogPost({
                 <button
                   type="button"
                   aria-expanded={seenOpen}
+                  aria-controls={seenPopupId}
                   aria-label={t("blog.seenByAria")}
                   onClick={() => setSeenOpen((o) => !o)}
-                  className="text-xs text-spice-300 transition-colors duration-300 ease-felt hover:text-spice-200"
+                  className="text-xs text-spice-300 transition-colors duration-300 ease-felt hover:text-blush-200"
                 >
-                  ✓✓ {t("blog.seenByPartner")}
+                  <span aria-hidden>✓✓</span> {t("blog.seenByPartner")}
                 </button>
                 {seenOpen && (
                   <>
@@ -225,14 +227,15 @@ export function BlogPost({
                       onClick={() => setSeenOpen(false)}
                       className="fixed inset-0 z-10 cursor-default"
                     />
-                    {/* Bulle informative non-modale (REACT2-08) : `tooltip`, pas
-                        `dialog` (qui impliquerait un modal + focus-trap). */}
+                    {/* Disclosure non-modale (UI2-06) : `region` nommée, reliée au
+                        déclencheur par aria-controls (pas un `tooltip`/`dialog`). */}
                     <div
-                      role="tooltip"
+                      id={seenPopupId}
+                      role="region"
                       aria-label={t("blog.seenByTitle")}
                       className="absolute bottom-full right-0 z-20 mb-1 min-w-[140px] rounded-2xl border border-charcoal-600/60 bg-charcoal-800 px-3 py-2 shadow-felt"
                     >
-                      <p className="mb-1 text-[11px] uppercase tracking-wide text-taupe-400">
+                      <p className="mb-1 text-[11px] uppercase tracking-wide text-taupe-300">
                         {t("blog.seenByTitle")}
                       </p>
                       <ul className="space-y-1">
@@ -242,7 +245,7 @@ export function BlogPost({
                             className="flex items-baseline justify-between gap-3 text-xs"
                           >
                             <span className="text-blush-100">{s.name}</span>
-                            <span className="text-taupe-400">{s.timeLabel}</span>
+                            <span className="text-taupe-300">{s.timeLabel}</span>
                           </li>
                         ))}
                       </ul>

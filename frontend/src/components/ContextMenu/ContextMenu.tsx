@@ -100,6 +100,13 @@ export function ContextMenu({ items, ariaLabel, className }: ContextMenuProps) {
 
   // Flèches ↑/↓ : navigation entre les items du menu.
   const onMenuKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    // Tab depuis un menu ouvert le referme (UI2-08) : pas de menu flottant
+    // pendant que le focus part ailleurs (le focus revient au déclencheur).
+    if (e.key === "Tab") {
+      e.preventDefault();
+      close();
+      return;
+    }
     if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
     e.preventDefault();
     const buttons = Array.from(
@@ -126,7 +133,7 @@ export function ContextMenu({ items, ariaLabel, className }: ContextMenuProps) {
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={toggle}
-        className="rounded-full px-2 py-1 text-base leading-none text-taupe-400 transition-colors duration-300 ease-felt hover:text-blush-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+        className="flex h-11 w-11 items-center justify-center rounded-full text-base leading-none text-taupe-400 transition-colors duration-300 ease-felt hover:text-blush-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
       >
         ⋯
       </button>
