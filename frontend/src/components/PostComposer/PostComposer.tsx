@@ -222,7 +222,7 @@ export function PostComposer({
             <button
               type="button"
               onClick={() => setRemoveMedia(false)}
-              className="underline underline-offset-2 hover:text-taupe-200"
+              className="rounded px-1 py-0.5 underline underline-offset-2 hover:text-taupe-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
             >
               {t("postComposer.undo")}
             </button>

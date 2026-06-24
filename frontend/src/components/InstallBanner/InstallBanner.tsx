@@ -23,7 +23,7 @@ export function InstallBanner({
       className={cn(
         // Posé AU-DESSUS de la BottomNav (≈ 3,5rem + safe-area) pour ne pas
         // masquer les onglets (UI-UX1). La nav gère déjà la safe-area iOS.
-        "fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-50 animate-slide-up px-3 pb-2",
+        "fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-50 animate-slide-up motion-reduce:animate-none px-3 pb-2",
         className,
       )}
     >

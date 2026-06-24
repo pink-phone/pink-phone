@@ -145,7 +145,7 @@ export function LockScreen({
           type="button"
           disabled={busy}
           onClick={onBiometric}
-          className="flex items-center gap-2 rounded-full px-4 py-2 text-sm text-taupe-200 transition-colors duration-200 ease-felt hover:text-blush-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500 disabled:opacity-50"
+          className="flex min-h-[44px] items-center gap-2 rounded-full px-4 py-3 text-sm text-taupe-200 transition-colors duration-200 ease-felt hover:text-blush-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500 disabled:opacity-50"
         >
           <span aria-hidden className="text-xl">
             🔓
