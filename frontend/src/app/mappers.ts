@@ -1,6 +1,6 @@
 import type { TFunction } from "i18next";
 import * as api from "../api/client";
-import type { ApiChallenge, ApiComment, ApiPost } from "../api/types";
+import type { ApiChallenge, ApiComment, ApiPost, Notice } from "../api/types";
 import type { ChallengeData, PostData } from "../types/view";
 import type { CommentView } from "../components/CommentsSheet/CommentsSheet";
 import { relativeTime } from "../lib/time";
@@ -92,6 +92,30 @@ export function toChallengeData(
     unread:
       c.proposerId !== userId && !!challSeenAt && c.createdAt > challSeenAt,
   }));
+}
+
+/** Vue-modèle d'une notice affichée au dashboard (#84/#85). */
+export interface NoticeView {
+  id: string;
+  kind: string;
+  actorName?: string;
+}
+
+/**
+ * Notices NON vues à afficher : plus récentes que mon « vu » figé à l'arrivée
+ * (`seenAt`). Sans snapshot (jamais vu) ⇒ toutes. `actorName` null → undefined.
+ */
+export function toDashboardNotices(
+  notices: Notice[],
+  seenAt?: string | null,
+): NoticeView[] {
+  return notices
+    .filter((n) => !seenAt || n.createdAt > seenAt)
+    .map((n) => ({
+      id: n.id,
+      kind: n.kind,
+      actorName: n.actorName ?? undefined,
+    }));
 }
 
 export function toCommentViews(

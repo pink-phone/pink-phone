@@ -43,7 +43,12 @@ import { usePosts } from "./hooks/usePosts";
 import { useChallenges } from "./hooks/useChallenges";
 import { useMoods } from "./hooks/useMoods";
 import { useSeen } from "./hooks/useSeen";
-import { toChallengeData, toCommentViews, toPostData } from "./mappers";
+import {
+  toChallengeData,
+  toCommentViews,
+  toDashboardNotices,
+  toPostData,
+} from "./mappers";
 
 /** L'app branchée sur un Space réel : charge et pilote les données via l'API. */
 export function SpaceApp({
@@ -362,9 +367,7 @@ export function SpaceApp({
   if (!ready) return <Splash message={t("splash.loadingSpace")} />;
 
   // Notices non vues (#84/#85) : plus récentes que mon « vu » figé à l'arrivée.
-  const dashboardNotices = notices
-    .filter((n) => !noticesSeenAt || n.createdAt > noticesSeenAt)
-    .map((n) => ({ id: n.id, kind: n.kind, actorName: n.actorName ?? undefined }));
+  const dashboardNotices = toDashboardNotices(notices, noticesSeenAt);
 
   const myMood = moods.find((m) => m.userId === user.id)?.status ?? null;
   // Carte météo de chaque autre membre. En « surprise mutuelle », tant que je
