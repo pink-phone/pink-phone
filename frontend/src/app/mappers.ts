@@ -108,5 +108,6 @@ export function toCommentViews(
     timeLabel: relativeTime(c.createdAt),
     isMine: c.authorId === userId,
     unread: c.authorId !== userId && !!seenAt && c.createdAt > seenAt,
+    edited: c.updatedAt > c.createdAt,
   }));
 }

@@ -14,6 +14,25 @@ use crate::pagination::{Page, PageParams};
 use crate::routes::ensure_member;
 use crate::state::{AppState, EventKind};
 
+// Bornes hautes des champs texte d'un défi (RR-02).
+const MAX_TITLE_LEN: usize = 200;
+const MAX_DESC_LEN: usize = 8 * 1024;
+
+/// Valide titre (requis, borné) + description (bornée) d'un défi.
+fn validate_challenge_text(title: &str, description: &str) -> ApiResult<()> {
+    let title = title.trim();
+    if title.is_empty() {
+        return Err(ApiError::BadRequest("titre requis".into()));
+    }
+    if title.len() > MAX_TITLE_LEN {
+        return Err(ApiError::BadRequest("titre trop long".into()));
+    }
+    if description.len() > MAX_DESC_LEN {
+        return Err(ApiError::BadRequest("description trop longue".into()));
+    }
+    Ok(())
+}
+
 pub fn router() -> Router<AppState> {
     Router::new()
         .route(
@@ -41,6 +60,17 @@ pub struct CreateChallengeBody {
     pub deadline_label: Option<String>,
     /// Suggestion de la banque dont ce défi est issu (#69), si proposé depuis elle.
     pub source_suggestion_id: Option<Uuid>,
+}
+
+/// Édition d'un défi (RR-06) : pas de `source_suggestion_id` (le lien à la banque
+/// est figé à la création).
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateChallengeBody {
+    pub title: String,
+    pub description: String,
+    pub intensity: String,
+    pub deadline_label: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -82,9 +112,7 @@ async fn create_challenge(
     Json(body): Json<CreateChallengeBody>,
 ) -> ApiResult<(StatusCode, Json<Challenge>)> {
     ensure_member(&state.pool, auth.user_id, space_id).await?;
-    if body.title.trim().is_empty() {
-        return Err(ApiError::BadRequest("titre requis".into()));
-    }
+    validate_challenge_text(&body.title, &body.description)?;
     if !INTENSITIES.contains(&body.intensity.as_str()) {
         return Err(ApiError::BadRequest("intensité inconnue".into()));
     }
@@ -189,12 +217,10 @@ async fn update_challenge(
     State(state): State<AppState>,
     auth: AuthUser,
     Path((space_id, challenge_id)): Path<(Uuid, Uuid)>,
-    Json(body): Json<CreateChallengeBody>,
+    Json(body): Json<UpdateChallengeBody>,
 ) -> ApiResult<Json<Challenge>> {
     ensure_member(&state.pool, auth.user_id, space_id).await?;
-    if body.title.trim().is_empty() {
-        return Err(ApiError::BadRequest("titre requis".into()));
-    }
+    validate_challenge_text(&body.title, &body.description)?;
     if !INTENSITIES.contains(&body.intensity.as_str()) {
         return Err(ApiError::BadRequest("intensité inconnue".into()));
     }

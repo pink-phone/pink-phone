@@ -209,9 +209,25 @@ async fn clear_verdict(
 
 // ---------- Commentaires ----------
 
+/// Borne haute du corps d'un commentaire (RR-02) : le seul plafond sinon est le
+/// `DefaultBodyLimit` global (100 Mo).
+const MAX_COMMENT_LEN: usize = 8 * 1024;
+
 #[derive(Deserialize)]
 pub struct CommentBody {
     pub body: String,
+}
+
+/// Valide un corps de commentaire : non vide après trim, et borné.
+fn validate_comment(body: &str) -> ApiResult<()> {
+    let trimmed = body.trim();
+    if trimmed.is_empty() {
+        return Err(ApiError::BadRequest("commentaire vide".into()));
+    }
+    if trimmed.len() > MAX_COMMENT_LEN {
+        return Err(ApiError::BadRequest("commentaire trop long".into()));
+    }
+    Ok(())
 }
 
 async fn list_comments(
@@ -226,7 +242,7 @@ async fn list_comments(
     // par défaut renvoie les derniers commentaires, et « charger plus ancien »
     // remonte le fil. Le client réordonne en chronologique pour l'affichage.
     let comments: Vec<Comment> = sqlx::query_as(
-        "SELECT c.id, c.author_id, u.display_name AS author_name, c.body, c.created_at
+        "SELECT c.id, c.author_id, u.display_name AS author_name, c.body, c.created_at, c.updated_at
          FROM post_comments c
          JOIN users u ON u.id = c.author_id
          WHERE c.post_id = $1
@@ -249,16 +265,14 @@ async fn add_comment(
     Json(body): Json<CommentBody>,
 ) -> ApiResult<(StatusCode, Json<Comment>)> {
     guard(&state.pool, auth.user_id, space_id, post_id).await?;
-    if body.body.trim().is_empty() {
-        return Err(ApiError::BadRequest("commentaire vide".into()));
-    }
+    validate_comment(&body.body)?;
     let comment: Comment = sqlx::query_as(
         "WITH inserted AS (
              INSERT INTO post_comments (post_id, author_id, body)
              VALUES ($1, $2, $3)
-             RETURNING id, author_id, body, created_at
+             RETURNING id, author_id, body, created_at, updated_at
          )
-         SELECT i.id, i.author_id, u.display_name AS author_name, i.body, i.created_at
+         SELECT i.id, i.author_id, u.display_name AS author_name, i.body, i.created_at, i.updated_at
          FROM inserted i JOIN users u ON u.id = i.author_id",
     )
     .bind(post_id)
@@ -287,19 +301,17 @@ async fn update_comment(
     Json(body): Json<CommentBody>,
 ) -> ApiResult<Json<Comment>> {
     guard(&state.pool, auth.user_id, space_id, post_id).await?;
-    if body.body.trim().is_empty() {
-        return Err(ApiError::BadRequest("commentaire vide".into()));
-    }
+    validate_comment(&body.body)?;
     // L'UPDATE filtre sur post_id ET author_id : 0 ligne ⇒ inexistant ou pas le
     // sien (on ne distingue pas → NotFound, comme delete_post).
     let comment: Option<Comment> = sqlx::query_as(
         "WITH updated AS (
              UPDATE post_comments
-             SET body = $1
+             SET body = $1, updated_at = now()
              WHERE id = $2 AND post_id = $3 AND author_id = $4
-             RETURNING id, author_id, body, created_at
+             RETURNING id, author_id, body, created_at, updated_at
          )
-         SELECT u2.id, u2.author_id, usr.display_name AS author_name, u2.body, u2.created_at
+         SELECT u2.id, u2.author_id, usr.display_name AS author_name, u2.body, u2.created_at, u2.updated_at
          FROM updated u2 JOIN users usr ON usr.id = u2.author_id",
     )
     .bind(body.body.trim())
