@@ -38,6 +38,8 @@ export interface PostData {
   seenBy?: { name: string; timeLabel: string }[];
   /** Post de l'autre, créé depuis mon dernier passage : pilote la ligne « non lus ». */
   unread?: boolean;
+  /** Le post a des commentaires non lus (de l'autre) depuis mon passage (#81). */
+  hasUnreadComments?: boolean;
 }
 
 export interface ChallengeData {

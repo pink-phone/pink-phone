@@ -79,8 +79,12 @@ export function CommentsSheet({
     cancelEdit();
   };
 
-  // Index du premier commentaire non lu (les non-lus sont en bas du fil chrono).
-  const firstUnread = comments.findIndex((c) => c.unread);
+  // Fil du plus récent au plus ancien (#80) : les non-lus sont en HAUT. La ligne
+  // « non lus » se pose sous le dernier non lu (frontière avec le déjà-vu).
+  let lastUnread = -1;
+  comments.forEach((c, i) => {
+    if (c.unread) lastUnread = i;
+  });
 
   return (
     <Sheet open={open} title={t("comments.sheetTitle")} onClose={onClose}>
@@ -95,28 +99,8 @@ export function CommentsSheet({
           </p>
         ) : (
           <ul className="space-y-3">
-            {hasMore && (
-              <li className="flex">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="mx-auto"
-                  disabled={loadingMore}
-                  onClick={onLoadMore}
-                >
-                  {loadingMore ? t("common.loading") : t("comments.loadOlder")}
-                </Button>
-              </li>
-            )}
             {comments.map((c, i) => (
               <Fragment key={c.id}>
-                {/* Fil chronologique : les non-lus sont en bas. La ligne « non
-                    lus » se pose juste AVANT le premier commentaire non lu. */}
-                {i === firstUnread && (
-                  <li>
-                    <UnreadDivider label={t("common.unread")} />
-                  </li>
-                )}
               <li
                 className="rounded-2xl bg-charcoal-900/40 px-3 py-2"
               >
@@ -181,8 +165,27 @@ export function CommentsSheet({
                   </p>
                 )}
               </li>
+                {/* Newest-first : ligne « non lus » sous le dernier non lu. */}
+                {i === lastUnread && (
+                  <li>
+                    <UnreadDivider label={t("common.unread")} />
+                  </li>
+                )}
               </Fragment>
             ))}
+            {hasMore && (
+              <li className="flex">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="mx-auto"
+                  disabled={loadingMore}
+                  onClick={onLoadMore}
+                >
+                  {loadingMore ? t("common.loading") : t("comments.loadOlder")}
+                </Button>
+              </li>
+            )}
           </ul>
         )}
 

@@ -153,6 +153,29 @@ describe("toPostData", () => {
       })[0].unread,
     ).toBe(false);
   });
+
+  it("hasUnreadComments: lastCommentAt postérieur à mon snapshot (#81)", () => {
+    const blogSeenAt = "2026-06-20T12:00:00.000Z";
+    const opts = { t, spaceId: "s1", userId: "me", blogSeenAt };
+    // Dernier commentaire d'autrui après mon passage → non lu
+    expect(
+      toPostData(
+        [post({ lastCommentAt: "2026-06-20T13:00:00.000Z" })],
+        opts,
+      )[0].hasUnreadComments,
+    ).toBe(true);
+    // Avant mon passage → lu
+    expect(
+      toPostData(
+        [post({ lastCommentAt: "2026-06-20T11:00:00.000Z" })],
+        opts,
+      )[0].hasUnreadComments,
+    ).toBe(false);
+    // Aucun commentaire → faux
+    expect(
+      toPostData([post({ lastCommentAt: null })], opts)[0].hasUnreadComments,
+    ).toBe(false);
+  });
 });
 
 describe("toChallengeData", () => {
