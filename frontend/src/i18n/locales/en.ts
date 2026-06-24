@@ -245,6 +245,7 @@ export const en: Resources = {
     loadOlder: "Older messages",
     actions: "Comment actions",
     editLabel: "Edit your comment",
+    editFailed: "Couldn't save. Try again.",
     confirmDelete: "Delete this comment?",
   },
   settings: {

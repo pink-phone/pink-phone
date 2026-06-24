@@ -225,8 +225,10 @@ export function BlogPost({
                       onClick={() => setSeenOpen(false)}
                       className="fixed inset-0 z-10 cursor-default"
                     />
+                    {/* Bulle informative non-modale (REACT2-08) : `tooltip`, pas
+                        `dialog` (qui impliquerait un modal + focus-trap). */}
                     <div
-                      role="dialog"
+                      role="tooltip"
                       aria-label={t("blog.seenByTitle")}
                       className="absolute bottom-full right-0 z-20 mb-1 min-w-[140px] rounded-2xl border border-charcoal-600/60 bg-charcoal-800 px-3 py-2 shadow-felt"
                     >

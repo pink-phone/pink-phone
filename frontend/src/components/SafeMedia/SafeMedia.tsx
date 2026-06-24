@@ -67,10 +67,15 @@ export function SafeMedia({
   const hasRevealedOnce = useRef(false);
   const objectUrl = useRef<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  // Démontage : pour révoquer une object URL qui résoudrait APRÈS (REACT2-04).
+  const mounted = useRef(true);
+  // Garde anti-concurrence du téléchargement (REACT2-03).
+  const downloading = useRef(false);
 
   // Révoque l'object URL chargé paresseusement au démontage.
   useEffect(
     () => () => {
+      mounted.current = false;
       if (objectUrl.current) URL.revokeObjectURL(objectUrl.current);
     },
     [],
@@ -128,15 +133,28 @@ export function SafeMedia({
     async (e: MouseEvent) => {
       e.stopPropagation();
       e.preventDefault();
-      let url = resolvedSrc;
+      // Anti-concurrence (REACT2-03) : pas de 2e loader() en parallèle (double-clic
+      // ou reveal en vol) qui écraserait l'object URL sans le révoquer.
+      if (downloading.current) return;
+      // Réutilise l'URL déjà chargée (état ou ref) avant de rappeler loader().
+      let url = resolvedSrc ?? objectUrl.current;
       if (!url && loader) {
+        downloading.current = true;
         try {
           url = await loader();
+          // Démonté pendant le chargement (REACT2-04) : révoquer ici, sinon le
+          // cleanup (déjà passé) ne révoquera jamais cette URL.
+          if (!mounted.current) {
+            URL.revokeObjectURL(url);
+            return;
+          }
           objectUrl.current = url;
           setResolvedSrc(url);
         } catch {
-          setFailed(true);
+          if (mounted.current) setFailed(true);
           return;
+        } finally {
+          downloading.current = false;
         }
       }
       if (!url) return;

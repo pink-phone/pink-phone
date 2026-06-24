@@ -70,11 +70,16 @@ describe("appendOlder", () => {
 });
 
 describe("mergeHead — cas limite au curseur", () => {
-  it("élément de prev au même createdAt que le curseur mais absent de head est retiré", () => {
-    // b a le même timestamp que c (= cutoff "3") mais n'est pas dans head :
-    // la règle est createdAt < cutoff, donc b n'est PAS conservé dans older.
-    // Comportement attendu (sémantique du curseur API).
+  it("élément de prev au même createdAt que le curseur mais absent de head est CONSERVÉ (REACT2-11)", () => {
+    // b a le même timestamp que c (= cutoff "3") mais n'est pas dans head : avec
+    // le `<=` + exclusion par id, b est conservé (un `<` strict l'aurait perdu).
     const prev = [item("c", "3"), item("b", "3"), item("a", "1")];
+    const head = [item("c", "3")];
+    expect(mergeHead(head, prev).map((x) => x.id)).toEqual(["c", "b", "a"]);
+  });
+
+  it("un élément de prev déjà dans head n'est pas dupliqué (exclusion par id)", () => {
+    const prev = [item("c", "3"), item("a", "1")];
     const head = [item("c", "3")];
     expect(mergeHead(head, prev).map((x) => x.id)).toEqual(["c", "a"]);
   });
