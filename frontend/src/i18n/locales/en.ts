@@ -96,6 +96,10 @@ export const en: Resources = {
     newChallenges_one: "{{count}} new dare",
     newChallenges_other: "{{count}} new dares",
   },
+  notice: {
+    memberJoined: "{{name}} joined the space.",
+    downloadEnabled: "{{name}} enabled media downloads.",
+  },
   moods: {
     aria: "My mood right now",
     calm: "Calm",

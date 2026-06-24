@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import * as api from "../../api/client";
 import type { SeenEntry } from "../../api/types";
 
-export type SeenFeature = "blog" | "challenges";
+export type SeenFeature = "blog" | "challenges" | "notices";
 
 /**
  * État « vu » du salon (badges nouveautés + accusés de lecture). `refetch` est

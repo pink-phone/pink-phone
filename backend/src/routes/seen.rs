@@ -9,7 +9,7 @@ use crate::models::SeenEntry;
 use crate::routes::ensure_member;
 use crate::state::{AppState, EventKind};
 
-const FEATURES: [&str; 2] = ["blog", "challenges"];
+const FEATURES: [&str; 3] = ["blog", "challenges", "notices"];
 
 pub fn router() -> Router<AppState> {
     Router::new()

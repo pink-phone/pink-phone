@@ -43,6 +43,8 @@ export interface DashboardScreenProps {
   newChallenges?: number;
   /** Ouvre un fil depuis le dashboard (au clic sur une pastille de nouveauté). */
   onOpen?: (tab: "blog" | "challenges") => void;
+  /** Notices du salon non vues (#84/#85) — déjà filtrées par l'orchestration. */
+  notices?: { id: string; kind: string; actorName?: string }[];
 }
 
 /** Une "vignette météo" pour l'humeur d'une personne (ou son absence). */
@@ -128,8 +130,15 @@ export function DashboardScreen({
   newComments = 0,
   newChallenges = 0,
   onOpen,
+  notices = [],
 }: DashboardScreenProps) {
   const { t } = useTranslation();
+  // Notices connues (kind → message + icône) ; les inconnues sont ignorées.
+  const NOTICE_META: Record<string, { icon: string; key: string }> = {
+    member_joined: { icon: "👋", key: "notice.memberJoined" },
+    download_enabled: { icon: "⬇️", key: "notice.downloadEnabled" },
+  };
+  const shownNotices = notices.filter((n) => NOTICE_META[n.kind]);
   // Couple (1 autre) vs groupe (≥ 2 autres) : seule la formulation « partagée »
   // change à partir de 3 personnes — le couple garde le wording d'origine (#52).
   const isGroup = partners.length >= 2;
@@ -193,6 +202,30 @@ export function DashboardScreen({
             )
           )}
         </Surface>
+      )}
+
+      {shownNotices.length > 0 && (
+        <section className="space-y-2">
+          {shownNotices.map((n) => {
+            const meta = NOTICE_META[n.kind];
+            return (
+              <Surface
+                key={n.id}
+                tone="velvet"
+                className="flex items-center gap-3 px-3 py-2"
+              >
+                <span aria-hidden className="text-xl">
+                  {meta.icon}
+                </span>
+                <p className="text-sm text-taupe-200">
+                  {t(meta.key as "notice.memberJoined", {
+                    name: n.actorName ?? "?",
+                  })}
+                </p>
+              </Surface>
+            );
+          })}
+        </section>
       )}
 
       {(newPosts > 0 || newComments > 0 || newChallenges > 0) && (

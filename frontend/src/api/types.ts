@@ -117,8 +117,18 @@ export interface ApiChallenge {
 
 export interface SeenEntry {
   userId: string;
-  feature: string; // 'blog' | 'challenges'
+  feature: string; // 'blog' | 'challenges' | 'notices'
   seenAt: string;
+}
+
+/** Notice de salon affichée sur le dashboard (#84/#85). */
+export interface Notice {
+  id: string;
+  /** 'member_joined' | 'download_enabled'. */
+  kind: string;
+  actorId: string | null;
+  actorName: string | null;
+  createdAt: string;
 }
 
 export interface ChallengeSuggestion {

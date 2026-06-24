@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import * as api from "../api/client";
 import { confirmAction } from "../lib/confirm";
@@ -6,6 +6,7 @@ import type {
   ApiChallenge,
   ApiPost,
   Member,
+  Notice,
   NotifMode,
   Space,
   UserPublic,
@@ -116,6 +117,20 @@ export function SpaceApp({
   } = useMoods(space.id, user.id, space.blindMood);
   const { seen, refetch: refetchSeen, markSeen } = useSeen(space.id, user.id);
 
+  // Notices de salon (#84/#85) : petits messages affichés au dashboard. `refetch`
+  // stable (déps `[space.id]`) pour être appelé depuis le WS / la resync.
+  const [notices, setNotices] = useState<Notice[]>([]);
+  const refetchNotices = useCallback(() => {
+    api
+      .listNotices(space.id)
+      .then(setNotices)
+      .catch(() => {});
+  }, [space.id]);
+  // « Vu » des notices figé à l'arrivée : les notices plus récentes s'affichent
+  // toute la session, même après markSeen (disparaissent au prochain lancement).
+  const [noticesSeenAt, setNoticesSeenAt] = useState<string | null>(null);
+  const noticesSnapped = useRef(false);
+
   // Banque de propositions : domaine autonome, extrait dans son propre hook.
   const {
     suggestions,
@@ -188,6 +203,19 @@ export function SpaceApp({
     }
   }, [tab, ready, markSeen, user.id]);
 
+  // Notices : on fige le « vu » UNE fois prêt (le dashboard est l'écran d'entrée)
+  // puis on marque vu. Les notices arrivées depuis restent affichées la session.
+  useEffect(() => {
+    if (!ready || noticesSnapped.current) return;
+    noticesSnapped.current = true;
+    setNoticesSeenAt(
+      seenRef.current.find(
+        (s) => s.userId === user.id && s.feature === "notices",
+      )?.seenAt ?? null,
+    );
+    markSeen("notices");
+  }, [ready, markSeen, user.id]);
+
   // Chargement initial groupé : membres + réglages (locaux à SpaceApp) et les
   // refetch des domaines. `ready` bascule quand tout est settled (les refetch
   // avalent leurs erreurs → un domaine en échec ne bloque pas les autres).
@@ -204,6 +232,7 @@ export function SpaceApp({
       refetchPosts(),
       refetchChallenges(),
       refetchSeen(),
+      refetchNotices(),
       api
         .getSettings()
         .then((s) => {
@@ -216,7 +245,14 @@ export function SpaceApp({
     return () => {
       alive = false;
     };
-  }, [space.id, refetchMoods, refetchPosts, refetchChallenges, refetchSeen]);
+  }, [
+    space.id,
+    refetchMoods,
+    refetchPosts,
+    refetchChallenges,
+    refetchSeen,
+    refetchNotices,
+  ]);
 
   // Applique la préférence "effet braise" globalement (classe sur <html>) + persiste.
   useEffect(() => {
@@ -248,6 +284,8 @@ export function SpaceApp({
           if (s) setSpace(s);
         })
         .catch(() => {});
+      // Jointure d'un membre / activation du download → notice (#84/#85).
+      refetchNotices();
     }
   });
 
@@ -260,6 +298,7 @@ export function SpaceApp({
       refetchChallenges();
       refetchMoods();
       refetchSeen();
+      refetchNotices();
     };
     document.addEventListener("visibilitychange", resync);
     window.addEventListener("focus", resync);
@@ -267,7 +306,7 @@ export function SpaceApp({
       document.removeEventListener("visibilitychange", resync);
       window.removeEventListener("focus", resync);
     };
-  }, [refetchPosts, refetchChallenges, refetchMoods, refetchSeen]);
+  }, [refetchPosts, refetchChallenges, refetchMoods, refetchSeen, refetchNotices]);
 
   // Retour Android / swipe iOS ferment la surface ouverte (au lieu de quitter).
   useBackClose(showSettings, () => setShowSettings(false));
@@ -321,6 +360,11 @@ export function SpaceApp({
   );
 
   if (!ready) return <Splash message={t("splash.loadingSpace")} />;
+
+  // Notices non vues (#84/#85) : plus récentes que mon « vu » figé à l'arrivée.
+  const dashboardNotices = notices
+    .filter((n) => !noticesSeenAt || n.createdAt > noticesSeenAt)
+    .map((n) => ({ id: n.id, kind: n.kind, actorName: n.actorName ?? undefined }));
 
   const myMood = moods.find((m) => m.userId === user.id)?.status ?? null;
   // Carte météo de chaque autre membre. En « surprise mutuelle », tant que je
@@ -556,6 +600,7 @@ export function SpaceApp({
           newPosts={newPosts}
           newComments={newComments}
           newChallenges={newChallenges}
+          notices={dashboardNotices}
           onOpen={setTab}
         />
       )}

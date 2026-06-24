@@ -48,6 +48,24 @@ describe("DashboardScreen — wording couple vs groupe (#52)", () => {
     expect(screen.getByText("Alex")).toBeInTheDocument();
   });
 
+  it("notices (#84/#85) : affiche les messages connus, ignore les kinds inconnus", () => {
+    render(
+      <DashboardScreen
+        {...base}
+        partners={[partner("p1", "Camille")]}
+        notices={[
+          { id: "1", kind: "member_joined", actorName: "Camille" },
+          { id: "2", kind: "download_enabled", actorName: "Alex" },
+          { id: "3", kind: "unknown_kind", actorName: "X" },
+        ]}
+      />,
+    );
+    expect(screen.getByText(/Camille a rejoint le salon/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Alex a activé le téléchargement/i),
+    ).toBeInTheDocument();
+  });
+
   it("seul (0 autre) : bloc d'invitation, pas de formulation « partagée »", () => {
     render(
       <DashboardScreen
