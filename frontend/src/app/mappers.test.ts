@@ -241,6 +241,7 @@ describe("toCommentViews", () => {
         authorName: "Sam",
         body: "joli",
         createdAt: "2026-06-20T10:00:00.000Z",
+        updatedAt: "2026-06-20T10:00:00.000Z",
       },
     ];
     const [vm] = toCommentViews(comments);
@@ -255,6 +256,7 @@ describe("toCommentViews", () => {
       authorName: "Sam",
       body: "x",
       createdAt: "2026-06-20T13:00:00.000Z",
+      updatedAt: "2026-06-20T13:00:00.000Z",
       ...o,
     });
     const seen = "2026-06-20T12:00:00.000Z";
@@ -277,6 +279,23 @@ describe("toCommentViews", () => {
     ).toBe(false);
     // Pas de snapshot → pas de ligne
     expect(toCommentViews([c({})], "me")[0].unread).toBe(false);
+  });
+
+  it("edited: vrai si updatedAt > createdAt (RR-04)", () => {
+    const base = {
+      id: "k",
+      authorId: "u2",
+      authorName: "Sam",
+      body: "x",
+      createdAt: "2026-06-20T10:00:00.000Z",
+    };
+    expect(
+      toCommentViews([{ ...base, updatedAt: base.createdAt }])[0].edited,
+    ).toBe(false);
+    expect(
+      toCommentViews([{ ...base, updatedAt: "2026-06-20T11:00:00.000Z" }])[0]
+        .edited,
+    ).toBe(true);
   });
 });
 

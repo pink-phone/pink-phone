@@ -15,6 +15,8 @@ export interface CommentView {
   isMine?: boolean;
   /** Commentaire de l'autre, arrivé depuis mon dernier passage : pilote la ligne « non lus ». */
   unread?: boolean;
+  /** Commentaire édité après coup (RR-04) → mention « · modifié ». */
+  edited?: boolean;
 }
 
 export interface CommentsSheetProps {
@@ -128,6 +130,7 @@ export function CommentsSheet({
                   <div className="flex items-center gap-1">
                     <span className="text-[11px] text-taupe-400">
                       {c.timeLabel}
+                      {c.edited && ` · ${t("blog.edited")}`}
                     </span>
                     {c.isMine && (onEdit || onDelete) && editingId !== c.id && (
                       <ContextMenu

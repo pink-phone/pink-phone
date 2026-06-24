@@ -215,6 +215,7 @@ describe("usePosts", () => {
       authorName: "Moi",
       body: "joli",
       createdAt: "t",
+      updatedAt: "t",
     });
     const { result } = renderHook(() => usePosts("s1"));
     await act(async () => {
@@ -262,6 +263,7 @@ describe("usePosts — pagination et mutations complémentaires", () => {
     authorName: "A",
     body: `msg-${id}`,
     createdAt,
+    updatedAt: createdAt,
   });
 
   it("loadMore appelle listPosts avec le curseur du dernier post et met à jour postsHasMore", async () => {

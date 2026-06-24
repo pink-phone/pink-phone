@@ -248,6 +248,14 @@ async fn stream(
 ) -> ApiResult<Response> {
     ensure_member(&state.pool, auth.user_id, space_id).await?;
 
+    // NB (RR-01) : `posts.allow_download` (#78) n'est PAS appliqué ici, et c'est
+    // volontaire — c'est un *hint de présentation* (cacher le bouton ⤓ côté
+    // client), pas une barrière d'accès. Cette route sert AUSSI l'affichage
+    // flouté (press-and-hold) : la cloisonner sur `allow_download` casserait la
+    // simple visualisation. Et tout média qu'on peut afficher reste « enregistrable »
+    // (capture d'écran a minima) → la prévention de download est par nature douce,
+    // comme le flou. La vraie barrière reste l'auth (`ensure_member`) + `view_once`.
+
     let media: Option<Media> = sqlx::query_as(
         "SELECT id, storage_key, mime, view_once, consumed, encrypted
          FROM media WHERE id = $1 AND space_id = $2",

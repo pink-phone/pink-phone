@@ -26,6 +26,21 @@ pub fn router() -> Router<AppState> {
         )
 }
 
+// Bornes hautes des champs texte (RR-02) — seul plafond sinon = body limit 100 Mo.
+const MAX_TITLE_LEN: usize = 200;
+const MAX_BODY_LEN: usize = 64 * 1024;
+
+/// Valide titre + récit d'un post (longueurs). Le « vide vs média » est géré à part.
+fn validate_post_text(title: Option<&str>, body: &str) -> ApiResult<()> {
+    if title.map(str::trim).map(str::len).unwrap_or(0) > MAX_TITLE_LEN {
+        return Err(ApiError::BadRequest("titre trop long".into()));
+    }
+    if body.len() > MAX_BODY_LEN {
+        return Err(ApiError::BadRequest("récit trop long".into()));
+    }
+    Ok(())
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CreatePostBody {
@@ -217,6 +232,7 @@ async fn create_post(
     Json(body): Json<CreatePostBody>,
 ) -> ApiResult<(StatusCode, Json<Post>)> {
     ensure_member(&state.pool, auth.user_id, space_id).await?;
+    validate_post_text(body.title.as_deref(), &body.body)?;
     // Un post peut être un simple média : on exige un récit OU un média.
     if body.body.trim().is_empty() && body.media_id.is_none() {
         return Err(ApiError::BadRequest(
@@ -238,19 +254,13 @@ async fn create_post(
         }
     }
 
-    // Téléchargeable : valeur explicite du post sinon le défaut du salon (#78).
-    let allow_download = match body.allow_download {
-        Some(v) => v,
-        None => sqlx::query_scalar("SELECT allow_media_download FROM spaces WHERE id = $1")
-            .bind(space_id)
-            .fetch_one(&state.pool)
-            .await?,
-    };
-
     let row: PostRow = sqlx::query_as(
+        // Téléchargeable : valeur explicite du post sinon le défaut du salon
+        // (#78), résolu en sous-requête plutôt qu'un SELECT séparé (RR-07).
         "WITH inserted AS (
              INSERT INTO posts (space_id, author_id, title, body, media_id, draft, allow_download)
-             VALUES ($1, $2, $3, $4, $5, $6, $7)
+             VALUES ($1, $2, $3, $4, $5, $6,
+                     COALESCE($7, (SELECT allow_media_download FROM spaces WHERE id = $1)))
              RETURNING id, author_id, title, body, media_id, draft, allow_download, created_at, updated_at
          )
          SELECT i.id, i.author_id, u.display_name AS author_name,
@@ -267,7 +277,7 @@ async fn create_post(
     .bind(body.body.trim())
     .bind(body.media_id)
     .bind(body.draft)
-    .bind(allow_download)
+    .bind(body.allow_download)
     .fetch_one(&state.pool)
     .await?;
 
@@ -306,9 +316,12 @@ async fn delete_post(
         return Err(ApiError::Forbidden);
     }
 
-    sqlx::query("DELETE FROM posts WHERE id = $1 AND space_id = $2")
+    // `author_id` dans le WHERE (RR-03) : suppression atomique avec la garde de
+    // propriété (calqué sur delete_comment), pas seulement le check Rust ci-dessus.
+    sqlx::query("DELETE FROM posts WHERE id = $1 AND space_id = $2 AND author_id = $3")
         .bind(post_id)
         .bind(space_id)
+        .bind(auth.user_id)
         .execute(&state.pool)
         .await?;
 
@@ -367,6 +380,7 @@ async fn update_post(
         Some(b) => b.trim().to_string(),
         None => cur_body,
     };
+    validate_post_text(new_title.as_deref(), &new_body)?;
 
     // Média : retrait explicite, remplacement, ou inchangé.
     let new_media = if body.clear_media {
@@ -416,7 +430,7 @@ async fn update_post(
                               allow_download = COALESCE($9, allow_download),
                               created_at = CASE WHEN $8 THEN now() ELSE created_at END,
                               updated_at = CASE WHEN ($7 OR $8) THEN now() ELSE updated_at END
-             WHERE id = $1 AND space_id = $2
+             WHERE id = $1 AND space_id = $2 AND author_id = $10
              RETURNING id, author_id, title, body, media_id, draft, allow_download, created_at, updated_at
          )
          SELECT up.id, up.author_id, u.display_name AS author_name,
@@ -436,6 +450,7 @@ async fn update_post(
     .bind(content_changed)
     .bind(publishing)
     .bind(body.allow_download)
+    .bind(auth.user_id)
     .fetch_one(&state.pool)
     .await?;
 

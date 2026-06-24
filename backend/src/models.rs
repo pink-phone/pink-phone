@@ -145,6 +145,8 @@ pub struct Comment {
     pub author_name: String,
     pub body: String,
     pub created_at: DateTime<Utc>,
+    /// Dernière édition (= created_at si jamais édité) — RR-04.
+    pub updated_at: DateTime<Utc>,
 }
 
 // ---------- Challenges ----------

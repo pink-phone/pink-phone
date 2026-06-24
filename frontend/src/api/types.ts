@@ -101,6 +101,8 @@ export interface ApiComment {
   authorName: string;
   body: string;
   createdAt: string;
+  /** Dernière édition (= createdAt si jamais édité) — RR-04. */
+  updatedAt: string;
 }
 
 export interface ApiChallenge {
