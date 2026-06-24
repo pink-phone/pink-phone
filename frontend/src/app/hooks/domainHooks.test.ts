@@ -276,18 +276,18 @@ describe("usePosts — pagination et mutations complémentaires", () => {
     expect(result.current.postsHasMore).toBe(false);
   });
 
-  it("openComments garde l'ordre newest-first de l'API (#80)", async () => {
+  it("openComments réordonne l'API (DESC) en chronologique (oldest-first)", async () => {
     a.listComments.mockResolvedValue({
       items: [cmt("c3", "t3"), cmt("c2", "t2"), cmt("c1", "t1")],
       hasMore: false,
     });
     const { result } = renderHook(() => usePosts("s1"));
     await act(async () => { await result.current.openComments("p1"); });
-    expect(result.current.comments.map((c) => c.id)).toEqual(["c3", "c2", "c1"]);
+    expect(result.current.comments.map((c) => c.id)).toEqual(["c1", "c2", "c3"]);
     expect(result.current.commentsHasMore).toBe(false);
   });
 
-  it("loadMoreComments ajoute les plus anciens en queue et met à jour commentsHasMore (#80)", async () => {
+  it("loadMoreComments préfixe les plus anciens et met à jour commentsHasMore", async () => {
     a.listComments
       .mockResolvedValueOnce({
         items: [cmt("c3", "t3"), cmt("c2", "t2")],
@@ -299,10 +299,10 @@ describe("usePosts — pagination et mutations complémentaires", () => {
       });
     const { result } = renderHook(() => usePosts("s1"));
     await act(async () => { await result.current.openComments("p1"); });
-    // newest-first: [c3, c2]. Le plus ancien affiché = c2 ("t2").
+    // Chronologique après reverse: [c2, c3]. Le plus ancien affiché = c2 ("t2").
     await act(async () => { await result.current.loadMoreComments(); });
     expect(a.listComments).toHaveBeenNthCalledWith(2, "s1", "p1", "t2");
-    expect(result.current.comments.map((c) => c.id)).toEqual(["c3", "c2", "c1"]);
+    expect(result.current.comments.map((c) => c.id)).toEqual(["c1", "c2", "c3"]);
     expect(result.current.commentsHasMore).toBe(false);
   });
 

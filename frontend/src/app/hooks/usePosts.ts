@@ -3,7 +3,7 @@ import * as api from "../../api/client";
 import type { ApiComment, ApiPost } from "../../api/types";
 import type { PostDraft } from "../../components/PostComposer/PostComposer";
 import { logClientError } from "../../clientLog";
-import { appendOlder, mergeHead } from "./paginate";
+import { appendOlder, mergeHead, mergeTail } from "./paginate";
 
 /** Remplace un post par son id (identité conservée pour les autres). */
 function replaceById(posts: ApiPost[], id: string, next: ApiPost): ApiPost[] {
@@ -176,10 +176,10 @@ export function usePosts(spaceId: string) {
     setCommentsHasMore(false);
     setCommentsLoading(true);
     try {
-      // Affichage du plus RÉCENT au plus ancien (#80) : on garde l'ordre DESC de
-      // l'API tel quel (le plus récent en tête).
+      // L'API renvoie les plus récents d'abord ; on réordonne en chronologique
+      // (plus ancien en haut, plus récent en bas — façon messagerie).
       const page = await api.listComments(spaceId, postId);
-      setComments(page.items);
+      setComments(page.items.slice().reverse());
       setCommentsHasMore(page.hasMore);
     } catch (e) {
       console.error("chargement des commentaires échoué", e);
@@ -189,15 +189,15 @@ export function usePosts(spaceId: string) {
   };
 
   // Charge les commentaires plus anciens (curseur = le plus ancien affiché, en
-  // FIN de liste puisqu'on est en newest-first #80), ajoutés en queue.
+  // tête de liste en chronologique), préfixés au fil.
   const loadMoreComments = async () => {
     const postId = commentsForRef.current;
-    const oldest = commentsRef.current[commentsRef.current.length - 1]?.createdAt;
+    const oldest = commentsRef.current[0]?.createdAt;
     if (!postId || !oldest || commentsLoadingMore) return;
     setCommentsLoadingMore(true);
     try {
       const page = await api.listComments(spaceId, postId, oldest);
-      setComments((prev) => appendOlder(prev, page.items));
+      setComments((prev) => [...page.items.slice().reverse(), ...prev]);
       setCommentsHasMore(page.hasMore);
     } catch (e) {
       console.error("chargement de commentaires plus anciens échoué", e);
@@ -217,8 +217,8 @@ export function usePosts(spaceId: string) {
     setCommentBusy(true);
     try {
       const comment = await api.addComment(spaceId, postId, body);
-      // newest-first (#80) : mon commentaire apparaît en tête.
-      setComments((prev) => [comment, ...prev]);
+      // Chronologique : mon commentaire s'ajoute en bas du fil.
+      setComments((prev) => [...prev, comment]);
       setPosts((prev) =>
         prev.map((p) =>
           p.id === postId ? { ...p, commentCount: p.commentCount + 1 } : p,
@@ -270,7 +270,9 @@ export function usePosts(spaceId: string) {
     if (!postId) return;
     api
       .listComments(spaceId, postId)
-      .then((page) => setComments((prev) => mergeHead(page.items, prev)))
+      .then((page) =>
+        setComments((prev) => mergeTail(page.items.slice().reverse(), prev)),
+      )
       .catch(() => {});
   }, [spaceId]);
 
