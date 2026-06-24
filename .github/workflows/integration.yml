@@ -1,0 +1,44 @@
+# Tests d'intégration backend (routes + SQL) sur une vraie Postgres.
+# Ces tests sont gated par la feature cargo `integration` → ils ne tournent PAS
+# dans le build d'image Docker (`cargo test` no-DB, cf. backend/Dockerfile). Ce
+# job les exécute à part, avec un service Postgres éphémère.
+#
+# Tourne sur GitHub (le miroir) à chaque push sur main + manuellement.
+
+name: Backend integration tests
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  backend-integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: pink
+          POSTGRES_PASSWORD: pink
+          POSTGRES_DB: pinkphone
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pink"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # `#[sqlx::test]` se connecte ici et crée une base éphémère par test
+      # (l'utilisateur `pink` du conteneur postgres a CREATEDB).
+      DATABASE_URL: postgres://pink:pink@localhost:5432/pinkphone
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: backend
+      - name: cargo test --features integration
+        working-directory: backend
+        run: cargo test --features integration

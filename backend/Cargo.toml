@@ -59,6 +59,18 @@ rand = "0.8"
 aes-gcm = "0.10"
 url = "2"
 
+[features]
+# Tests d'intégration (routes/SQL) qui exigent une vraie Postgres jetable
+# (`#[sqlx::test]`). NON activée par défaut → le `cargo test` du Dockerfile
+# (sans DB) reste vert. Local : `docker-compose up -d` + `cargo test --features integration`.
+integration = []
+
+# Outils utilisés UNIQUEMENT par les tests d'intégration (HTTP via oneshot).
+[dev-dependencies]
+http-body-util = "0.1"
+tower = { version = "0.5", features = ["util"] }
+serde_json = "1"
+
 # Build de prod : LTO léger (binaire plus compact/rapide) + strip des symboles
 # de debug (image Docker plus petite). Coût de compilation négligeable (RUST-14).
 [profile.release]

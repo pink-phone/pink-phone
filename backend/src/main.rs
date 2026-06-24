@@ -7,6 +7,11 @@ mod pagination;
 mod routes;
 mod state;
 
+// Tests d'intégration (routes + SQL) sur une vraie Postgres jetable, gated par la
+// feature `integration` (cf. Cargo.toml) → exclus du `cargo test` no-DB.
+#[cfg(all(test, feature = "integration"))]
+mod tests_integration;
+
 use axum::extract::DefaultBodyLimit;
 use axum::http::{header, HeaderValue, Method};
 use axum::routing::get;
