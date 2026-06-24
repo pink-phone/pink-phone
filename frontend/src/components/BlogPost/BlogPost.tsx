@@ -43,6 +43,8 @@ export interface BlogPostProps {
   allowCustomReactions?: boolean;
   commentCount?: number;
   onOpenComments?: () => void;
+  /** Le post a des commentaires non lus (de l'autre) → bouton mis en avant (#81). */
+  hasUnreadComments?: boolean;
   /** Brouillon : affiche une pastille et (si `isMine`) le bouton Publier. */
   draft?: boolean;
   /** Post édité après publication : ajoute « · modifié » près de l'horodatage. */
@@ -76,6 +78,7 @@ export function BlogPost({
   allowCustomReactions = true,
   commentCount = 0,
   onOpenComments,
+  hasUnreadComments = false,
   draft = false,
   edited = false,
   isMine = false,
@@ -188,7 +191,13 @@ export function BlogPost({
             <button
               type="button"
               onClick={onOpenComments}
-              className="text-xs text-taupe-300 transition-colors duration-300 ease-felt hover:text-spice-300"
+              className={cn(
+                "text-xs transition-all duration-300 ease-felt",
+                hasUnreadComments
+                  ? // « Comme non lu du dashboard » : pastille spice/bordeaux (#81).
+                    "inline-flex items-center gap-1 rounded-full border border-spice-500/70 bg-bordeaux-700 px-2.5 py-1 text-blush-100 shadow-glow hover:-translate-y-0.5"
+                  : "text-taupe-300 hover:text-spice-300",
+              )}
             >
               💬{" "}
               {commentCount > 0

@@ -68,6 +68,10 @@ export function toPostData(
       !p.draft &&
       !!blogSeenAt &&
       p.createdAt > blogSeenAt,
+    // `lastCommentAt` = dernier commentaire d'AUTRUI (côté API) → non lu s'il est
+    // postérieur à mon dernier passage figé (même snapshot que la ligne #77).
+    hasUnreadComments:
+      !!p.lastCommentAt && !!blogSeenAt && p.lastCommentAt > blogSeenAt,
   }));
 }
 

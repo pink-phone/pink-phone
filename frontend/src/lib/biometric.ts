@@ -98,7 +98,14 @@ export async function verifyBiometric(): Promise<boolean> {
     const assertion = await navigator.credentials.get({
       publicKey: {
         challenge: randomBytes(32),
-        allowCredentials: [{ type: "public-key", id: b64ToBuf(stored) }],
+        // `transports: ["internal"]` garde le flux SUR l'appareil (Face ID /
+        // Touch ID) au lieu de l'UI passkey générique iOS (« clé d'accès » /
+        // autre appareil) qui s'affiche quand le transport n'est pas précisé
+        // (B-H). Combiné à un `allowCredentials` non vide → prompt biométrique
+        // direct de la credential enrôlée, pas un sélecteur de passkeys.
+        allowCredentials: [
+          { type: "public-key", id: b64ToBuf(stored), transports: ["internal"] },
+        ],
         userVerification: "required",
         timeout: 60_000,
         rpId: location.hostname,

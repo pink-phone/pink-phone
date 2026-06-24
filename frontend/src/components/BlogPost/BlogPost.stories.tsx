@@ -66,6 +66,11 @@ export const MédiaSeul: Story = {
   },
 };
 
+/** Commentaires non lus (#81) : le bouton commentaires est mis en avant (pastille). */
+export const CommentairesNonLus: Story = {
+  args: { commentCount: 3, hasUnreadComments: true },
+};
+
 /** Média téléchargeable (#78) : un bouton de téléchargement apparaît sur la photo. */
 export const MédiaTéléchargeable: Story = {
   args: {
