@@ -79,18 +79,10 @@ export function CommentsSheet({
     cancelEdit();
   };
 
-  // Fil du plus récent au plus ancien : les non-lus sont en HAUT.
-  // Marqueur supérieur (« Non lus », braise) → AVANT le premier non lu.
-  // Marqueur inférieur (« Déjà lu », neutre) → APRÈS le dernier non lu,
-  //   uniquement s'il reste des commentaires plus bas (pas d'étiquette orpheline).
-  let firstUnread = -1;
-  let lastUnread = -1;
-  comments.forEach((c, i) => {
-    if (c.unread) {
-      if (firstUnread === -1) firstUnread = i;
-      lastUnread = i;
-    }
-  });
+  // Fil chronologique (plus ancien en haut, plus récent en bas, façon messagerie) :
+  // les non-lus sont en BAS. La ligne « Non lus » se pose AVANT le premier non lu
+  // (lu au-dessus, non lu en dessous) — marqueur unique, sans ambiguïté de sens.
+  const firstUnread = comments.findIndex((c) => c.unread);
 
   return (
     <Sheet open={open} title={t("comments.sheetTitle")} onClose={onClose}>
@@ -105,9 +97,22 @@ export function CommentsSheet({
           </p>
         ) : (
           <ul className="space-y-3">
+            {hasMore && (
+              <li className="flex">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  className="mx-auto"
+                  disabled={loadingMore}
+                  onClick={onLoadMore}
+                >
+                  {loadingMore ? t("common.loading") : t("comments.loadOlder")}
+                </Button>
+              </li>
+            )}
             {comments.map((c, i) => (
               <Fragment key={c.id}>
-                {/* Marqueur supérieur : AVANT le premier commentaire non lu. */}
+                {/* Ligne « Non lus » : AVANT le premier commentaire non lu. */}
                 {i === firstUnread && (
                   <li>
                     <UnreadDivider variant="unread" label={t("common.unread")} />
@@ -177,28 +182,8 @@ export function CommentsSheet({
                   </p>
                 )}
               </li>
-                {/* Marqueur inférieur : APRÈS le dernier non lu, seulement
-                    s'il reste des commentaires plus bas (pas d'étiquette orpheline). */}
-                {i === lastUnread && lastUnread < comments.length - 1 && (
-                  <li>
-                    <UnreadDivider variant="alreadyRead" label={t("common.alreadyRead")} />
-                  </li>
-                )}
               </Fragment>
             ))}
-            {hasMore && (
-              <li className="flex">
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  className="mx-auto"
-                  disabled={loadingMore}
-                  onClick={onLoadMore}
-                >
-                  {loadingMore ? t("common.loading") : t("comments.loadOlder")}
-                </Button>
-              </li>
-            )}
           </ul>
         )}
 

@@ -40,15 +40,14 @@ export const ParDéfaut: Story = {};
 export const AvecNonLus: Story = {
   name: "Avec ligne « non lus »",
   args: {
-    // Fil du plus récent au plus ancien (#80) : les non-lus (récents) en HAUT,
-    // la ligne se pose juste en dessous.
+    // Fil chronologique : les non-lus (récents) en BAS, la ligne « Non lus »
+    // se pose juste au-dessus.
     comments: [
       {
-        id: "3",
+        id: "1",
         authorName: "Camille",
-        body: "Et ça, tu ne l'as pas encore vu 😏",
-        timeLabel: "à l'instant",
-        unread: true,
+        body: "Un mot d'hier soir.",
+        timeLabel: "hier",
       },
       {
         id: "2",
@@ -58,10 +57,11 @@ export const AvecNonLus: Story = {
         isMine: true,
       },
       {
-        id: "1",
+        id: "3",
         authorName: "Camille",
-        body: "Un mot d'hier soir.",
-        timeLabel: "hier",
+        body: "Et ça, tu ne l'as pas encore vu 😏",
+        timeLabel: "à l'instant",
+        unread: true,
       },
     ],
   },
