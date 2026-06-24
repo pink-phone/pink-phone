@@ -160,6 +160,9 @@ jobs:
     needs: [prepare, build]
     runs-on: ubuntu-latest
     steps:
+      # Checkout pour les overviews Docker Hub (deploy/dockerhub-*.md).
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           path: /tmp/api
@@ -196,6 +199,30 @@ jobs:
           docker buildx imagetools create \
             -t "${WEB_IMAGE}:latest" -t "${WEB_IMAGE}:${VERSION}" \
             $(printf "${WEB_IMAGE}@sha256:%s " *)
+
+      # Pages des repos Docker Hub (description courte + overview/README) — #82.
+      # `continue-on-error` : une 401 (le token n'a pas la permission de modifier
+      # la description → il faut le MOT DE PASSE du compte ou un PAT adéquat) ne
+      # doit pas faire échouer la release.
+      - name: Pousser la page Docker Hub (API)
+        uses: peter-evans/dockerhub-description@v4
+        continue-on-error: true
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ env.API_IMAGE }}
+          short-description: "Pink Phone API — backend (Rust/Axum) for the self-hosted intimate PWA for two."
+          readme-filepath: ./deploy/dockerhub-api.md
+
+      - name: Pousser la page Docker Hub (Web)
+        uses: peter-evans/dockerhub-description@v4
+        continue-on-error: true
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ env.WEB_IMAGE }}
+          short-description: "Pink Phone Web — PWA + nginx for the self-hosted intimate PWA for two."
+          readme-filepath: ./deploy/dockerhub-web.md
 
       # Notes = liste des commits depuis le tag précédent (pas `--generate-notes`,
       # qui se base sur les PR — or ce repo n'en a pas, miroir oblige → notes
