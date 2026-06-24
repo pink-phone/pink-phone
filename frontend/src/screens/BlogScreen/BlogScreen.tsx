@@ -40,16 +40,13 @@ export function BlogScreen({
   onLoadMore,
 }: BlogScreenProps) {
   const { t } = useTranslation();
-  // Fil anté-chronologique : les non-lus sont en haut. La ligne « non lus » se
-  // pose juste sous le dernier post non lu (frontière avec le déjà-vu).
+  // Fil anté-chronologique : les non-lus sont en haut.
+  // Un brouillon ne doit JAMAIS être dans la zone non lu (au-dessus du marqueur) :
+  // on extrait les brouillons de la bande et on les glisse juste en dessous.
   let lastUnread = -1;
   posts.forEach((p, i) => {
     if (p.unread) lastUnread = i;
   });
-  // Un brouillon ne doit JAMAIS être dans la zone non lu (au-dessus de la ligne).
-  // Comme un brouillon fraîchement écrit est le plus récent, il s'y retrouverait.
-  // On extrait donc les brouillons de la bande au-dessus du séparateur et on les
-  // rend juste en dessous (ils restent exclus du flag `unread` côté mapper).
   let ordered = posts;
   let dividerAfter = lastUnread;
   if (lastUnread >= 0) {
@@ -59,6 +56,13 @@ export function BlogScreen({
     ordered = [...above, ...movedDrafts, ...posts.slice(lastUnread + 1)];
     dividerAfter = above.length - 1;
   }
+  // Marqueur supérieur (« Non lus », braise) : rendu AVANT ordered[0].
+  // `dividerAfter` = index du dernier post non-brouillon non lu dans `ordered`.
+  // Marqueur inférieur (« Déjà lu », neutre) : rendu APRÈS ordered[dividerAfter],
+  // seulement s'il reste des items plus bas (pas d'étiquette orpheline).
+  const showBottomDivider =
+    dividerAfter >= 0 && dividerAfter < ordered.length - 1;
+
   return (
     <div className="space-y-5">
       <header className="flex items-center justify-between pt-2">
@@ -76,6 +80,9 @@ export function BlogScreen({
         <div className="flex flex-col items-stretch gap-5">
           {ordered.map((post, i) => (
             <Fragment key={post.id}>
+              {i === 0 && dividerAfter >= 0 && (
+                <UnreadDivider variant="unread" label={t("common.unread")} />
+              )}
             <BlogPost
               author={post.author}
               timeLabel={post.timeLabel}
@@ -99,8 +106,8 @@ export function BlogScreen({
               onPublish={() => onPublishPost?.(post.id)}
               onEdit={() => onEditPost?.(post.id)}
             />
-              {i === dividerAfter && (
-                <UnreadDivider label={t("common.unread")} />
+              {i === dividerAfter && showBottomDivider && (
+                <UnreadDivider variant="alreadyRead" label={t("common.alreadyRead")} />
               )}
             </Fragment>
           ))}

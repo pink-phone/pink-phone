@@ -72,12 +72,18 @@ export function ChallengesScreen({
       {SECTION_ORDER.map((status) => {
         const items = challenges.filter((c) => c.status === status);
         if (items.length === 0) return null;
-        // Ligne « non lus » uniquement dans les Propositions reçues (les
-        // nouveautés), posée sous le dernier défi non lu de la section.
+        // Marqueurs « non lus » uniquement dans les Propositions reçues.
+        // Marqueur supérieur (« Non lus », braise) → AVANT le premier non lu.
+        // Marqueur inférieur (« Déjà lu », neutre) → APRÈS le dernier non lu,
+        //   seulement s'il reste des défis sous lui (pas d'étiquette orpheline).
+        let firstUnread = -1;
         let lastUnread = -1;
         if (status === "proposed") {
           items.forEach((c, i) => {
-            if (c.unread) lastUnread = i;
+            if (c.unread) {
+              if (firstUnread === -1) firstUnread = i;
+              lastUnread = i;
+            }
           });
         }
         return (
@@ -88,6 +94,9 @@ export function ChallengesScreen({
             <div className="flex flex-col items-stretch gap-3">
               {items.map((c, i) => (
                 <Fragment key={c.id}>
+                  {i === firstUnread && (
+                    <UnreadDivider variant="unread" label={t("common.unread")} />
+                  )}
                   <ChallengeCard
                     title={c.title}
                     description={c.description}
@@ -102,8 +111,8 @@ export function ChallengesScreen({
                     onEdit={() => onEdit?.(c.id)}
                     onDelete={() => onDelete?.(c.id)}
                   />
-                  {i === lastUnread && (
-                    <UnreadDivider label={t("common.unread")} />
+                  {i === lastUnread && lastUnread < items.length - 1 && (
+                    <UnreadDivider variant="alreadyRead" label={t("common.alreadyRead")} />
                   )}
                 </Fragment>
               ))}
