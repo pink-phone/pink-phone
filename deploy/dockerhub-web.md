@@ -31,6 +31,17 @@ docker compose up -d
 
 This is the **only service you expose** (default host port `8095` → container `80`). Put a reverse proxy in front for your domain + TLS; make sure it forwards the WebSocket upgrade headers on `/api`. Full guide: **[INSTALL.md](https://github.com/pink-phone/pink-phone/blob/main/INSTALL.md)**.
 
+## Ports & wiring
+
+This image is **static** — it has **no runtime environment variables** (all configuration lives on `pinkphone-api`). What matters for wiring it up:
+
+| | |
+|---|---|
+| **Listens on** | `80` (container). Map it to a host port — the Compose file uses `WEB_PORT`, default `8095`. |
+| **Upstream** | proxies `/api` (incl. the WebSocket `…/ws`) to **`http://api:8080`** (hard-coded) → the API must be reachable as host **`api`** on the same Docker network. |
+| **Max upload** | `100 MB` (matches the API's media limit). |
+| **Reverse proxy** | put one in front for your domain + TLS, and forward the WebSocket upgrade headers on `/api`. |
+
 ## Notes
 
 - Built same-origin (`VITE_API_URL=""` → relative `/api`), so no extra config to point the PWA at the API.
