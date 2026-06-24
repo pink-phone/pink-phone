@@ -105,6 +105,21 @@ export const Nouveautés: Story = {
   ),
 };
 
+export const Notices: Story = {
+  name: "Notices de salon (#84/#85)",
+  args: {
+    notices: [
+      { id: "1", kind: "member_joined", actorName: "Camille" },
+      { id: "2", kind: "download_enabled", actorName: "Alex" },
+    ],
+  },
+  render: (args) => (
+    <div className="w-[380px]">
+      <DashboardScreen {...args} />
+    </div>
+  ),
+};
+
 export const Solo: Story = {
   name: "Espace en attente (sans partenaire)",
   args: {

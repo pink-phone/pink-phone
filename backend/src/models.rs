@@ -124,6 +124,19 @@ pub struct ReactionSummary {
     pub my_reactions: Vec<String>,
 }
 
+/// Notice de salon affichée sur le dashboard (#84/#85) : qui a fait quoi, quand.
+#[derive(Debug, Serialize, sqlx::FromRow)]
+#[serde(rename_all = "camelCase")]
+pub struct Notice {
+    pub id: Uuid,
+    /// 'member_joined' | 'download_enabled'.
+    pub kind: String,
+    pub actor_id: Option<Uuid>,
+    /// Nom de l'auteur (null si système / compte supprimé).
+    pub actor_name: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
 #[derive(Debug, Serialize, sqlx::FromRow)]
 #[serde(rename_all = "camelCase")]
 pub struct Comment {

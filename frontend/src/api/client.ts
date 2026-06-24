@@ -12,6 +12,7 @@ import type {
   NotifMode,
   Page,
   SeenEntry,
+  Notice,
   ReactionSummary,
   Settings,
   Space,
@@ -429,8 +430,15 @@ export const deleteChallenge = (spaceId: string, challengeId: string) =>
 export const listSeen = (spaceId: string) =>
   req<SeenEntry[]>(`/api/spaces/${spaceId}/seen`);
 
-export const markSeen = (spaceId: string, feature: "blog" | "challenges") =>
-  req<SeenEntry>(`/api/spaces/${spaceId}/seen/${feature}`, { method: "PUT" });
+export const markSeen = (
+  spaceId: string,
+  feature: "blog" | "challenges" | "notices",
+) => req<SeenEntry>(`/api/spaces/${spaceId}/seen/${feature}`, { method: "PUT" });
+
+// ---------- Notices de salon (#84/#85) ----------
+
+export const listNotices = (spaceId: string) =>
+  req<Notice[]>(`/api/spaces/${spaceId}/notices`);
 
 // ---------- Médias ----------
 

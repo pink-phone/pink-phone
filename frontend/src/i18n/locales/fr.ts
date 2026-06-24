@@ -96,6 +96,10 @@ export const fr = {
     newChallenges_one: "{{count}} nouveau défi",
     newChallenges_other: "{{count}} nouveaux défis",
   },
+  notice: {
+    memberJoined: "{{name}} a rejoint le salon.",
+    downloadEnabled: "{{name}} a activé le téléchargement des médias.",
+  },
   moods: {
     aria: "Mon humeur du moment",
     calm: "Calme",

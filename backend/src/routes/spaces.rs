@@ -112,6 +112,18 @@ async fn update_space(
         }
     }
 
+    // Activation du téléchargement des médias (#84) : on note la transition
+    // false→true pour émettre une notice « X a activé le téléchargement ».
+    let mut download_enabled = false;
+    if body.allow_media_download == Some(true) {
+        let prev: bool =
+            sqlx::query_scalar("SELECT allow_media_download FROM spaces WHERE id = $1")
+                .bind(space_id)
+                .fetch_one(&state.pool)
+                .await?;
+        download_enabled = !prev;
+    }
+
     let space: Space = sqlx::query_as(
         "UPDATE spaces SET
             name = COALESCE($2, name),
@@ -132,6 +144,16 @@ async fn update_space(
     .bind(body.allow_media_download)
     .fetch_one(&state.pool)
     .await?;
+
+    if download_enabled {
+        crate::routes::notices::record(
+            &state.pool,
+            space_id,
+            "download_enabled",
+            auth.user_id,
+        )
+        .await;
+    }
 
     state.emit(space_id, auth.user_id, EventKind::Space);
     Ok(Json(space))
@@ -274,7 +296,18 @@ async fn join_by_invite(
         .bind(body.token)
         .execute(&mut *tx)
         .await?;
+    // Notice « X a rejoint le salon » pour les autres membres (#85).
+    crate::routes::notices::record(&mut *tx, space_id, "member_joined", auth.user_id).await;
     tx.commit().await?;
+
+    // Prévient les membres en ligne (refetch notices/membres) + push best-effort.
+    state.emit(space_id, auth.user_id, EventKind::Space);
+    crate::notifications::notify_members(
+        &state,
+        space_id,
+        auth.user_id,
+        "Un membre a rejoint le salon".into(),
+    );
 
     Ok((StatusCode::CREATED, Json(space)))
 }
