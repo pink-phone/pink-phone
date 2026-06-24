@@ -245,6 +245,7 @@ export const fr = {
     loadOlder: "Messages plus anciens",
     actions: "Actions du commentaire",
     editLabel: "Modifier ton commentaire",
+    editFailed: "Échec de l'enregistrement. Réessaie.",
     confirmDelete: "Supprimer ce commentaire ?",
   },
   settings: {

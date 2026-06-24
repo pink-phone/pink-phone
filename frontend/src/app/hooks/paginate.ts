@@ -20,7 +20,11 @@ export function mergeHead<T extends Paged>(head: T[], prev: T[]): T[] {
   if (head.length === 0) return prev;
   const cutoff = head[head.length - 1].createdAt;
   const headIds = new Set(head.map((x) => x.id));
-  const older = prev.filter((p) => p.createdAt < cutoff && !headIds.has(p.id));
+  // `<=` + exclusion par id (REACT2-11) : un élément de `prev` à `createdAt`
+  // EXACTEMENT égal au cutoff, mais absent de `head` (collision d'horodatage en
+  // limite de page), serait perdu avec un `<` strict. L'exclusion par id évite
+  // de dupliquer ceux qui SONT dans head.
+  const older = prev.filter((p) => p.createdAt <= cutoff && !headIds.has(p.id));
   return [...head, ...older];
 }
 
@@ -33,7 +37,8 @@ export function mergeTail<T extends Paged>(head: T[], prev: T[]): T[] {
   if (head.length === 0) return prev;
   const cutoff = head[0].createdAt;
   const headIds = new Set(head.map((x) => x.id));
-  const older = prev.filter((p) => p.createdAt < cutoff && !headIds.has(p.id));
+  // `<=` + exclusion par id (REACT2-11), miroir de `mergeHead`.
+  const older = prev.filter((p) => p.createdAt <= cutoff && !headIds.has(p.id));
   return [...older, ...head];
 }
 

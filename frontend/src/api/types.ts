@@ -119,7 +119,7 @@ export interface ApiChallenge {
 
 export interface SeenEntry {
   userId: string;
-  feature: string; // 'blog' | 'challenges' | 'notices'
+  feature: "blog" | "challenges" | "notices";
   seenAt: string;
 }
 

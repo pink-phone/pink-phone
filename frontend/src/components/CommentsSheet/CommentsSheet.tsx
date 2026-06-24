@@ -24,8 +24,9 @@ export interface CommentsSheetProps {
   comments: CommentView[];
   onClose: () => void;
   onAdd: (body: string) => void;
-  /** Édite un de mes commentaires (nouvelle valeur). */
-  onEdit?: (id: string, body: string) => void;
+  /** Édite un de mes commentaires (nouvelle valeur). Renvoie un succès optionnel
+   * (REACT2-01) : si `false`, l'édition reste ouverte et signale l'échec. */
+  onEdit?: (id: string, body: string) => void | Promise<boolean>;
   /** Supprime un de mes commentaires. */
   onDelete?: (id: string) => void;
   /** Chargement de la liste. */
@@ -58,6 +59,8 @@ export function CommentsSheet({
   // Édition inline : id du commentaire en cours d'édition + son brouillon.
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState("");
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState(false);
 
   const submit = () => {
     const body = draft.trim();
@@ -69,16 +72,27 @@ export function CommentsSheet({
   const startEdit = (c: CommentView) => {
     setEditingId(c.id);
     setEditDraft(c.body);
+    setEditError(false);
   };
   const cancelEdit = () => {
     setEditingId(null);
     setEditDraft("");
+    setEditError(false);
   };
-  const saveEdit = (id: string) => {
+  // On N'EFFACE l'édition qu'au succès (REACT2-01) : un échec garde la saisie et
+  // affiche une erreur, au lieu de perdre la modification en silence.
+  const saveEdit = async (id: string) => {
     const body = editDraft.trim();
-    if (!body) return;
-    onEdit?.(id, body);
-    cancelEdit();
+    if (!body || savingEdit) return;
+    setSavingEdit(true);
+    setEditError(false);
+    try {
+      const res = await onEdit?.(id, body);
+      if (res === false) setEditError(true);
+      else cancelEdit();
+    } finally {
+      setSavingEdit(false);
+    }
   };
 
   // Fil chronologique (plus ancien en haut, plus récent en bas, façon messagerie) :
@@ -169,15 +183,26 @@ export function CommentsSheet({
                     <div className="flex gap-2">
                       <Button
                         size="sm"
-                        disabled={!editDraft.trim()}
+                        loading={savingEdit}
+                        disabled={!editDraft.trim() || savingEdit}
                         onClick={() => saveEdit(c.id)}
                       >
                         {t("common.save")}
                       </Button>
-                      <Button variant="secondary" size="sm" onClick={cancelEdit}>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        disabled={savingEdit}
+                        onClick={cancelEdit}
+                      >
                         {t("common.cancel")}
                       </Button>
                     </div>
+                    {editError && (
+                      <p role="alert" className="text-xs text-spice-300">
+                        {t("comments.editFailed")}
+                      </p>
+                    )}
                   </div>
                 ) : (
                   <p className="mt-0.5 whitespace-pre-line text-sm text-taupe-200">

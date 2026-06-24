@@ -19,7 +19,7 @@ export function LockGate({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
   const [locked, setLocked] = useState(() => isPinSet());
   const [error, setError] = useState<string | null>(null);
-  const bioEnabled = isBiometricEnabled();
+  const [bioEnabled] = useState(() => isBiometricEnabled());
   // Garde contre les déclenchements multiples de la biométrie pour un même verrou.
   const bioTried = useRef(false);
 

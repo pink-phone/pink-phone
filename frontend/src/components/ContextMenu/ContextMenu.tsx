@@ -1,4 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent as ReactKeyboardEvent,
+} from "react";
 import { createPortal } from "react-dom";
 import { cn } from "../../lib/cn";
 
@@ -51,12 +56,19 @@ export function ContextMenu({ items, ariaLabel, className }: ContextMenuProps) {
     });
   };
 
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Ferme + rend le focus au déclencheur (REACT2-05).
+  const close = () => {
+    setOpen(false);
+    triggerRef.current?.focus();
+  };
+
   const toggle = () => {
-    setOpen((o) => {
-      const next = !o;
-      if (next) place();
-      return next;
-    });
+    // `place()` hors de l'updater de setOpen (REACT2-06) : pas de side-effect dans
+    // une fonction censée être pure.
+    if (!open) place();
+    setOpen((o) => !o);
   };
 
   // Échap referme (cohérent avec Sheet, UI-A11Y4). Un scroll/redimensionnement
@@ -64,18 +76,44 @@ export function ContextMenu({ items, ariaLabel, className }: ContextMenuProps) {
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") close();
     };
-    const close = () => setOpen(false);
+    const onClose = () => setOpen(false);
     document.addEventListener("keydown", onKey);
-    window.addEventListener("scroll", close, true);
-    window.addEventListener("resize", close);
+    window.addEventListener("scroll", onClose, true);
+    window.addEventListener("resize", onClose);
     return () => {
       document.removeEventListener("keydown", onKey);
-      window.removeEventListener("scroll", close, true);
-      window.removeEventListener("resize", close);
+      window.removeEventListener("scroll", onClose, true);
+      window.removeEventListener("resize", onClose);
     };
   }, [open]);
+
+  // À l'ouverture, le focus va au 1er item (navigation clavier — REACT2-05).
+  useEffect(() => {
+    if (open) {
+      menuRef.current
+        ?.querySelector<HTMLButtonElement>('[role="menuitem"]')
+        ?.focus();
+    }
+  }, [open]);
+
+  // Flèches ↑/↓ : navigation entre les items du menu.
+  const onMenuKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+    e.preventDefault();
+    const buttons = Array.from(
+      menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ??
+        [],
+    );
+    if (buttons.length === 0) return;
+    const i = buttons.indexOf(document.activeElement as HTMLButtonElement);
+    const next =
+      e.key === "ArrowDown"
+        ? (i + 1) % buttons.length
+        : (i - 1 + buttons.length) % buttons.length;
+    buttons[next]?.focus();
+  };
 
   if (items.length === 0) return null;
 
@@ -106,7 +144,10 @@ export function ContextMenu({ items, ariaLabel, className }: ContextMenuProps) {
               className="fixed inset-0 z-[60] cursor-default"
             />
             <div
+              ref={menuRef}
               role="menu"
+              aria-label={ariaLabel}
+              onKeyDown={onMenuKeyDown}
               style={{
                 position: "fixed",
                 left: anchor.right,
@@ -123,7 +164,7 @@ export function ContextMenu({ items, ariaLabel, className }: ContextMenuProps) {
                   type="button"
                   role="menuitem"
                   onClick={() => {
-                    setOpen(false);
+                    close();
                     item.onClick();
                   }}
                   className={cn(

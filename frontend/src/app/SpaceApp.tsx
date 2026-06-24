@@ -396,8 +396,11 @@ export function SpaceApp({
       p.authorId !== user.id &&
       (!myBlogSeen || p.createdAt > myBlogSeen),
   ).length;
+  // Cohérent avec le diviseur « non lus » des défis, qui ne marque QUE la section
+  // « Proposés » (REACT2-07) : un défi déjà accepté/terminé n'est plus « nouveau ».
   const newChallenges = challenges.filter(
     (c) =>
+      c.status === "proposed" &&
       c.proposerId !== user.id &&
       (!myChallSeen || c.createdAt > myChallSeen),
   ).length;
@@ -739,6 +742,10 @@ export function SpaceApp({
       </Sheet>
 
       <CommentsSheet
+        // Remonté à chaque changement de post (REACT2-02) : réinitialise le
+        // brouillon de réponse / l'édition en cours (sinon ils fuient d'un post
+        // à l'autre).
+        key={commentsFor ?? "closed"}
         open={commentsFor !== null}
         comments={commentViews}
         loading={commentsLoading}

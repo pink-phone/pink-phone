@@ -231,16 +231,23 @@ export function usePosts(spaceId: string) {
     }
   };
 
-  const editComment = async (commentId: string, body: string) => {
+  // Renvoie un booléen de succès (REACT2-01) → la feuille ne sort du mode édition
+  // qu'au succès, et peut signaler l'échec au lieu de perdre la saisie en silence.
+  const editComment = async (
+    commentId: string,
+    body: string,
+  ): Promise<boolean> => {
     const postId = commentsForRef.current;
-    if (!postId) return;
+    if (!postId) return false;
     try {
       const updated = await api.updateComment(spaceId, postId, commentId, body);
       setComments((prev) =>
         prev.map((c) => (c.id === commentId ? updated : c)),
       );
+      return true;
     } catch (e) {
       console.error("édition du commentaire échouée", e);
+      return false;
     }
   };
 
