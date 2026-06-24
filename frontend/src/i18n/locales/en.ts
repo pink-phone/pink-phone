@@ -15,6 +15,7 @@ export const en: Resources = {
     delete: "Delete",
     actions: "Actions",
     unread: "Unread",
+    alreadyRead: "Already seen",
   },
   app: {
     name: "Pink Phone",

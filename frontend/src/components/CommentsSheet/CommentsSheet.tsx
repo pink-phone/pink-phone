@@ -79,11 +79,17 @@ export function CommentsSheet({
     cancelEdit();
   };
 
-  // Fil du plus récent au plus ancien (#80) : les non-lus sont en HAUT. La ligne
-  // « non lus » se pose sous le dernier non lu (frontière avec le déjà-vu).
+  // Fil du plus récent au plus ancien : les non-lus sont en HAUT.
+  // Marqueur supérieur (« Non lus », braise) → AVANT le premier non lu.
+  // Marqueur inférieur (« Déjà lu », neutre) → APRÈS le dernier non lu,
+  //   uniquement s'il reste des commentaires plus bas (pas d'étiquette orpheline).
+  let firstUnread = -1;
   let lastUnread = -1;
   comments.forEach((c, i) => {
-    if (c.unread) lastUnread = i;
+    if (c.unread) {
+      if (firstUnread === -1) firstUnread = i;
+      lastUnread = i;
+    }
   });
 
   return (
@@ -101,6 +107,12 @@ export function CommentsSheet({
           <ul className="space-y-3">
             {comments.map((c, i) => (
               <Fragment key={c.id}>
+                {/* Marqueur supérieur : AVANT le premier commentaire non lu. */}
+                {i === firstUnread && (
+                  <li>
+                    <UnreadDivider variant="unread" label={t("common.unread")} />
+                  </li>
+                )}
               <li
                 className="rounded-2xl bg-charcoal-900/40 px-3 py-2"
               >
@@ -165,10 +177,11 @@ export function CommentsSheet({
                   </p>
                 )}
               </li>
-                {/* Newest-first : ligne « non lus » sous le dernier non lu. */}
-                {i === lastUnread && (
+                {/* Marqueur inférieur : APRÈS le dernier non lu, seulement
+                    s'il reste des commentaires plus bas (pas d'étiquette orpheline). */}
+                {i === lastUnread && lastUnread < comments.length - 1 && (
                   <li>
-                    <UnreadDivider label={t("common.unread")} />
+                    <UnreadDivider variant="alreadyRead" label={t("common.alreadyRead")} />
                   </li>
                 )}
               </Fragment>

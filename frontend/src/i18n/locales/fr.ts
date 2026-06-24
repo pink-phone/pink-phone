@@ -14,6 +14,7 @@ export const fr = {
     delete: "Supprimer",
     actions: "Actions",
     unread: "Non lus",
+    alreadyRead: "Déjà lu",
   },
   app: {
     name: "Pink Phone",
