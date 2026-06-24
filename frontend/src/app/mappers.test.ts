@@ -1,7 +1,17 @@
 import { describe, it, expect } from "vitest";
 import type { TFunction } from "i18next";
-import { toPostData, toChallengeData, toCommentViews } from "./mappers";
-import type { ApiChallenge, ApiComment, ApiPost } from "../api/types";
+import {
+  toPostData,
+  toChallengeData,
+  toCommentViews,
+  toDashboardNotices,
+} from "./mappers";
+import type {
+  ApiChallenge,
+  ApiComment,
+  ApiPost,
+  Notice,
+} from "../api/types";
 
 // `t` factice : renvoie la clé (les conversions n'ont pas besoin du vrai i18n).
 const t = ((key: string) => key) as unknown as TFunction;
@@ -299,3 +309,36 @@ describe("toCommentViews", () => {
   });
 });
 
+
+describe("toDashboardNotices", () => {
+  const notice = (o: Partial<Notice> = {}): Notice => ({
+    id: "n1",
+    kind: "member_joined",
+    actorId: "u2",
+    actorName: "Camille",
+    createdAt: "2026-06-24T10:00:00.000Z",
+    ...o,
+  });
+
+  it("ne garde que les notices plus récentes que le snapshot", () => {
+    const seenAt = "2026-06-24T12:00:00.000Z";
+    const list = [
+      notice({ id: "old", createdAt: "2026-06-24T09:00:00.000Z" }),
+      notice({ id: "new", createdAt: "2026-06-24T13:00:00.000Z" }),
+    ];
+    expect(toDashboardNotices(list, seenAt).map((n) => n.id)).toEqual(["new"]);
+  });
+
+  it("sans snapshot (jamais vu) → toutes les notices", () => {
+    const list = [notice({ id: "a" }), notice({ id: "b" })];
+    expect(toDashboardNotices(list, null).map((n) => n.id)).toEqual(["a", "b"]);
+  });
+
+  it("mappe id/kind et convertit actorName null → undefined", () => {
+    expect(toDashboardNotices([notice({ actorName: null })])[0]).toEqual({
+      id: "n1",
+      kind: "member_joined",
+      actorName: undefined,
+    });
+  });
+});
