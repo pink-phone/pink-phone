@@ -1,0 +1,97 @@
+# Purge des vieux tags Docker Hub (#83) : ne garde que `latest` + les N dernières
+# versions `vX.Y.Z` sur pinkphone-api & pinkphone-web, supprime le reste
+# (anciennes versions, tags de test…).
+#
+# MANUEL + DRY-RUN par défaut : on liste d'abord ce qui SERAIT supprimé, on
+# vérifie qu'aucun déploiement n'épingle un vieux tag (la prod utilise
+# `IMAGE_TAG`, défaut `latest`), puis on relance avec dry_run=false.
+#
+# ⚠️ Auth : supprimer un tag exige un token avec la permission DELETE (ou le mot
+# de passe du compte). Le `DOCKERHUB_TOKEN` "write" peut renvoyer 403 → définir
+# alors un secret `DOCKERHUB_PASSWORD` (PAT scope delete, ou mdp), pris en
+# priorité ci-dessous.
+
+name: Docker Hub cleanup
+
+on:
+  workflow_dispatch:
+    inputs:
+      keep:
+        description: "Nombre de versions vX.Y.Z à conserver (les plus récentes)"
+        default: "12"
+        required: true
+      dry_run:
+        description: "Dry-run (liste seulement, ne supprime rien)"
+        type: boolean
+        default: true
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    env:
+      NS: ${{ secrets.DOCKERHUB_USERNAME }}
+    steps:
+      - name: Purger les vieux tags
+        env:
+          DH_USER: ${{ secrets.DOCKERHUB_USERNAME }}
+          # Mot de passe / PAT avec permission DELETE en priorité, sinon le token write.
+          DH_PASS: ${{ secrets.DOCKERHUB_PASSWORD || secrets.DOCKERHUB_TOKEN }}
+          KEEP: ${{ inputs.keep }}
+          DRY: ${{ inputs.dry_run }}
+        run: |
+          set -euo pipefail
+
+          JWT=$(curl -fsS -H "Content-Type: application/json" \
+            -d "{\"username\":\"${DH_USER}\",\"password\":\"${DH_PASS}\"}" \
+            https://hub.docker.com/v2/users/login | jq -r .token)
+          if [ -z "$JWT" ] || [ "$JWT" = "null" ]; then
+            echo "::error::Connexion Docker Hub échouée."; exit 1
+          fi
+
+          rc=0
+          for REPO in pinkphone-api pinkphone-web; do
+            echo "::group::${NS}/${REPO}"
+
+            # Tous les tags (pagination).
+            tags=""
+            url="https://hub.docker.com/v2/repositories/${NS}/${REPO}/tags/?page_size=100"
+            while [ -n "$url" ] && [ "$url" != "null" ]; do
+              resp=$(curl -fsS -H "Authorization: JWT ${JWT}" "$url")
+              tags="${tags}"$'\n'"$(echo "$resp" | jq -r '.results[].name')"
+              url=$(echo "$resp" | jq -r '.next')
+            done
+            tags=$(echo "$tags" | sed '/^$/d' | sort -u)
+
+            # À garder : `latest` + les KEEP dernières vX.Y.Z (tri sémantique).
+            keepvers=$(echo "$tags" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n "$KEEP" || true)
+            keep=$(printf 'latest\n%s\n' "$keepvers" | sed '/^$/d' | sort -u)
+
+            # À supprimer = tags absents du set "keep".
+            todelete=$(comm -23 <(echo "$tags") <(echo "$keep") || true)
+
+            echo "GARDÉS :"; echo "$keep" | sed 's/^/  /'
+            if [ -z "$todelete" ]; then
+              echo "→ rien à supprimer."; echo "::endgroup::"; continue
+            fi
+            echo "À SUPPRIMER :"; echo "$todelete" | sed 's/^/  /'
+
+            if [ "$DRY" = "true" ]; then
+              echo "→ dry-run : aucune suppression."; echo "::endgroup::"; continue
+            fi
+
+            while read -r tag; do
+              [ -n "$tag" ] || continue
+              code=$(curl -s -o /dev/null -w '%{http_code}' -X DELETE \
+                -H "Authorization: JWT ${JWT}" \
+                "https://hub.docker.com/v2/repositories/${NS}/${REPO}/tags/${tag}/")
+              echo "  DELETE ${tag} → ${code}"
+              case "$code" in
+                2*) ;;
+                403) echo "::error::403 sur ${tag} — le token n'a pas la permission DELETE (cf. DOCKERHUB_PASSWORD)."; rc=1 ;;
+                *)  echo "::warning::suppression de ${tag} : HTTP ${code}"; rc=1 ;;
+              esac
+            done <<< "$todelete"
+
+            echo "::endgroup::"
+          done
+          exit $rc
