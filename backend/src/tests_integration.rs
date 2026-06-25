@@ -536,3 +536,134 @@ async fn defi_machine_etat_via_http(pool: PgPool) {
     assert_eq!(st, StatusCode::OK);
     assert_eq!(ch_json["status"], "challengeAccepted");
 }
+
+// --- Tests : view_once, blind-mood (SQL), pagination curseur -----------------
+
+/// Upload multipart d'un petit média et renvoie son id (exerce la route upload).
+async fn upload_media(app: &Router, space: Uuid, token: &str, view_once: bool) -> Uuid {
+    let b = "PinkBoundary";
+    let body = format!(
+        "--{b}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"x.jpg\"\r\n\
+         Content-Type: image/jpeg\r\n\r\nHELLOIMG\r\n\
+         --{b}\r\nContent-Disposition: form-data; name=\"viewOnce\"\r\n\r\n{view_once}\r\n\
+         --{b}--\r\n",
+    );
+    let resp = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/spaces/{space}/media"))
+                .header(header::AUTHORIZATION, format!("Bearer {token}"))
+                .header(
+                    header::CONTENT_TYPE,
+                    format!("multipart/form-data; boundary={b}"),
+                )
+                .body(Body::from(body))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::CREATED);
+    let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+    let j: Value = serde_json::from_slice(&bytes).unwrap();
+    Uuid::parse_str(j["id"].as_str().unwrap()).unwrap()
+}
+
+#[sqlx::test]
+async fn media_view_once_consomme_apres_une_lecture(pool: PgPool) {
+    let (app, state) = build_app(pool.clone());
+    let alice = seed_user(&pool, "alice").await;
+    let space = seed_space(&pool, alice).await;
+    let ta = token_for(&state, alice);
+
+    let mid = upload_media(&app, space, &ta, true).await;
+    let path = format!("/api/spaces/{space}/media/{mid}");
+
+    // 1ʳᵉ lecture : le média éphémère est servi.
+    let (st, _) = req(&app, "GET", &path, &ta, None).await;
+    assert_eq!(st, StatusCode::OK);
+    // 2ᵉ lecture : envolé (consommé → NotFound).
+    let (st, _) = req(&app, "GET", &path, &ta, None).await;
+    assert_eq!(st, StatusCode::NOT_FOUND, "view_once consommé");
+}
+
+#[sqlx::test]
+async fn blind_mood_masque_le_statut_des_autres_avant_mon_vote(pool: PgPool) {
+    let (app, state) = build_app(pool.clone());
+    let alice = seed_user(&pool, "alice").await;
+    let bob = seed_user(&pool, "bob").await;
+    let space = seed_space(&pool, alice).await;
+    add_member(&pool, bob, space).await;
+    sqlx::query("UPDATE spaces SET blind_mood = true WHERE id = $1")
+        .bind(space)
+        .execute(&pool)
+        .await
+        .unwrap();
+    let ta = token_for(&state, alice);
+    let tb = token_for(&state, bob);
+    let moods = format!("/api/spaces/{space}/moods");
+
+    // Bob vote.
+    let (st, _) = req(
+        &app,
+        "PUT",
+        &format!("{moods}/me"),
+        &tb,
+        Some(json!({ "status": "cuddleNeeded" })),
+    )
+    .await;
+    assert_eq!(st, StatusCode::OK);
+
+    // Alice n'a pas voté : elle voit QUE bob a voté, mais pas QUOI (status null).
+    let (st, list) = req(&app, "GET", &moods, &ta, None).await;
+    assert_eq!(st, StatusCode::OK);
+    let arr = list.as_array().unwrap();
+    assert_eq!(arr.len(), 1);
+    assert_eq!(arr[0]["userId"].as_str().unwrap(), bob.to_string());
+    assert!(arr[0]["status"].is_null(), "statut masqué avant mon vote");
+
+    // Alice vote à son tour → l'humeur de bob est révélée.
+    let (_, _) = req(
+        &app,
+        "PUT",
+        &format!("{moods}/me"),
+        &ta,
+        Some(json!({ "status": "flirty" })),
+    )
+    .await;
+    let (_, list) = req(&app, "GET", &moods, &ta, None).await;
+    let bob_entry = list
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|m| m["userId"].as_str().unwrap() == bob.to_string())
+        .unwrap();
+    assert_eq!(bob_entry["status"], "cuddleNeeded", "révélé après mon vote");
+}
+
+#[sqlx::test]
+async fn posts_pagination_par_curseur(pool: PgPool) {
+    let (app, state) = build_app(pool.clone());
+    let alice = seed_user(&pool, "alice").await;
+    let space = seed_space(&pool, alice).await;
+    let ta = token_for(&state, alice);
+
+    for i in 0..3 {
+        create_post(&app, space, &ta, &format!("post {i}")).await;
+    }
+    let base = format!("/api/spaces/{space}/posts");
+
+    // Page 1 : 2 plus récents, hasMore = true.
+    let (st, p1) = req(&app, "GET", &format!("{base}?limit=2"), &ta, None).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(p1["items"].as_array().unwrap().len(), 2);
+    assert_eq!(p1["hasMore"], true);
+
+    // Page 2 : curseur = createdAt du dernier item reçu → le 3ᵉ post, hasMore = false.
+    let cursor = p1["items"][1]["createdAt"].as_str().unwrap().replace(':', "%3A");
+    let (st, p2) = req(&app, "GET", &format!("{base}?limit=2&before={cursor}"), &ta, None).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(p2["items"].as_array().unwrap().len(), 1);
+    assert_eq!(p2["hasMore"], false);
+}
