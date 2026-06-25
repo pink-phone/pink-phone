@@ -97,3 +97,23 @@ impl Config {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use base64::{engine::general_purpose::STANDARD, Engine};
+
+    #[test]
+    fn decode_media_key_valide_invalide() {
+        // base64 standard de 32 octets → clé décodée.
+        let valid = STANDARD.encode([7u8; 32]);
+        assert_eq!(decode_media_key(&valid), Some([7u8; 32]));
+        // vide / espaces → None.
+        assert_eq!(decode_media_key(""), None);
+        assert_eq!(decode_media_key("   "), None);
+        // base64 invalide → None.
+        assert_eq!(decode_media_key("pas du base64 !!!"), None);
+        // base64 valide mais pas 32 octets → None.
+        assert_eq!(decode_media_key(&STANDARD.encode([1u8; 16])), None);
+    }
+}
