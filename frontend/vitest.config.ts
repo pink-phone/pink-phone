@@ -13,5 +13,29 @@ export default defineConfig({
     include: ["src/**/*.test.{ts,tsx}"],
     // Les stories ne sont pas des tests.
     exclude: ["**/node_modules/**", "**/*.stories.tsx"],
+    // Couverture (#93) : seulement avec `--coverage` (npm run coverage / CI).
+    // On mesure le code applicatif, pas les stories/tests/mocks/setup. Les
+    // seuils sont des planchers (sous la valeur courante) → ils verrouillent
+    // l'acquis sans casser le CI à la moindre fluctuation.
+    coverage: {
+      provider: "v8",
+      include: ["src/**"],
+      exclude: [
+        "src/**/*.stories.tsx",
+        "src/**/*.test.{ts,tsx}",
+        "src/mock/**",
+        "src/test/**",
+        "src/**/*.d.ts",
+        "src/main.tsx",
+        "src/sw.js",
+      ],
+      reporter: ["text-summary", "lcov", "json-summary"],
+      thresholds: {
+        lines: 65,
+        statements: 65,
+        branches: 70,
+        functions: 40,
+      },
+    },
   },
 });

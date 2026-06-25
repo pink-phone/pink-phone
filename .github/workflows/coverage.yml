@@ -1,0 +1,112 @@
+# Couverture de tests (#93) — informatif + planchers anti-régression.
+#
+# Tourne sur GitHub (le miroir) à chaque push sur main + manuellement. Deux jobs
+# indépendants :
+#   - frontend : `vitest run --coverage` (v8) — seuils dans vitest.config.ts.
+#   - backend  : `cargo llvm-cov` AVEC la feature `integration` → service
+#     Postgres (comme integration.yml ; ces tests ne sont PAS dans le Dockerfile).
+#
+# NB : on ne gate PAS le build d'image ici — les Dockerfiles gardent leur
+# `npm run test` / `cargo test` no-DB. C'est un job à part qui mesure et publie
+# (résumé + artefact lcov), et échoue seulement si la couverture passe SOUS le
+# plancher (les seuils sont fixés sous la valeur courante).
+
+name: Coverage
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  frontend-coverage:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - name: Vitest coverage (seuils dans vitest.config.ts)
+        run: npm run coverage
+      - name: Résumé dans le job
+        if: always()
+        run: |
+          node -e '
+            try {
+              const t = require("./coverage/coverage-summary.json").total;
+              const pct = (k) => `${t[k].pct}% (${t[k].covered}/${t[k].total})`;
+              const fs = require("fs");
+              fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+                `### Frontend coverage\n` +
+                `| | % |\n|---|---|\n` +
+                `| Lines | ${pct("lines")} |\n` +
+                `| Statements | ${pct("statements")} |\n` +
+                `| Branches | ${pct("branches")} |\n` +
+                `| Functions | ${pct("functions")} |\n`);
+            } catch (e) { console.log("pas de résumé:", e.message); }
+          '
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-lcov
+          path: frontend/coverage/lcov.info
+          if-no-files-found: ignore
+
+  backend-coverage:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: pink
+          POSTGRES_PASSWORD: pink
+          POSTGRES_DB: pinkphone
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pink"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://pink:pink@localhost:5432/pinkphone
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: llvm-tools-preview
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: backend
+      - name: Collecte (cargo llvm-cov, feature integration)
+        working-directory: backend
+        run: cargo llvm-cov --no-report --features integration
+      - name: Résumé + plancher de lignes (55 %)
+        working-directory: backend
+        run: |
+          {
+            echo '### Backend coverage'
+            echo '```'
+            cargo llvm-cov report --summary-only
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          cargo llvm-cov report --summary-only --fail-under-lines 55
+      - name: Rapport lcov
+        if: always()
+        working-directory: backend
+        run: cargo llvm-cov report --lcov --output-path lcov.info
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-lcov
+          path: backend/lcov.info
+          if-no-files-found: ignore

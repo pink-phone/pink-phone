@@ -2,6 +2,8 @@ node_modules
 dist
 dist-ssr
 storybook-static
+coverage
+lcov.info
 *.local
 .DS_Store
 .env
