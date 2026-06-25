@@ -187,14 +187,32 @@ pub struct InviteCreated {
 /// borne l'accumulation de tokens (SEC-NEW-004). Large devant les 8 membres max.
 const MAX_ACTIVE_INVITES: i64 = 10;
 
-/// Génère une invitation à usage unique (valable 7 jours) pour ce salon.
+/// Génère (ou réutilise) une invitation à usage unique (valable 7 jours) pour ce
+/// salon. **Idempotent** (#89/A) : tant qu'une invitation est active (non
+/// utilisée, non expirée), on renvoie SON code → le code reste stable entre
+/// rechargements/clics, au lieu d'en empiler une nouvelle. Un nouveau code n'est
+/// frappé qu'une fois l'ancien consommé (un membre a rejoint) ou expiré.
 async fn create_invite(
     State(state): State<AppState>,
     auth: AuthUser,
     Path(space_id): Path<Uuid>,
 ) -> ApiResult<(StatusCode, Json<InviteCreated>)> {
     ensure_member(&state.pool, auth.user_id, space_id).await?;
+    // Réutilise l'invitation active existante si elle existe (code stable).
+    let existing: Option<String> = sqlx::query_scalar(
+        "SELECT code FROM space_invites
+         WHERE space_id = $1 AND used_at IS NULL AND expires_at > now()
+         ORDER BY created_at DESC LIMIT 1",
+    )
+    .bind(space_id)
+    .fetch_optional(&state.pool)
+    .await?;
+    if let Some(code) = existing {
+        return Ok((StatusCode::OK, Json(InviteCreated { code })));
+    }
     // Anti-accumulation : on borne les invitations actives par salon (SEC-NEW-004).
+    // (Quasi inatteignable depuis l'idempotence ci-dessus ; garde-fou en cas de
+    // course entre deux créations concurrentes.)
     let active: i64 = sqlx::query_scalar(
         "SELECT count(*) FROM space_invites
          WHERE space_id = $1 AND used_at IS NULL AND expires_at > now()",

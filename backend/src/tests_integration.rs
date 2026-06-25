@@ -229,6 +229,41 @@ async fn invite_code_lisible_et_join_insensible_a_la_casse(pool: PgPool) {
 }
 
 #[sqlx::test]
+async fn create_invite_idempotent_code_stable_puis_neuf_apres_usage(pool: PgPool) {
+    let (app, state) = build_app(pool.clone());
+    let alice = seed_user(&pool, "alice").await;
+    let bob = seed_user(&pool, "bob").await;
+    let space = seed_space(&pool, alice).await;
+    let ta = token_for(&state, alice);
+    let tb = token_for(&state, bob);
+    let invites = format!("/api/spaces/{space}/invites");
+
+    // Deux créations de suite → MÊME code (idempotent, 201 puis 200).
+    let (st1, c1) = req(&app, "POST", &invites, &ta, None).await;
+    assert_eq!(st1, StatusCode::CREATED);
+    let code1 = c1["code"].as_str().unwrap().to_string();
+    let (st2, c2) = req(&app, "POST", &invites, &ta, None).await;
+    assert_eq!(st2, StatusCode::OK, "réutilisation de l'invitation active");
+    assert_eq!(c2["code"].as_str().unwrap(), code1, "code stable");
+
+    // Bob consomme le code.
+    let (st, _) = req(
+        &app,
+        "POST",
+        "/api/spaces/join",
+        &tb,
+        Some(json!({ "code": code1 })),
+    )
+    .await;
+    assert_eq!(st, StatusCode::CREATED);
+
+    // Une fois consommé, une nouvelle création frappe un code différent.
+    let (st3, c3) = req(&app, "POST", &invites, &ta, None).await;
+    assert_eq!(st3, StatusCode::CREATED);
+    assert_ne!(c3["code"].as_str().unwrap(), code1, "code neuf après usage");
+}
+
+#[sqlx::test]
 async fn join_refuse_un_code_inconnu(pool: PgPool) {
     let (app, state) = build_app(pool.clone());
     let bob = seed_user(&pool, "bob").await;
