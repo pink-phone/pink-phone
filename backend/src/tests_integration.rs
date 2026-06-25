@@ -400,3 +400,139 @@ async fn notices_refuse_un_non_membre(pool: PgPool) {
         req(&app, "GET", &format!("/api/spaces/{space}/notices"), &t, None).await;
     assert_eq!(st, StatusCode::FORBIDDEN, "ensure_member doit bloquer");
 }
+
+// --- Tests : autz & validation des routes (RR-02/03, machine à états, SEC-015) -
+
+/// Crée un post via HTTP et renvoie son id.
+async fn create_post(app: &Router, space: Uuid, token: &str, body: &str) -> Uuid {
+    let (st, p) = req(
+        app,
+        "POST",
+        &format!("/api/spaces/{space}/posts"),
+        token,
+        Some(json!({ "body": body })),
+    )
+    .await;
+    assert_eq!(st, StatusCode::CREATED);
+    Uuid::parse_str(p["id"].as_str().unwrap()).unwrap()
+}
+
+#[sqlx::test]
+async fn post_modifie_ou_supprime_par_non_auteur_refuse(pool: PgPool) {
+    let (app, state) = build_app(pool.clone());
+    let alice = seed_user(&pool, "alice").await;
+    let bob = seed_user(&pool, "bob").await;
+    let space = seed_space(&pool, alice).await;
+    add_member(&pool, bob, space).await; // bob est membre, mais pas l'auteur
+    let ta = token_for(&state, alice);
+    let tb = token_for(&state, bob);
+
+    let post = create_post(&app, space, &ta, "mon récit").await;
+    let path = format!("/api/spaces/{space}/posts/{post}");
+
+    // Bob (membre, non-auteur) ne peut ni supprimer ni éditer (RR-03 → 403).
+    let (st, _) = req(&app, "DELETE", &path, &tb, None).await;
+    assert_eq!(st, StatusCode::FORBIDDEN);
+    let (st, _) = req(&app, "PATCH", &path, &tb, Some(json!({ "body": "pirate" }))).await;
+    assert_eq!(st, StatusCode::FORBIDDEN);
+
+    // L'auteur, lui, peut supprimer.
+    let (st, _) = req(&app, "DELETE", &path, &ta, None).await;
+    assert_eq!(st, StatusCode::NO_CONTENT);
+}
+
+#[sqlx::test]
+async fn post_recit_trop_long_refuse(pool: PgPool) {
+    let (app, state) = build_app(pool.clone());
+    let alice = seed_user(&pool, "alice").await;
+    let space = seed_space(&pool, alice).await;
+    let ta = token_for(&state, alice);
+
+    let huge = "a".repeat(64 * 1024 + 1); // > MAX_BODY_LEN
+    let (st, _) = req(
+        &app,
+        "POST",
+        &format!("/api/spaces/{space}/posts"),
+        &ta,
+        Some(json!({ "body": huge })),
+    )
+    .await;
+    assert_eq!(st, StatusCode::BAD_REQUEST, "récit borné (RR-02)");
+}
+
+#[sqlx::test]
+async fn commentaire_vide_ou_trop_long_refuse_et_autz_suppression(pool: PgPool) {
+    let (app, state) = build_app(pool.clone());
+    let alice = seed_user(&pool, "alice").await;
+    let bob = seed_user(&pool, "bob").await;
+    let space = seed_space(&pool, alice).await;
+    add_member(&pool, bob, space).await;
+    let ta = token_for(&state, alice);
+    let tb = token_for(&state, bob);
+
+    let post = create_post(&app, space, &ta, "récit").await;
+    let comments = format!("/api/spaces/{space}/posts/{post}/comments");
+
+    // Vide → 400.
+    let (st, _) = req(&app, "POST", &comments, &tb, Some(json!({ "body": "  " }))).await;
+    assert_eq!(st, StatusCode::BAD_REQUEST, "commentaire vide");
+    // Trop long → 400.
+    let huge = "a".repeat(8 * 1024 + 1);
+    let (st, _) = req(&app, "POST", &comments, &tb, Some(json!({ "body": huge }))).await;
+    assert_eq!(st, StatusCode::BAD_REQUEST, "commentaire borné (RR-02)");
+
+    // Bob commente, Alice (non-auteure du commentaire) ne peut pas le supprimer.
+    let (st, c) = req(&app, "POST", &comments, &tb, Some(json!({ "body": "joli" }))).await;
+    assert_eq!(st, StatusCode::CREATED);
+    let cid = c["id"].as_str().unwrap();
+    let (st, _) = req(
+        &app,
+        "DELETE",
+        &format!("{comments}/{cid}"),
+        &ta,
+        None,
+    )
+    .await;
+    assert_eq!(st, StatusCode::NOT_FOUND, "autz auteur du commentaire");
+}
+
+/// Crée un défi via HTTP (auteur = proposeur) et renvoie son id.
+async fn create_challenge(app: &Router, space: Uuid, token: &str) -> Uuid {
+    let (st, ch) = req(
+        app,
+        "POST",
+        &format!("/api/spaces/{space}/challenges"),
+        token,
+        Some(json!({ "title": "Un défi", "description": "desc", "intensity": "hot" })),
+    )
+    .await;
+    assert_eq!(st, StatusCode::CREATED);
+    Uuid::parse_str(ch["id"].as_str().unwrap()).unwrap()
+}
+
+#[sqlx::test]
+async fn defi_machine_etat_via_http(pool: PgPool) {
+    let (app, state) = build_app(pool.clone());
+    let alice = seed_user(&pool, "alice").await; // proposeuse
+    let bob = seed_user(&pool, "bob").await; // destinataire
+    let space = seed_space(&pool, alice).await;
+    add_member(&pool, bob, space).await;
+    let ta = token_for(&state, alice);
+    let tb = token_for(&state, bob);
+
+    // Transition interdite par la machine (proposed → jobDone) → 409.
+    let ch = create_challenge(&app, space, &ta).await;
+    let tr = format!("/api/spaces/{space}/challenges/{ch}/transitions");
+    let (st, _) = req(&app, "POST", &tr, &tb, Some(json!({ "to": "jobDone" }))).await;
+    assert_eq!(st, StatusCode::CONFLICT, "transition non autorisée");
+
+    // SEC-015 : la proposeuse ne peut pas accepter sa propre proposition → 403.
+    let (st, _) = req(&app, "POST", &tr, &ta, Some(json!({ "to": "challengeAccepted" }))).await;
+    assert_eq!(st, StatusCode::FORBIDDEN, "proposeuse ne s'auto-accepte pas");
+
+    // Le destinataire, lui, peut accepter → 200.
+    let (st, ch_json) =
+        req(&app, "POST", &tr, &tb, Some(json!({ "to": "challengeAccepted" }))).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(ch_json["status"], "challengeAccepted");
+}
