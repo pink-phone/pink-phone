@@ -7,13 +7,16 @@ use serde::{Deserialize, Serialize};
 use crate::auth::{hash_password, issue_token, verify_login, AuthUser};
 use crate::error::{ApiError, ApiResult};
 use crate::models::{User, UserPublic};
-use crate::state::AppState;
+use crate::state::{AppState, EventKind};
+
+/// Borne du nom affiché (cohérent avec les autres champs texte courts).
+const MAX_DISPLAY_NAME_LEN: usize = 80;
 
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/api/auth/register", post(register))
         .route("/api/auth/login", post(login))
-        .route("/api/auth/me", get(me))
+        .route("/api/auth/me", get(me).patch(update_me))
         .route("/api/auth/logout-all", post(logout_all))
 }
 
@@ -125,6 +128,51 @@ async fn me(
     .bind(auth.user_id)
     .fetch_one(&state.pool)
     .await?;
+    Ok(Json(user))
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateMeBody {
+    pub display_name: String,
+}
+
+/// Met à jour le nom affiché de l'utilisateur courant. Le nom est dénormalisé
+/// (auteurs de posts/défis/commentaires via JOIN, listes de membres) : on prévient
+/// donc les salons de l'utilisateur (event WS `space`) pour rafraîchir l'affichage.
+async fn update_me(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Json(body): Json<UpdateMeBody>,
+) -> ApiResult<Json<UserPublic>> {
+    let name = body.display_name.trim();
+    if name.is_empty() {
+        return Err(ApiError::BadRequest("nom requis".into()));
+    }
+    if name.chars().count() > MAX_DISPLAY_NAME_LEN {
+        return Err(ApiError::BadRequest("nom trop long".into()));
+    }
+
+    let user: UserPublic = sqlx::query_as(
+        "UPDATE users SET display_name = $2 WHERE id = $1
+         RETURNING id, email, display_name, created_at",
+    )
+    .bind(auth.user_id)
+    .bind(name)
+    .fetch_one(&state.pool)
+    .await?;
+
+    // Rafraîchit le nom affiché chez les autres membres de chaque salon.
+    let spaces: Vec<uuid::Uuid> = sqlx::query_scalar(
+        "SELECT space_id FROM space_memberships WHERE user_id = $1",
+    )
+    .bind(auth.user_id)
+    .fetch_all(&state.pool)
+    .await?;
+    for space_id in spaces {
+        state.emit(space_id, auth.user_id, EventKind::Space);
+    }
+
     Ok(Json(user))
 }
 

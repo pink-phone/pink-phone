@@ -70,7 +70,7 @@ export function SpaceApp({
 }) {
   const { t, i18n } = useTranslation();
   const lang = i18n.resolvedLanguage ?? i18n.language;
-  const { token, logout } = useAuth();
+  const { token, logout, user: authUser, updateDisplayName } = useAuth();
   // Le salon vit en state : renommage/fuseau immédiats + sync via WebSocket.
   const [space, setSpace] = useState<Space>(initialSpace);
   const [tab, setTab] = useState<TabId>("dashboard");
@@ -559,6 +559,8 @@ export function SpaceApp({
           reactions={space.reactions}
           allowCustomReactions={space.allowCustomReactions}
           onReactionsChange={changeReactions}
+          userName={authUser?.displayName}
+          onRenameUser={updateDisplayName}
           onBack={() => setShowSettings(false)}
           onLogout={logout}
           onLogoutAll={async () => {

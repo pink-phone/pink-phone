@@ -30,6 +30,8 @@ const meta = {
     onAllowMediaDownloadChange: fn(),
     onBack: fn(),
     onLogout: fn(),
+    userName: "You",
+    onRenameUser: fn(),
   },
 } satisfies Meta<typeof SettingsScreen>;
 
@@ -153,6 +155,16 @@ export const SécuritéBiométrieActive: Story = {
       localStorage.removeItem("pp_bio");
     };
   },
+  render: (args) => (
+    <div className="w-[380px]">
+      <SettingsScreen {...args} />
+    </div>
+  ),
+};
+
+/** Mon compte : modifier le prénom affiché (PATCH /me). */
+export const MonCompte: Story = {
+  args: { userName: "Alex" },
   render: (args) => (
     <div className="w-[380px]">
       <SettingsScreen {...args} />

@@ -135,6 +135,10 @@ export const login = (email: string, password: string) =>
 
 export const me = () => req<UserPublic>("/api/auth/me");
 
+/** Met à jour le nom affiché de l'utilisateur courant. */
+export const updateMe = (displayName: string) =>
+  req<UserPublic>("/api/auth/me", { method: "PATCH", json: { displayName } });
+
 /** Échange le code éphémère du callback OIDC contre le JWT de session. */
 export const oidcExchange = (code: string) =>
   req<{ token: string }>("/api/auth/oidc/exchange", {

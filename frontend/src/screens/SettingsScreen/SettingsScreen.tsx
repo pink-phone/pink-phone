@@ -112,6 +112,9 @@ export interface SettingsScreenProps {
   onLogout?: () => void;
   /** Révoque toutes les sessions du compte (perte/vol d'appareil), puis déconnecte. */
   onLogoutAll?: () => void;
+  /** Compte : nom affiché courant + renommage (PATCH /me). Affiché si fourni. */
+  userName?: string;
+  onRenameUser?: (name: string) => Promise<void> | void;
 }
 
 /** Réglages : mode de notification « à la carte » + apparence + déconnexion. */
@@ -142,6 +145,8 @@ export function SettingsScreen({
   onBack,
   onLogout,
   onLogoutAll,
+  userName,
+  onRenameUser,
 }: SettingsScreenProps) {
   const { t, i18n } = useTranslation();
   const currentLang = i18n.resolvedLanguage ?? i18n.language;
@@ -266,6 +271,21 @@ export function SettingsScreen({
   const [spaceName, setSpaceName] = useState(space?.name ?? "");
   useEffect(() => setSpaceName(space?.name ?? ""), [space?.name]);
 
+  // Édition du nom affiché du compte (resynchronisé si le nom change ailleurs).
+  const [displayName, setDisplayName] = useState(userName ?? "");
+  useEffect(() => setDisplayName(userName ?? ""), [userName]);
+  const [savingName, setSavingName] = useState(false);
+  const submitName = async () => {
+    const v = displayName.trim();
+    if (!v || v === userName || savingName) return;
+    setSavingName(true);
+    try {
+      await onRenameUser?.(v);
+    } finally {
+      setSavingName(false);
+    }
+  };
+
   // Multi-space (#67) : section repliée par défaut (sauf si ≥ 2 salons, où
   // basculer est un vrai besoin) — la plupart des couples n'ont qu'un salon.
   const [spacesOpen, setSpacesOpen] = useState((spaces?.length ?? 0) >= 2);
@@ -307,6 +327,43 @@ export function SettingsScreen({
         )}
         <h1 className="font-serif text-2xl text-blush-100">{t("settings.title")}</h1>
       </header>
+
+      {userName !== undefined && onRenameUser && (
+        <section className="space-y-3">
+          <h2 className="text-xs uppercase tracking-[0.15em] text-taupe-400">
+            {t("settings.accountSection")}
+          </h2>
+          <Surface tone="velvet">
+            <form
+              className="flex items-end gap-2"
+              onSubmit={(e) => {
+                e.preventDefault();
+                submitName();
+              }}
+            >
+              <TextField
+                label={t("settings.displayName")}
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+                maxLength={80}
+                className="flex-1"
+              />
+              <Button
+                type="submit"
+                size="sm"
+                loading={savingName}
+                disabled={
+                  !displayName.trim() ||
+                  displayName.trim() === userName ||
+                  savingName
+                }
+              >
+                {t("settings.save")}
+              </Button>
+            </form>
+          </Surface>
+        </section>
+      )}
 
       {space && (
         <section className="space-y-3">

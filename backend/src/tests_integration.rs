@@ -727,6 +727,33 @@ async fn auth_register_login_me_flux_et_mauvais_identifiants(pool: PgPool) {
 }
 
 #[sqlx::test]
+async fn update_me_change_le_nom_et_valide(pool: PgPool) {
+    let (app, _state) = build_app(pool.clone());
+    let (_st, r) = req(
+        &app,
+        "POST",
+        "/api/auth/register",
+        "",
+        Some(json!({ "email": "n@test.local", "displayName": "Avant", "password": "motdepasse" })),
+    )
+    .await;
+    let token = r["token"].as_str().unwrap().to_string();
+
+    // Nom vide → 400.
+    let (st, _) = req(&app, "PATCH", "/api/auth/me", &token, Some(json!({ "displayName": "  " }))).await;
+    assert_eq!(st, StatusCode::BAD_REQUEST);
+
+    // Renommage OK (trim appliqué).
+    let (st, u) = req(&app, "PATCH", "/api/auth/me", &token, Some(json!({ "displayName": "  Après  " }))).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(u["displayName"], "Après");
+
+    // /me reflète le nouveau nom.
+    let (_, me) = req(&app, "GET", "/api/auth/me", &token, None).await;
+    assert_eq!(me["displayName"], "Après");
+}
+
+#[sqlx::test]
 async fn auth_register_refuse_mdp_court_et_email_deja_pris(pool: PgPool) {
     let (app, _state) = build_app(pool.clone());
     let body = |p: &str| json!({ "email": "a@test.local", "displayName": "A", "password": p });

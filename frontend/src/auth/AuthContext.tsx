@@ -25,6 +25,8 @@ interface AuthContextValue {
     password: string,
   ) => Promise<void>;
   logout: () => void;
+  /** Change le nom affiché du compte (PATCH /me) et met à jour l'état local. */
+  updateDisplayName: (displayName: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -121,12 +123,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  // Met à jour le nom affiché du compte (après PATCH /me). Pas d'appel réseau ici :
+  // l'orchestration appelle `api.updateMe` puis nous passe l'utilisateur à jour.
+  const updateDisplayName = useCallback(async (displayName: string) => {
+    const u = await api.updateMe(displayName);
+    setUser(u);
+  }, []);
+
   // Valeur mémoïsée (REACT-13) : ne change de référence que sur une transition
   // d'auth réelle, pas à chaque rendu du provider → pas de re-render inutile des
   // consommateurs (`login`/`register`/`logout` sont stables via useCallback).
   const value = useMemo(
-    () => ({ user, token, loading, login, register, logout }),
-    [user, token, loading, login, register, logout],
+    () => ({ user, token, loading, login, register, logout, updateDisplayName }),
+    [user, token, loading, login, register, logout, updateDisplayName],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

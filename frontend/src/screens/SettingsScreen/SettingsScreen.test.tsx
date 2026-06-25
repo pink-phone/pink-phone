@@ -56,6 +56,31 @@ describe("SettingsScreen — Notes de version (#90)", () => {
   });
 });
 
+describe("SettingsScreen — Mon compte (renommage)", () => {
+  it("« Enregistrer » désactivé tant que le nom est inchangé, puis onRenameUser(nouveau)", async () => {
+    const onRenameUser = vi.fn();
+    render(
+      <SettingsScreen {...base} userName="Alex" onRenameUser={onRenameUser} />,
+    );
+    const field = screen.getByLabelText("Ton prénom");
+    expect(field).toHaveValue("Alex");
+    // Le bouton de la section compte (1er « Enregistrer ») est désactivé au départ.
+    const save = screen.getAllByRole("button", { name: "Enregistrer" })[0];
+    expect(save).toBeDisabled();
+
+    await userEvent.clear(field);
+    await userEvent.type(field, "Alexandra");
+    expect(save).toBeEnabled();
+    await userEvent.click(save);
+    expect(onRenameUser).toHaveBeenCalledWith("Alexandra");
+  });
+
+  it("section masquée sans userName/onRenameUser", () => {
+    render(<SettingsScreen {...base} />);
+    expect(screen.queryByText("Mon compte")).toBeNull();
+  });
+});
+
 describe("SettingsScreen — Mes salons (#67)", () => {
   it("1 salon : section repliée par défaut (radiogroup des salons absent du DOM)", () => {
     render(

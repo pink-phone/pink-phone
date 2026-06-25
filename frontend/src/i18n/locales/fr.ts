@@ -296,6 +296,8 @@ export const fr = {
     spaceCreateAction: "Créer",
     spaceJoin: "Rejoindre un salon",
     spaceJoinAction: "Rejoindre",
+    accountSection: "Mon compte",
+    displayName: "Ton prénom",
     spaceSection: "Notre salon",
     spaceName: "Nom du salon",
     save: "Enregistrer",
