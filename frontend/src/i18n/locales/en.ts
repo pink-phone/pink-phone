@@ -296,6 +296,8 @@ export const en: Resources = {
     spaceCreateAction: "Create",
     spaceJoin: "Join a space",
     spaceJoinAction: "Join",
+    accountSection: "My account",
+    displayName: "Your name",
     spaceSection: "Our space",
     spaceName: "Space name",
     save: "Save",
