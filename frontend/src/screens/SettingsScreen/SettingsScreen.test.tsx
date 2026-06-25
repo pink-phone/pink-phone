@@ -26,10 +26,35 @@ vi.mock("../../lib/biometric", () => ({
   disableBiometric: vi.fn(),
 }));
 
+// Les notes de version (#90) lisent localStorage directement (indispo sous Node 26+).
+const store = new Map<string, string>();
+vi.stubGlobal("localStorage", {
+  getItem: (k: string) => store.get(k) ?? null,
+  setItem: (k: string, v: string) => void store.set(k, v),
+  removeItem: (k: string) => void store.delete(k),
+});
+
 const base = {
   notifMode: "ghost" as const,
   onModeChange: vi.fn(),
 };
+
+describe("SettingsScreen — Notes de version (#90)", () => {
+  it("pastille « Nouveautés » visible, puis ouverture des notes + pastille disparue", async () => {
+    store.clear();
+    render(<SettingsScreen {...base} />);
+    // Pastille « Nouveautés » présente tant que la version courante n'est pas vue.
+    expect(screen.getByText("Nouveautés")).toBeInTheDocument();
+
+    await userEvent.click(
+      screen.getByRole("button", { name: /Notes de version/i }),
+    );
+    // La feuille affiche la version la plus récente (donnée bundlée).
+    expect(screen.getByText("Galeries & partage")).toBeInTheDocument();
+    // La pastille a disparu (snapshot localStorage marqué vu).
+    expect(screen.queryByText("Nouveautés")).toBeNull();
+  });
+});
 
 describe("SettingsScreen — Mes salons (#67)", () => {
   it("1 salon : section repliée par défaut (radiogroup des salons absent du DOM)", () => {

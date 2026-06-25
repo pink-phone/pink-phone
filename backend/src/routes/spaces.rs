@@ -179,7 +179,8 @@ async fn my_spaces(
 #[derive(serde::Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct InviteCreated {
-    pub token: Uuid,
+    /// Code lisible à partager (#89), ex. `EmberVelvet#7`.
+    pub code: String,
 }
 
 /// Plafond d'invitations actives (non utilisées, non expirées) par salon —
@@ -206,20 +207,41 @@ async fn create_invite(
             "trop d'invitations actives pour ce salon".into(),
         ));
     }
-    let token: Uuid = sqlx::query_scalar(
-        "INSERT INTO space_invites (space_id, created_by, expires_at)
-         VALUES ($1, $2, now() + interval '7 days') RETURNING token",
-    )
-    .bind(space_id)
-    .bind(auth.user_id)
-    .fetch_one(&state.pool)
-    .await?;
-    Ok((StatusCode::CREATED, Json(InviteCreated { token })))
+    // Génère un code lisible (#89) ; en cas de collision (index unique sur
+    // lower(code)), on régénère (rare : ≤ 10 invitations actives par salon).
+    let mut last_err = None;
+    for _ in 0..8 {
+        let code = crate::invite_code::generate();
+        let inserted = sqlx::query(
+            "INSERT INTO space_invites (space_id, created_by, expires_at, code)
+             VALUES ($1, $2, now() + interval '7 days', $3)",
+        )
+        .bind(space_id)
+        .bind(auth.user_id)
+        .bind(&code)
+        .execute(&state.pool)
+        .await;
+        match inserted {
+            Ok(_) => return Ok((StatusCode::CREATED, Json(InviteCreated { code }))),
+            Err(e) if is_unique_violation(&e) => {
+                last_err = Some(e);
+                continue;
+            }
+            Err(e) => return Err(e.into()),
+        }
+    }
+    Err(last_err.map(ApiError::from).unwrap_or(ApiError::Internal))
+}
+
+/// Vrai si l'erreur SQL est une violation de contrainte d'unicité (code 23505).
+fn is_unique_violation(e: &sqlx::Error) -> bool {
+    matches!(e, sqlx::Error::Database(db) if db.code().as_deref() == Some("23505"))
 }
 
 #[derive(Deserialize)]
 pub struct JoinBody {
-    pub token: Uuid,
+    /// Code d'invitation lisible (#89), insensible à la casse.
+    pub code: String,
 }
 
 /// Rejoint un salon via un token d'invitation (SEC-005). Atomique : verrouille le
@@ -232,16 +254,18 @@ async fn join_by_invite(
 ) -> ApiResult<(StatusCode, Json<Space>)> {
     let mut tx = state.pool.begin().await?;
 
-    // Invitation verrouillée le temps de la transaction.
-    let invite: Option<(Uuid, Option<chrono::DateTime<chrono::Utc>>, bool)> =
+    // Lookup insensible à la casse (#89) ; invitation verrouillée le temps de la
+    // transaction. On récupère aussi le token (PK) pour la consommer.
+    let code = crate::invite_code::normalize(&body.code);
+    let invite: Option<(Uuid, Uuid, Option<chrono::DateTime<chrono::Utc>>, bool)> =
         sqlx::query_as(
-            "SELECT space_id, used_at, (expires_at < now()) AS expired
-             FROM space_invites WHERE token = $1 FOR UPDATE",
+            "SELECT token, space_id, used_at, (expires_at < now()) AS expired
+             FROM space_invites WHERE lower(code) = $1 FOR UPDATE",
         )
-        .bind(body.token)
+        .bind(&code)
         .fetch_optional(&mut *tx)
         .await?;
-    let (space_id, used_at, expired) =
+    let (token, space_id, used_at, expired) =
         invite.ok_or(ApiError::BadRequest("invitation invalide".into()))?;
     if used_at.is_some() {
         return Err(ApiError::Conflict("invitation déjà utilisée".into()));
@@ -293,7 +317,7 @@ async fn join_by_invite(
     .await?;
     sqlx::query("UPDATE space_invites SET used_at = now(), used_by = $1 WHERE token = $2")
         .bind(auth.user_id)
-        .bind(body.token)
+        .bind(token)
         .execute(&mut *tx)
         .await?;
     // Notice « X a rejoint le salon » pour les autres membres (#85).

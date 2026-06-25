@@ -71,7 +71,7 @@ describe("DashboardScreen — wording couple vs groupe (#52)", () => {
       <DashboardScreen
         {...base}
         partners={[]}
-        inviteToken={null}
+        inviteCode={null}
         onCreateInvite={vi.fn()}
       />,
     );
