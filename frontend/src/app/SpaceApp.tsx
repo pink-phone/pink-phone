@@ -15,7 +15,7 @@ import { relativeTime } from "../lib/time";
 import { useBackClose } from "../lib/useBackClose";
 import { disablePush, enablePush, pushSupported } from "../push";
 import { useAuth } from "../auth/AuthContext";
-import { takeSharedFile } from "../share";
+import { takeSharedFiles } from "../share";
 
 import { SettingsScreen } from "../screens/SettingsScreen/SettingsScreen";
 
@@ -149,7 +149,7 @@ export function SpaceApp({
   // Brouillon en cours d'édition (sinon la feuille "post" crée un nouveau post).
   const [editingPost, setEditingPost] = useState<ApiPost | null>(null);
   // Média reçu via le partage natif (#86) : pré-rempli dans un nouveau post.
-  const [sharedFile, setSharedFile] = useState<File | null>(null);
+  const [sharedFiles, setSharedFiles] = useState<File[]>([]);
   // Défi en cours d'édition (sinon la feuille "challenge" en crée un nouveau).
   const [editingChallenge, setEditingChallenge] = useState<ApiChallenge | null>(
     null,
@@ -224,16 +224,16 @@ export function SpaceApp({
     markSeen("notices");
   }, [ready, markSeen, user.id]);
 
-  // Partage natif (#86) : si un média a été partagé vers l'app, on ouvre un
-  // nouveau post pré-rempli (une seule fois, une fois prêt).
+  // Partage natif (#86/#87) : si un ou plusieurs médias ont été partagés vers
+  // l'app, on ouvre un nouveau post pré-rempli (une seule fois, une fois prêt).
   const sharedConsumed = useRef(false);
   useEffect(() => {
     if (!ready || sharedConsumed.current) return;
     sharedConsumed.current = true;
-    takeSharedFile().then((f) => {
-      if (!f) return;
+    takeSharedFiles().then((files) => {
+      if (files.length === 0) return;
       setEditingPost(null);
-      setSharedFile(f);
+      setSharedFiles(files);
       setOpenSheet("post");
     });
   }, [ready]);
@@ -434,7 +434,7 @@ export function SpaceApp({
   const addPost = async (draft: PostDraft) => {
     if (await addPostH(draft)) {
       setOpenSheet(null);
-      setSharedFile(null);
+      setSharedFiles([]);
     }
   };
 
@@ -684,19 +684,19 @@ export function SpaceApp({
         onClose={() => {
           setOpenSheet(null);
           setEditingPost(null);
-          setSharedFile(null);
+          setSharedFiles([]);
         }}
       >
         <PostComposer
-          // `shared` quand un média est pré-joint (#86) → remonte le composer
-          // avec le fichier ; sinon `new` (ou l'id du post en édition).
-          key={editingPost?.id ?? (sharedFile ? "shared" : "new")}
+          // `shared` quand des médias sont pré-joints (#86/#87) → remonte le
+          // composer avec les fichiers ; sinon `new` (ou l'id du post en édition).
+          key={editingPost?.id ?? (sharedFiles.length > 0 ? "shared" : "new")}
           // Toggle « téléchargeable » : valeur du post en édition, sinon le
           // défaut du salon (#78).
           defaultAllowDownload={
             editingPost ? editingPost.allowDownload : space.allowMediaDownload
           }
-          initialFile={editingPost ? null : sharedFile}
+          initialFiles={editingPost ? undefined : sharedFiles}
           initial={
             editingPost
               ? {
@@ -720,7 +720,7 @@ export function SpaceApp({
           onCancel={() => {
             setOpenSheet(null);
             setEditingPost(null);
-            setSharedFile(null);
+            setSharedFiles([]);
           }}
         />
       </Sheet>

@@ -36,8 +36,8 @@ export interface PostComposerProps {
   onCancel?: () => void;
   /** Valeur initiale du toggle « téléchargeable » (#78). */
   defaultAllowDownload?: boolean;
-  /** Média pré-joint (partage natif #86) : ajouté comme 1er nouveau média. */
-  initialFile?: File | null;
+  /** Médias pré-joints (partage natif #86/#87) : ajoutés comme nouveaux médias. */
+  initialFiles?: File[];
   /** Valeurs initiales (édition). `media` = galerie déjà attachée, ordonnée. */
   initial?: {
     title?: string;
@@ -65,7 +65,7 @@ export function PostComposer({
   onCancel,
   initial,
   defaultAllowDownload = false,
-  initialFile = null,
+  initialFiles,
 }: PostComposerProps) {
   const { t } = useTranslation();
   const editing = initial !== undefined;
@@ -79,12 +79,12 @@ export function PostComposer({
       viewOnce: m.viewOnce,
       mediaKind: m.kind ?? "image",
     }));
-    if (initialFile) {
+    for (const file of (initialFiles ?? []).slice(0, MAX_MEDIA - existing.length)) {
       existing.push({
         kind: "new",
-        file: initialFile,
-        url: URL.createObjectURL(initialFile),
-        mediaKind: fileKind(initialFile),
+        file,
+        url: URL.createObjectURL(file),
+        mediaKind: fileKind(file),
       });
     }
     return existing;
