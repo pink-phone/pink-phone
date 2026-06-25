@@ -357,6 +357,7 @@ export function SettingsScreen({
                   displayName.trim() === userName ||
                   savingName
                 }
+                className="mb-1.5"
               >
                 {t("settings.save")}
               </Button>
@@ -390,6 +391,7 @@ export function SettingsScreen({
                 type="submit"
                 size="sm"
                 disabled={!spaceName.trim() || spaceName.trim() === space.name}
+                className="mb-1.5"
               >
                 {t("settings.save")}
               </Button>
@@ -591,6 +593,7 @@ export function SettingsScreen({
                     size="sm"
                     loading={spaceBusy}
                     disabled={!newSpaceName.trim() || spaceBusy}
+                    className="mb-1.5"
                   >
                     {t("settings.spaceCreateAction")}
                   </Button>
@@ -620,6 +623,7 @@ export function SettingsScreen({
                     variant="secondary"
                     loading={spaceBusy}
                     disabled={!joinToken.trim() || spaceBusy}
+                    className="mb-1.5"
                   >
                     {t("settings.spaceJoinAction")}
                   </Button>
