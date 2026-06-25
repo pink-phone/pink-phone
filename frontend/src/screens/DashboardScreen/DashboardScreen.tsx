@@ -26,9 +26,9 @@ export interface DashboardScreenProps {
    * 1 = couple (formulation au singulier), ≥ 2 = groupe (formulation au pluriel).
    */
   partners: DashboardPartner[];
-  /** Token d'invitation généré (à partager) — null tant qu'on n'a pas cliqué. */
-  inviteToken?: string | null;
-  /** Génère un token d'invitation à usage unique. */
+  /** Code d'invitation lisible généré (à partager) — null tant qu'on n'a pas cliqué. */
+  inviteCode?: string | null;
+  /** Génère un code d'invitation à usage unique (#89). */
   onCreateInvite?: () => void;
   /** Mood courant : id prédéfini OU emoji libre (mood custom). */
   myMood: string | null;
@@ -120,7 +120,7 @@ function MoodCard({
 export function DashboardScreen({
   spaceName,
   partners,
-  inviteToken,
+  inviteCode,
   onCreateInvite,
   myMood,
   onMoodChange,
@@ -185,10 +185,10 @@ export function DashboardScreen({
           <p className="text-sm text-taupe-300">
             {t("dashboard.waitingPartnerText")}
           </p>
-          {inviteToken ? (
+          {inviteCode ? (
             <>
-              <code className="block select-all break-all rounded-2xl bg-charcoal-900/60 px-3 py-2 text-xs text-spice-300">
-                {inviteToken}
+              <code className="block select-all rounded-2xl bg-charcoal-900/60 px-3 py-2 text-center text-base font-medium tracking-wide text-spice-300">
+                {inviteCode}
               </code>
               <p className="text-[11px] text-taupe-400">
                 {t("dashboard.inviteHint")}

@@ -1,6 +1,7 @@
 mod auth;
 mod config;
 mod error;
+mod invite_code;
 mod models;
 mod notifications;
 mod pagination;

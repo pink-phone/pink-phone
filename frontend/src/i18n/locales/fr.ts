@@ -305,6 +305,15 @@ export const fr = {
     members: "Membres",
     inviteMember: "Inviter un membre",
     securitySection: "Sécurité",
+    aboutSection: "À propos",
+    releaseNotes: "Notes de version",
+    releaseNotesHint: "Découvre les nouveautés de l'app.",
+    releaseNotesNew: "Nouveautés",
+  },
+  releaseNotes: {
+    title: "Notes de version",
+    latest: "Récent",
+    empty: "Aucune note de version pour le moment.",
   },
   lock: {
     title: "Pink Phone est verrouillé",

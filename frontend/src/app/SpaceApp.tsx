@@ -155,12 +155,12 @@ export function SpaceApp({
     null,
   );
 
-  // Invitation (SEC-005) : token généré à la demande, partagé au partenaire.
-  const [inviteToken, setInviteToken] = useState<string | null>(null);
+  // Invitation (SEC-005, #89) : code lisible généré à la demande, partagé au partenaire.
+  const [inviteCode, setInviteCode] = useState<string | null>(null);
   const createInvite = async () => {
     try {
-      const { token } = await api.createInvite(space.id);
-      setInviteToken(token);
+      const { code } = await api.createInvite(space.id);
+      setInviteCode(code);
     } catch (e) {
       console.error("création d'invitation échouée", e);
     }
@@ -545,7 +545,7 @@ export function SpaceApp({
             allowMediaDownload: space.allowMediaDownload,
           }}
           members={members.map((m) => ({ id: m.id, name: m.displayName }))}
-          inviteToken={inviteToken}
+          inviteCode={inviteCode}
           onCreateInvite={createInvite}
           spaces={spaces.map((s) => ({ id: s.id, name: s.name }))}
           currentSpaceId={space.id}
@@ -617,7 +617,7 @@ export function SpaceApp({
         <DashboardScreen
           spaceName={space.name}
           partners={partnerCards}
-          inviteToken={inviteToken}
+          inviteCode={inviteCode}
           onCreateInvite={createInvite}
           myMood={myMood}
           onMoodChange={setMood}

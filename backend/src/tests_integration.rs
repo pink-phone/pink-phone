@@ -169,15 +169,15 @@ async fn join_emet_une_notice_member_joined(pool: PgPool) {
     )
     .await;
     assert_eq!(st, StatusCode::CREATED);
-    let token = inv["token"].as_str().unwrap().to_string();
+    let code = inv["code"].as_str().unwrap().to_string();
 
-    // Bob rejoint avec le token.
+    // Bob rejoint avec le code.
     let (st, _) = req(
         &app,
         "POST",
         "/api/spaces/join",
         &tb,
-        Some(json!({ "token": token })),
+        Some(json!({ "code": code })),
     )
     .await;
     assert_eq!(st, StatusCode::CREATED);
@@ -195,6 +195,53 @@ async fn join_emet_une_notice_member_joined(pool: PgPool) {
     let (_, nb) =
         req(&app, "GET", &format!("/api/spaces/{space}/notices"), &tb, None).await;
     assert_eq!(nb.as_array().unwrap().len(), 0, "bob ne se notifie pas lui-même");
+}
+
+#[sqlx::test]
+async fn invite_code_lisible_et_join_insensible_a_la_casse(pool: PgPool) {
+    let (app, state) = build_app(pool.clone());
+    let alice = seed_user(&pool, "alice").await;
+    let bob = seed_user(&pool, "bob").await;
+    let space = seed_space(&pool, alice).await;
+    let ta = token_for(&state, alice);
+    let tb = token_for(&state, bob);
+
+    let (st, inv) = req(&app, "POST", &format!("/api/spaces/{space}/invites"), &ta, None).await;
+    assert_eq!(st, StatusCode::CREATED);
+    let code = inv["code"].as_str().unwrap().to_string();
+    // Le code est lisible : « MotMot#chiffre » (pas un UUID).
+    assert!(code.contains('#'), "code lisible attendu, reçu {code}");
+    let (_, digit) = code.split_once('#').unwrap();
+    assert_eq!(digit.len(), 1);
+
+    // Bob rejoint en tapant le code en MAJUSCULES + espaces → doit marcher.
+    let messy = format!("  {}  ", code.to_uppercase());
+    let (st, joined) = req(
+        &app,
+        "POST",
+        "/api/spaces/join",
+        &tb,
+        Some(json!({ "code": messy })),
+    )
+    .await;
+    assert_eq!(st, StatusCode::CREATED, "join insensible à la casse/espaces");
+    assert_eq!(joined["id"].as_str().unwrap(), space.to_string());
+}
+
+#[sqlx::test]
+async fn join_refuse_un_code_inconnu(pool: PgPool) {
+    let (app, state) = build_app(pool.clone());
+    let bob = seed_user(&pool, "bob").await;
+    let tb = token_for(&state, bob);
+    let (st, _) = req(
+        &app,
+        "POST",
+        "/api/spaces/join",
+        &tb,
+        Some(json!({ "code": "NopeNope#9" })),
+    )
+    .await;
+    assert_eq!(st, StatusCode::BAD_REQUEST);
 }
 
 #[sqlx::test]

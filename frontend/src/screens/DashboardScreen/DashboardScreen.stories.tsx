@@ -124,7 +124,7 @@ export const Solo: Story = {
   name: "Espace en attente (sans partenaire)",
   args: {
     partners: [],
-    inviteToken: "a1b2c3d4-1234-5678-9abc-def012345678",
+    inviteCode: "EmberVelvet#7",
     onCreateInvite: () => {},
   },
   render: (args) => (

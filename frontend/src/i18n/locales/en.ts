@@ -305,6 +305,15 @@ export const en: Resources = {
     members: "Members",
     inviteMember: "Invite a member",
     securitySection: "Security",
+    aboutSection: "About",
+    releaseNotes: "What's new",
+    releaseNotesHint: "See the latest app updates.",
+    releaseNotesNew: "New",
+  },
+  releaseNotes: {
+    title: "What's new",
+    latest: "New",
+    empty: "No release notes yet.",
   },
   lock: {
     title: "Pink Phone is locked",

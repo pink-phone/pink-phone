@@ -8,6 +8,8 @@ import { ReactionSettings } from "../../components/ReactionSettings/ReactionSett
 import type { ReactionId } from "../../components/ReactionBar/ReactionBar";
 import { Sheet } from "../../components/Sheet/Sheet";
 import { LockScreen } from "../../components/LockScreen/LockScreen";
+import { ReleaseNotes } from "../../components/ReleaseNotes/ReleaseNotes";
+import { RELEASE_NOTES, CURRENT_VERSION } from "../../releaseNotes";
 import {
   isPinSet,
   setPin as storePin,
@@ -87,8 +89,8 @@ export interface SettingsScreenProps {
     allowMediaDownload?: boolean;
   };
   members?: { id: string; name: string }[];
-  /** Invitation d'un nouveau membre dans CE salon (#52) — token + générateur. */
-  inviteToken?: string | null;
+  /** Invitation d'un nouveau membre dans CE salon (#52) — code lisible + générateur. */
+  inviteCode?: string | null;
   onCreateInvite?: () => void;
   /** Tous les salons de l'utilisateur (multi-space #67) — affiche le sélecteur. */
   spaces?: { id: string; name: string }[];
@@ -123,7 +125,7 @@ export function SettingsScreen({
   onHotAnimChange,
   space,
   members,
-  inviteToken,
+  inviteCode,
   onCreateInvite,
   spaces,
   currentSpaceId,
@@ -148,6 +150,18 @@ export function SettingsScreen({
   const chooseTheme = (next: Theme) => {
     applyTheme(next);
     setTheme(next);
+  };
+
+  // Notes de version (#90) : concern appareil (comme le thème) — un snapshot
+  // localStorage retient la dernière version vue → pastille « Nouveautés ».
+  const [showReleaseNotes, setShowReleaseNotes] = useState(false);
+  const [releaseSeen, setReleaseSeen] = useState(
+    () => localStorage.getItem("pp_seen_release") === CURRENT_VERSION,
+  );
+  const openReleaseNotes = () => {
+    setShowReleaseNotes(true);
+    localStorage.setItem("pp_seen_release", CURRENT_VERSION);
+    setReleaseSeen(true);
   };
 
   // Verrouillage local par code PIN (concern appareil, comme le thème/la langue).
@@ -369,10 +383,10 @@ export function SettingsScreen({
                   {members.map((m) => m.name).join(" · ")}
                 </p>
                 {onCreateInvite &&
-                  (inviteToken ? (
+                  (inviteCode ? (
                     <>
-                      <code className="block select-all break-all rounded-2xl bg-charcoal-900/60 px-3 py-2 text-xs text-spice-300">
-                        {inviteToken}
+                      <code className="block select-all rounded-2xl bg-charcoal-900/60 px-3 py-2 text-center text-base font-medium tracking-wide text-spice-300">
+                        {inviteCode}
                       </code>
                       <p className="text-[11px] text-taupe-400">
                         {t("dashboard.inviteHint")}
@@ -829,6 +843,36 @@ export function SettingsScreen({
         </Surface>
       </section>
 
+      <section className="space-y-3">
+        <h2 className="text-xs uppercase tracking-[0.15em] text-taupe-400">
+          {t("settings.aboutSection")}
+        </h2>
+        <Surface tone="velvet">
+          <button
+            type="button"
+            onClick={openReleaseNotes}
+            className="flex w-full items-center gap-3 rounded-2xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+          >
+            <span aria-hidden className="text-2xl">
+              ✨
+            </span>
+            <div className="min-w-0 flex-1 leading-tight">
+              <p className="font-serif text-base text-blush-100">
+                {t("settings.releaseNotes")}
+              </p>
+              <p className="mt-0.5 text-xs text-taupe-400">
+                {t("settings.releaseNotesHint")}
+              </p>
+            </div>
+            {!releaseSeen && (
+              <span className="shrink-0 rounded-full bg-spice-600 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-blush-50">
+                {t("settings.releaseNotesNew")}
+              </span>
+            )}
+          </button>
+        </Surface>
+      </section>
+
       {(onLogout || onLogoutAll) && (
         <section className="space-y-2 pt-2">
           {onLogout && (
@@ -915,6 +959,16 @@ export function SettingsScreen({
             )}
           </div>
         )}
+      </Sheet>
+
+      <Sheet
+        open={showReleaseNotes}
+        title={t("releaseNotes.title")}
+        onClose={() => setShowReleaseNotes(false)}
+      >
+        <div className="pb-4">
+          <ReleaseNotes notes={RELEASE_NOTES} />
+        </div>
       </Sheet>
     </div>
   );
