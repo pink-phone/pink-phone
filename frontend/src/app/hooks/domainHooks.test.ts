@@ -157,10 +157,7 @@ describe("usePosts", () => {
     authorName: "Sam",
     title: null,
     body: "x",
-    mediaId: null,
-    mediaViewOnce: null,
-    mediaConsumed: null,
-    mediaMime: null,
+    media: [],
     draft: false,
     allowDownload: false,
     createdAt: "t",
@@ -242,10 +239,7 @@ describe("usePosts — pagination et mutations complémentaires", () => {
     authorName: "Sam",
     title: null,
     body: "x",
-    mediaId: null,
-    mediaViewOnce: null,
-    mediaConsumed: null,
-    mediaMime: null,
+    media: [],
     draft: false,
     allowDownload: false,
     createdAt,
@@ -313,7 +307,7 @@ describe("usePosts — pagination et mutations complémentaires", () => {
     const { result } = renderHook(() => usePosts("s1"));
     let ok = false;
     await act(async () => {
-      ok = await result.current.add({ body: "bonjour", draft: false, viewOnce: false, allowDownload: false });
+      ok = await result.current.add({ body: "bonjour", media: [], draft: false, viewOnce: false, allowDownload: false });
     });
     expect(ok).toBe(true);
     expect(result.current.posts[0].id).toBe("pNew");
@@ -324,7 +318,7 @@ describe("usePosts — pagination et mutations complémentaires", () => {
     const { result } = renderHook(() => usePosts("s1"));
     let ok = true;
     await act(async () => {
-      ok = await result.current.add({ body: "x", draft: false, viewOnce: false, allowDownload: false });
+      ok = await result.current.add({ body: "x", media: [], draft: false, viewOnce: false, allowDownload: false });
     });
     expect(ok).toBe(false);
     expect(result.current.posts).toHaveLength(0);

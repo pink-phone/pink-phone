@@ -38,12 +38,9 @@ export const Édition: Story = {
   ),
 };
 
-const DEMO_PHOTO =
-  "https://images.unsplash.com/photo-1519681393784-d120267933ba?w=640&q=70";
-
 /**
- * Édition avec photo normale jointe : aperçu (révélé au press-hold), remplaçable.
- * Le toggle « Téléchargeable » (#78) apparaît (média non éphémère), ici activé.
+ * Édition avec galerie déjà jointe (#87) : 2 médias réordonnables. Le toggle
+ * « Téléchargeable » (#78) apparaît, ici activé.
  */
 export const ÉditionAvecPhoto: Story = {
   args: {
@@ -51,7 +48,10 @@ export const ÉditionAvecPhoto: Story = {
     initial: {
       title: "Note pour plus tard…",
       body: "Une idée que je garde au chaud, je la peaufine avant de te l'envoyer.",
-      media: { viewOnce: false, loader: () => Promise.resolve(DEMO_PHOTO) },
+      media: [
+        { id: "m1", viewOnce: false, kind: "image" },
+        { id: "m2", viewOnce: false, kind: "video" },
+      ],
     },
   },
   render: (args) => (
@@ -67,7 +67,7 @@ export const ÉditionPhotoÉphémère: Story = {
     initial: {
       title: "Note pour plus tard…",
       body: "Une idée que je garde au chaud, je la peaufine avant de te l'envoyer.",
-      media: { viewOnce: true },
+      media: [{ id: "m1", viewOnce: true, kind: "image" }],
     },
   },
   render: (args) => (

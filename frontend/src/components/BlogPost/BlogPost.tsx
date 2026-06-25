@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { Surface } from "../Surface/Surface";
 import { Badge } from "../Badge/Badge";
 import { Button } from "../Button/Button";
-import { SafeMedia } from "../SafeMedia/SafeMedia";
+import { MediaGallery } from "../MediaGallery/MediaGallery";
 import { ReactionBar, type ReactionId } from "../ReactionBar/ReactionBar";
 import { ContextMenu } from "../ContextMenu/ContextMenu";
 import { cn } from "../../lib/cn";
@@ -34,7 +34,8 @@ export interface BlogPostProps {
   timeLabel: string;
   title?: string;
   body: string;
-  media?: BlogPostMedia;
+  /** Galerie de médias ordonnée (#87). Vide = aucun média. */
+  media?: BlogPostMedia[];
   reactionCounts?: Record<string, number>;
   myReactions?: string[];
   onToggleReaction?: (r: string) => void;
@@ -70,7 +71,7 @@ export function BlogPost({
   timeLabel,
   title,
   body,
-  media,
+  media = [],
   reactionCounts,
   myReactions,
   onToggleReaction,
@@ -158,17 +159,7 @@ export function BlogPost({
         </p>
       )}
 
-      {media && (
-        <SafeMedia
-          src={media.src}
-          loader={media.loader}
-          kind={media.kind}
-          alt={media.alt}
-          viewOnce={media.viewOnce}
-          consumed={media.consumed}
-          downloadable={media.downloadable}
-        />
-      )}
+      {media.length > 0 && <MediaGallery media={media} />}
 
       {draft ? (
         /* Brouillon : publier (l'édition/suppression passent par le menu « ⋯ »). */

@@ -19,7 +19,7 @@ describe("BlogPost", () => {
       <BlogPost
         {...base}
         body=""
-        media={{ src: "https://example.test/x.jpg", alt: "photo" }}
+        media={[{ src: "https://example.test/x.jpg", alt: "photo" }]}
       />,
     );
     // Le <p> du récit (classe whitespace-pre-line) ne doit pas être rendu.

@@ -28,6 +28,7 @@ export const SAMPLE_POSTS: PostData[] = [
     timeLabel: "Just now",
     title: "A note for later…",
     body: "An idea I'm keeping warm — I'll polish it before sending it your way.",
+    media: [],
     reactionCounts: {},
     myReactions: [],
     verdict: null,
@@ -42,6 +43,7 @@ export const SAMPLE_POSTS: PostData[] = [
     title: "This idea on my mind…",
     body:
       "I was thinking about what we whispered the other night. I'd love to take our time, no rush, just to explore.",
+    media: [],
     reactionCounts: { fire: 2, smirk: 1 },
     myReactions: ["fire"],
     verdict: "curious",
@@ -53,6 +55,7 @@ export const SAMPLE_POSTS: PostData[] = [
     timeLabel: "Tuesday, 8am",
     body:
       "Quick recap of last night: it was perfect. I loved how slow it was. Let's do it again whenever you want. 😏",
+    media: [],
     reactionCounts: { fire: 1, smirk: 2, breath: 1 },
     myReactions: [],
     verdict: "hot",
@@ -64,7 +67,7 @@ export const SAMPLE_POSTS: PostData[] = [
     author: PARTNER,
     timeLabel: "Sunday",
     body: "Just for you, and just for tonight. Look quickly. 🤫",
-    media: { src: DEMO_PHOTO, alt: "Ephemeral photo", viewOnce: true },
+    media: [{ src: DEMO_PHOTO, alt: "Ephemeral photo", viewOnce: true }],
     reactionCounts: { hush: 1 },
     myReactions: [],
     verdict: null,

@@ -133,7 +133,7 @@ pub async fn purge_orphan_media(pool: &sqlx::PgPool, media_dir: &str) {
     let rows: Vec<(Uuid, String)> = match sqlx::query_as(
         "DELETE FROM media m
          WHERE m.created_at < now() - interval '1 hour'
-           AND NOT EXISTS (SELECT 1 FROM posts p WHERE p.media_id = m.id)
+           AND NOT EXISTS (SELECT 1 FROM post_media pm WHERE pm.media_id = m.id)
          RETURNING m.id, m.storage_key",
     )
     .fetch_all(pool)

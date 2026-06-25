@@ -100,6 +100,20 @@ fn token_for(state: &AppState, user: Uuid) -> String {
     issue_token(&state.config.jwt_secret, user).unwrap()
 }
 
+/// Insère un média « brut » dans l'espace (sans passer par l'upload multipart).
+async fn seed_media(pool: &PgPool, space: Uuid, owner: Uuid, mime: &str) -> Uuid {
+    sqlx::query_scalar(
+        "INSERT INTO media (space_id, owner_id, storage_key, mime)
+         VALUES ($1, $2, gen_random_uuid()::text, $3) RETURNING id",
+    )
+    .bind(space)
+    .bind(owner)
+    .bind(mime)
+    .fetch_one(pool)
+    .await
+    .unwrap()
+}
+
 /// Envoie une requête authentifiée et renvoie (statut, corps JSON).
 async fn req(
     app: &Router,
@@ -227,6 +241,69 @@ async fn activation_download_emet_une_notice_une_seule_fois(pool: PgPool) {
         1,
         "pas de doublon sans transition false→true",
     );
+}
+
+// --- Tests : galerie multi-médias (#87) ----------------------------------
+
+#[sqlx::test]
+async fn post_galerie_garde_l_ordre_et_se_reordonne(pool: PgPool) {
+    let (app, state) = build_app(pool.clone());
+    let alice = seed_user(&pool, "alice").await;
+    let space = seed_space(&pool, alice).await;
+    let m1 = seed_media(&pool, space, alice, "image/jpeg").await;
+    let m2 = seed_media(&pool, space, alice, "video/mp4").await;
+    let ta = token_for(&state, alice);
+
+    // Création avec 2 médias dans l'ordre [m1, m2].
+    let (st, post) = req(
+        &app,
+        "POST",
+        &format!("/api/spaces/{space}/posts"),
+        &ta,
+        Some(json!({ "body": "galerie", "mediaIds": [m1, m2] })),
+    )
+    .await;
+    assert_eq!(st, StatusCode::CREATED);
+    let media = post["media"].as_array().unwrap();
+    assert_eq!(media.len(), 2);
+    assert_eq!(media[0]["id"], m1.to_string());
+    assert_eq!(media[1]["id"], m2.to_string());
+    assert_eq!(media[1]["mime"], "video/mp4");
+    let post_id = post["id"].as_str().unwrap().to_string();
+
+    // Réordonnancement : [m2, m1].
+    let (st, updated) = req(
+        &app,
+        "PATCH",
+        &format!("/api/spaces/{space}/posts/{post_id}"),
+        &ta,
+        Some(json!({ "mediaIds": [m2, m1] })),
+    )
+    .await;
+    assert_eq!(st, StatusCode::OK);
+    let media = updated["media"].as_array().unwrap();
+    assert_eq!(media[0]["id"], m2.to_string());
+    assert_eq!(media[1]["id"], m1.to_string());
+}
+
+#[sqlx::test]
+async fn post_refuse_un_media_d_un_autre_espace(pool: PgPool) {
+    let (app, state) = build_app(pool.clone());
+    let alice = seed_user(&pool, "alice").await;
+    let space = seed_space(&pool, alice).await;
+    let other = seed_space(&pool, alice).await; // autre salon d'alice
+    let foreign = seed_media(&pool, other, alice, "image/jpeg").await;
+    let ta = token_for(&state, alice);
+
+    let (st, _) = req(
+        &app,
+        "POST",
+        &format!("/api/spaces/{space}/posts"),
+        &ta,
+        Some(json!({ "body": "x", "mediaIds": [foreign] })),
+    )
+    .await;
+    assert_eq!(st, StatusCode::BAD_REQUEST, "média hors espace refusé");
 }
 
 #[sqlx::test]

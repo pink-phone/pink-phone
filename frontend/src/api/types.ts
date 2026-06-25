@@ -61,19 +61,25 @@ export interface MoodEntry {
   updatedAt: string;
 }
 
+/** Un média d'une galerie de post (#87), dans l'ordre. */
+export interface ApiPostMedia {
+  id: string;
+  /** Type MIME (distingue image / vidéo). */
+  mime: string;
+  /** Éphémère (« view once ») — propre au média. */
+  viewOnce: boolean;
+  /** Média éphémère déjà consommé. */
+  consumed: boolean;
+}
+
 export interface ApiPost {
   id: string;
   authorId: string;
   authorName: string;
   title: string | null;
   body: string;
-  mediaId: string | null;
-  /** Flag éphémère du média joint (null si aucun média). */
-  mediaViewOnce: boolean | null;
-  /** Média éphémère déjà consommé (null si aucun média). */
-  mediaConsumed: boolean | null;
-  /** Type MIME du média joint (null si aucun) — distingue image / vidéo. */
-  mediaMime: string | null;
+  /** Galerie de médias ordonnée (#87). Vide si aucun média. */
+  media: ApiPostMedia[];
   /** Brouillon : visible du seul auteur, non notifié tant qu'il n'est pas publié. */
   draft: boolean;
   /** Média téléchargeable (#78). Sans effet sur un média éphémère. */

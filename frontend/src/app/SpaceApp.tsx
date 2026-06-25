@@ -703,20 +703,14 @@ export function SpaceApp({
                   title: editingPost.title ?? undefined,
                   body: editingPost.body,
                   draft: editingPost.draft,
-                  media: editingPost.mediaId
-                    ? {
-                        viewOnce: editingPost.mediaViewOnce ?? false,
-                        kind: editingPost.mediaMime?.startsWith("video/")
-                          ? "video"
-                          : "image",
-                        alt: t("postComposer.attachedAlt"),
-                        loader: () =>
-                          api.fetchMediaObjectUrl(
-                            space.id,
-                            editingPost.mediaId as string,
-                          ),
-                      }
-                    : undefined,
+                  // Galerie déjà attachée (#87), ordonnée.
+                  media: editingPost.media.map((m) => ({
+                    id: m.id,
+                    viewOnce: m.viewOnce,
+                    kind: m.mime.startsWith("video/")
+                      ? ("video" as const)
+                      : ("image" as const),
+                  })),
                 }
               : undefined
           }
