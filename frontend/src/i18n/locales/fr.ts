@@ -353,6 +353,8 @@ export const fr = {
     revealAria: "{{alt}} — maintenir pour révéler",
     consumedAria: "Média éphémère déjà consommé",
     download: "Télécharger le média",
+    mute: "Couper le son",
+    unmute: "Activer le son",
   },
 };
 
