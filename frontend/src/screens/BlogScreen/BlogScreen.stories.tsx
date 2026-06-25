@@ -97,3 +97,23 @@ export const AvecNonLus: Story = {
     </div>
   ),
 };
+
+/**
+ * Brouillons (#91) : regroupés dans une section repliable en tête (repliée par
+ * défaut). Ici plusieurs brouillons pour montrer le compteur et le dépli.
+ */
+export const AvecBrouillons: Story = {
+  name: "Avec brouillons repliables",
+  args: {
+    posts: [
+      { ...SAMPLE_POSTS[0], id: "d1", draft: true, isMine: true },
+      { ...SAMPLE_POSTS[0], id: "d2", draft: true, isMine: true, title: "Autre idée…" },
+      ...SAMPLE_POSTS.filter((p) => !p.draft),
+    ],
+  },
+  render: (args) => (
+    <div className="w-[380px]">
+      <BlogScreen {...args} />
+    </div>
+  ),
+};

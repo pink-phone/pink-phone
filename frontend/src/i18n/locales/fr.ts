@@ -133,6 +133,8 @@ export const fr = {
     compose: "✍️ Écrire",
     empty: "Rien encore. Lance la première confidence…",
     draftBadge: "Brouillon",
+    draftsToggle_one: "Brouillon ({{count}})",
+    draftsToggle_other: "Brouillons ({{count}})",
     deletePost: "Supprimer ce post",
     confirmDelete: "Supprimer ce post ? C'est définitif.",
     publishDraft: "Publier ce brouillon",

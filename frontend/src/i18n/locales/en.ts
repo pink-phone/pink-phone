@@ -133,6 +133,8 @@ export const en: Resources = {
     compose: "✍️ Write",
     empty: "Nothing yet. Share the first secret…",
     draftBadge: "Draft",
+    draftsToggle_one: "Draft ({{count}})",
+    draftsToggle_other: "Drafts ({{count}})",
     deletePost: "Delete this post",
     confirmDelete: "Delete this post? This is permanent.",
     publishDraft: "Publish this draft",
