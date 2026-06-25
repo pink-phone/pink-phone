@@ -667,3 +667,187 @@ async fn posts_pagination_par_curseur(pool: PgPool) {
     assert_eq!(p2["items"].as_array().unwrap().len(), 1);
     assert_eq!(p2["hasMore"], false);
 }
+
+// --- Tests : auth (register/login/me/logout-all), seen, suggestions ----------
+
+#[sqlx::test]
+async fn auth_register_login_me_flux_et_mauvais_identifiants(pool: PgPool) {
+    let (app, _state) = build_app(pool.clone());
+
+    // Register : l'email est normalisé (trim + minuscules).
+    let (st, r) = req(
+        &app,
+        "POST",
+        "/api/auth/register",
+        "",
+        Some(json!({ "email": "  Zoe@Test.Local ", "displayName": "Zoe", "password": "motdepasse" })),
+    )
+    .await;
+    assert_eq!(st, StatusCode::CREATED);
+    let token = r["token"].as_str().unwrap().to_string();
+    assert_eq!(r["user"]["email"], "zoe@test.local");
+
+    // /me avec le jeton.
+    let (st, me) = req(&app, "GET", "/api/auth/me", &token, None).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(me["displayName"], "Zoe");
+
+    // Login OK (email en casse différente).
+    let (st, _) = req(
+        &app,
+        "POST",
+        "/api/auth/login",
+        "",
+        Some(json!({ "email": "ZOE@test.local", "password": "motdepasse" })),
+    )
+    .await;
+    assert_eq!(st, StatusCode::OK);
+
+    // Mauvais mot de passe → 401.
+    let (st, _) = req(
+        &app,
+        "POST",
+        "/api/auth/login",
+        "",
+        Some(json!({ "email": "zoe@test.local", "password": "faux" })),
+    )
+    .await;
+    assert_eq!(st, StatusCode::UNAUTHORIZED);
+
+    // Email inconnu → 401 (même réponse, anti-énumération).
+    let (st, _) = req(
+        &app,
+        "POST",
+        "/api/auth/login",
+        "",
+        Some(json!({ "email": "personne@test.local", "password": "motdepasse" })),
+    )
+    .await;
+    assert_eq!(st, StatusCode::UNAUTHORIZED);
+}
+
+#[sqlx::test]
+async fn auth_register_refuse_mdp_court_et_email_deja_pris(pool: PgPool) {
+    let (app, _state) = build_app(pool.clone());
+    let body = |p: &str| json!({ "email": "a@test.local", "displayName": "A", "password": p });
+
+    // Mot de passe < 8 → 400.
+    let (st, _) = req(&app, "POST", "/api/auth/register", "", Some(body("court"))).await;
+    assert_eq!(st, StatusCode::BAD_REQUEST);
+
+    // Création OK.
+    let (st, _) = req(&app, "POST", "/api/auth/register", "", Some(body("motdepasse"))).await;
+    assert_eq!(st, StatusCode::CREATED);
+
+    // Email déjà pris → 400 générique (jamais « email existe »).
+    let (st, _) = req(&app, "POST", "/api/auth/register", "", Some(body("autremotdepasse"))).await;
+    assert_eq!(st, StatusCode::BAD_REQUEST);
+}
+
+#[sqlx::test]
+async fn logout_all_revoque_les_anciens_jetons(pool: PgPool) {
+    let (app, _state) = build_app(pool.clone());
+    let (_st, r) = req(
+        &app,
+        "POST",
+        "/api/auth/register",
+        "",
+        Some(json!({ "email": "z@test.local", "displayName": "Z", "password": "motdepasse" })),
+    )
+    .await;
+    let token = r["token"].as_str().unwrap().to_string();
+
+    let (st, _) = req(&app, "GET", "/api/auth/me", &token, None).await;
+    assert_eq!(st, StatusCode::OK);
+
+    // Le `iat` du JWT est en secondes entières ; on laisse passer une seconde
+    // pour que `min_token_iat = now()` soit strictement postérieur au jeton.
+    tokio::time::sleep(std::time::Duration::from_millis(1100)).await;
+    let (st, _) = req(&app, "POST", "/api/auth/logout-all", &token, None).await;
+    assert_eq!(st, StatusCode::NO_CONTENT);
+
+    // Le jeton d'avant le logout-all est invalidé (min_token_iat).
+    let (st, _) = req(&app, "GET", "/api/auth/me", &token, None).await;
+    assert_eq!(st, StatusCode::UNAUTHORIZED, "ancien jeton révoqué (SEC-003)");
+}
+
+#[sqlx::test]
+async fn seen_marque_et_liste_et_refuse_fil_inconnu(pool: PgPool) {
+    let (app, state) = build_app(pool.clone());
+    let alice = seed_user(&pool, "alice").await;
+    let space = seed_space(&pool, alice).await;
+    let ta = token_for(&state, alice);
+
+    // Fil inconnu → 400.
+    let (st, _) = req(&app, "PUT", &format!("/api/spaces/{space}/seen/inconnu"), &ta, None).await;
+    assert_eq!(st, StatusCode::BAD_REQUEST);
+
+    // Marque « blog » vu.
+    let (st, e) = req(&app, "PUT", &format!("/api/spaces/{space}/seen/blog"), &ta, None).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(e["feature"], "blog");
+
+    // La liste reflète le « vu ».
+    let (st, list) = req(&app, "GET", &format!("/api/spaces/{space}/seen"), &ta, None).await;
+    assert_eq!(st, StatusCode::OK);
+    assert!(list
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|s| s["feature"] == "blog" && s["userId"].as_str().unwrap() == alice.to_string()));
+}
+
+#[sqlx::test]
+async fn seen_refuse_un_non_membre(pool: PgPool) {
+    let (app, state) = build_app(pool.clone());
+    let alice = seed_user(&pool, "alice").await;
+    let intrus = seed_user(&pool, "intrus").await;
+    let space = seed_space(&pool, alice).await;
+    let t = token_for(&state, intrus);
+    let (st, _) = req(&app, "GET", &format!("/api/spaces/{space}/seen"), &t, None).await;
+    assert_eq!(st, StatusCode::FORBIDDEN);
+}
+
+#[sqlx::test]
+async fn suggestions_crud_validation_et_autz(pool: PgPool) {
+    let (app, state) = build_app(pool.clone());
+    let alice = seed_user(&pool, "alice").await;
+    let bob = seed_user(&pool, "bob").await;
+    let space = seed_space(&pool, alice).await;
+    add_member(&pool, bob, space).await;
+    let ta = token_for(&state, alice);
+    let tb = token_for(&state, bob);
+    let base = format!("/api/spaces/{space}/suggestions");
+
+    // Intensité invalide → 400.
+    let (st, _) = req(&app, "POST", &base, &ta, Some(json!({ "title": "X", "description": "", "intensity": "nope" }))).await;
+    assert_eq!(st, StatusCode::BAD_REQUEST);
+    // Titre vide → 400.
+    let (st, _) = req(&app, "POST", &base, &ta, Some(json!({ "title": "  ", "description": "", "intensity": "hot" }))).await;
+    assert_eq!(st, StatusCode::BAD_REQUEST);
+
+    // Création OK.
+    let (st, s) = req(&app, "POST", &base, &ta, Some(json!({ "title": "Mon idée", "description": "d", "intensity": "hot" }))).await;
+    assert_eq!(st, StatusCode::CREATED);
+    let sid = s["id"].as_str().unwrap().to_string();
+
+    // La banque du salon contient ma suggestion.
+    let (st, list) = req(&app, "GET", &base, &ta, None).await;
+    assert_eq!(st, StatusCode::OK);
+    assert!(list.as_array().unwrap().iter().any(|x| x["id"].as_str().unwrap() == sid));
+
+    // Bob (non créateur) ne peut pas l'éditer → 404 (SEC-013).
+    let (st, _) = req(&app, "PATCH", &format!("{base}/{sid}"), &tb, Some(json!({ "title": "pirate", "description": "", "intensity": "hot" }))).await;
+    assert_eq!(st, StatusCode::NOT_FOUND);
+
+    // Masquer (#70) → 204, la liste la marque hidden.
+    let (st, _) = req(&app, "PUT", &format!("{base}/{sid}/hidden"), &ta, Some(json!({ "hidden": true }))).await;
+    assert_eq!(st, StatusCode::NO_CONTENT);
+    let (_, list) = req(&app, "GET", &base, &ta, None).await;
+    let mine = list.as_array().unwrap().iter().find(|x| x["id"].as_str().unwrap() == sid).unwrap();
+    assert_eq!(mine["hidden"], true);
+
+    // Le créateur supprime → 204.
+    let (st, _) = req(&app, "DELETE", &format!("{base}/{sid}"), &ta, None).await;
+    assert_eq!(st, StatusCode::NO_CONTENT);
+}
