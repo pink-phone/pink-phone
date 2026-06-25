@@ -11,10 +11,13 @@ self.addEventListener("activate", (event) => event.waitUntil(self.clients.claim(
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST || []);
 
-// ---- Partage natif → nouveau post (Web Share Target, #86) ----
-// L'OS POSTe le média partagé sur /share-target. On le met en cache et on
-// redirige vers l'app, qui le récupère via GET /__shared-media puis ouvre le
-// composer. (Android Chrome ; iOS Safari ne supporte pas le share *target*.)
+// ---- Partage natif → nouveau post (Web Share Target, #86/#87) ----
+// L'OS POSTe le(s) média(s) partagé(s) sur /share-target. On les met en cache
+// et on redirige vers l'app, qui les récupère puis ouvre le composer avec la
+// galerie pré-remplie. Plusieurs fichiers sont supportés (galerie, #87) :
+//   GET /__shared-media       → manifeste JSON { count }
+//   GET /__shared-media/<i>   → le i-ème fichier (header X-Share-Filename)
+// (Android Chrome ; iOS Safari ne supporte pas le share *target*.)
 const SHARE_CACHE = "pp-share";
 const SHARE_KEY = "/__shared-media";
 
@@ -22,11 +25,14 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (event.request.method === "POST" && url.pathname === "/share-target") {
     event.respondWith(handleSharedPost(event.request));
-  } else if (event.request.method === "GET" && url.pathname === SHARE_KEY) {
+  } else if (
+    event.request.method === "GET" &&
+    (url.pathname === SHARE_KEY || url.pathname.startsWith(SHARE_KEY + "/"))
+  ) {
     event.respondWith(
       caches
         .open(SHARE_CACHE)
-        .then((c) => c.match(SHARE_KEY))
+        .then((c) => c.match(url.pathname))
         .then((res) => res || new Response(null, { status: 404 })),
     );
   }
@@ -35,16 +41,28 @@ self.addEventListener("fetch", (event) => {
 async function handleSharedPost(request) {
   try {
     const form = await request.formData();
-    const file = form.get("media");
-    if (file && file.size > 0) {
+    // L'OS envoie tous les médias sous le même champ « media » → getAll.
+    const files = form.getAll("media").filter((f) => f && f.size > 0);
+    if (files.length > 0) {
       const cache = await caches.open(SHARE_CACHE);
+      await Promise.all(
+        files.map((file, i) =>
+          cache.put(
+            `${SHARE_KEY}/${i}`,
+            new Response(file, {
+              headers: {
+                "Content-Type": file.type || "application/octet-stream",
+                "X-Share-Filename": encodeURIComponent(file.name || "media"),
+              },
+            }),
+          ),
+        ),
+      );
+      // Manifeste : combien de fichiers l'app doit récupérer.
       await cache.put(
         SHARE_KEY,
-        new Response(file, {
-          headers: {
-            "Content-Type": file.type || "application/octet-stream",
-            "X-Share-Filename": encodeURIComponent(file.name || "media"),
-          },
+        new Response(JSON.stringify({ count: files.length }), {
+          headers: { "Content-Type": "application/json" },
         }),
       );
     }

@@ -13,13 +13,29 @@ beforeAll(() => {
 });
 
 describe("PostComposer", () => {
-  it("initialFile (partage natif #86) : média pré-joint → publication possible sans récit", () => {
+  it("initialFiles (partage natif #86) : média pré-joint → publication possible sans récit", () => {
     const file = new File(["x"], "photo.jpg", { type: "image/jpeg" });
-    render(<PostComposer onSubmit={vi.fn()} initialFile={file} />);
+    render(<PostComposer onSubmit={vi.fn()} initialFiles={[file]} />);
     // Pas de récit, mais un média → bouton Publier actif (canSubmit = body OU média).
     expect(screen.getByRole("button", { name: /^publier$/i })).toBeEnabled();
     // Le toggle « Téléchargeable » apparaît (média non éphémère présent).
     expect(screen.getByText("Téléchargeable")).toBeInTheDocument();
+  });
+
+  it("initialFiles (partage natif #87) : plusieurs médias pré-joints → tous dans la soumission, dans l'ordre", async () => {
+    const onSubmit = vi.fn();
+    const a = new File(["a"], "a.jpg", { type: "image/jpeg" });
+    const b = new File(["b"], "b.mp4", { type: "video/mp4" });
+    render(<PostComposer onSubmit={onSubmit} initialFiles={[a, b]} />);
+
+    await userEvent.click(screen.getByRole("button", { name: /^publier$/i }));
+    const media = onSubmit.mock.calls[0][0].media;
+    expect(media).toHaveLength(2);
+    expect(media.map((m: { kind: string }) => m.kind)).toEqual(["new", "new"]);
+    expect(media.map((m: { file: File }) => m.file.name)).toEqual([
+      "a.jpg",
+      "b.mp4",
+    ]);
   });
 
   it("le bouton Publier est désactivé tant qu'il n'y a ni récit ni média", () => {
@@ -76,7 +92,7 @@ describe("PostComposer", () => {
 
     // Un nouveau fichier pré-joint (partage natif) → l'option éphémère apparaît.
     const file = new File(["x"], "photo.jpg", { type: "image/jpeg" });
-    render(<PostComposer onSubmit={vi.fn()} initialFile={file} />);
+    render(<PostComposer onSubmit={vi.fn()} initialFiles={[file]} />);
     expect(screen.getByText(/Éphémère/)).toBeInTheDocument();
   });
 
