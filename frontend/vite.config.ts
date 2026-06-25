@@ -41,6 +41,20 @@ export default defineConfig({
             purpose: "maskable",
           },
         ],
+        // Cible de partage (#86) : « Partager → Pink Phone » depuis la galerie du
+        // téléphone envoie le média ici ; le SW (src/sw.js) intercepte le POST,
+        // met le fichier en cache et redirige vers l'app (qui ouvre le composer).
+        // ⚠️ Web Share *Target* = Android Chrome ; non supporté par iOS Safari/PWA.
+        share_target: {
+          action: "/share-target",
+          method: "POST",
+          enctype: "multipart/form-data",
+          params: {
+            title: "title",
+            text: "text",
+            files: [{ name: "media", accept: ["image/*", "video/*"] }],
+          },
+        },
       },
     }),
   ],

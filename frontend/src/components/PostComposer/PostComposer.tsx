@@ -32,6 +32,8 @@ export interface PostComposerProps {
    * nouveau post, valeur courante du post en édition. Défaut false.
    */
   defaultAllowDownload?: boolean;
+  /** Média pré-joint (partage natif #86) : pré-remplit le fichier du nouveau post. */
+  initialFile?: File | null;
   /**
    * Valeurs initiales (édition d'un brouillon). `media` décrit la photo déjà
    * jointe : un média éphémère n'est pas affiché (il serait consommé), un média
@@ -63,6 +65,7 @@ export function PostComposer({
   onCancel,
   initial,
   defaultAllowDownload = false,
+  initialFile = null,
 }: PostComposerProps) {
   const { t } = useTranslation();
   const editing = initial !== undefined;
@@ -70,7 +73,7 @@ export function PostComposer({
   const editingPublished = editing && initial?.draft === false;
   const [title, setTitle] = useState(initial?.title ?? "");
   const [body, setBody] = useState(initial?.body ?? "");
-  const [file, setFile] = useState<File | null>(null);
+  const [file, setFile] = useState<File | null>(initialFile);
   // Input fichier natif masqué, déclenché par un Button (le rendu natif iOS de
   // `<input type=file>` ignore le style — UI-UX5).
   const fileInputRef = useRef<HTMLInputElement>(null);

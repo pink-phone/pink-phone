@@ -1,9 +1,27 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeAll } from "vitest";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PostComposer } from "./PostComposer";
 
+// jsdom n'implémente pas createObjectURL (aperçu d'un fichier joint).
+beforeAll(() => {
+  vi.stubGlobal("URL", {
+    ...URL,
+    createObjectURL: () => "blob:preview",
+    revokeObjectURL: () => {},
+  });
+});
+
 describe("PostComposer", () => {
+  it("initialFile (partage natif #86) : média pré-joint → publication possible sans récit", () => {
+    const file = new File(["x"], "photo.jpg", { type: "image/jpeg" });
+    render(<PostComposer onSubmit={vi.fn()} initialFile={file} />);
+    // Pas de récit, mais un média → bouton Publier actif (canSubmit = body OU média).
+    expect(screen.getByRole("button", { name: /^publier$/i })).toBeEnabled();
+    // Le toggle « Téléchargeable » apparaît (média non éphémère présent).
+    expect(screen.getByText("Téléchargeable")).toBeInTheDocument();
+  });
+
   it("le bouton Publier est désactivé tant qu'il n'y a ni récit ni média", () => {
     render(<PostComposer onSubmit={vi.fn()} />);
     expect(screen.getByRole("button", { name: /^publier$/i })).toBeDisabled();
