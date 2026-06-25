@@ -35,9 +35,11 @@ export function Toggle({ checked, onChange, label, hint, className }: ToggleProp
             : "border-charcoal-600/70 bg-charcoal-700",
         )}
       >
+        {/* Pouce : 22px dans un track de 28px avec bordure 1px → 3px d'espace
+            tout autour (le top/left de 2px s'ajoute à la bordure pour faire 3px). */}
         <span
           className={cn(
-            "absolute left-1 top-1 h-5 w-5 rounded-full bg-blush-50 shadow-felt-sm transition-transform duration-300 ease-felt",
+            "absolute left-[2px] top-[2px] h-[22px] w-[22px] rounded-full bg-blush-50 shadow-felt-sm transition-transform duration-300 ease-felt",
             checked ? "translate-x-5" : "translate-x-0",
           )}
         />

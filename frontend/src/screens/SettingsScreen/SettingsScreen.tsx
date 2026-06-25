@@ -350,14 +350,12 @@ export function SettingsScreen({
               />
               <Button
                 type="submit"
-                size="sm"
                 loading={savingName}
                 disabled={
                   !displayName.trim() ||
                   displayName.trim() === userName ||
                   savingName
                 }
-                className="mb-1.5"
               >
                 {t("settings.save")}
               </Button>
@@ -389,9 +387,7 @@ export function SettingsScreen({
               />
               <Button
                 type="submit"
-                size="sm"
                 disabled={!spaceName.trim() || spaceName.trim() === space.name}
-                className="mb-1.5"
               >
                 {t("settings.save")}
               </Button>
@@ -590,10 +586,8 @@ export function SettingsScreen({
                   />
                   <Button
                     type="submit"
-                    size="sm"
                     loading={spaceBusy}
                     disabled={!newSpaceName.trim() || spaceBusy}
-                    className="mb-1.5"
                   >
                     {t("settings.spaceCreateAction")}
                   </Button>
@@ -619,11 +613,9 @@ export function SettingsScreen({
                   />
                   <Button
                     type="submit"
-                    size="sm"
                     variant="secondary"
                     loading={spaceBusy}
                     disabled={!joinToken.trim() || spaceBusy}
-                    className="mb-1.5"
                   >
                     {t("settings.spaceJoinAction")}
                   </Button>
