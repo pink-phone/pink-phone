@@ -64,6 +64,8 @@ export function SafeMedia({
   );
   const [loading, setLoading] = useState(false);
   const [failed, setFailed] = useState(false);
+  // Vidéo muette par défaut (#88) : discret + autoplay-friendly. Bouton pour le son.
+  const [muted, setMuted] = useState(true);
   const hasRevealedOnce = useRef(false);
   const objectUrl = useRef<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -82,16 +84,19 @@ export function SafeMedia({
   );
 
   // Vidéo : lecture pendant la révélation, pause sinon (le geste pilote la lecture).
+  // On force aussi `muted` via la ref : React ne reflète pas toujours l'attribut
+  // `muted` sur l'élément <video> (#88).
   useEffect(() => {
     if (kind !== "video") return;
     const v = videoRef.current;
     if (!v) return;
+    v.muted = muted;
     if (isRevealed && resolvedSrc) {
       void v.play().catch(() => {});
     } else {
       v.pause();
     }
-  }, [kind, isRevealed, resolvedSrc]);
+  }, [kind, isRevealed, resolvedSrc, muted]);
 
   const reveal = useCallback(() => {
     if (isConsumed) return;
@@ -212,6 +217,7 @@ export function SafeMedia({
             aria-label={alt}
             playsInline
             loop
+            muted={muted}
             draggable={false}
             className={cn(
               "h-full w-full object-cover transition-all duration-500 ease-felt",
@@ -264,6 +270,24 @@ export function SafeMedia({
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-charcoal-900/60 p-4 text-center text-sm text-blush-200">
           {t("safeMedia.unavailable")}
         </div>
+      )}
+
+      {/* Bouton mute/unmute des vidéos (#88) — muet par défaut. stopPropagation
+          pour ne pas armer la révélation. */}
+      {kind === "video" && !isConsumed && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setMuted((m) => !m);
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          aria-label={muted ? t("safeMedia.unmute") : t("safeMedia.mute")}
+          aria-pressed={!muted}
+          className="absolute bottom-1.5 left-1.5 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-charcoal-900/70 text-lg text-blush-100 shadow-felt-sm backdrop-blur-sm transition-colors duration-200 ease-felt hover:bg-charcoal-900/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+        >
+          {muted ? "🔇" : "🔊"}
+        </button>
       )}
 
       {/* Bouton de téléchargement (#78) — jamais sur un média éphémère/consommé.

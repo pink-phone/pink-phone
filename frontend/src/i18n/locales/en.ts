@@ -353,5 +353,7 @@ export const en: Resources = {
     revealAria: "{{alt}} — hold to reveal",
     consumedAria: "Ephemeral media already viewed",
     download: "Download media",
+    mute: "Mute",
+    unmute: "Unmute",
   },
 };

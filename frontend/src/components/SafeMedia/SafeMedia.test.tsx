@@ -24,3 +24,28 @@ describe("SafeMedia — téléchargement (#78)", () => {
     ).toBeNull();
   });
 });
+
+describe("SafeMedia — mute vidéo (#88)", () => {
+  it("vidéo : bouton « activer le son » (muet par défaut), pas sur une image", () => {
+    const { rerender } = render(
+      <SafeMedia src="data:," alt="x" kind="video" />,
+    );
+    expect(
+      screen.getByRole("button", { name: /activer le son/i }),
+    ).toBeInTheDocument();
+
+    rerender(<SafeMedia src="data:," alt="x" kind="image" />);
+    expect(screen.queryByRole("button", { name: /son/i })).toBeNull();
+  });
+
+  it("toggle mute → le libellé passe à « couper le son »", async () => {
+    const { default: userEvent } = await import("@testing-library/user-event");
+    render(<SafeMedia src="data:," alt="x" kind="video" />);
+    await userEvent.click(
+      screen.getByRole("button", { name: /activer le son/i }),
+    );
+    expect(
+      screen.getByRole("button", { name: /couper le son/i }),
+    ).toBeInTheDocument();
+  });
+});
