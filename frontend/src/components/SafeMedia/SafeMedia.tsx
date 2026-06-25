@@ -286,7 +286,10 @@ export function SafeMedia({
           aria-pressed={!muted}
           className="absolute bottom-1.5 left-1.5 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-charcoal-900/70 text-lg leading-none text-blush-100 shadow-felt-sm backdrop-blur-sm transition-colors duration-200 ease-felt hover:bg-charcoal-900/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
         >
-          {muted ? "🔇" : "🔊"}
+          {/* L'emoji a une métrique qui le fait remonter ; on le recale d'1px. */}
+          <span aria-hidden className="block translate-y-px leading-none">
+            {muted ? "🔇" : "🔊"}
+          </span>
         </button>
       )}
 
