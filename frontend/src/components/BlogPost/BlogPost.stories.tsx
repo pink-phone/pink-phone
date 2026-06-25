@@ -52,7 +52,7 @@ export const TexteSeul: Story = {};
 
 export const AvecMédia: Story = {
   args: {
-    media: { src: DEMO_SRC, alt: "Photo partagée" },
+    media: [{ src: DEMO_SRC, alt: "Photo partagée" }],
   },
 };
 
@@ -61,7 +61,7 @@ export const MédiaSeul: Story = {
   args: {
     title: undefined,
     body: "",
-    media: { src: DEMO_SRC, alt: "Photo partagée" },
+    media: [{ src: DEMO_SRC, alt: "Photo partagée" }],
     commentCount: 0,
   },
 };
@@ -74,14 +74,14 @@ export const CommentairesNonLus: Story = {
 /** Média téléchargeable (#78) : un bouton de téléchargement apparaît sur la photo. */
 export const MédiaTéléchargeable: Story = {
   args: {
-    media: { src: DEMO_SRC, alt: "Photo partagée", downloadable: true },
+    media: [{ src: DEMO_SRC, alt: "Photo partagée", downloadable: true }],
   },
 };
 
 export const MédiaÉphémère: Story = {
   args: {
     body: "Juste pour toi, et juste pour ce soir. Regarde vite. 🤫",
-    media: { src: DEMO_SRC, alt: "Photo éphémère", viewOnce: true },
+    media: [{ src: DEMO_SRC, alt: "Photo éphémère", viewOnce: true }],
     title: undefined,
     commentCount: 0,
   },

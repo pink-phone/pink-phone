@@ -23,10 +23,7 @@ function post(overrides: Partial<ApiPost> = {}): ApiPost {
     authorName: "Alex",
     title: null,
     body: "coucou",
-    mediaId: null,
-    mediaViewOnce: null,
-    mediaConsumed: null,
-    mediaMime: null,
+    media: [],
     draft: false,
     allowDownload: false,
     createdAt: "2026-06-20T10:00:00.000Z",
@@ -83,20 +80,26 @@ describe("toPostData", () => {
   });
 
   it("pas de média => media undefined ; média vidéo => kind video + loader", () => {
-    const [noMedia] = toPostData([post({ mediaId: null })], {
+    const [noMedia] = toPostData([post({ media: [] })], {
       t,
       spaceId: "s1",
       userId: "me",
     });
-    expect(noMedia.media).toBeUndefined();
+    expect(noMedia.media).toEqual([]);
 
     const [withVideo] = toPostData(
-      [post({ mediaId: "m1", mediaMime: "video/mp4", mediaViewOnce: true })],
+      [
+        post({
+          media: [
+            { id: "m1", mime: "video/mp4", viewOnce: true, consumed: false },
+          ],
+        }),
+      ],
       { t, spaceId: "s1", userId: "me" },
     );
-    expect(withVideo.media?.kind).toBe("video");
-    expect(withVideo.media?.viewOnce).toBe(true);
-    expect(typeof withVideo.media?.loader).toBe("function");
+    expect(withVideo.media[0].kind).toBe("video");
+    expect(withVideo.media[0].viewOnce).toBe(true);
+    expect(typeof withVideo.media[0].loader).toBe("function");
   });
 
   it("seenBy: liste nominative des membres ayant vu mon post publié (#52)", () => {

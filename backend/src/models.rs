@@ -63,7 +63,7 @@ pub struct Mood {
 
 // ---------- Posts ----------
 
-/// Ligne brute d'un post (avant agrégation des interactions).
+/// Ligne brute d'un post (avant agrégation des interactions + médias).
 #[derive(Debug, sqlx::FromRow)]
 pub struct PostRow {
     pub id: Uuid,
@@ -71,21 +71,37 @@ pub struct PostRow {
     pub author_name: String,
     pub title: Option<String>,
     pub body: String,
-    pub media_id: Option<Uuid>,
-    /// Flag éphémère du média joint (null si aucun média).
-    pub media_view_once: Option<bool>,
-    /// Média éphémère déjà consommé (null si aucun média).
-    pub media_consumed: Option<bool>,
-    /// Type MIME du média joint (null si aucun) — distingue image / vidéo.
-    pub media_mime: Option<String>,
     pub draft: bool,
-    /// Le média joint est téléchargeable (#78). Sans effet sur un média éphémère.
+    /// Les médias joints sont téléchargeables (#78). Flag au niveau du POST.
     pub allow_download: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
-/// Post enrichi renvoyé au frontend (réactions, verdict, nb de commentaires).
+/// Un média d'une galerie de post (#87), ordonné par `position` côté requête.
+#[derive(Debug, Serialize, sqlx::FromRow)]
+#[serde(rename_all = "camelCase")]
+pub struct PostMediaItem {
+    pub id: Uuid,
+    /// Type MIME (distingue image / vidéo).
+    pub mime: String,
+    /// Éphémère (« view once ») — propre au média.
+    pub view_once: bool,
+    /// Média éphémère déjà consommé.
+    pub consumed: bool,
+}
+
+/// Ligne de la requête groupée `post_media JOIN media` (porte le `post_id`).
+#[derive(Debug, sqlx::FromRow)]
+pub struct PostMediaRow {
+    pub post_id: Uuid,
+    pub id: Uuid,
+    pub mime: String,
+    pub view_once: bool,
+    pub consumed: bool,
+}
+
+/// Post enrichi renvoyé au frontend (médias, réactions, verdict, nb de commentaires).
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Post {
@@ -94,15 +110,10 @@ pub struct Post {
     pub author_name: String,
     pub title: Option<String>,
     pub body: String,
-    pub media_id: Option<Uuid>,
-    /// Flag éphémère du média joint (null si aucun média).
-    pub media_view_once: Option<bool>,
-    /// Média éphémère déjà consommé (null si aucun média).
-    pub media_consumed: Option<bool>,
-    /// Type MIME du média joint (null si aucun) — distingue image / vidéo.
-    pub media_mime: Option<String>,
+    /// Galerie de médias, ordonnée (#87). Vide si le post n'a pas de média.
+    pub media: Vec<PostMediaItem>,
     pub draft: bool,
-    /// Le média joint est téléchargeable (#78). Sans effet sur un média éphémère.
+    /// Les médias joints sont téléchargeables (#78). Flag au niveau du POST.
     pub allow_download: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,

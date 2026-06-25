@@ -4,62 +4,62 @@ import { TextField } from "../form/TextField";
 import { TextArea } from "../form/TextArea";
 import { Toggle } from "../form/Toggle";
 import { Button } from "../Button/Button";
-import { SafeMedia } from "../SafeMedia/SafeMedia";
+
+/** Un média de la galerie en cours d'édition (#87) : déjà uploadé OU nouveau. */
+export type ComposerMediaItem =
+  | { kind: "existing"; id: string }
+  | { kind: "new"; file: File };
 
 export interface PostDraft {
   title?: string;
   body: string;
-  file?: File;
+  /** Galerie ordonnée (#87) : médias existants (par id) + nouveaux fichiers. */
+  media: ComposerMediaItem[];
+  /** Éphémère « view once » appliqué aux NOUVEAUX médias (post-level). */
   viewOnce: boolean;
-  /** Le média joint est téléchargeable (#78). Forcé à false si éphémère. */
+  /** Médias téléchargeables (#78) — post-level. */
   allowDownload: boolean;
   /** Enregistré comme brouillon (non publié, non notifié). */
   draft: boolean;
-  /** Édition : retirer la photo déjà jointe (sans en attacher de nouvelle). */
-  removeMedia?: boolean;
+}
+
+/** Description d'un média déjà attaché (édition) : pour l'ordre et l'aperçu. */
+export interface InitialMedia {
+  id: string;
+  viewOnce: boolean;
+  kind?: "image" | "video";
 }
 
 export interface PostComposerProps {
-  /**
-   * Peut renvoyer une `Promise` : tant qu'elle n'est pas résolue, le formulaire
-   * affiche un état « en cours » (spinner, boutons désactivés) — utile car
-   * l'upload d'une image/vidéo lourde peut prendre plusieurs secondes.
-   */
+  /** Peut renvoyer une `Promise` → état « en cours » pendant l'upload. */
   onSubmit: (draft: PostDraft) => void | Promise<void>;
   onCancel?: () => void;
-  /**
-   * Valeur initiale du toggle « téléchargeable » (#78) : défaut du salon pour un
-   * nouveau post, valeur courante du post en édition. Défaut false.
-   */
+  /** Valeur initiale du toggle « téléchargeable » (#78). */
   defaultAllowDownload?: boolean;
-  /** Média pré-joint (partage natif #86) : pré-remplit le fichier du nouveau post. */
+  /** Média pré-joint (partage natif #86) : ajouté comme 1er nouveau média. */
   initialFile?: File | null;
-  /**
-   * Valeurs initiales (édition d'un brouillon). `media` décrit la photo déjà
-   * jointe : un média éphémère n'est pas affiché (il serait consommé), un média
-   * normal a un aperçu (révélé au press-hold via `loader`). Dans les deux cas on
-   * peut la remplacer ou la retirer.
-   */
+  /** Valeurs initiales (édition). `media` = galerie déjà attachée, ordonnée. */
   initial?: {
     title?: string;
     body?: string;
     /** Statut du post édité : false = publié (pas d'option « brouillon »). */
     draft?: boolean;
-    media?: {
-      viewOnce: boolean;
-      loader?: () => Promise<string>;
-      alt?: string;
-      kind?: "image" | "video";
-    };
+    media?: InitialMedia[];
   };
 }
 
-/** Image / vidéo d'après le type MIME du fichier choisi. */
+// État interne d'un item (porte l'object URL d'aperçu pour les nouveaux fichiers).
+type Item =
+  | { kind: "existing"; id: string; viewOnce: boolean; mediaKind: "image" | "video" }
+  | { kind: "new"; file: File; url: string; mediaKind: "image" | "video" };
+
 function fileKind(file: File): "image" | "video" {
   return file.type.startsWith("video/") ? "video" : "image";
 }
 
-/** Formulaire de rédaction d'un post du blog intime. */
+const MAX_MEDIA = 10;
+
+/** Formulaire de rédaction d'un post du blog intime (galerie multi-médias #87). */
 export function PostComposer({
   onSubmit,
   onCancel,
@@ -69,45 +69,78 @@ export function PostComposer({
 }: PostComposerProps) {
   const { t } = useTranslation();
   const editing = initial !== undefined;
-  // Édition d'un post déjà publié : on enregistre (reste publié), pas de brouillon.
   const editingPublished = editing && initial?.draft === false;
   const [title, setTitle] = useState(initial?.title ?? "");
   const [body, setBody] = useState(initial?.body ?? "");
-  const [file, setFile] = useState<File | null>(initialFile);
-  // Input fichier natif masqué, déclenché par un Button (le rendu natif iOS de
-  // `<input type=file>` ignore le style — UI-UX5).
+  const [items, setItems] = useState<Item[]>(() => {
+    const existing: Item[] = (initial?.media ?? []).map((m) => ({
+      kind: "existing",
+      id: m.id,
+      viewOnce: m.viewOnce,
+      mediaKind: m.kind ?? "image",
+    }));
+    if (initialFile) {
+      existing.push({
+        kind: "new",
+        file: initialFile,
+        url: URL.createObjectURL(initialFile),
+        mediaKind: fileKind(initialFile),
+      });
+    }
+    return existing;
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [viewOnce, setViewOnce] = useState(false);
   const [allowDownload, setAllowDownload] = useState(defaultAllowDownload);
-  const [preview, setPreview] = useState<string | null>(null);
-  // Photo déjà jointe au brouillon, tant qu'on ne la remplace/retire pas.
-  const [removeMedia, setRemoveMedia] = useState(false);
-  // Quelle action est en cours d'envoi (pour cibler le spinner sur le bon bouton).
   const [pending, setPending] = useState<"primary" | "draft" | null>(null);
   const mounted = useRef(true);
-  useEffect(() => () => {
-    mounted.current = false;
-  }, []);
-  const existingMedia =
-    initial?.media && !file && !removeMedia ? initial.media : null;
+  // Révoque tous les object URLs des nouveaux fichiers au démontage.
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+  useEffect(
+    () => () => {
+      mounted.current = false;
+      for (const it of itemsRef.current) {
+        if (it.kind === "new") URL.revokeObjectURL(it.url);
+      }
+    },
+    [],
+  );
 
-  // Aperçu local (object URL) du fichier choisi.
-  useEffect(() => {
-    if (!file) {
-      setPreview(null);
-      return;
-    }
-    const url = URL.createObjectURL(file);
-    setPreview(url);
-    return () => URL.revokeObjectURL(url);
-  }, [file]);
+  const addFiles = (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setItems((prev) => {
+      const room = MAX_MEDIA - prev.length;
+      const next = Array.from(files)
+        .slice(0, Math.max(0, room))
+        .map<Item>((file) => ({
+          kind: "new",
+          file,
+          url: URL.createObjectURL(file),
+          mediaKind: fileKind(file),
+        }));
+      return [...prev, ...next];
+    });
+  };
 
-  // Un post peut être un simple média : on accepte un récit OU une photo/vidéo.
-  const hasMedia = file !== null || existingMedia !== null;
-  // Éphémère effectif : du nouveau fichier, sinon du média déjà joint.
-  const effectiveViewOnce = file ? viewOnce : (existingMedia?.viewOnce ?? false);
-  // Le téléchargement n'a de sens que pour un média NON éphémère.
-  const showDownloadToggle = hasMedia && !effectiveViewOnce;
+  const removeAt = (i: number) =>
+    setItems((prev) => {
+      const it = prev[i];
+      if (it?.kind === "new") URL.revokeObjectURL(it.url);
+      return prev.filter((_, j) => j !== i);
+    });
+
+  const move = (i: number, dir: -1 | 1) =>
+    setItems((prev) => {
+      const j = i + dir;
+      if (j < 0 || j >= prev.length) return prev;
+      const next = [...prev];
+      [next[i], next[j]] = [next[j], next[i]];
+      return next;
+    });
+
+  const hasMedia = items.length > 0;
+  const hasNew = items.some((it) => it.kind === "new");
   const canSubmit = body.trim().length > 0 || hasMedia;
   const busy = pending !== null;
 
@@ -118,16 +151,16 @@ export function PostComposer({
       await onSubmit({
         title: title.trim() || undefined,
         body: body.trim(),
-        file: file ?? undefined,
-        viewOnce: file ? viewOnce : false,
-        // Un média éphémère n'est jamais téléchargeable.
-        allowDownload: effectiveViewOnce ? false : allowDownload,
+        media: items.map((it) =>
+          it.kind === "existing"
+            ? { kind: "existing", id: it.id }
+            : { kind: "new", file: it.file },
+        ),
+        viewOnce: hasNew ? viewOnce : false,
+        allowDownload,
         draft,
-        removeMedia: removeMedia && !file,
       });
     } finally {
-      // Le parent ferme la feuille au succès (démontage) → on ne touche au state
-      // que si on est encore monté (échec : le formulaire reste pour réessayer).
       if (mounted.current) setPending(null);
     }
   };
@@ -154,104 +187,109 @@ export function PostComposer({
         rows={editing ? 14 : 5}
       />
 
-      <div className="space-y-1.5">
+      <div className="space-y-2">
         <span className="block text-xs font-medium text-taupe-200">
-          {existingMedia
-            ? t("postComposer.photoChange")
-            : t("postComposer.photoOptional")}
+          {t("postComposer.mediaLabel")}
         </span>
 
-        {existingMedia ? (
-          existingMedia.viewOnce ? (
-            /* Éphémère : pas d'aperçu (la lecture le consommerait). */
-            <div className="flex items-center justify-between gap-2 rounded-2xl border border-charcoal-600/60 bg-charcoal-800 px-3 py-2">
-              <span className="text-xs text-taupe-300">
-                {t("postComposer.ephemeralAttached")}
-              </span>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setRemoveMedia(true)}
+        {/* Liste ordonnée des médias (réordo ▲▼ + retrait ✕). */}
+        {items.length > 0 && (
+          <ul className="space-y-2">
+            {items.map((it, i) => (
+              <li
+                key={it.kind === "existing" ? `e-${it.id}` : `n-${i}-${it.file.name}`}
+                className="flex items-center gap-2 rounded-2xl border border-charcoal-600/60 bg-charcoal-800 p-2"
               >
-                {t("postComposer.remove")}
-              </Button>
-            </div>
-          ) : (
-            /* Média normal : aperçu flouté révélé au press-hold (loader authentifié). */
-            <div className="space-y-2">
-              <SafeMedia
-                loader={existingMedia.loader}
-                kind={existingMedia.kind}
-                alt={existingMedia.alt ?? t("postComposer.attachedAlt")}
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setRemoveMedia(true)}
-              >
-                {t("postComposer.removePhoto")}
-              </Button>
-            </div>
-          )
-        ) : null}
+                {it.kind === "new" && it.mediaKind === "image" ? (
+                  <img
+                    src={it.url}
+                    alt=""
+                    className="h-12 w-12 shrink-0 rounded-lg object-cover"
+                  />
+                ) : (
+                  <span
+                    aria-hidden
+                    className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-charcoal-700 text-xl"
+                  >
+                    {it.mediaKind === "video" ? "🎬" : "🖼️"}
+                  </span>
+                )}
+                <span className="min-w-0 flex-1 truncate text-xs text-taupe-300">
+                  {it.kind === "new"
+                    ? it.file.name
+                    : it.viewOnce
+                      ? t("postComposer.ephemeralAttached")
+                      : t("postComposer.attachedAlt")}
+                </span>
+                <div className="flex shrink-0 items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => move(i, -1)}
+                    disabled={i === 0}
+                    aria-label={t("postComposer.moveUp")}
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-taupe-300 hover:text-blush-100 disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+                  >
+                    ▲
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => move(i, 1)}
+                    disabled={i === items.length - 1}
+                    aria-label={t("postComposer.moveDown")}
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-taupe-300 hover:text-blush-100 disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+                  >
+                    ▼
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => removeAt(i)}
+                    aria-label={t("postComposer.remove")}
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-taupe-300 hover:text-spice-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
 
         <input
           ref={fileInputRef}
           type="file"
           accept="image/*,video/*"
+          multiple
           className="hidden"
           onChange={(e) => {
-            setFile(e.target.files?.[0] ?? null);
-            setRemoveMedia(false);
+            addFiles(e.target.files);
+            e.target.value = "";
           }}
         />
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          className="w-full"
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <span className="truncate">
-            📎 {file ? file.name : t("postComposer.attachFile")}
-          </span>
-        </Button>
-
-        {editing && removeMedia && !file && (
-          <p className="text-[11px] text-taupe-400">
-            {t("postComposer.willRemove")}{" "}
-            <button
-              type="button"
-              onClick={() => setRemoveMedia(false)}
-              className="rounded px-1 py-0.5 underline underline-offset-2 hover:text-taupe-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
-            >
-              {t("postComposer.undo")}
-            </button>
-          </p>
+        {items.length < MAX_MEDIA && (
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="w-full"
+            onClick={() => fileInputRef.current?.click()}
+          >
+            <span className="truncate">📎 {t("postComposer.attachFile")}</span>
+          </Button>
         )}
       </div>
 
-      {preview && (
-        <div className="space-y-3">
-          <SafeMedia
-            src={preview}
-            kind={file ? fileKind(file) : "image"}
-            alt={t("postComposer.previewAlt")}
-            viewOnce={viewOnce}
-          />
-          <Toggle
-            checked={viewOnce}
-            onChange={setViewOnce}
-            label={t("postComposer.ephemeralToggle")}
-            hint={t("postComposer.ephemeralHint")}
-          />
-        </div>
+      {/* Éphémère : s'applique aux NOUVEAUX médias. */}
+      {hasNew && (
+        <Toggle
+          checked={viewOnce}
+          onChange={setViewOnce}
+          label={t("postComposer.ephemeralToggle")}
+          hint={t("postComposer.ephemeralHint")}
+        />
       )}
 
-      {/* Téléchargeable (#78) : média présent et non éphémère. */}
-      {showDownloadToggle && (
+      {/* Téléchargeable (#78) : dès qu'il y a un média (post-level). */}
+      {hasMedia && (
         <Toggle
           checked={allowDownload}
           onChange={setAllowDownload}

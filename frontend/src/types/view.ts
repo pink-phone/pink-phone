@@ -23,7 +23,8 @@ export interface PostData {
   timeLabel: string;
   title?: string;
   body: string;
-  media?: BlogPostMedia;
+  /** Galerie de médias ordonnée (#87). Vide = aucun média. */
+  media: BlogPostMedia[];
   reactionCounts: Record<string, number>;
   myReactions: string[];
   verdict: Verdict | null;

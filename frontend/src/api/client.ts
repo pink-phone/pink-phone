@@ -224,9 +224,10 @@ export const createPost = (
   body: {
     title?: string;
     body: string;
-    mediaId?: string;
+    /** Galerie ordonnée (#87) : ids des médias déjà uploadés. */
+    mediaIds?: string[];
     draft?: boolean;
-    /** Média téléchargeable (#78). Absent ⇒ défaut du salon. */
+    /** Médias téléchargeables (#78). Absent ⇒ défaut du salon. */
     allowDownload?: boolean;
   },
 ) => req<ApiPost>(`/api/spaces/${spaceId}/posts`, { method: "POST", json: body });
@@ -245,11 +246,9 @@ export const updatePost = (
     title?: string;
     body?: string;
     draft?: boolean;
-    /** Attache/remplace le média. */
-    mediaId?: string;
-    /** Détache le média existant. */
-    clearMedia?: boolean;
-    /** Change l'autorisation de téléchargement du média (#78). */
+    /** Présent ⇒ remplace toute la galerie par cette liste ordonnée (#87) ; [] vide. */
+    mediaIds?: string[];
+    /** Change l'autorisation de téléchargement (#78). */
     allowDownload?: boolean;
   },
 ) =>

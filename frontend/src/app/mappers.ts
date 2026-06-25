@@ -37,17 +37,16 @@ export function toPostData(
     timeLabel: relativeTime(p.createdAt),
     title: p.title ?? undefined,
     body: p.body,
-    media: p.mediaId
-      ? {
-          alt: t("blog.sharedPhotoAlt"),
-          kind: p.mediaMime?.startsWith("video/") ? "video" : "image",
-          viewOnce: p.mediaViewOnce ?? false,
-          consumed: p.mediaConsumed ?? false,
-          // Téléchargeable seulement si le post l'autorise ET média non éphémère.
-          downloadable: p.allowDownload && !(p.mediaViewOnce ?? false),
-          loader: () => api.fetchMediaObjectUrl(spaceId, p.mediaId as string),
-        }
-      : undefined,
+    // Galerie ordonnée (#87) : chaque média → vue-modèle SafeMedia.
+    media: p.media.map((m) => ({
+      alt: t("blog.sharedPhotoAlt"),
+      kind: m.mime.startsWith("video/") ? ("video" as const) : ("image" as const),
+      viewOnce: m.viewOnce,
+      consumed: m.consumed,
+      // Téléchargeable seulement si le post l'autorise ET média non éphémère.
+      downloadable: p.allowDownload && !m.viewOnce,
+      loader: () => api.fetchMediaObjectUrl(spaceId, m.id),
+    })),
     reactionCounts: p.reactionCounts,
     myReactions: p.myReactions,
     verdict: p.verdict,

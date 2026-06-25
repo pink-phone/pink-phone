@@ -74,17 +74,31 @@ export function usePosts(spaceId: string) {
     }
   };
 
+  // Résout la galerie (#87) en liste ordonnée d'ids : upload les nouveaux
+  // fichiers (dans l'ordre), garde les médias existants par id.
+  const resolveMediaIds = async (
+    media: PostDraft["media"],
+    viewOnce: boolean,
+  ): Promise<string[]> => {
+    const ids: string[] = [];
+    for (const it of media) {
+      if (it.kind === "existing") {
+        ids.push(it.id);
+      } else {
+        const up = await api.uploadMedia(spaceId, it.file, viewOnce);
+        ids.push(up.id);
+      }
+    }
+    return ids;
+  };
+
   const add = async (draft: PostDraft): Promise<boolean> => {
     try {
-      let mediaId: string | undefined;
-      if (draft.file) {
-        const media = await api.uploadMedia(spaceId, draft.file, draft.viewOnce);
-        mediaId = media.id;
-      }
+      const mediaIds = await resolveMediaIds(draft.media, draft.viewOnce);
       const post = await api.createPost(spaceId, {
         title: draft.title,
         body: draft.body,
-        mediaId,
+        mediaIds,
         draft: draft.draft,
         allowDownload: draft.allowDownload,
       });
@@ -99,20 +113,12 @@ export function usePosts(spaceId: string) {
 
   const edit = async (postId: string, draft: PostDraft): Promise<boolean> => {
     try {
-      let mediaId: string | undefined;
-      let clearMedia = false;
-      if (draft.file) {
-        const media = await api.uploadMedia(spaceId, draft.file, draft.viewOnce);
-        mediaId = media.id;
-      } else if (draft.removeMedia) {
-        clearMedia = true;
-      }
+      const mediaIds = await resolveMediaIds(draft.media, draft.viewOnce);
       const updated = await api.updatePost(spaceId, postId, {
         title: draft.title ?? "",
         body: draft.body,
         draft: draft.draft,
-        mediaId,
-        clearMedia,
+        mediaIds,
         allowDownload: draft.allowDownload,
       });
       // Publier un brouillon change son created_at (date de publication) → il doit

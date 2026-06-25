@@ -9,6 +9,7 @@ const post = (id: string): PostData => ({
   author: { name: "Alex", glyph: "A" },
   timeLabel: "hier",
   body: `Récit ${id}`,
+  media: [],
   reactionCounts: {},
   myReactions: [],
   verdict: null,
