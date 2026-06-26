@@ -147,6 +147,10 @@ export const en: Resources = {
     commentsCount_one: "{{count}} comment",
     commentsCount_other: "{{count}} comments",
     sharedPhotoAlt: "Shared media",
+    favoriteAddAria: "Add to favorites",
+    favoriteRemoveAria: "Remove from favorites",
+    favoritesFilter: "★ Favorites",
+    favoritesEmpty: "No favorites yet. Tap ★ on a post to keep it here.",
   },
   postComposer: {
     sheetWrite: "Write",

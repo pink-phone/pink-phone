@@ -91,6 +91,8 @@ export interface ApiPost {
   reactionCounts: Record<string, number>;
   myReactions: string[];
   verdict: Verdict | null;
+  /** Le post est dans MES favoris (marque-page personnel, #96). */
+  isFavorite: boolean;
   commentCount: number;
   /** Date du dernier commentaire posté par quelqu'un d'autre (null si aucun). */
   lastCommentAt: string | null;

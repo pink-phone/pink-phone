@@ -31,6 +31,7 @@ function post(overrides: Partial<ApiPost> = {}): ApiPost {
     reactionCounts: {},
     myReactions: [],
     verdict: null,
+    isFavorite: false,
     commentCount: 0,
     lastCommentAt: null,
     ...overrides,

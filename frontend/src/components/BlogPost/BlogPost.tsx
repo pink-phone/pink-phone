@@ -46,6 +46,10 @@ export interface BlogPostProps {
   onOpenComments?: () => void;
   /** Le post a des commentaires non lus (de l'autre) → bouton mis en avant (#81). */
   hasUnreadComments?: boolean;
+  /** Le post est dans mes favoris (marque-page personnel, #96). */
+  isFavorite?: boolean;
+  /** Bascule le favori. Présent ⇒ affiche l'étoile (posts publiés uniquement). */
+  onToggleFavorite?: () => void;
   /** Brouillon : affiche une pastille et (si `isMine`) le bouton Publier. */
   draft?: boolean;
   /** Post édité après publication : ajoute « · modifié » près de l'horodatage. */
@@ -80,6 +84,8 @@ export function BlogPost({
   commentCount = 0,
   onOpenComments,
   hasUnreadComments = false,
+  isFavorite = false,
+  onToggleFavorite,
   draft = false,
   edited = false,
   isMine = false,
@@ -126,6 +132,26 @@ export function BlogPost({
             <Badge tone="soft" icon={<span aria-hidden>✎</span>}>
               {t("blog.draftBadge")}
             </Badge>
+          )}
+          {!draft && onToggleFavorite && (
+            <button
+              type="button"
+              aria-pressed={isFavorite}
+              aria-label={
+                isFavorite
+                  ? t("blog.favoriteRemoveAria")
+                  : t("blog.favoriteAddAria")
+              }
+              onClick={onToggleFavorite}
+              className={cn(
+                "flex h-11 w-11 items-center justify-center rounded-full text-xl transition-all duration-300 ease-felt",
+                isFavorite
+                  ? "text-spice-300"
+                  : "text-taupe-400 hover:text-spice-300",
+              )}
+            >
+              <span aria-hidden>{isFavorite ? "★" : "☆"}</span>
+            </button>
           )}
           {isMine && (onEdit || onDelete) && (
             <ContextMenu

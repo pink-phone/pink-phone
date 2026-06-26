@@ -165,6 +165,7 @@ describe("usePosts", () => {
     reactionCounts: {},
     myReactions: [] as string[],
     verdict: null,
+    isFavorite: false,
     commentCount: 0,
     lastCommentAt: null,
     ...over,
@@ -247,6 +248,7 @@ describe("usePosts — pagination et mutations complémentaires", () => {
     reactionCounts: {},
     myReactions: [] as string[],
     verdict: null,
+    isFavorite: false,
     commentCount: 0,
     lastCommentAt: null,
   });
@@ -331,6 +333,32 @@ describe("usePosts — pagination et mutations complémentaires", () => {
     await act(async () => { await result.current.refetch(); });
     await act(async () => { await result.current.remove("p1"); });
     expect(result.current.posts.map((p) => p.id)).toEqual(["p2"]);
+  });
+
+  it("toggleFavorite bascule isFavorite de façon optimiste et appelle l'API (#96)", async () => {
+    a.listPosts.mockResolvedValue({ items: [mk("p1")], hasMore: false });
+    a.setFavorite.mockResolvedValue({ favorite: true });
+    a.unsetFavorite.mockResolvedValue({ favorite: false });
+    const { result } = renderHook(() => usePosts("s1"));
+    await act(async () => { await result.current.refetch(); });
+    expect(result.current.posts[0].isFavorite).toBe(false);
+    // Ajout : optimiste true + setFavorite.
+    await act(async () => { await result.current.toggleFavorite("p1"); });
+    expect(a.setFavorite).toHaveBeenCalledWith("s1", "p1");
+    expect(result.current.posts[0].isFavorite).toBe(true);
+    // Retrait : optimiste false + unsetFavorite.
+    await act(async () => { await result.current.toggleFavorite("p1"); });
+    expect(a.unsetFavorite).toHaveBeenCalledWith("s1", "p1");
+    expect(result.current.posts[0].isFavorite).toBe(false);
+  });
+
+  it("toggleFavorite revient à l'état précédent si l'API échoue", async () => {
+    a.listPosts.mockResolvedValue({ items: [mk("p1")], hasMore: false });
+    a.setFavorite.mockRejectedValue(new Error("boom"));
+    const { result } = renderHook(() => usePosts("s1"));
+    await act(async () => { await result.current.refetch(); });
+    await act(async () => { await result.current.toggleFavorite("p1"); });
+    expect(result.current.posts[0].isFavorite).toBe(false);
   });
 
   it("publish remonte le brouillon publié en tête (created_at = date de publication, B-E)", async () => {

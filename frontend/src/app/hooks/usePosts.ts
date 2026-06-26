@@ -175,6 +175,27 @@ export function usePosts(spaceId: string) {
     }
   };
 
+  // Favori personnel (#96) : optimiste, lit l'état courant via `postsRef` pour
+  // décider set/unset (même garde anti-closure-périmée que toggleReaction).
+  const toggleFavorite = async (postId: string) => {
+    const post = postsRef.current.find((p) => p.id === postId);
+    if (!post) return;
+    const next = !post.isFavorite;
+    setPosts((prev) =>
+      prev.map((p) => (p.id === postId ? { ...p, isFavorite: next } : p)),
+    );
+    try {
+      if (next) await api.setFavorite(spaceId, postId);
+      else await api.unsetFavorite(spaceId, postId);
+    } catch (e) {
+      // Échec → on revient à l'état précédent.
+      console.error("favori échoué", e);
+      setPosts((prev) =>
+        prev.map((p) => (p.id === postId ? { ...p, isFavorite: !next } : p)),
+      );
+    }
+  };
+
   const openComments = async (postId: string) => {
     setCommentsFor(postId);
     commentsForRef.current = postId;
@@ -300,6 +321,7 @@ export function usePosts(spaceId: string) {
     remove,
     publish,
     toggleReaction,
+    toggleFavorite,
     // commentaires
     commentsFor,
     comments,

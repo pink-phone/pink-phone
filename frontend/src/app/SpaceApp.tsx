@@ -90,6 +90,7 @@ export function SpaceApp({
     remove: removePost,
     publish: publishPost,
     toggleReaction,
+    toggleFavorite,
     commentsFor,
     comments,
     commentsLoading,
@@ -641,6 +642,7 @@ export function SpaceApp({
           onLoadMore={loadMorePosts}
           onCompose={() => setOpenSheet("post")}
           onToggleReaction={toggleReaction}
+          onToggleFavorite={toggleFavorite}
           onOpenComments={openComments}
           reactionOrder={space.reactions}
           allowCustomReactions={space.allowCustomReactions}

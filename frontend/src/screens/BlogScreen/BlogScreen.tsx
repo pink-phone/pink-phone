@@ -5,11 +5,13 @@ import { Button } from "../../components/Button/Button";
 import { UnreadDivider } from "../../components/UnreadDivider/UnreadDivider";
 import type { ReactionId } from "../../components/ReactionBar/ReactionBar";
 import type { PostData } from "../../types/view";
+import { cn } from "../../lib/cn";
 
 export interface BlogScreenProps {
   posts: PostData[];
   onCompose?: () => void;
   onToggleReaction?: (postId: string, reaction: string) => void;
+  onToggleFavorite?: (postId: string) => void;
   onOpenComments?: (postId: string) => void;
   onDeletePost?: (postId: string) => void;
   onPublishPost?: (postId: string) => void;
@@ -31,6 +33,7 @@ export function BlogScreen({
   posts,
   onCompose,
   onToggleReaction,
+  onToggleFavorite,
   onOpenComments,
   onDeletePost,
   onPublishPost,
@@ -42,6 +45,10 @@ export function BlogScreen({
   onLoadMore,
 }: BlogScreenProps) {
   const { t } = useTranslation();
+
+  // Filtre « Favoris » (#96) : n'affiche que MES posts favoris (à plat, sans
+  // brouillons ni marqueurs « non lus »).
+  const [showFavorites, setShowFavorites] = useState(false);
 
   // Brouillons (mes posts non publiés) sortis du fil et regroupés dans une
   // section repliable en tête (#91) — ils encombraient le haut du blog. Le fil,
@@ -94,10 +101,14 @@ export function BlogScreen({
       edited={post.edited}
       isMine={post.isMine}
       seenBy={post.seenBy}
+      isFavorite={post.isFavorite}
       reactionOrder={reactionOrder}
       allowCustomReactions={allowCustomReactions}
       className="max-w-none"
       onToggleReaction={(r) => onToggleReaction?.(post.id, r)}
+      onToggleFavorite={
+        onToggleFavorite ? () => onToggleFavorite(post.id) : undefined
+      }
       onOpenComments={() => onOpenComments?.(post.id)}
       onDelete={() => onDeletePost?.(post.id)}
       onPublish={() => onPublishPost?.(post.id)}
@@ -109,12 +120,46 @@ export function BlogScreen({
     <div className="space-y-5">
       <header className="flex items-center justify-between pt-2">
         <h1 className="font-serif text-2xl text-blush-100">{t("blog.title")}</h1>
-        <Button size="sm" onClick={onCompose}>
-          {t("blog.compose")}
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* Bascule du filtre Favoris (#96) — affichée s'il y a des posts. */}
+          {posts.length > 0 && (
+            <button
+              type="button"
+              aria-pressed={showFavorites}
+              onClick={() => setShowFavorites((v) => !v)}
+              className={cn(
+                "rounded-full border px-3 py-1.5 text-xs transition-all duration-300 ease-felt",
+                showFavorites
+                  ? "border-spice-500/70 bg-bordeaux-700 text-blush-100 shadow-glow"
+                  : "border-charcoal-600/60 text-taupe-300 hover:border-spice-400/50 hover:text-blush-100",
+              )}
+            >
+              {t("blog.favoritesFilter")}
+            </button>
+          )}
+          <Button size="sm" onClick={onCompose}>
+            {t("blog.compose")}
+          </Button>
+        </div>
       </header>
 
-      {posts.length === 0 ? (
+      {showFavorites ? (
+        // Vue Favoris : liste à plat des posts favoris publiés (pas de
+        // brouillons, pas de marqueurs « non lus »).
+        feed.filter((p) => p.isFavorite).length === 0 ? (
+          <p className="py-12 text-center text-sm text-taupe-400">
+            {t("blog.favoritesEmpty")}
+          </p>
+        ) : (
+          <div className="flex flex-col items-stretch gap-5">
+            {feed
+              .filter((p) => p.isFavorite)
+              .map((post) => (
+                <Fragment key={post.id}>{renderPost(post)}</Fragment>
+              ))}
+          </div>
+        )
+      ) : posts.length === 0 ? (
         <p className="py-12 text-center text-sm text-taupe-400">
           {t("blog.empty")}
         </p>

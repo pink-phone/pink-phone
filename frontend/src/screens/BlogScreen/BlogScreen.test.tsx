@@ -60,6 +60,34 @@ describe("BlogScreen", () => {
     expect(screen.getByText("Récit p2")).toBeInTheDocument();
   });
 
+  it("filtre Favoris (#96) : ne montre que les posts favoris, sinon message vide", async () => {
+    const onToggleFavorite = vi.fn();
+    render(
+      <BlogScreen
+        posts={[post("p1"), post("p2", { isFavorite: true })]}
+        onToggleFavorite={onToggleFavorite}
+      />,
+    );
+    // Hors filtre : les deux posts sont visibles.
+    expect(screen.getByText("Récit p1")).toBeInTheDocument();
+    expect(screen.getByText("Récit p2")).toBeInTheDocument();
+    // Active le filtre Favoris.
+    const filter = screen.getByRole("button", { name: /Favoris/ });
+    await userEvent.click(filter);
+    expect(filter).toHaveAttribute("aria-pressed", "true");
+    // Seul le post favori reste.
+    expect(screen.queryByText("Récit p1")).toBeNull();
+    expect(screen.getByText("Récit p2")).toBeInTheDocument();
+  });
+
+  it("filtre Favoris : message dédié quand aucun favori", async () => {
+    render(<BlogScreen posts={[post("p1")]} onToggleFavorite={vi.fn()} />);
+    await userEvent.click(screen.getByRole("button", { name: /Favoris/ }));
+    expect(
+      screen.getByText(/Aucun favori pour l'instant/),
+    ).toBeInTheDocument();
+  });
+
   it("brouillons (#91) : repliés par défaut, dépliés au clic", async () => {
     render(
       <BlogScreen
