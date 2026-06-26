@@ -147,6 +147,10 @@ export const fr = {
     commentsCount_one: "{{count}} commentaire",
     commentsCount_other: "{{count}} commentaires",
     sharedPhotoAlt: "Média partagé",
+    favoriteAddAria: "Ajouter aux favoris",
+    favoriteRemoveAria: "Retirer des favoris",
+    favoritesFilter: "★ Favoris",
+    favoritesEmpty: "Aucun favori pour l'instant. Touche ★ sur un post pour le garder ici.",
   },
   postComposer: {
     sheetWrite: "Écrire",

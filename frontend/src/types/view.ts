@@ -29,6 +29,8 @@ export interface PostData {
   myReactions: string[];
   verdict: Verdict | null;
   commentCount: number;
+  /** Le post est dans mes favoris (marque-page personnel, #96). */
+  isFavorite?: boolean;
   /** Brouillon (visible du seul auteur). */
   draft?: boolean;
   /** Le post a été édité après publication (updatedAt > createdAt) — API-10. */

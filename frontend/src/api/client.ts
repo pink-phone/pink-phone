@@ -294,6 +294,19 @@ export const setVerdict = (spaceId: string, postId: string, verdict: Verdict) =>
     { method: "PUT", json: { verdict } },
   );
 
+/** Favori personnel (#96) : marque/retire un post de MES marque-pages. */
+export const setFavorite = (spaceId: string, postId: string) =>
+  req<{ favorite: boolean }>(
+    `/api/spaces/${spaceId}/posts/${postId}/favorite`,
+    { method: "PUT" },
+  );
+
+export const unsetFavorite = (spaceId: string, postId: string) =>
+  req<{ favorite: boolean }>(
+    `/api/spaces/${spaceId}/posts/${postId}/favorite`,
+    { method: "DELETE" },
+  );
+
 /** Commentaires paginés (les plus récents d'abord ; `before` remonte le fil). */
 export const listComments = (spaceId: string, postId: string, before?: string) =>
   req<Page<ApiComment>>(

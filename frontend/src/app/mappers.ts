@@ -51,6 +51,7 @@ export function toPostData(
     myReactions: p.myReactions,
     verdict: p.verdict,
     commentCount: p.commentCount,
+    isFavorite: p.isFavorite,
     draft: p.draft,
     edited: !p.draft && p.updatedAt > p.createdAt,
     isMine: p.authorId === userId,

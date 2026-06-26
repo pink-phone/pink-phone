@@ -120,6 +120,8 @@ pub struct Post {
     pub reaction_counts: std::collections::HashMap<String, i64>,
     pub my_reactions: Vec<String>,
     pub verdict: Option<String>,
+    /// Le post est dans MES favoris (marque-page personnel, #96).
+    pub is_favorite: bool,
     pub comment_count: i64,
     /// Date du dernier commentaire posté par QUELQU'UN D'AUTRE (null si aucun) —
     /// sert au badge « nouveaux commentaires » du dashboard, comparé au last_seen.

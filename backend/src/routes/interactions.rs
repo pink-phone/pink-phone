@@ -29,6 +29,10 @@ pub fn router() -> Router<AppState> {
             put(set_verdict).delete(clear_verdict),
         )
         .route(
+            "/api/spaces/{id}/posts/{pid}/favorite",
+            put(set_favorite).delete(clear_favorite),
+        )
+        .route(
             "/api/spaces/{id}/posts/{pid}/comments",
             get(list_comments).post(add_comment),
         )
@@ -205,6 +209,46 @@ async fn clear_verdict(
         .execute(&state.pool)
         .await?;
     Ok(Json(VerdictOut { verdict: None }))
+}
+
+// ---------- Favoris (#96) ----------
+
+// Marque-page PERSONNEL : aucun event WS ni notification (invisible des autres).
+
+#[derive(Serialize)]
+pub struct FavoriteOut {
+    pub favorite: bool,
+}
+
+async fn set_favorite(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Path((space_id, post_id)): Path<(Uuid, Uuid)>,
+) -> ApiResult<Json<FavoriteOut>> {
+    guard(&state.pool, auth.user_id, space_id, post_id).await?;
+    sqlx::query(
+        "INSERT INTO post_favorites (post_id, user_id) VALUES ($1, $2)
+         ON CONFLICT DO NOTHING",
+    )
+    .bind(post_id)
+    .bind(auth.user_id)
+    .execute(&state.pool)
+    .await?;
+    Ok(Json(FavoriteOut { favorite: true }))
+}
+
+async fn clear_favorite(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Path((space_id, post_id)): Path<(Uuid, Uuid)>,
+) -> ApiResult<Json<FavoriteOut>> {
+    guard(&state.pool, auth.user_id, space_id, post_id).await?;
+    sqlx::query("DELETE FROM post_favorites WHERE post_id = $1 AND user_id = $2")
+        .bind(post_id)
+        .bind(auth.user_id)
+        .execute(&state.pool)
+        .await?;
+    Ok(Json(FavoriteOut { favorite: false }))
 }
 
 // ---------- Commentaires ----------

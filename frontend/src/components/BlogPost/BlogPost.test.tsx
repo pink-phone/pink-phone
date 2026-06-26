@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { userEvent } from "@testing-library/user-event";
 import { BlogPost } from "./BlogPost";
@@ -51,6 +51,37 @@ describe("BlogPost", () => {
       />,
     );
     expect(screen.getByText(/Vu/)).toBeInTheDocument();
+  });
+
+  it("favori (#96) : étoile rendue uniquement sur un post publié avec handler", () => {
+    const { rerender } = render(<BlogPost {...base} body="x" />);
+    // Sans handler : pas d'étoile.
+    expect(screen.queryByRole("button", { name: /favori/i })).toBeNull();
+    // Avec handler sur un post publié : bouton favori présent, non pressé.
+    rerender(<BlogPost {...base} body="x" onToggleFavorite={() => {}} />);
+    const star = screen.getByRole("button", { name: /Ajouter aux favoris/i });
+    expect(star).toHaveAttribute("aria-pressed", "false");
+    // Sur un brouillon : pas d'étoile même avec handler.
+    rerender(
+      <BlogPost {...base} body="x" draft isMine onToggleFavorite={() => {}} />,
+    );
+    expect(screen.queryByRole("button", { name: /favori/i })).toBeNull();
+  });
+
+  it("favori : clic appelle onToggleFavorite ; état actif → aria-pressed", async () => {
+    const user = userEvent.setup();
+    const onToggle = vi.fn();
+    const { rerender } = render(
+      <BlogPost {...base} body="x" onToggleFavorite={onToggle} />,
+    );
+    await user.click(screen.getByRole("button", { name: /Ajouter aux favoris/i }));
+    expect(onToggle).toHaveBeenCalledTimes(1);
+    rerender(
+      <BlogPost {...base} body="x" isFavorite onToggleFavorite={onToggle} />,
+    );
+    expect(
+      screen.getByRole("button", { name: /Retirer des favoris/i }),
+    ).toHaveAttribute("aria-pressed", "true");
   });
 
   it("au clic sur « Vu », la bulle liste qui a vu (et quand)", async () => {

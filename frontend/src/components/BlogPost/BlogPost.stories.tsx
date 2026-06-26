@@ -28,6 +28,7 @@ const meta = {
   },
   argTypes: {
     onToggleReaction: { action: "réaction" },
+    onToggleFavorite: { action: "favori" },
     onOpenComments: { action: "commentaires" },
     onDelete: { action: "supprimer" },
     onPublish: { action: "publier" },
@@ -107,6 +108,16 @@ export const MienVu: Story = {
 /** Post édité après publication : mention « · modifié » près de l'horodatage. */
 export const Modifié: Story = {
   args: { edited: true },
+};
+
+/** Étoile de favori (#96) : marque-page personnel, ☆ vide → ★ pleine spice. */
+export const Favori: Story = {
+  args: { isFavorite: true },
+};
+
+/** Favori non actif : l'étoile ☆ apparaît dès qu'on peut basculer le favori. */
+export const FavoriInactif: Story = {
+  args: { isFavorite: false },
 };
 
 /** Brouillon : pastille + bouton "Publier", pas d'interactions tant qu'il n'est pas publié. */

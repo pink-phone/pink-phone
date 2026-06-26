@@ -195,6 +195,17 @@ async fn enrich(
     .fetch_all(pool)
     .await?;
 
+    // Mes favoris parmi ces posts (marque-page personnel, #96).
+    let favorite_ids: std::collections::HashSet<Uuid> = sqlx::query_scalar(
+        "SELECT post_id FROM post_favorites WHERE post_id = ANY($1) AND user_id = $2",
+    )
+    .bind(&ids)
+    .bind(user_id)
+    .fetch_all(pool)
+    .await?
+    .into_iter()
+    .collect();
+
     let counts: Vec<CountRow> = sqlx::query_as(
         "SELECT post_id, count(*) AS n FROM post_comments
          WHERE post_id = ANY($1) GROUP BY post_id",
@@ -259,6 +270,7 @@ async fn enrich(
             reaction_counts: counts_by_post.remove(&p.id).unwrap_or_default(),
             my_reactions: mine_by_post.remove(&p.id).unwrap_or_default(),
             verdict: verdict_by_post.get(&p.id).cloned(),
+            is_favorite: favorite_ids.contains(&p.id),
             comment_count: comments_by_post.get(&p.id).copied().unwrap_or(0),
             last_comment_at: last_comment_by_post.get(&p.id).copied(),
             id: p.id,

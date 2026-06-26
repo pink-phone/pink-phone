@@ -668,6 +668,45 @@ async fn posts_pagination_par_curseur(pool: PgPool) {
     assert_eq!(p2["hasMore"], false);
 }
 
+#[sqlx::test]
+async fn favori_personnel_par_utilisateur(pool: PgPool) {
+    let (app, state) = build_app(pool.clone());
+    let alice = seed_user(&pool, "alice").await;
+    let bob = seed_user(&pool, "bob").await;
+    let space = seed_space(&pool, alice).await;
+    add_member(&pool, bob, space).await;
+    let ta = token_for(&state, alice);
+    let tb = token_for(&state, bob);
+
+    let post = create_post(&app, space, &ta, "récit").await;
+    let fav = format!("/api/spaces/{space}/posts/{post}/favorite");
+    let list = format!("/api/spaces/{space}/posts");
+
+    // Au départ : non favori pour les deux.
+    let (_, p) = req(&app, "GET", &list, &ta, None).await;
+    assert_eq!(p["items"][0]["isFavorite"], false);
+
+    // Alice le met en favori (idempotent).
+    let (st, r) = req(&app, "PUT", &fav, &ta, None).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(r["favorite"], true);
+    let (_, p) = req(&app, "PUT", &fav, &ta, None).await; // re-PUT
+    assert_eq!(p["favorite"], true);
+
+    // C'est PERSONNEL : favori pour Alice, pas pour Bob.
+    let (_, pa) = req(&app, "GET", &list, &ta, None).await;
+    assert_eq!(pa["items"][0]["isFavorite"], true, "favori d'Alice");
+    let (_, pb) = req(&app, "GET", &list, &tb, None).await;
+    assert_eq!(pb["items"][0]["isFavorite"], false, "Bob n'a pas le favori");
+
+    // Alice le retire.
+    let (st, r) = req(&app, "DELETE", &fav, &ta, None).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(r["favorite"], false);
+    let (_, pa) = req(&app, "GET", &list, &ta, None).await;
+    assert_eq!(pa["items"][0]["isFavorite"], false);
+}
+
 // --- Tests : auth (register/login/me/logout-all), seen, suggestions ----------
 
 #[sqlx::test]
