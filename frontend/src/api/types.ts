@@ -44,6 +44,8 @@ export interface Space {
   allowMediaDownload: boolean;
   /** Liste d'envies à double consentement (#99) activée pour ce salon. */
   desiresEnabled: boolean;
+  /** « Menu du soir » : rituel quotidien à double consentement (#97b). */
+  eveningMenuEnabled: boolean;
   createdAt: string;
 }
 
@@ -53,6 +55,13 @@ export interface ApiDesire {
   /** Code stable du catalogue (libellé via i18n côté front). */
   code: string;
   interested: boolean;
+  matched: boolean;
+}
+
+/** Un item du « Menu du soir » (#97b) pour ce soir : mon choix du jour + match. */
+export interface ApiEveningMenuItem {
+  code: string;
+  picked: boolean;
   matched: boolean;
 }
 

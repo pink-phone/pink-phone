@@ -46,6 +46,7 @@ import { useChallenges } from "./hooks/useChallenges";
 import { useMoods } from "./hooks/useMoods";
 import { useSeen } from "./hooks/useSeen";
 import { useDesires } from "./hooks/useDesires";
+import { useEveningMenu } from "./hooks/useEveningMenu";
 import {
   toChallengeData,
   toCommentViews,
@@ -154,6 +155,12 @@ export function SpaceApp({
     refetch: refetchDesires,
     toggleInterest: toggleDesire,
   } = useDesires(space.id, space.desiresEnabled);
+  // Menu du soir (#97b) : rituel quotidien, gated par le flag du salon.
+  const {
+    items: eveningMenuItems,
+    refetch: refetchEveningMenu,
+    toggle: toggleEveningMenu,
+  } = useEveningMenu(space.id, space.eveningMenuEnabled);
   const [openSheet, setOpenSheet] = useState<"post" | "challenge" | null>(null);
   // Brouillon en cours d'édition (sinon la feuille "post" crée un nouveau post).
   const [editingPost, setEditingPost] = useState<ApiPost | null>(null);
@@ -309,6 +316,9 @@ export function SpaceApp({
     } else if (kind === "desire") {
       // Un match vient de se former (#99) → révèle-le de mon côté.
       refetchDesires();
+    } else if (kind === "eveningMenu") {
+      // Match du soir (#97b) → révèle-le de mon côté.
+      refetchEveningMenu();
     } else if (kind === "seen") {
       refetchSeen();
     } else if (kind === "space") {
@@ -335,6 +345,7 @@ export function SpaceApp({
       refetchSeen();
       refetchNotices();
       refetchDesires();
+      refetchEveningMenu();
     };
     document.addEventListener("visibilitychange", resync);
     window.addEventListener("focus", resync);
@@ -349,6 +360,7 @@ export function SpaceApp({
     refetchSeen,
     refetchNotices,
     refetchDesires,
+    refetchEveningMenu,
   ]);
 
   // Retour Android / swipe iOS ferment la surface ouverte (au lieu de quitter).
@@ -543,6 +555,15 @@ export function SpaceApp({
     }
   };
 
+  const changeEveningMenuEnabled = async (eveningMenuEnabled: boolean) => {
+    try {
+      // useEveningMenu se recharge/vide via son effet sur `[enabled]` (#97b).
+      setSpace(await api.updateSpace(space.id, { eveningMenuEnabled }));
+    } catch (e) {
+      console.error("changement du menu du soir échoué", e);
+    }
+  };
+
   const changeNotifMode = async (mode: NotifMode) => {
     setSettingsBusy(true);
     setPushError(null);
@@ -576,6 +597,7 @@ export function SpaceApp({
             blindMood: space.blindMood,
             allowMediaDownload: space.allowMediaDownload,
             desiresEnabled: space.desiresEnabled,
+            eveningMenuEnabled: space.eveningMenuEnabled,
           }}
           members={members.map((m) => ({ id: m.id, name: m.displayName }))}
           inviteCode={inviteCode}
@@ -590,6 +612,7 @@ export function SpaceApp({
           onBlindMoodChange={changeBlindMood}
           onAllowMediaDownloadChange={changeAllowMediaDownload}
           onDesiresEnabledChange={changeDesiresEnabled}
+          onEveningMenuEnabledChange={changeEveningMenuEnabled}
           reactions={space.reactions}
           allowCustomReactions={space.allowCustomReactions}
           onReactionsChange={changeReactions}
@@ -679,6 +702,9 @@ export function SpaceApp({
           desiresEnabled={space.desiresEnabled}
           desireMatches={desires.filter((d) => d.matched).length}
           onOpenDesires={() => setShowDesires(true)}
+          eveningMenuEnabled={space.eveningMenuEnabled}
+          eveningMenuItems={eveningMenuItems}
+          onEveningMenuToggle={toggleEveningMenu}
         />
       )}
 

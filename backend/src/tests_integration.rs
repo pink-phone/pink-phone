@@ -790,6 +790,101 @@ async fn desires_double_consentement_et_gating(pool: PgPool) {
     assert_eq!(a["matched"], false);
 }
 
+#[sqlx::test]
+async fn menu_du_soir_match_du_jour_et_gating(pool: PgPool) {
+    let (app, state) = build_app(pool.clone());
+    let alice = seed_user(&pool, "alice").await;
+    let bob = seed_user(&pool, "bob").await;
+    let space = seed_space(&pool, alice).await;
+    add_member(&pool, bob, space).await;
+    let ta = token_for(&state, alice);
+    let tb = token_for(&state, bob);
+
+    let list = format!("/api/spaces/{space}/evening-menu");
+    let massage = format!("/api/spaces/{space}/evening-menu/massage");
+
+    // Désactivé par défaut → 403.
+    let (st, _) = req(&app, "GET", &list, &ta, None).await;
+    assert_eq!(st, StatusCode::FORBIDDEN);
+
+    // Activation.
+    let (st, _) = req(
+        &app,
+        "PATCH",
+        &format!("/api/spaces/{space}"),
+        &ta,
+        Some(json!({ "eveningMenuEnabled": true })),
+    )
+    .await;
+    assert_eq!(st, StatusCode::OK);
+
+    // Catalogue (10 items), rien de coché.
+    let (st, items) = req(&app, "GET", &list, &ta, None).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(items.as_array().unwrap().len(), 10);
+
+    // Item inconnu → 404.
+    let (st, _) = req(
+        &app,
+        "PUT",
+        &format!("/api/spaces/{space}/evening-menu/zzz"),
+        &ta,
+        None,
+    )
+    .await;
+    assert_eq!(st, StatusCode::NOT_FOUND);
+
+    // Alice coche « massage » : choisi, pas encore matché.
+    let (st, a) = req(&app, "PUT", &massage, &ta, None).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(a["picked"], true);
+    assert_eq!(a["matched"], false);
+
+    // Double-aveugle : Bob ne voit rien.
+    let (_, items_b) = req(&app, "GET", &list, &tb, None).await;
+    let m_b = items_b
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|i| i["code"] == "massage")
+        .unwrap();
+    assert_eq!(m_b["picked"], false);
+    assert_eq!(m_b["matched"], false);
+
+    // Bob coche « massage » → match du soir des deux côtés.
+    let (st, b) = req(&app, "PUT", &massage, &tb, None).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(b["matched"], true);
+    let (_, items_a) = req(&app, "GET", &list, &ta, None).await;
+    let m_a = items_a
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|i| i["code"] == "massage")
+        .unwrap();
+    assert_eq!(m_a["matched"], true);
+
+    // « Hier » : une coche datée de la veille ne compte pas pour ce soir.
+    sqlx::query(
+        "INSERT INTO evening_menu_picks (space_id, user_id, code, day)
+         VALUES ($1, $2, 'movie', ((now() AT TIME ZONE
+            (SELECT timezone FROM spaces WHERE id = $1))::date - 1))",
+    )
+    .bind(space)
+    .bind(bob)
+    .execute(&pool)
+    .await
+    .unwrap();
+    let (_, again) = req(&app, "PUT", &format!("{list}/movie"), &ta, None).await;
+    assert_eq!(again["matched"], false, "la coche d'hier ne matche pas ce soir");
+
+    // Alice retire « massage » → plus de match.
+    let (st, a) = req(&app, "DELETE", &massage, &ta, None).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(a["picked"], false);
+    assert_eq!(a["matched"], false);
+}
+
 // --- Tests : auth (register/login/me/logout-all), seen, suggestions ----------
 
 #[sqlx::test]

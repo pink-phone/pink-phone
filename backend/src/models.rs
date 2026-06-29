@@ -41,6 +41,8 @@ pub struct Space {
     pub allow_media_download: bool,
     /// Liste d'envies à double consentement (#99) activée pour ce salon.
     pub desires_enabled: bool,
+    /// « Menu du soir » : rituel quotidien à double consentement (#97b).
+    pub evening_menu_enabled: bool,
     pub created_at: DateTime<Utc>,
 }
 
@@ -212,6 +214,17 @@ pub struct DesireItem {
     pub matched: bool,
 }
 
+/// Un item du « Menu du soir » (#97b) pour ce soir, côté membre courant : mon
+/// choix du jour + l'état « matché » (les deux l'ont coché aujourd'hui). Même
+/// double-aveugle que `DesireItem` : `matched` n'est vrai qu'en cas de réciprocité.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EveningMenuItem {
+    pub code: String,
+    pub picked: bool,
+    pub matched: bool,
+}
+
 /// "Vu" d'un fil (blog/défis) par un membre — horodatage de dernière consultation.
 #[derive(Debug, Serialize, sqlx::FromRow)]
 #[serde(rename_all = "camelCase")]
@@ -257,6 +270,21 @@ pub const DESIRE_CODES: [&str; 12] = [
     "outdoorThrill",
     "morningTime",
     "writeFantasy",
+];
+/// Catalogue du « Menu du soir » (#97b), du plus tendre au plus épicé. Codes
+/// stables (libellés via i18n front) ; source de vérité du menu + validation des
+/// coches. Distinct de `DESIRE_CODES` (registre « programme de la soirée »).
+pub const EVENING_MENU_CODES: [&str; 10] = [
+    "cuddle",
+    "movie",
+    "candlelight",
+    "bath",
+    "massage",
+    "slowDance",
+    "game",
+    "roleplay",
+    "newThing",
+    "passionate",
 ];
 /// États de la machine à états des défis, dans l'ordre d'affichage. Source de
 /// vérité du type TS `ChallengeStatus` (généré — API-13) ; seul le codegen le

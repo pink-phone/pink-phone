@@ -3,11 +3,13 @@ import { useTranslation } from "react-i18next";
 import { Surface } from "../../components/Surface/Surface";
 import { Button } from "../../components/Button/Button";
 import { MoodSelector } from "../../components/MoodSelector/MoodSelector";
+import { EveningMenu } from "../../components/EveningMenu/EveningMenu";
 import { FireEmbers } from "../../components/FireEmbers/FireEmbers";
 import { MOODS } from "../../components/MoodSelector/moods";
 import { parseCustomMood } from "../../components/MoodSelector/MoodSelector";
 import { cn } from "../../lib/cn";
 import type { Person } from "../../types/view";
+import type { ApiEveningMenuItem } from "../../api/types";
 
 /** Une autre personne du salon + son humeur du jour (multi-partenaires #52). */
 export interface DashboardPartner extends Person {
@@ -51,6 +53,12 @@ export interface DashboardScreenProps {
   desireMatches?: number;
   /** Ouvre l'écran « Vos envies » (#99). */
   onOpenDesires?: () => void;
+  /** Menu du soir activé pour le salon (#97b) → affiche la section. */
+  eveningMenuEnabled?: boolean;
+  /** Items du menu de ce soir (code/picked/matched). */
+  eveningMenuItems?: ApiEveningMenuItem[];
+  /** Bascule mon choix du soir (par code). */
+  onEveningMenuToggle?: (code: string) => void;
 }
 
 /** Une "vignette météo" pour l'humeur d'une personne (ou son absence). */
@@ -140,6 +148,9 @@ export function DashboardScreen({
   desiresEnabled = false,
   desireMatches = 0,
   onOpenDesires,
+  eveningMenuEnabled = false,
+  eveningMenuItems = [],
+  onEveningMenuToggle,
 }: DashboardScreenProps) {
   const { t } = useTranslation();
   // Notices connues (kind → message + icône) ; les inconnues sont ignorées.
@@ -294,6 +305,11 @@ export function DashboardScreen({
           </p>
         )}
       </section>
+
+      {/* Menu du soir (#97b) — rituel quotidien, seulement si activé. */}
+      {eveningMenuEnabled && partners.length > 0 && (
+        <EveningMenu items={eveningMenuItems} onToggle={onEveningMenuToggle} />
+      )}
 
       {/* Entrée « Vos envies » (#99) — seulement si activée pour le salon. */}
       {desiresEnabled && onOpenDesires && (
