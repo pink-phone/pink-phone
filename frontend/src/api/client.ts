@@ -2,6 +2,7 @@ import type { ChallengeStatus, Intensity, Verdict } from "../domain/types";
 import type {
   ApiChallenge,
   ApiComment,
+  ApiLoveNote,
   ApiPost,
   AuthConfig,
   ChallengeSuggestion,
@@ -190,6 +191,24 @@ export const updateSpace = (
     allowMediaDownload?: boolean;
   },
 ) => req<Space>(`/api/spaces/${spaceId}`, { method: "PATCH", json: body });
+
+// ---------- Mots doux (#102) ----------
+
+export const listLoveNotes = (spaceId: string) =>
+  req<ApiLoveNote[]>(`/api/spaces/${spaceId}/love-notes`);
+
+/** Crée un mot doux ; `openAt` (ISO) le scelle jusqu'à cette date (ouverture différée). */
+export const createLoveNote = (
+  spaceId: string,
+  body: { body: string; openAt?: string },
+) =>
+  req<ApiLoveNote>(`/api/spaces/${spaceId}/love-notes`, {
+    method: "POST",
+    json: body,
+  });
+
+export const deleteLoveNote = (spaceId: string, noteId: string) =>
+  req<void>(`/api/spaces/${spaceId}/love-notes/${noteId}`, { method: "DELETE" });
 
 /** Génère un code d'invitation lisible à usage unique (valable 7 jours, #89). */
 export const createInvite = (spaceId: string) =>

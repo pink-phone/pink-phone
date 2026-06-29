@@ -44,6 +44,7 @@ import { usePosts } from "./hooks/usePosts";
 import { useChallenges } from "./hooks/useChallenges";
 import { useMoods } from "./hooks/useMoods";
 import { useSeen } from "./hooks/useSeen";
+import { useLoveNotes } from "./hooks/useLoveNotes";
 import {
   toChallengeData,
   toCommentViews,
@@ -146,6 +147,13 @@ export function SpaceApp({
     remove: removeSuggestion,
     setHidden: setSuggestionHidden,
   } = useSuggestions(space.id, lang);
+  // Mots doux (#102) : toujours actif (pas de flag).
+  const {
+    notes: loveNotes,
+    refetch: refetchLoveNotes,
+    add: addLoveNote,
+    remove: removeLoveNote,
+  } = useLoveNotes(space.id);
   const [openSheet, setOpenSheet] = useState<"post" | "challenge" | null>(null);
   // Brouillon en cours d'édition (sinon la feuille "post" crée un nouveau post).
   const [editingPost, setEditingPost] = useState<ApiPost | null>(null);
@@ -256,6 +264,7 @@ export function SpaceApp({
       refetchChallenges(),
       refetchSeen(),
       refetchNotices(),
+      refetchLoveNotes(),
       api
         .getSettings()
         .then((s) => {
@@ -275,6 +284,7 @@ export function SpaceApp({
     refetchChallenges,
     refetchSeen,
     refetchNotices,
+    refetchLoveNotes,
   ]);
 
   // Applique la préférence "effet braise" globalement (classe sur <html>) + persiste.
@@ -297,6 +307,9 @@ export function SpaceApp({
       if (tabRef.current === "challenges") markSeen("challenges");
     } else if (kind === "mood") {
       refetchMoods();
+    } else if (kind === "loveNote") {
+      // Nouveau mot doux (ou déverrouillage d'un mot différé) — #102.
+      refetchLoveNotes();
     } else if (kind === "seen") {
       refetchSeen();
     } else if (kind === "space") {
@@ -322,6 +335,7 @@ export function SpaceApp({
       refetchMoods();
       refetchSeen();
       refetchNotices();
+      refetchLoveNotes();
     };
     document.addEventListener("visibilitychange", resync);
     window.addEventListener("focus", resync);
@@ -329,7 +343,14 @@ export function SpaceApp({
       document.removeEventListener("visibilitychange", resync);
       window.removeEventListener("focus", resync);
     };
-  }, [refetchPosts, refetchChallenges, refetchMoods, refetchSeen, refetchNotices]);
+  }, [
+    refetchPosts,
+    refetchChallenges,
+    refetchMoods,
+    refetchSeen,
+    refetchNotices,
+    refetchLoveNotes,
+  ]);
 
   // Retour Android / swipe iOS ferment la surface ouverte (au lieu de quitter).
   useBackClose(showSettings, () => setShowSettings(false));
@@ -631,6 +652,10 @@ export function SpaceApp({
           newChallenges={newChallenges}
           notices={dashboardNotices}
           onOpen={setTab}
+          userId={user.id}
+          loveNotes={loveNotes}
+          onSendLoveNote={addLoveNote}
+          onDeleteLoveNote={removeLoveNote}
         />
       )}
 

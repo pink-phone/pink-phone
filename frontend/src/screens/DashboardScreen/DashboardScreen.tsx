@@ -3,11 +3,13 @@ import { useTranslation } from "react-i18next";
 import { Surface } from "../../components/Surface/Surface";
 import { Button } from "../../components/Button/Button";
 import { MoodSelector } from "../../components/MoodSelector/MoodSelector";
+import { LoveNoteWall } from "../../components/LoveNoteWall/LoveNoteWall";
 import { FireEmbers } from "../../components/FireEmbers/FireEmbers";
 import { MOODS } from "../../components/MoodSelector/moods";
 import { parseCustomMood } from "../../components/MoodSelector/MoodSelector";
 import { cn } from "../../lib/cn";
 import type { Person } from "../../types/view";
+import type { ApiLoveNote } from "../../api/types";
 
 /** Une autre personne du salon + son humeur du jour (multi-partenaires #52). */
 export interface DashboardPartner extends Person {
@@ -45,6 +47,13 @@ export interface DashboardScreenProps {
   onOpen?: (tab: "blog" | "challenges") => void;
   /** Notices du salon non vues (#84/#85) — déjà filtrées par l'orchestration. */
   notices?: { id: string; kind: string; actorName?: string }[];
+  /** Id de l'utilisateur courant (pour distinguer mes mots doux). */
+  userId?: string;
+  /** Mots doux du salon (#102). */
+  loveNotes?: ApiLoveNote[];
+  /** Envoie un mot doux ; `openAt` ISO optionnel (ouverture différée). */
+  onSendLoveNote?: (body: string, openAt?: string) => Promise<boolean> | boolean;
+  onDeleteLoveNote?: (id: string) => void;
 }
 
 /** Une "vignette météo" pour l'humeur d'une personne (ou son absence). */
@@ -131,6 +140,10 @@ export function DashboardScreen({
   newChallenges = 0,
   onOpen,
   notices = [],
+  userId = "",
+  loveNotes = [],
+  onSendLoveNote,
+  onDeleteLoveNote,
 }: DashboardScreenProps) {
   const { t } = useTranslation();
   // Notices connues (kind → message + icône) ; les inconnues sont ignorées.
@@ -285,6 +298,16 @@ export function DashboardScreen({
           </p>
         )}
       </section>
+
+      {/* Mur de mots doux (#102) — dès qu'il y a un·e partenaire à qui écrire. */}
+      {onSendLoveNote && partners.length > 0 && (
+        <LoveNoteWall
+          notes={loveNotes}
+          userId={userId}
+          onSend={onSendLoveNote}
+          onDelete={onDeleteLoveNote}
+        />
+      )}
     </div>
   );
 }

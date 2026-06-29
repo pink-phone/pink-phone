@@ -2,6 +2,7 @@ pub mod auth;
 pub mod challenges;
 pub mod interactions;
 pub mod logs;
+pub mod love_notes;
 pub mod media;
 pub mod moods;
 pub mod notices;
@@ -48,6 +49,7 @@ pub fn api_router() -> Router<AppState> {
         .merge(challenges::router())
         .merge(media::router())
         .merge(logs::router())
+        .merge(love_notes::router())
         .merge(notifications::router())
         .merge(oidc::router())
         .merge(seen::router())
