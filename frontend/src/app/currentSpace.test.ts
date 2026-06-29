@@ -10,6 +10,7 @@ const space = (id: string): Space => ({
   allowCustomReactions: true,
   blindMood: false,
   allowMediaDownload: false,
+  desiresEnabled: false,
   createdAt: "2026-06-20T10:00:00.000Z",
 });
 

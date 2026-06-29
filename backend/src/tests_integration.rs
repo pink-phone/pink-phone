@@ -707,6 +707,89 @@ async fn favori_personnel_par_utilisateur(pool: PgPool) {
     assert_eq!(pa["items"][0]["isFavorite"], false);
 }
 
+#[sqlx::test]
+async fn desires_double_consentement_et_gating(pool: PgPool) {
+    let (app, state) = build_app(pool.clone());
+    let alice = seed_user(&pool, "alice").await;
+    let bob = seed_user(&pool, "bob").await;
+    let space = seed_space(&pool, alice).await;
+    add_member(&pool, bob, space).await;
+    let ta = token_for(&state, alice);
+    let tb = token_for(&state, bob);
+
+    let list = format!("/api/spaces/{space}/desires");
+    let massage = format!("/api/spaces/{space}/desires/massage/interest");
+
+    // Désactivé par défaut → 403 (gating, #99).
+    let (st, _) = req(&app, "GET", &list, &ta, None).await;
+    assert_eq!(st, StatusCode::FORBIDDEN, "désactivé par défaut");
+
+    // Alice active la fonctionnalité sur le salon.
+    let (st, _) = req(
+        &app,
+        "PATCH",
+        &format!("/api/spaces/{space}"),
+        &ta,
+        Some(json!({ "desiresEnabled": true })),
+    )
+    .await;
+    assert_eq!(st, StatusCode::OK);
+
+    // Catalogue listé (12 codes), rien de coché → pas de match.
+    let (st, items) = req(&app, "GET", &list, &ta, None).await;
+    assert_eq!(st, StatusCode::OK);
+    let arr = items.as_array().unwrap();
+    assert_eq!(arr.len(), 12, "catalogue complet");
+    assert!(arr.iter().all(|i| i["matched"] == false));
+
+    // Code inconnu → 404.
+    let (st, _) = req(
+        &app,
+        "PUT",
+        &format!("/api/spaces/{space}/desires/inconnu/interest"),
+        &ta,
+        None,
+    )
+    .await;
+    assert_eq!(st, StatusCode::NOT_FOUND);
+
+    // Alice coche « massage » : intéressée mais PAS encore matchée.
+    let (st, a) = req(&app, "PUT", &massage, &ta, None).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(a["interested"], true);
+    assert_eq!(a["matched"], false);
+
+    // Double-aveugle : Bob ne voit RIEN de l'intérêt d'Alice (ni interested ni match).
+    let (_, items_b) = req(&app, "GET", &list, &tb, None).await;
+    let massage_b = items_b
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|i| i["code"] == "massage")
+        .unwrap();
+    assert_eq!(massage_b["interested"], false);
+    assert_eq!(massage_b["matched"], false, "secret d'Alice non révélé");
+
+    // Bob coche « massage » à son tour → MATCH des deux côtés.
+    let (st, b) = req(&app, "PUT", &massage, &tb, None).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(b["matched"], true, "Bob complète → match");
+    let (_, items_a) = req(&app, "GET", &list, &ta, None).await;
+    let massage_a = items_a
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|i| i["code"] == "massage")
+        .unwrap();
+    assert_eq!(massage_a["matched"], true, "match révélé chez Alice aussi");
+
+    // Alice retire son intérêt → plus de match de son côté.
+    let (st, a) = req(&app, "DELETE", &massage, &ta, None).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(a["interested"], false);
+    assert_eq!(a["matched"], false);
+}
+
 // --- Tests : auth (register/login/me/logout-all), seen, suggestions ----------
 
 #[sqlx::test]

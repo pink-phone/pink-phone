@@ -39,6 +39,8 @@ pub struct Space {
     pub blind_mood: bool,
     /// Défaut du salon pour « média téléchargeable » des nouveaux posts (#78).
     pub allow_media_download: bool,
+    /// Liste d'envies à double consentement (#99) activée pour ce salon.
+    pub desires_enabled: bool,
     pub created_at: DateTime<Utc>,
 }
 
@@ -198,6 +200,18 @@ pub struct ChallengeSuggestion {
     pub hidden: bool,
 }
 
+/// Une envie du catalogue (#99) telle que renvoyée au membre courant : son code
+/// stable + MON intérêt + l'état « matché ». L'intérêt brut des AUTRES n'est jamais
+/// exposé (double-aveugle) : `matched` n'est vrai que si moi ET un autre membre
+/// avons coché ce code.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DesireItem {
+    pub code: String,
+    pub interested: bool,
+    pub matched: bool,
+}
+
 /// "Vu" d'un fil (blog/défis) par un membre — horodatage de dernière consultation.
 #[derive(Debug, Serialize, sqlx::FromRow)]
 #[serde(rename_all = "camelCase")]
@@ -226,6 +240,24 @@ pub const INTENSITIES: [&str; 2] = ["soft", "hot"];
 pub const MOODS: [&str; 5] = ["calm", "flirty", "veryHot", "tired", "cuddleNeeded"];
 pub const REACTIONS: [&str; 5] = ["heart", "fire", "smirk", "breath", "hush"];
 pub const VERDICTS: [&str; 3] = ["hot", "curious", "notForMe"];
+/// Catalogue curaté des « envies » (#99), dans l'ordre d'affichage. Codes stables
+/// (insensibles à la langue) ; les libellés vivent dans l'i18n du frontend. Source
+/// de vérité du catalogue ET de la validation des intérêts (un PUT sur un code
+/// inconnu est rejeté). Ajouter une envie = ajouter ici + la clé i18n FR/EN.
+pub const DESIRE_CODES: [&str; 12] = [
+    "massage",
+    "roleplay",
+    "blindfold",
+    "newPlace",
+    "shower",
+    "slowHands",
+    "toys",
+    "photoSession",
+    "powerPlay",
+    "outdoorThrill",
+    "morningTime",
+    "writeFantasy",
+];
 /// États de la machine à états des défis, dans l'ordre d'affichage. Source de
 /// vérité du type TS `ChallengeStatus` (généré — API-13) ; seul le codegen le
 /// consomme aujourd'hui côté Rust (la machine à états vit dans les `match`).

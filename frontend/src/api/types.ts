@@ -42,7 +42,18 @@ export interface Space {
   blindMood: boolean;
   /** Défaut du salon : nouveaux posts avec média téléchargeable (#78). */
   allowMediaDownload: boolean;
+  /** Liste d'envies à double consentement (#99) activée pour ce salon. */
+  desiresEnabled: boolean;
   createdAt: string;
+}
+
+/** Une envie du catalogue (#99) côté membre courant : mon intérêt + état « matché ».
+ *  L'intérêt brut des autres n'est jamais exposé (matched = réciprocité). */
+export interface ApiDesire {
+  /** Code stable du catalogue (libellé via i18n côté front). */
+  code: string;
+  interested: boolean;
+  matched: boolean;
 }
 
 export interface Member {

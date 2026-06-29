@@ -152,6 +152,33 @@ export const fr = {
     favoritesFilter: "★ Favoris",
     favoritesEmpty: "Aucun favori pour l'instant. Touche ★ sur un post pour le garder ici.",
   },
+  desires: {
+    title: "Vos envies",
+    intro:
+      "Coche en secret ce qui te tente. Une envie ne se révèle que si l'autre la coche aussi.",
+    dashboardEntry: "Vos envies",
+    dashboardHint: "Ce qui vous tente, en secret",
+    matchesHeader: "Vous êtes deux à vouloir ✨",
+    othersHeader: "À explorer",
+    matchBadge: "Match !",
+    interestAria: "Ça me tente",
+    removeInterestAria: "Finalement non",
+    back: "Retour",
+    items: {
+      massage: "Massage sensuel",
+      roleplay: "Scénario / jeu de rôle",
+      blindfold: "À l'aveugle (bandeau)",
+      newPlace: "Un lieu insolite",
+      shower: "Douche à deux",
+      slowHands: "Tout en lenteur",
+      toys: "Un accessoire, une nouveauté",
+      photoSession: "Une séance photo complice",
+      powerPlay: "Jeu de pouvoir, en douceur",
+      outdoorThrill: "Un frisson en plein air",
+      morningTime: "Un réveil câlin",
+      writeFantasy: "Écrire un fantasme à deux",
+    },
+  },
   postComposer: {
     sheetWrite: "Écrire",
     sheetEdit: "Modifier le brouillon",
@@ -290,6 +317,9 @@ export const fr = {
     allowMediaDownload: "Médias téléchargeables",
     allowMediaDownloadHint:
       "Défaut des nouveaux posts : autoriser l'autre à enregistrer les médias. Réglable post par post à la publication ; sans effet sur les médias éphémères.",
+    desiresEnabled: "Liste d'envies",
+    desiresEnabledHint:
+      "Active « Vos envies » : chacun coche en secret ce qui le tente ; une envie ne se révèle que si l'autre la coche aussi (match).",
     reactionsIntro: "Choisis les réactions du salon et leur ordre.",
     reactionEnable: "Activer la réaction",
     reactionDisable: "Désactiver la réaction",

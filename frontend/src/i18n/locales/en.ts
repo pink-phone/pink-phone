@@ -152,6 +152,33 @@ export const en: Resources = {
     favoritesFilter: "★ Favorites",
     favoritesEmpty: "No favorites yet. Tap ★ on a post to keep it here.",
   },
+  desires: {
+    title: "Your desires",
+    intro:
+      "Secretly tick what tempts you. A desire is only revealed if the other ticks it too.",
+    dashboardEntry: "Your desires",
+    dashboardHint: "What tempts you, in secret",
+    matchesHeader: "You both want this ✨",
+    othersHeader: "To explore",
+    matchBadge: "Match!",
+    interestAria: "I'm tempted",
+    removeInterestAria: "Actually, no",
+    back: "Back",
+    items: {
+      massage: "Sensual massage",
+      roleplay: "Scenario / role play",
+      blindfold: "Blindfolded",
+      newPlace: "An unusual place",
+      shower: "Shower together",
+      slowHands: "All in slowness",
+      toys: "A toy, something new",
+      photoSession: "A playful photo session",
+      powerPlay: "Power play, gently",
+      outdoorThrill: "An outdoor thrill",
+      morningTime: "A cuddly wake-up",
+      writeFantasy: "Write a fantasy together",
+    },
+  },
   postComposer: {
     sheetWrite: "Write",
     sheetEdit: "Edit draft",
@@ -290,6 +317,9 @@ export const en: Resources = {
     allowMediaDownload: "Downloadable media",
     allowMediaDownloadHint:
       "Default for new posts: let your partner save media. Adjustable per post when publishing; no effect on ephemeral media.",
+    desiresEnabled: "Desire list",
+    desiresEnabledHint:
+      "Turn on “Your desires”: each of you secretly ticks what tempts you; a desire is only revealed if the other ticks it too (a match).",
     reactionsIntro: "Choose the space's reactions and their order.",
     reactionEnable: "Enable reaction",
     reactionDisable: "Disable reaction",

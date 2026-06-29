@@ -42,6 +42,8 @@ pub struct UpdateSpaceBody {
     pub blind_mood: Option<bool>,
     /// Défaut du salon « média téléchargeable » des nouveaux posts (#78).
     pub allow_media_download: Option<bool>,
+    /// Active la liste d'envies à double consentement (#99).
+    pub desires_enabled: Option<bool>,
 }
 
 async fn create_space(
@@ -57,7 +59,7 @@ async fn create_space(
     let mut tx = state.pool.begin().await?;
     let space: Space = sqlx::query_as(
         "INSERT INTO spaces (name) VALUES ($1)
-         RETURNING id, name, timezone, reactions, allow_custom_reactions, blind_mood, allow_media_download, created_at",
+         RETURNING id, name, timezone, reactions, allow_custom_reactions, blind_mood, allow_media_download, desires_enabled, created_at",
     )
     .bind(name)
     .fetch_one(&mut *tx)
@@ -131,9 +133,10 @@ async fn update_space(
             reactions = COALESCE($4, reactions),
             allow_custom_reactions = COALESCE($5, allow_custom_reactions),
             blind_mood = COALESCE($6, blind_mood),
-            allow_media_download = COALESCE($7, allow_media_download)
+            allow_media_download = COALESCE($7, allow_media_download),
+            desires_enabled = COALESCE($8, desires_enabled)
          WHERE id = $1
-         RETURNING id, name, timezone, reactions, allow_custom_reactions, blind_mood, allow_media_download, created_at",
+         RETURNING id, name, timezone, reactions, allow_custom_reactions, blind_mood, allow_media_download, desires_enabled, created_at",
     )
     .bind(space_id)
     .bind(name)
@@ -142,6 +145,7 @@ async fn update_space(
     .bind(body.allow_custom_reactions)
     .bind(body.blind_mood)
     .bind(body.allow_media_download)
+    .bind(body.desires_enabled)
     .fetch_one(&state.pool)
     .await?;
 
@@ -164,7 +168,7 @@ async fn my_spaces(
     auth: AuthUser,
 ) -> ApiResult<Json<Vec<Space>>> {
     let spaces: Vec<Space> = sqlx::query_as(
-        "SELECT s.id, s.name, s.timezone, s.reactions, s.allow_custom_reactions, s.blind_mood, s.allow_media_download, s.created_at
+        "SELECT s.id, s.name, s.timezone, s.reactions, s.allow_custom_reactions, s.blind_mood, s.allow_media_download, s.desires_enabled, s.created_at
          FROM spaces s
          JOIN space_memberships m ON m.space_id = s.id
          WHERE m.user_id = $1
@@ -293,7 +297,7 @@ async fn join_by_invite(
     }
 
     let space: Space = sqlx::query_as(
-        "SELECT id, name, timezone, reactions, allow_custom_reactions, blind_mood, allow_media_download, created_at
+        "SELECT id, name, timezone, reactions, allow_custom_reactions, blind_mood, allow_media_download, desires_enabled, created_at
          FROM spaces WHERE id = $1 FOR UPDATE",
     )
     .bind(space_id)
