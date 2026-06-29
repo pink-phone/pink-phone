@@ -56,6 +56,7 @@ pub enum EventKind {
     Reaction,
     Seen,
     Space,
+    Desire,
 }
 
 /// Événement temps réel diffusé aux membres d'un espace (refresh instantané).

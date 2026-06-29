@@ -71,6 +71,7 @@ const space: Space = {
   allowCustomReactions: true,
   blindMood: false,
   allowMediaDownload: false,
+  desiresEnabled: false,
   createdAt: "2026-06-24T10:00:00.000Z",
 };
 const user: UserPublic = {

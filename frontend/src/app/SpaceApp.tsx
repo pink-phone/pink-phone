@@ -25,6 +25,7 @@ import { DashboardScreen } from "../screens/DashboardScreen/DashboardScreen";
 import { BlogScreen } from "../screens/BlogScreen/BlogScreen";
 import { ChallengesScreen } from "../screens/ChallengesScreen/ChallengesScreen";
 import { ChallengeBankScreen } from "../screens/ChallengeBankScreen/ChallengeBankScreen";
+import { DesiresScreen } from "../screens/DesiresScreen/DesiresScreen";
 import { Splash } from "../screens/Splash/Splash";
 
 import { Sheet } from "../components/Sheet/Sheet";
@@ -44,6 +45,7 @@ import { usePosts } from "./hooks/usePosts";
 import { useChallenges } from "./hooks/useChallenges";
 import { useMoods } from "./hooks/useMoods";
 import { useSeen } from "./hooks/useSeen";
+import { useDesires } from "./hooks/useDesires";
 import {
   toChallengeData,
   toCommentViews,
@@ -146,6 +148,12 @@ export function SpaceApp({
     remove: removeSuggestion,
     setHidden: setSuggestionHidden,
   } = useSuggestions(space.id, lang);
+  // Envies / Dossier Noir (#99) : domaine autonome, gated par le flag du salon.
+  const {
+    desires,
+    refetch: refetchDesires,
+    toggleInterest: toggleDesire,
+  } = useDesires(space.id, space.desiresEnabled);
   const [openSheet, setOpenSheet] = useState<"post" | "challenge" | null>(null);
   // Brouillon en cours d'édition (sinon la feuille "post" crée un nouveau post).
   const [editingPost, setEditingPost] = useState<ApiPost | null>(null);
@@ -170,6 +178,7 @@ export function SpaceApp({
   // Réglages / notifications.
   const [showSettings, setShowSettings] = useState(false);
   const [showBank, setShowBank] = useState(false);
+  const [showDesires, setShowDesires] = useState(false);
   const [notifMode, setNotifMode] = useState<NotifMode>("ghost");
   const [settingsBusy, setSettingsBusy] = useState(false);
   const [pushError, setPushError] = useState<string | null>(null);
@@ -297,6 +306,9 @@ export function SpaceApp({
       if (tabRef.current === "challenges") markSeen("challenges");
     } else if (kind === "mood") {
       refetchMoods();
+    } else if (kind === "desire") {
+      // Un match vient de se former (#99) → révèle-le de mon côté.
+      refetchDesires();
     } else if (kind === "seen") {
       refetchSeen();
     } else if (kind === "space") {
@@ -322,6 +334,7 @@ export function SpaceApp({
       refetchMoods();
       refetchSeen();
       refetchNotices();
+      refetchDesires();
     };
     document.addEventListener("visibilitychange", resync);
     window.addEventListener("focus", resync);
@@ -329,11 +342,19 @@ export function SpaceApp({
       document.removeEventListener("visibilitychange", resync);
       window.removeEventListener("focus", resync);
     };
-  }, [refetchPosts, refetchChallenges, refetchMoods, refetchSeen, refetchNotices]);
+  }, [
+    refetchPosts,
+    refetchChallenges,
+    refetchMoods,
+    refetchSeen,
+    refetchNotices,
+    refetchDesires,
+  ]);
 
   // Retour Android / swipe iOS ferment la surface ouverte (au lieu de quitter).
   useBackClose(showSettings, () => setShowSettings(false));
   useBackClose(showBank, () => setShowBank(false));
+  useBackClose(showDesires, () => setShowDesires(false));
   useBackClose(openSheet !== null, () => {
     setOpenSheet(null);
     setEditingPost(null);
@@ -512,6 +533,16 @@ export function SpaceApp({
     }
   };
 
+  const changeDesiresEnabled = async (desiresEnabled: boolean) => {
+    try {
+      // setSpace change `space.desiresEnabled` → useDesires se recharge (ou se
+      // vide) tout seul via son effet sur `[enabled]` (#99).
+      setSpace(await api.updateSpace(space.id, { desiresEnabled }));
+    } catch (e) {
+      console.error("changement de la liste d'envies échoué", e);
+    }
+  };
+
   const changeNotifMode = async (mode: NotifMode) => {
     setSettingsBusy(true);
     setPushError(null);
@@ -544,6 +575,7 @@ export function SpaceApp({
             timezone: space.timezone,
             blindMood: space.blindMood,
             allowMediaDownload: space.allowMediaDownload,
+            desiresEnabled: space.desiresEnabled,
           }}
           members={members.map((m) => ({ id: m.id, name: m.displayName }))}
           inviteCode={inviteCode}
@@ -557,6 +589,7 @@ export function SpaceApp({
           onTimezoneChange={changeTimezone}
           onBlindMoodChange={changeBlindMood}
           onAllowMediaDownloadChange={changeAllowMediaDownload}
+          onDesiresEnabledChange={changeDesiresEnabled}
           reactions={space.reactions}
           allowCustomReactions={space.allowCustomReactions}
           onReactionsChange={changeReactions}
@@ -609,6 +642,18 @@ export function SpaceApp({
     );
   }
 
+  if (showDesires) {
+    return (
+      <div className="mx-auto h-dvh max-w-md overflow-y-auto overscroll-contain bg-charcoal-900 bg-felt-velvet px-4 pb-[calc(2.5rem+env(safe-area-inset-bottom))] pt-[calc(1rem+env(safe-area-inset-top))]">
+        <DesiresScreen
+          items={desires}
+          onToggle={toggleDesire}
+          onBack={() => setShowDesires(false)}
+        />
+      </div>
+    );
+  }
+
 
   return (
     <AppShell
@@ -631,6 +676,9 @@ export function SpaceApp({
           newChallenges={newChallenges}
           notices={dashboardNotices}
           onOpen={setTab}
+          desiresEnabled={space.desiresEnabled}
+          desireMatches={desires.filter((d) => d.matched).length}
+          onOpenDesires={() => setShowDesires(true)}
         />
       )}
 

@@ -2,6 +2,7 @@ import type { ChallengeStatus, Intensity, Verdict } from "../domain/types";
 import type {
   ApiChallenge,
   ApiComment,
+  ApiDesire,
   ApiPost,
   AuthConfig,
   ChallengeSuggestion,
@@ -188,8 +189,25 @@ export const updateSpace = (
     allowCustomReactions?: boolean;
     blindMood?: boolean;
     allowMediaDownload?: boolean;
+    desiresEnabled?: boolean;
   },
 ) => req<Space>(`/api/spaces/${spaceId}`, { method: "PATCH", json: body });
+
+// ---------- Envies / Dossier Noir (#99) ----------
+
+/** Catalogue d'envies + mon intérêt + état « matché » (double consentement). */
+export const listDesires = (spaceId: string) =>
+  req<ApiDesire[]>(`/api/spaces/${spaceId}/desires`);
+
+export const setDesireInterest = (spaceId: string, code: string) =>
+  req<ApiDesire>(`/api/spaces/${spaceId}/desires/${code}/interest`, {
+    method: "PUT",
+  });
+
+export const unsetDesireInterest = (spaceId: string, code: string) =>
+  req<ApiDesire>(`/api/spaces/${spaceId}/desires/${code}/interest`, {
+    method: "DELETE",
+  });
 
 /** Génère un code d'invitation lisible à usage unique (valable 7 jours, #89). */
 export const createInvite = (spaceId: string) =>
