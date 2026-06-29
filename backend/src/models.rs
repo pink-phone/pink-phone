@@ -39,6 +39,8 @@ pub struct Space {
     pub blind_mood: bool,
     /// Défaut du salon pour « média téléchargeable » des nouveaux posts (#78).
     pub allow_media_download: bool,
+    /// « Menu du soir » : rituel quotidien à double consentement (#97b).
+    pub evening_menu_enabled: bool,
     pub created_at: DateTime<Utc>,
 }
 
@@ -198,6 +200,17 @@ pub struct ChallengeSuggestion {
     pub hidden: bool,
 }
 
+/// Un item du « Menu du soir » (#97b) pour ce soir, côté membre courant : mon
+/// choix du jour + l'état « matché » (les deux l'ont coché aujourd'hui). Double
+/// consentement/double-aveugle : `matched` n'est vrai qu'en cas de réciprocité.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EveningMenuItem {
+    pub code: String,
+    pub picked: bool,
+    pub matched: bool,
+}
+
 /// "Vu" d'un fil (blog/défis) par un membre — horodatage de dernière consultation.
 #[derive(Debug, Serialize, sqlx::FromRow)]
 #[serde(rename_all = "camelCase")]
@@ -226,6 +239,21 @@ pub const INTENSITIES: [&str; 2] = ["soft", "hot"];
 pub const MOODS: [&str; 5] = ["calm", "flirty", "veryHot", "tired", "cuddleNeeded"];
 pub const REACTIONS: [&str; 5] = ["heart", "fire", "smirk", "breath", "hush"];
 pub const VERDICTS: [&str; 3] = ["hot", "curious", "notForMe"];
+/// Catalogue du « Menu du soir » (#97b), du plus tendre au plus épicé. Codes
+/// stables (libellés via i18n front) ; source de vérité du menu + validation des
+/// coches (« programme de la soirée »).
+pub const EVENING_MENU_CODES: [&str; 10] = [
+    "cuddle",
+    "movie",
+    "candlelight",
+    "bath",
+    "massage",
+    "slowDance",
+    "game",
+    "roleplay",
+    "newThing",
+    "passionate",
+];
 /// États de la machine à états des défis, dans l'ordre d'affichage. Source de
 /// vérité du type TS `ChallengeStatus` (généré — API-13) ; seul le codegen le
 /// consomme aujourd'hui côté Rust (la machine à états vit dans les `match`).

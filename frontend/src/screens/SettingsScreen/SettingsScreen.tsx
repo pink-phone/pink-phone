@@ -87,6 +87,7 @@ export interface SettingsScreenProps {
     timezone: string;
     blindMood?: boolean;
     allowMediaDownload?: boolean;
+    eveningMenuEnabled?: boolean;
   };
   members?: { id: string; name: string }[];
   /** Invitation d'un nouveau membre dans CE salon (#52) — code lisible + générateur. */
@@ -104,6 +105,8 @@ export interface SettingsScreenProps {
   onBlindMoodChange?: (enabled: boolean) => void;
   /** Défaut du salon « média téléchargeable » des nouveaux posts (#78). */
   onAllowMediaDownloadChange?: (enabled: boolean) => void;
+  /** Active/désactive le « Menu du soir » (rituel quotidien, #97b). */
+  onEveningMenuEnabledChange?: (enabled: boolean) => void;
   /** Réactions du salon (ordre + emoji libres). Affichées si fournies. */
   reactions?: ReactionId[];
   allowCustomReactions?: boolean;
@@ -139,6 +142,7 @@ export function SettingsScreen({
   onTimezoneChange,
   onBlindMoodChange,
   onAllowMediaDownloadChange,
+  onEveningMenuEnabledChange,
   reactions,
   allowCustomReactions = true,
   onReactionsChange,
@@ -473,6 +477,16 @@ export function SettingsScreen({
                 onChange={onAllowMediaDownloadChange}
                 label={t("settings.allowMediaDownload")}
                 hint={t("settings.allowMediaDownloadHint")}
+              />
+            )}
+
+            {/* Menu du soir : rituel quotidien (#97b) */}
+            {onEveningMenuEnabledChange && (
+              <Toggle
+                checked={space.eveningMenuEnabled ?? false}
+                onChange={onEveningMenuEnabledChange}
+                label={t("settings.eveningMenuEnabled")}
+                hint={t("settings.eveningMenuEnabledHint")}
               />
             )}
           </Surface>

@@ -2,6 +2,7 @@ import type { ChallengeStatus, Intensity, Verdict } from "../domain/types";
 import type {
   ApiChallenge,
   ApiComment,
+  ApiEveningMenuItem,
   ApiPost,
   AuthConfig,
   ChallengeSuggestion,
@@ -188,8 +189,25 @@ export const updateSpace = (
     allowCustomReactions?: boolean;
     blindMood?: boolean;
     allowMediaDownload?: boolean;
+    eveningMenuEnabled?: boolean;
   },
 ) => req<Space>(`/api/spaces/${spaceId}`, { method: "PATCH", json: body });
+
+// ---------- Menu du soir (#97b) ----------
+
+/** Menu du soir pour CE SOIR : mes choix du jour + matchs (rituel quotidien). */
+export const listEveningMenu = (spaceId: string) =>
+  req<ApiEveningMenuItem[]>(`/api/spaces/${spaceId}/evening-menu`);
+
+export const pickEveningMenu = (spaceId: string, code: string) =>
+  req<ApiEveningMenuItem>(`/api/spaces/${spaceId}/evening-menu/${code}`, {
+    method: "PUT",
+  });
+
+export const unpickEveningMenu = (spaceId: string, code: string) =>
+  req<ApiEveningMenuItem>(`/api/spaces/${spaceId}/evening-menu/${code}`, {
+    method: "DELETE",
+  });
 
 /** Génère un code d'invitation lisible à usage unique (valable 7 jours, #89). */
 export const createInvite = (spaceId: string) =>

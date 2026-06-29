@@ -44,6 +44,7 @@ import { usePosts } from "./hooks/usePosts";
 import { useChallenges } from "./hooks/useChallenges";
 import { useMoods } from "./hooks/useMoods";
 import { useSeen } from "./hooks/useSeen";
+import { useEveningMenu } from "./hooks/useEveningMenu";
 import {
   toChallengeData,
   toCommentViews,
@@ -146,6 +147,12 @@ export function SpaceApp({
     remove: removeSuggestion,
     setHidden: setSuggestionHidden,
   } = useSuggestions(space.id, lang);
+  // Menu du soir (#97b) : rituel quotidien, gated par le flag du salon.
+  const {
+    items: eveningMenuItems,
+    refetch: refetchEveningMenu,
+    toggle: toggleEveningMenu,
+  } = useEveningMenu(space.id, space.eveningMenuEnabled);
   const [openSheet, setOpenSheet] = useState<"post" | "challenge" | null>(null);
   // Brouillon en cours d'édition (sinon la feuille "post" crée un nouveau post).
   const [editingPost, setEditingPost] = useState<ApiPost | null>(null);
@@ -297,6 +304,9 @@ export function SpaceApp({
       if (tabRef.current === "challenges") markSeen("challenges");
     } else if (kind === "mood") {
       refetchMoods();
+    } else if (kind === "eveningMenu") {
+      // Match du soir (#97b) → révèle-le de mon côté.
+      refetchEveningMenu();
     } else if (kind === "seen") {
       refetchSeen();
     } else if (kind === "space") {
@@ -322,6 +332,7 @@ export function SpaceApp({
       refetchMoods();
       refetchSeen();
       refetchNotices();
+      refetchEveningMenu();
     };
     document.addEventListener("visibilitychange", resync);
     window.addEventListener("focus", resync);
@@ -329,7 +340,14 @@ export function SpaceApp({
       document.removeEventListener("visibilitychange", resync);
       window.removeEventListener("focus", resync);
     };
-  }, [refetchPosts, refetchChallenges, refetchMoods, refetchSeen, refetchNotices]);
+  }, [
+    refetchPosts,
+    refetchChallenges,
+    refetchMoods,
+    refetchSeen,
+    refetchNotices,
+    refetchEveningMenu,
+  ]);
 
   // Retour Android / swipe iOS ferment la surface ouverte (au lieu de quitter).
   useBackClose(showSettings, () => setShowSettings(false));
@@ -512,6 +530,15 @@ export function SpaceApp({
     }
   };
 
+  const changeEveningMenuEnabled = async (eveningMenuEnabled: boolean) => {
+    try {
+      // useEveningMenu se recharge/vide via son effet sur `[enabled]` (#97b).
+      setSpace(await api.updateSpace(space.id, { eveningMenuEnabled }));
+    } catch (e) {
+      console.error("changement du menu du soir échoué", e);
+    }
+  };
+
   const changeNotifMode = async (mode: NotifMode) => {
     setSettingsBusy(true);
     setPushError(null);
@@ -544,6 +571,7 @@ export function SpaceApp({
             timezone: space.timezone,
             blindMood: space.blindMood,
             allowMediaDownload: space.allowMediaDownload,
+            eveningMenuEnabled: space.eveningMenuEnabled,
           }}
           members={members.map((m) => ({ id: m.id, name: m.displayName }))}
           inviteCode={inviteCode}
@@ -557,6 +585,7 @@ export function SpaceApp({
           onTimezoneChange={changeTimezone}
           onBlindMoodChange={changeBlindMood}
           onAllowMediaDownloadChange={changeAllowMediaDownload}
+          onEveningMenuEnabledChange={changeEveningMenuEnabled}
           reactions={space.reactions}
           allowCustomReactions={space.allowCustomReactions}
           onReactionsChange={changeReactions}
@@ -631,6 +660,9 @@ export function SpaceApp({
           newChallenges={newChallenges}
           notices={dashboardNotices}
           onOpen={setTab}
+          eveningMenuEnabled={space.eveningMenuEnabled}
+          eveningMenuItems={eveningMenuItems}
+          onEveningMenuToggle={toggleEveningMenu}
         />
       )}
 

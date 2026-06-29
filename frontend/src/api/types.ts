@@ -42,7 +42,16 @@ export interface Space {
   blindMood: boolean;
   /** Défaut du salon : nouveaux posts avec média téléchargeable (#78). */
   allowMediaDownload: boolean;
+  /** « Menu du soir » : rituel quotidien à double consentement (#97b). */
+  eveningMenuEnabled: boolean;
   createdAt: string;
+}
+
+/** Un item du « Menu du soir » (#97b) pour ce soir : mon choix du jour + match. */
+export interface ApiEveningMenuItem {
+  code: string;
+  picked: boolean;
+  matched: boolean;
 }
 
 export interface Member {
