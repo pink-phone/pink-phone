@@ -65,6 +65,18 @@ export interface ApiEveningMenuItem {
   matched: boolean;
 }
 
+/** Un « mot doux » (#102). `body` est null quand le mot m'est scellé (ouverture
+ *  différée non échue) ; `sealed` le signale et `openAt` donne la date. */
+export interface ApiLoveNote {
+  id: string;
+  authorId: string;
+  authorName: string;
+  body: string | null;
+  sealed: boolean;
+  openAt: string | null;
+  createdAt: string;
+}
+
 export interface Member {
   id: string;
   displayName: string;

@@ -4,6 +4,7 @@ import type {
   ApiComment,
   ApiDesire,
   ApiEveningMenuItem,
+  ApiLoveNote,
   ApiPost,
   AuthConfig,
   ChallengeSuggestion,
@@ -226,6 +227,24 @@ export const unpickEveningMenu = (spaceId: string, code: string) =>
   req<ApiEveningMenuItem>(`/api/spaces/${spaceId}/evening-menu/${code}`, {
     method: "DELETE",
   });
+
+// ---------- Mots doux (#102) ----------
+
+export const listLoveNotes = (spaceId: string) =>
+  req<ApiLoveNote[]>(`/api/spaces/${spaceId}/love-notes`);
+
+/** Crée un mot doux ; `openAt` (ISO) le scelle jusqu'à cette date (ouverture différée). */
+export const createLoveNote = (
+  spaceId: string,
+  body: { body: string; openAt?: string },
+) =>
+  req<ApiLoveNote>(`/api/spaces/${spaceId}/love-notes`, {
+    method: "POST",
+    json: body,
+  });
+
+export const deleteLoveNote = (spaceId: string, noteId: string) =>
+  req<void>(`/api/spaces/${spaceId}/love-notes/${noteId}`, { method: "DELETE" });
 
 /** Génère un code d'invitation lisible à usage unique (valable 7 jours, #89). */
 export const createInvite = (spaceId: string) =>

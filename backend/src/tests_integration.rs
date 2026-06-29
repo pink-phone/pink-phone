@@ -885,6 +885,64 @@ async fn menu_du_soir_match_du_jour_et_gating(pool: PgPool) {
     assert_eq!(a["matched"], false);
 }
 
+#[sqlx::test]
+async fn mots_doux_immediat_differe_scelle_et_autz(pool: PgPool) {
+    let (app, state) = build_app(pool.clone());
+    let alice = seed_user(&pool, "alice").await;
+    let bob = seed_user(&pool, "bob").await;
+    let space = seed_space(&pool, alice).await;
+    add_member(&pool, bob, space).await;
+    let ta = token_for(&state, alice);
+    let tb = token_for(&state, bob);
+    let notes = format!("/api/spaces/{space}/love-notes");
+
+    // Mot immédiat d'Alice → lisible par Bob tout de suite.
+    let (st, n) = req(&app, "POST", &notes, &ta, Some(json!({ "body": "je t'aime" }))).await;
+    assert_eq!(st, StatusCode::CREATED);
+    assert_eq!(n["sealed"], false);
+    let (_, list_b) = req(&app, "GET", &notes, &tb, None).await;
+    assert_eq!(list_b[0]["body"], "je t'aime", "mot immédiat lisible");
+    assert_eq!(list_b[0]["sealed"], false);
+
+    // Mot vide → 400.
+    let (st, _) = req(&app, "POST", &notes, &ta, Some(json!({ "body": "  " }))).await;
+    assert_eq!(st, StatusCode::BAD_REQUEST);
+
+    // Mot différé d'Alice (ouverture demain) → SCELLÉ pour Bob (corps caché).
+    let tomorrow =
+        (chrono::Utc::now() + chrono::Duration::days(1)).to_rfc3339();
+    let (st, nd) = req(
+        &app,
+        "POST",
+        &notes,
+        &ta,
+        Some(json!({ "body": "surprise", "openAt": tomorrow })),
+    )
+    .await;
+    assert_eq!(st, StatusCode::CREATED);
+    // L'auteure voit son propre mot différé.
+    assert_eq!(nd["body"], "surprise");
+    assert_eq!(nd["sealed"], false);
+    // Bob ne voit qu'un teaser scellé (corps null, date présente).
+    let (_, list_b) = req(&app, "GET", &notes, &tb, None).await;
+    let sealed = list_b
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|n| n["sealed"] == true)
+        .expect("un mot scellé côté Bob");
+    assert!(sealed["body"].is_null(), "corps masqué tant que scellé");
+    assert!(!sealed["openAt"].is_null(), "la date d'ouverture est visible");
+
+    // Bob ne peut pas supprimer le mot d'Alice (autz auteur·e → 404).
+    let nid = n["id"].as_str().unwrap();
+    let (st, _) = req(&app, "DELETE", &format!("{notes}/{nid}"), &tb, None).await;
+    assert_eq!(st, StatusCode::NOT_FOUND);
+    // Alice, oui.
+    let (st, _) = req(&app, "DELETE", &format!("{notes}/{nid}"), &ta, None).await;
+    assert_eq!(st, StatusCode::NO_CONTENT);
+}
+
 // --- Tests : auth (register/login/me/logout-all), seen, suggestions ----------
 
 #[sqlx::test]

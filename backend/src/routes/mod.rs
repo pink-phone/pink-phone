@@ -4,6 +4,7 @@ pub mod desires;
 pub mod evening_menu;
 pub mod interactions;
 pub mod logs;
+pub mod love_notes;
 pub mod media;
 pub mod moods;
 pub mod notices;
@@ -52,6 +53,7 @@ pub fn api_router() -> Router<AppState> {
         .merge(evening_menu::router())
         .merge(media::router())
         .merge(logs::router())
+        .merge(love_notes::router())
         .merge(notifications::router())
         .merge(oidc::router())
         .merge(seen::router())

@@ -4,12 +4,13 @@ import { Surface } from "../../components/Surface/Surface";
 import { Button } from "../../components/Button/Button";
 import { MoodSelector } from "../../components/MoodSelector/MoodSelector";
 import { EveningMenu } from "../../components/EveningMenu/EveningMenu";
+import { LoveNoteWall } from "../../components/LoveNoteWall/LoveNoteWall";
 import { FireEmbers } from "../../components/FireEmbers/FireEmbers";
 import { MOODS } from "../../components/MoodSelector/moods";
 import { parseCustomMood } from "../../components/MoodSelector/MoodSelector";
 import { cn } from "../../lib/cn";
 import type { Person } from "../../types/view";
-import type { ApiEveningMenuItem } from "../../api/types";
+import type { ApiEveningMenuItem, ApiLoveNote } from "../../api/types";
 
 /** Une autre personne du salon + son humeur du jour (multi-partenaires #52). */
 export interface DashboardPartner extends Person {
@@ -59,6 +60,13 @@ export interface DashboardScreenProps {
   eveningMenuItems?: ApiEveningMenuItem[];
   /** Bascule mon choix du soir (par code). */
   onEveningMenuToggle?: (code: string) => void;
+  /** Id de l'utilisateur courant (pour distinguer mes mots doux). */
+  userId?: string;
+  /** Mots doux du salon (#102). */
+  loveNotes?: ApiLoveNote[];
+  /** Envoie un mot doux ; `openAt` ISO optionnel (ouverture différée). */
+  onSendLoveNote?: (body: string, openAt?: string) => Promise<boolean> | boolean;
+  onDeleteLoveNote?: (id: string) => void;
 }
 
 /** Une "vignette météo" pour l'humeur d'une personne (ou son absence). */
@@ -151,6 +159,10 @@ export function DashboardScreen({
   eveningMenuEnabled = false,
   eveningMenuItems = [],
   onEveningMenuToggle,
+  userId = "",
+  loveNotes = [],
+  onSendLoveNote,
+  onDeleteLoveNote,
 }: DashboardScreenProps) {
   const { t } = useTranslation();
   // Notices connues (kind → message + icône) ; les inconnues sont ignorées.
@@ -309,6 +321,16 @@ export function DashboardScreen({
       {/* Menu du soir (#97b) — rituel quotidien, seulement si activé. */}
       {eveningMenuEnabled && partners.length > 0 && (
         <EveningMenu items={eveningMenuItems} onToggle={onEveningMenuToggle} />
+      )}
+
+      {/* Mur de mots doux (#102) — dès qu'il y a un·e partenaire à qui écrire. */}
+      {onSendLoveNote && partners.length > 0 && (
+        <LoveNoteWall
+          notes={loveNotes}
+          userId={userId}
+          onSend={onSendLoveNote}
+          onDelete={onDeleteLoveNote}
+        />
       )}
 
       {/* Entrée « Vos envies » (#99) — seulement si activée pour le salon. */}

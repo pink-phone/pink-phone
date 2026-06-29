@@ -173,16 +173,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Purges périodiques (toutes les heures ; 1er passage immédiat) : médias
     // orphelins + invitations consommées/expirées (SEC-NEW-004).
     {
-        let pool = state.pool.clone();
+        let state = state.clone();
         let media_dir = state.config.media_dir.clone();
         tokio::spawn(async move {
             let mut tick =
                 tokio::time::interval(std::time::Duration::from_secs(3600));
             loop {
                 tick.tick().await;
-                crate::routes::media::purge_orphan_media(&pool, &media_dir).await;
-                crate::routes::spaces::purge_stale_invites(&pool).await;
-                crate::routes::evening_menu::purge_old_picks(&pool).await;
+                crate::routes::media::purge_orphan_media(&state.pool, &media_dir).await;
+                crate::routes::spaces::purge_stale_invites(&state.pool).await;
+                crate::routes::evening_menu::purge_old_picks(&state.pool).await;
+                // Livre les mots doux différés arrivés à échéance (#102).
+                crate::routes::love_notes::deliver_due_notes(&state).await;
             }
         });
     }

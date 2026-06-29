@@ -214,6 +214,23 @@ pub struct DesireItem {
     pub matched: bool,
 }
 
+/// Un « mot doux » (#102) tel que renvoyé au membre courant. Si `open_at` est dans
+/// le futur ET que je ne suis pas l'auteur·e, le mot est **scellé** : `body` est
+/// `None` et `sealed` vrai (je vois qu'une surprise m'attend + sa date, pas son
+/// contenu). L'auteur·e voit toujours le sien.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct LoveNote {
+    pub id: Uuid,
+    pub author_id: Uuid,
+    pub author_name: String,
+    /// `None` quand le mot est scellé pour moi (ouverture différée non échue).
+    pub body: Option<String>,
+    pub sealed: bool,
+    pub open_at: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
+}
+
 /// Un item du « Menu du soir » (#97b) pour ce soir, côté membre courant : mon
 /// choix du jour + l'état « matché » (les deux l'ont coché aujourd'hui). Même
 /// double-aveugle que `DesireItem` : `matched` n'est vrai qu'en cas de réciprocité.
