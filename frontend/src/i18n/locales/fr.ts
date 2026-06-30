@@ -76,6 +76,8 @@ export const fr = {
     settings: "Réglages",
     you: "Toi",
     noMoodYet: "Pas encore d'humeur aujourd'hui.",
+    setMoodHint: "Touche pour partager ton humeur",
+    editMoodAria: "Partager ou changer mon humeur",
     moodHidden: "À toi : partage ton humeur pour révéler la sienne.",
     updatedAt: "Mis à jour {{time}}",
     waitingPartnerTitle: "En attente de votre partenaire",
@@ -247,6 +249,9 @@ export const fr = {
   },
   eveningMenu: {
     title: "Menu du soir",
+    dashboardEntry: "Menu du soir",
+    dashboardHint: "Ce qui vous tente ce soir, en secret",
+    matchToast: "Match ce soir !",
     intro:
       "Coche en secret ce qui te tente pour ce soir. Ça ne se révèle qu'en cas de match. Remis à zéro chaque jour.",
     matchCount_one: "✨ {{count}} match",
@@ -268,6 +273,8 @@ export const fr = {
   },
   loveNotes: {
     title: "Mots doux",
+    sheetTitle: "Un mot doux",
+    compose: "＋ Glisser un mot",
     composerLabel: "Laisse un petit mot",
     placeholder: "Je pense à toi…",
     schedule: "Programmer",

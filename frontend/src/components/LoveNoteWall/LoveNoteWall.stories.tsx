@@ -27,12 +27,12 @@ const meta = {
     docs: {
       description: {
         component:
-          "Mur de mots doux (#102) : composer (avec ouverture différée optionnelle) + post-it. Les mots scellés s'affichent en teaser cadenassé.",
+          "Mur de mots doux (#102) en consultation : on met en valeur les mots reçus ; l'écriture passe par le bouton (qui ouvre une feuille ailleurs). Les mots scellés s'affichent en teaser cadenassé.",
       },
     },
   },
-  argTypes: { onSend: { action: "envoyer" }, onDelete: { action: "supprimer" } },
-  args: { userId: "u1", onSend: () => true },
+  argTypes: { onCompose: { action: "écrire" }, onDelete: { action: "supprimer" } },
+  args: { userId: "u1" },
 } satisfies Meta<typeof LoveNoteWall>;
 
 export default meta;

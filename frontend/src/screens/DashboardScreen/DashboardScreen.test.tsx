@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { userEvent } from "@testing-library/user-event";
 import { DashboardScreen, type DashboardPartner } from "./DashboardScreen";
 
 const partner = (id: string, name: string): DashboardPartner => ({
@@ -12,29 +13,10 @@ const partner = (id: string, name: string): DashboardPartner => ({
 const base = {
   spaceName: "Notre salon",
   myMood: "veryHot",
-  onMoodChange: vi.fn(),
+  userId: "me",
 };
 
-describe("DashboardScreen — wording couple vs groupe (#52)", () => {
-  it("couple (1 autre) : formulation au singulier avec le prénom", () => {
-    render(<DashboardScreen {...base} partners={[partner("p1", "Camille")]} />);
-    expect(
-      screen.getByText(/partagée avec Camille/i),
-    ).toBeInTheDocument();
-    expect(screen.queryByText(/partagée avec le salon/i)).toBeNull();
-  });
-
-  it("groupe (≥ 2 autres) : formulation au pluriel « le salon »", () => {
-    render(
-      <DashboardScreen
-        {...base}
-        partners={[partner("p1", "Camille"), partner("p2", "Alex")]}
-      />,
-    );
-    expect(screen.getByText(/partagée avec le salon/i)).toBeInTheDocument();
-    expect(screen.queryByText(/partagée avec Camille/i)).toBeNull();
-  });
-
+describe("DashboardScreen", () => {
   it("une carte météo par membre (moi + chaque autre)", () => {
     render(
       <DashboardScreen
@@ -42,10 +24,54 @@ describe("DashboardScreen — wording couple vs groupe (#52)", () => {
         partners={[partner("p1", "Camille"), partner("p2", "Alex")]}
       />,
     );
-    // Moi + 2 membres = 3 noms affichés.
     expect(screen.getByText("Toi")).toBeInTheDocument();
     expect(screen.getByText("Camille")).toBeInTheDocument();
     expect(screen.getByText("Alex")).toBeInTheDocument();
+  });
+
+  it("ma carte est cliquable → onOpenMood (saisie d'humeur en feuille)", async () => {
+    const onOpenMood = vi.fn();
+    render(
+      <DashboardScreen
+        {...base}
+        partners={[partner("p1", "Camille")]}
+        onOpenMood={onOpenMood}
+      />,
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: /changer mon humeur/i }),
+    );
+    expect(onOpenMood).toHaveBeenCalledTimes(1);
+  });
+
+  it("entrée « Menu du soir » → onOpenEveningMenu, avec badge match", async () => {
+    const onOpenEveningMenu = vi.fn();
+    render(
+      <DashboardScreen
+        {...base}
+        partners={[partner("p1", "Camille")]}
+        eveningMenuEnabled
+        eveningMenuMatches={1}
+        onOpenEveningMenu={onOpenEveningMenu}
+      />,
+    );
+    const entry = screen.getByRole("button", { name: /Menu du soir/i });
+    expect(entry).toHaveTextContent(/1 match/i);
+    await userEvent.click(entry);
+    expect(onOpenEveningMenu).toHaveBeenCalledTimes(1);
+  });
+
+  it("bouton « écrire un mot doux » → onComposeLoveNote", async () => {
+    const onComposeLoveNote = vi.fn();
+    render(
+      <DashboardScreen
+        {...base}
+        partners={[partner("p1", "Camille")]}
+        onComposeLoveNote={onComposeLoveNote}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /mot/i }));
+    expect(onComposeLoveNote).toHaveBeenCalledTimes(1);
   });
 
   it("notices (#84/#85) : affiche les messages connus, ignore les kinds inconnus", () => {
@@ -64,18 +90,5 @@ describe("DashboardScreen — wording couple vs groupe (#52)", () => {
     expect(
       screen.getByText(/Alex a activé le téléchargement/i),
     ).toBeInTheDocument();
-  });
-
-  it("seul (0 autre) : bloc d'invitation, pas de formulation « partagée »", () => {
-    render(
-      <DashboardScreen
-        {...base}
-        partners={[]}
-        inviteCode={null}
-        onCreateInvite={vi.fn()}
-      />,
-    );
-    expect(screen.queryByText(/partagée avec/i)).toBeNull();
-    expect(screen.getByText(/enregistrée/i)).toBeInTheDocument();
   });
 });

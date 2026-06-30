@@ -26,9 +26,13 @@ import { BlogScreen } from "../screens/BlogScreen/BlogScreen";
 import { ChallengesScreen } from "../screens/ChallengesScreen/ChallengesScreen";
 import { ChallengeBankScreen } from "../screens/ChallengeBankScreen/ChallengeBankScreen";
 import { DesiresScreen } from "../screens/DesiresScreen/DesiresScreen";
+import { EveningMenuScreen } from "../screens/EveningMenuScreen/EveningMenuScreen";
 import { Splash } from "../screens/Splash/Splash";
 
 import { Sheet } from "../components/Sheet/Sheet";
+import { MoodSelector } from "../components/MoodSelector/MoodSelector";
+import { LoveNoteComposer } from "../components/LoveNoteComposer/LoveNoteComposer";
+import { Toast } from "../components/Toast/Toast";
 import { CommentsSheet } from "../components/CommentsSheet/CommentsSheet";
 import { PostComposer, type PostDraft } from "../components/PostComposer/PostComposer";
 import {
@@ -170,7 +174,9 @@ export function SpaceApp({
     add: addLoveNote,
     remove: removeLoveNote,
   } = useLoveNotes(space.id);
-  const [openSheet, setOpenSheet] = useState<"post" | "challenge" | null>(null);
+  const [openSheet, setOpenSheet] = useState<
+    "post" | "challenge" | "mood" | "loveNote" | null
+  >(null);
   // Brouillon en cours d'édition (sinon la feuille "post" crée un nouveau post).
   const [editingPost, setEditingPost] = useState<ApiPost | null>(null);
   // Média reçu via le partage natif (#86) : pré-rempli dans un nouveau post.
@@ -194,6 +200,9 @@ export function SpaceApp({
   // Réglages / notifications.
   const [showSettings, setShowSettings] = useState(false);
   const [showBank, setShowBank] = useState(false);
+  const [showEveningMenu, setShowEveningMenu] = useState(false);
+  // Toast éphémère « ✨ Match ce soir ! » (#97b, redesign dashboard).
+  const [matchToast, setMatchToast] = useState(false);
   const [notifMode, setNotifMode] = useState<NotifMode>("ghost");
   const [settingsBusy, setSettingsBusy] = useState(false);
   const [pushError, setPushError] = useState<string | null>(null);
@@ -387,6 +396,28 @@ export function SpaceApp({
     setEditingChallenge(null);
   });
   useBackClose(commentsFor !== null, closeComments);
+  useBackClose(showEveningMenu, () => setShowEveningMenu(false));
+
+  // Match du soir (#97b) : nb d'items matchés + toast « ✨ Match ce soir ! » quand
+  // ça augmente (le partenaire vient de compléter un match). On « arme » le toast
+  // ~1,5 s après le `ready` pour ne pas le tirer sur les matchs déjà là au montage.
+  const eveningMatches = eveningMenuItems.filter((i) => i.matched).length;
+  const prevEveningMatches = useRef<number | null>(null);
+  const toastArmed = useRef(false);
+  useEffect(() => {
+    if (!ready) return;
+    const id = setTimeout(() => {
+      toastArmed.current = true;
+    }, 1500);
+    return () => clearTimeout(id);
+  }, [ready]);
+  useEffect(() => {
+    const prev = prevEveningMatches.current;
+    prevEveningMatches.current = eveningMatches;
+    if (toastArmed.current && prev !== null && eveningMatches > prev) {
+      setMatchToast(true);
+    }
+  }, [eveningMatches]);
 
   // Dérivés mémoïsés (REACT-04) — AVANT tout `return` conditionnel (règle des
   // hooks). `toPostData` instancie un Intl.RelativeTimeFormat par post : on évite
@@ -690,6 +721,18 @@ export function SpaceApp({
   }
 
 
+  if (showEveningMenu) {
+    return (
+      <div className="mx-auto h-dvh max-w-md overflow-y-auto overscroll-contain bg-charcoal-900 bg-felt-velvet px-4 pb-[calc(2.5rem+env(safe-area-inset-bottom))] pt-[calc(1rem+env(safe-area-inset-top))]">
+        <EveningMenuScreen
+          items={eveningMenuItems}
+          onToggle={toggleEveningMenu}
+          onBack={() => setShowEveningMenu(false)}
+        />
+      </div>
+    );
+  }
+
 
   // La bucket list (#99) est un onglet (si activée). Si on désactive pendant
   // qu'on y est, on retombe sur l'accueil.
@@ -714,8 +757,7 @@ export function SpaceApp({
           inviteCode={inviteCode}
           onCreateInvite={createInvite}
           myMood={myMood}
-          onMoodChange={setMood}
-          onMoodClear={clearMood}
+          onOpenMood={() => setOpenSheet("mood")}
           onOpenSettings={() => setShowSettings(true)}
           newPosts={newPosts}
           newComments={newComments}
@@ -723,11 +765,11 @@ export function SpaceApp({
           notices={dashboardNotices}
           onOpen={setTab}
           eveningMenuEnabled={space.eveningMenuEnabled}
-          eveningMenuItems={eveningMenuItems}
-          onEveningMenuToggle={toggleEveningMenu}
+          eveningMenuMatches={eveningMatches}
+          onOpenEveningMenu={() => setShowEveningMenu(true)}
           userId={user.id}
           loveNotes={loveNotes}
-          onSendLoveNote={addLoveNote}
+          onComposeLoveNote={() => setOpenSheet("loveNote")}
           onDeleteLoveNote={removeLoveNote}
         />
       )}
@@ -874,6 +916,46 @@ export function SpaceApp({
           suggestions={suggestions.filter((s) => !s.hidden)}
         />
       </Sheet>
+
+      {/* Saisie d'humeur en feuille (redesign dashboard) : ouverte au tap sur ma
+          carte météo. On ferme dès qu'une humeur est choisie/retirée. */}
+      <Sheet
+        open={openSheet === "mood"}
+        title={t("dashboard.moodQuestion")}
+        onClose={() => setOpenSheet(null)}
+      >
+        <MoodSelector
+          value={myMood}
+          onChange={(m) => {
+            setMood(m);
+            setOpenSheet(null);
+          }}
+          onClear={() => {
+            clearMood();
+            setOpenSheet(null);
+          }}
+        />
+      </Sheet>
+
+      {/* Composer de mot doux en feuille (#102, redesign) : ouvert depuis le mur. */}
+      <Sheet
+        open={openSheet === "loveNote"}
+        title={t("loveNotes.sheetTitle")}
+        onClose={() => setOpenSheet(null)}
+      >
+        <LoveNoteComposer
+          onSend={addLoveNote}
+          onSent={() => setOpenSheet(null)}
+        />
+      </Sheet>
+
+      {matchToast && (
+        <Toast
+          icon="✨"
+          message={t("eveningMenu.matchToast")}
+          onDismiss={() => setMatchToast(false)}
+        />
+      )}
 
       <CommentsSheet
         // Remonté à chaque changement de post (REACT2-02) : réinitialise le
