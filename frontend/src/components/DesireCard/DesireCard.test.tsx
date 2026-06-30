@@ -4,26 +4,22 @@ import { userEvent } from "@testing-library/user-event";
 import { DesireCard } from "./DesireCard";
 
 describe("DesireCard", () => {
-  it("affiche le libellé et l'indice", () => {
-    render(
-      <DesireCard
-        label="Massage"
-        description="Un indice"
-        interested={false}
-        matched={false}
-      />,
-    );
+  it("affiche le libellé", () => {
+    render(<DesireCard label="Massage" interested={false} matched={false} />);
     expect(screen.getByText("Massage")).toBeInTheDocument();
-    expect(screen.getByText("Un indice")).toBeInTheDocument();
   });
 
-  it("aria-pressed reflète mon intérêt", () => {
+  it("le bouton intérêt reflète mon intérêt (aria-pressed)", () => {
     const { rerender } = render(
       <DesireCard label="x" interested={false} matched={false} />,
     );
-    expect(screen.getByRole("button")).toHaveAttribute("aria-pressed", "false");
+    expect(
+      screen.getByRole("button", { name: /tente/i }),
+    ).toHaveAttribute("aria-pressed", "false");
     rerender(<DesireCard label="x" interested matched={false} />);
-    expect(screen.getByRole("button")).toHaveAttribute("aria-pressed", "true");
+    expect(
+      screen.getByRole("button", { name: /non/i }),
+    ).toHaveAttribute("aria-pressed", "true");
   });
 
   it("matché : affiche le badge « Match ! »", () => {
@@ -31,17 +27,49 @@ describe("DesireCard", () => {
     expect(screen.getByText(/Match/)).toBeInTheDocument();
   });
 
-  it("non matché : pas de badge", () => {
-    render(<DesireCard label="x" interested matched={false} />);
-    expect(screen.queryByText(/Match/)).toBeNull();
-  });
-
-  it("clic appelle onToggle", async () => {
+  it("clic sur la carte appelle onToggle (intérêt)", async () => {
     const onToggle = vi.fn();
     render(
-      <DesireCard label="x" interested={false} matched={false} onToggle={onToggle} />,
+      <DesireCard
+        label="x"
+        interested={false}
+        matched={false}
+        onToggle={onToggle}
+      />,
     );
-    await userEvent.click(screen.getByRole("button"));
+    await userEvent.click(screen.getByRole("button", { name: /tente/i }));
     expect(onToggle).toHaveBeenCalledTimes(1);
+  });
+
+  it("bouton « réalisé » : visible avec onToggleDone, bascule done", async () => {
+    const onToggleDone = vi.fn();
+    const { rerender } = render(
+      <DesireCard
+        label="x"
+        interested
+        matched={false}
+        onToggleDone={onToggleDone}
+      />,
+    );
+    const doneBtn = screen.getByRole("button", { name: /réalisé/i });
+    expect(doneBtn).toHaveAttribute("aria-pressed", "false");
+    await userEvent.click(doneBtn);
+    expect(onToggleDone).toHaveBeenCalledTimes(1);
+    // Marqué réalisé : badge + aria-pressed.
+    rerender(
+      <DesireCard
+        label="x"
+        interested
+        matched={false}
+        done
+        onToggleDone={onToggleDone}
+      />,
+    );
+    expect(screen.getByText(/Réalisé/)).toBeInTheDocument();
+  });
+
+  it("pas de bouton réalisé sans onToggleDone", () => {
+    render(<DesireCard label="x" interested matched={false} />);
+    expect(screen.queryByRole("button", { name: /réalisé/i })).toBeNull();
   });
 });

@@ -52,8 +52,12 @@ export interface Space {
 export interface ApiDesire {
   /** Code stable du catalogue (libellé via i18n côté front). */
   code: string;
+  /** Catégorie du catalogue (bucket list #99) — regroupement à l'écran. */
+  category: string;
   interested: boolean;
   matched: boolean;
+  /** Le couple a marqué « ✓ Réalisé » (suivi bucket list, niveau salon). */
+  done: boolean;
 }
 
 export interface Member {

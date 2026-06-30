@@ -209,6 +209,17 @@ export const unsetDesireInterest = (spaceId: string, code: string) =>
     method: "DELETE",
   });
 
+/** « ✓ Réalisé » de la bucket list (#99) : niveau salon (couple). */
+export const setDesireDone = (spaceId: string, code: string) =>
+  req<ApiDesire>(`/api/spaces/${spaceId}/desires/${code}/done`, {
+    method: "PUT",
+  });
+
+export const unsetDesireDone = (spaceId: string, code: string) =>
+  req<ApiDesire>(`/api/spaces/${spaceId}/desires/${code}/done`, {
+    method: "DELETE",
+  });
+
 /** Génère un code d'invitation lisible à usage unique (valable 7 jours, #89). */
 export const createInvite = (spaceId: string) =>
   req<{ code: string }>(`/api/spaces/${spaceId}/invites`, { method: "POST" });

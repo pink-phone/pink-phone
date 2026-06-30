@@ -153,6 +153,7 @@ export function SpaceApp({
     desires,
     refetch: refetchDesires,
     toggleInterest: toggleDesire,
+    toggleDone: toggleDesireDone,
   } = useDesires(space.id, space.desiresEnabled);
   const [openSheet, setOpenSheet] = useState<"post" | "challenge" | null>(null);
   // Brouillon en cours d'édition (sinon la feuille "post" crée un nouveau post).
@@ -648,6 +649,7 @@ export function SpaceApp({
         <DesiresScreen
           items={desires}
           onToggle={toggleDesire}
+          onToggleDone={toggleDesireDone}
           onBack={() => setShowDesires(false)}
         />
       </div>

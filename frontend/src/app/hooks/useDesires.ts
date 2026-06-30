@@ -62,5 +62,25 @@ export function useDesires(spaceId: string, enabled: boolean) {
     }
   };
 
-  return { desires, refetch, toggleInterest };
+  // « ✓ Réalisé » niveau salon (couple) — optimiste. Indépendant de l'intérêt.
+  const toggleDone = async (code: string) => {
+    const current = desires.find((d) => d.code === code);
+    const next = !current?.done;
+    setDesires((prev) =>
+      prev.map((d) => (d.code === code ? { ...d, done: next } : d)),
+    );
+    try {
+      const updated = next
+        ? await api.setDesireDone(spaceId, code)
+        : await api.unsetDesireDone(spaceId, code);
+      setDesires((prev) => prev.map((d) => (d.code === code ? updated : d)));
+    } catch (e) {
+      console.error("bascule « réalisé » échouée", e);
+      setDesires((prev) =>
+        prev.map((d) => (d.code === code ? { ...d, done: !next } : d)),
+      );
+    }
+  };
+
+  return { desires, refetch, toggleInterest, toggleDone };
 }

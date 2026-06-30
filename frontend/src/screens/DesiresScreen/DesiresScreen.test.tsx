@@ -4,45 +4,68 @@ import { userEvent } from "@testing-library/user-event";
 import { DesiresScreen } from "./DesiresScreen";
 import type { ApiDesire } from "../../api/types";
 
-const d = (code: string, over: Partial<ApiDesire> = {}): ApiDesire => ({
+const d = (
+  code: string,
+  category: string,
+  over: Partial<ApiDesire> = {},
+): ApiDesire => ({
   code,
+  category,
   interested: false,
   matched: false,
+  done: false,
   ...over,
 });
 
 describe("DesiresScreen", () => {
-  it("rend une carte par envie connue (libellé i18n)", () => {
-    render(<DesiresScreen items={[d("massage"), d("shower")]} />);
-    // Libellés FR (i18n booté en fr dans les tests).
-    expect(screen.getByText("Massage sensuel")).toBeInTheDocument();
-    expect(screen.getByText("Douche à deux")).toBeInTheDocument();
+  it("affiche les en-têtes de catégorie (i18n), items repliés par défaut", () => {
+    render(
+      <DesiresScreen items={[d("oilMassage", "tender"), d("roleplay", "games")]} />,
+    );
+    expect(
+      screen.getByRole("button", { name: /Tendre & complice/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Jeux & scénarios/i }),
+    ).toBeInTheDocument();
+    // Replié : le libellé de l'item n'est pas rendu.
+    expect(screen.queryByText("Un massage aux huiles")).toBeNull();
   });
 
-  it("ignore les codes inconnus", () => {
-    render(<DesiresScreen items={[d("massage"), d("zzz_inconnu")]} />);
-    expect(screen.getAllByRole("button")).toHaveLength(1);
+  it("déplie une catégorie au clic et montre ses items", async () => {
+    render(<DesiresScreen items={[d("oilMassage", "tender")]} />);
+    const header = screen.getByRole("button", { name: /Tendre & complice/i });
+    expect(header).toHaveAttribute("aria-expanded", "false");
+    await userEvent.click(header);
+    expect(header).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("Un massage aux huiles")).toBeInTheDocument();
   });
 
-  it("affiche la section « match » quand il y a une réciprocité", () => {
+  it("en-tête de catégorie : badge match quand il y a un match dedans", () => {
     render(
       <DesiresScreen
-        items={[d("massage", { interested: true, matched: true }), d("shower")]}
+        items={[d("oilMassage", "tender", { interested: true, matched: true })]}
       />,
     );
-    expect(screen.getByText(/Vous êtes deux à vouloir/)).toBeInTheDocument();
-    expect(screen.getByText(/Match/)).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Tendre & complice/i }),
+    ).toHaveTextContent("✨ 1");
   });
 
-  it("pas de section match sans réciprocité", () => {
-    render(<DesiresScreen items={[d("massage", { interested: true })]} />);
-    expect(screen.queryByText(/Vous êtes deux à vouloir/)).toBeNull();
-  });
-
-  it("clic sur une carte appelle onToggle avec le code", async () => {
+  it("toggles d'intérêt et de réalisé câblés sur les bons codes", async () => {
     const onToggle = vi.fn();
-    render(<DesiresScreen items={[d("massage")]} onToggle={onToggle} />);
+    const onToggleDone = vi.fn();
+    render(
+      <DesiresScreen
+        items={[d("oilMassage", "tender")]}
+        onToggle={onToggle}
+        onToggleDone={onToggleDone}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /Tendre/i }));
     await userEvent.click(screen.getByRole("button", { name: /tente/i }));
-    expect(onToggle).toHaveBeenCalledWith("massage");
+    expect(onToggle).toHaveBeenCalledWith("oilMassage");
+    await userEvent.click(screen.getByRole("button", { name: /réalisé/i }));
+    expect(onToggleDone).toHaveBeenCalledWith("oilMassage");
   });
 });

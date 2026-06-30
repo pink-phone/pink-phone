@@ -2,20 +2,31 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { DesiresScreen } from "./DesiresScreen";
 import type { ApiDesire } from "../../api/types";
 
-const CODES = [
-  "massage",
-  "roleplay",
-  "blindfold",
-  "newPlace",
-  "shower",
-  "slowHands",
+// Un échantillon du catalogue catégorisé (#99).
+const CATALOG: Array<[string, string]> = [
+  ["morningCuddle", "tender"],
+  ["oilMassage", "tender"],
+  ["bathTogether", "tender"],
+  ["roleplay", "games"],
+  ["truthOrDare", "games"],
+  ["kamaPosition", "kamasutra"],
+  ["mirror", "kamasutra"],
+  ["blindfold", "sensations"],
+  ["spanking", "sensations"],
+  ["gentleDomination", "power"],
+  ["outdoors", "places"],
+  ["hotel", "places"],
 ];
 
-const items = (over: Record<string, Partial<ApiDesire>> = {}): ApiDesire[] =>
-  CODES.map((code) => ({
+const items = (
+  over: Record<string, Partial<ApiDesire>> = {},
+): ApiDesire[] =>
+  CATALOG.map(([code, category]) => ({
     code,
+    category,
     interested: false,
     matched: false,
+    done: false,
     ...over[code],
   }));
 
@@ -27,11 +38,15 @@ const meta = {
     docs: {
       description: {
         component:
-          "Écran « Vos envies » (#99) : on coche en secret, une envie ne se révèle qu'en cas de réciprocité (match).",
+          "Bucket list (#99) : envies par catégorie (sections repliables). Coche secrète → match ; « ✓ Réalisé » au niveau du couple.",
       },
     },
   },
-  argTypes: { onToggle: { action: "toggle" }, onBack: { action: "back" } },
+  argTypes: {
+    onToggle: { action: "intérêt" },
+    onToggleDone: { action: "réalisé" },
+    onBack: { action: "back" },
+  },
   decorators: [
     (Story) => (
       <div className="mx-auto min-h-dvh max-w-md bg-charcoal-900 bg-felt-velvet px-4 py-6">
@@ -44,22 +59,12 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+/** Sections repliées par défaut (badges match/réalisé sur les en-têtes). */
 export const ParDéfaut: Story = {
-  args: { items: items() },
-};
-
-/** Quelques envies cochées par moi (pas encore matchées). */
-export const MesEnvies: Story = {
-  args: {
-    items: items({ massage: { interested: true }, shower: { interested: true } }),
-  },
-};
-
-/** Un match en tête (les deux veulent un massage). */
-export const AvecMatch: Story = {
   args: {
     items: items({
-      massage: { interested: true, matched: true },
+      oilMassage: { interested: true, matched: true },
+      bathTogether: { done: true },
       roleplay: { interested: true },
     }),
   },
