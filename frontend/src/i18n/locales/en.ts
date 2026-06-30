@@ -76,6 +76,8 @@ export const en: Resources = {
     settings: "Settings",
     you: "You",
     noMoodYet: "No mood yet today.",
+    setMoodHint: "Tap to share your mood",
+    editMoodAria: "Share or change my mood",
     moodHidden: "Your turn: share your mood to reveal theirs.",
     updatedAt: "Updated {{time}}",
     waitingPartnerTitle: "Waiting for your partner",
@@ -181,6 +183,9 @@ export const en: Resources = {
   },
   eveningMenu: {
     title: "Tonight's menu",
+    dashboardEntry: "Tonight's menu",
+    dashboardHint: "What tempts you tonight, in secret",
+    matchToast: "Match tonight!",
     intro:
       "Secretly tick what tempts you tonight. It's only revealed on a match. Resets each day.",
     matchCount_one: "✨ {{count}} match",
@@ -202,6 +207,8 @@ export const en: Resources = {
   },
   loveNotes: {
     title: "Love notes",
+    sheetTitle: "A love note",
+    compose: "＋ Drop a note",
     composerLabel: "Leave a little note",
     placeholder: "Thinking of you…",
     schedule: "Schedule",
