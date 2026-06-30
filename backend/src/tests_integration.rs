@@ -718,7 +718,8 @@ async fn desires_double_consentement_et_gating(pool: PgPool) {
     let tb = token_for(&state, bob);
 
     let list = format!("/api/spaces/{space}/desires");
-    let massage = format!("/api/spaces/{space}/desires/massage/interest");
+    // Code du catalogue catégorisé (catégorie « tender »).
+    let massage = format!("/api/spaces/{space}/desires/oilMassage/interest");
 
     // Désactivé par défaut → 403 (gating, #99).
     let (st, _) = req(&app, "GET", &list, &ta, None).await;
@@ -735,12 +736,15 @@ async fn desires_double_consentement_et_gating(pool: PgPool) {
     .await;
     assert_eq!(st, StatusCode::OK);
 
-    // Catalogue listé (12 codes), rien de coché → pas de match.
+    // Catalogue catégorisé (34 codes), rien de coché → pas de match, chaque item
+    // porte sa catégorie.
     let (st, items) = req(&app, "GET", &list, &ta, None).await;
     assert_eq!(st, StatusCode::OK);
     let arr = items.as_array().unwrap();
-    assert_eq!(arr.len(), 12, "catalogue complet");
-    assert!(arr.iter().all(|i| i["matched"] == false));
+    assert_eq!(arr.len(), 34, "catalogue complet");
+    assert!(arr.iter().all(|i| i["matched"] == false && i["done"] == false));
+    let m = arr.iter().find(|i| i["code"] == "oilMassage").unwrap();
+    assert_eq!(m["category"], "tender");
 
     // Code inconnu → 404.
     let (st, _) = req(
@@ -765,12 +769,12 @@ async fn desires_double_consentement_et_gating(pool: PgPool) {
         .as_array()
         .unwrap()
         .iter()
-        .find(|i| i["code"] == "massage")
+        .find(|i| i["code"] == "oilMassage")
         .unwrap();
     assert_eq!(massage_b["interested"], false);
     assert_eq!(massage_b["matched"], false, "secret d'Alice non révélé");
 
-    // Bob coche « massage » à son tour → MATCH des deux côtés.
+    // Bob coche à son tour → MATCH des deux côtés.
     let (st, b) = req(&app, "PUT", &massage, &tb, None).await;
     assert_eq!(st, StatusCode::OK);
     assert_eq!(b["matched"], true, "Bob complète → match");
@@ -779,15 +783,30 @@ async fn desires_double_consentement_et_gating(pool: PgPool) {
         .as_array()
         .unwrap()
         .iter()
-        .find(|i| i["code"] == "massage")
+        .find(|i| i["code"] == "oilMassage")
         .unwrap();
     assert_eq!(massage_a["matched"], true, "match révélé chez Alice aussi");
 
-    // Alice retire son intérêt → plus de match de son côté.
+    // « ✓ Réalisé » niveau SALON : Alice le coche → visible des DEUX (≠ secret).
+    let done = format!("/api/spaces/{space}/desires/oilMassage/done");
+    let (st, d) = req(&app, "PUT", &done, &ta, None).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(d["done"], true);
+    let (_, items_b) = req(&app, "GET", &list, &tb, None).await;
+    let m_b = items_b
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|i| i["code"] == "oilMassage")
+        .unwrap();
+    assert_eq!(m_b["done"], true, "réalisé visible du couple");
+
+    // Alice retire son intérêt → plus de match de son côté (le « réalisé » reste).
     let (st, a) = req(&app, "DELETE", &massage, &ta, None).await;
     assert_eq!(st, StatusCode::OK);
     assert_eq!(a["interested"], false);
     assert_eq!(a["matched"], false);
+    assert_eq!(a["done"], true, "le réalisé n'est pas affecté par l'intérêt");
 }
 
 #[sqlx::test]

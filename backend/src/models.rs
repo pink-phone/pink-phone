@@ -210,8 +210,12 @@ pub struct ChallengeSuggestion {
 #[serde(rename_all = "camelCase")]
 pub struct DesireItem {
     pub code: String,
+    /// Catégorie du catalogue (#99 bucket list) — pour le regroupement à l'écran.
+    pub category: String,
     pub interested: bool,
     pub matched: bool,
+    /// Le couple a coché « ✓ Réalisé » (suivi bucket list, niveau salon).
+    pub done: bool,
 }
 
 /// Un « mot doux » (#102) tel que renvoyé au membre courant. Si `open_at` est dans
@@ -270,24 +274,79 @@ pub const INTENSITIES: [&str; 2] = ["soft", "hot"];
 pub const MOODS: [&str; 5] = ["calm", "flirty", "veryHot", "tired", "cuddleNeeded"];
 pub const REACTIONS: [&str; 5] = ["heart", "fire", "smirk", "breath", "hush"];
 pub const VERDICTS: [&str; 3] = ["hot", "curious", "notForMe"];
-/// Catalogue curaté des « envies » (#99), dans l'ordre d'affichage. Codes stables
-/// (insensibles à la langue) ; les libellés vivent dans l'i18n du frontend. Source
-/// de vérité du catalogue ET de la validation des intérêts (un PUT sur un code
-/// inconnu est rejeté). Ajouter une envie = ajouter ici + la clé i18n FR/EN.
-pub const DESIRE_CODES: [&str; 12] = [
-    "massage",
-    "roleplay",
-    "blindfold",
-    "newPlace",
-    "shower",
-    "slowHands",
-    "toys",
-    "photoSession",
-    "powerPlay",
-    "outdoorThrill",
-    "morningTime",
-    "writeFantasy",
+/// Catalogue curaté des « envies » (#99, bucket list), groupé par CATÉGORIE et
+/// dans l'ordre d'affichage. Codes stables (insensibles à la langue) ; les libellés
+/// (items ET catégories) vivent dans l'i18n du frontend. Source de vérité du
+/// catalogue ET de la validation. Ajouter une envie = l'ajouter ici + sa clé i18n
+/// FR/EN. Chaque entrée = (catégorie, [codes]).
+pub const DESIRE_CATEGORIES: &[(&str, &[&str])] = &[
+    (
+        "tender",
+        &[
+            "morningCuddle",
+            "oilMassage",
+            "bathTogether",
+            "slowDance",
+            "lingerie",
+            "rediscover",
+        ],
+    ),
+    (
+        "games",
+        &[
+            "roleplay",
+            "truthOrDare",
+            "striptease",
+            "photoSession",
+            "writeFantasy",
+            "daySexting",
+        ],
+    ),
+    (
+        "kamasutra",
+        &[
+            "kamaPosition",
+            "mirror",
+            "tantric",
+            "spooning",
+            "newPositionMonthly",
+        ],
+    ),
+    (
+        "sensations",
+        &[
+            "blindfold",
+            "lightBondage",
+            "spanking",
+            "temperature",
+            "edging",
+            "toy",
+        ],
+    ),
+    (
+        "power",
+        &[
+            "gentleDomination",
+            "submission",
+            "commands",
+            "softCollar",
+            "eveningRules",
+        ],
+    ),
+    (
+        "places",
+        &["outdoors", "car", "hotel", "anotherRoom", "semiPublic", "voyeur"],
+    ),
 ];
+
+/// Catégorie d'un code du catalogue d'envies (#99), ou `None` si inconnu (sert à
+/// la validation des coches/réalisations).
+pub fn desire_category(code: &str) -> Option<&'static str> {
+    DESIRE_CATEGORIES
+        .iter()
+        .find(|(_, codes)| codes.contains(&code))
+        .map(|(cat, _)| *cat)
+}
 /// Catalogue du « Menu du soir » (#97b), du plus tendre au plus épicé. Codes
 /// stables (libellés via i18n front) ; source de vérité du menu + validation des
 /// coches. Distinct de `DESIRE_CODES` (registre « programme de la soirée »).

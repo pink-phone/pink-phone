@@ -17,15 +17,16 @@ const meta = {
     docs: {
       description: {
         component:
-          "Une envie du « Dossier Noir » (#99). Trois états : neutre, coché (mon intérêt privé) et matché (l'autre l'a coché aussi → révélé).",
+          "Une envie de la bucket list (#99). Bouton « intérêt » (privé, double-aveugle : neutre/coché/matché) + bouton « ✓ Réalisé » (partagé, couple).",
       },
     },
   },
-  argTypes: { onToggle: { action: "toggle" } },
+  argTypes: { onToggle: { action: "intérêt" }, onToggleDone: { action: "réalisé" } },
   args: {
-    label: "Sensual massage",
+    label: "Massage aux huiles",
     interested: false,
     matched: false,
+    done: false,
   },
 } satisfies Meta<typeof DesireCard>;
 
@@ -40,12 +41,12 @@ export const Interesse: Story = {
   args: { interested: true },
 };
 
-/** Avec un indice sous le libellé. */
-export const AvecIndice: Story = {
-  args: { interested: true, description: "An hour just for the other one." },
-};
-
 /** Match : les deux l'ont coché → braise + badge « Match ! ». */
 export const Matche: Story = {
   args: { interested: true, matched: true },
+};
+
+/** Marqué « ✓ Réalisé » (couple) : badge + bouton réalisé actif. */
+export const Realise: Story = {
+  args: { interested: true, matched: true, done: true },
 };

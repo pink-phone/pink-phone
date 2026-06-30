@@ -159,6 +159,7 @@ export function SpaceApp({
     desires,
     refetch: refetchDesires,
     toggleInterest: toggleDesire,
+    toggleDone: toggleDesireDone,
   } = useDesires(space.id, space.desiresEnabled);
   // Menu du soir (#97b) : rituel quotidien, gated par le flag du salon.
   const {
@@ -717,6 +718,7 @@ export function SpaceApp({
         <DesiresScreen
           items={desires}
           onToggle={toggleDesire}
+          onToggleDone={toggleDesireDone}
           onBack={() => setShowDesires(false)}
         />
       </div>

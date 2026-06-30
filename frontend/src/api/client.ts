@@ -212,6 +212,17 @@ export const unsetDesireInterest = (spaceId: string, code: string) =>
     method: "DELETE",
   });
 
+/** « ✓ Réalisé » de la bucket list (#99) : niveau salon (couple). */
+export const setDesireDone = (spaceId: string, code: string) =>
+  req<ApiDesire>(`/api/spaces/${spaceId}/desires/${code}/done`, {
+    method: "PUT",
+  });
+
+export const unsetDesireDone = (spaceId: string, code: string) =>
+  req<ApiDesire>(`/api/spaces/${spaceId}/desires/${code}/done`, {
+    method: "DELETE",
+  });
+
 // ---------- Menu du soir (#97b) ----------
 
 /** Menu du soir pour CE SOIR : mes choix du jour + matchs (rituel quotidien). */

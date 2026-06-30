@@ -5,52 +5,60 @@ import { cn } from "../../lib/cn";
 export interface DesireCardProps {
   /** Libellé de l'envie (résolu par l'appelant via i18n). */
   label: string;
-  /** Petit indice optionnel sous le libellé. */
-  description?: string;
   /** J'ai coché cette envie (mon intérêt privé). */
   interested: boolean;
   /** Réciprocité : l'autre l'a cochée aussi → révélé (#99). */
   matched: boolean;
-  /** Bascule mon intérêt. */
+  /** Le couple l'a marquée « ✓ Réalisé » (suivi bucket list, partagé). */
+  done?: boolean;
+  /** Bascule mon intérêt (privé). */
   onToggle?: () => void;
+  /** Bascule « ✓ Réalisé » (couple). Présent ⇒ affiche le bouton réalisé. */
+  onToggleDone?: () => void;
   className?: string;
 }
 
 /**
- * Une envie du « Dossier Noir » (#99) : carte entièrement cliquable qui bascule
- * mon intérêt. Trois états — neutre (cœur creux), coché (cœur plein, liseré
- * spice) et **matché** (braise + badge « Match ! ») quand l'autre l'a cochée
- * aussi. Tant qu'il n'y a pas réciprocité, rien ne trahit le choix de l'autre.
+ * Une envie de la bucket list (#99). La carte porte DEUX actions distinctes :
+ * un grand bouton « intérêt » (privé, double-aveugle : neutre/coché/matché) et un
+ * petit bouton « ✓ Réalisé » (partagé, niveau couple). Pas de bouton imbriqué :
+ * conteneur `div` + deux `button` côte à côte.
  */
 export function DesireCard({
   label,
-  description,
   interested,
   matched,
+  done = false,
   onToggle,
+  onToggleDone,
   className,
 }: DesireCardProps) {
   const { t } = useTranslation();
   return (
-    <button
-      type="button"
-      onClick={onToggle}
-      aria-pressed={interested}
-      aria-label={
-        interested ? t("desires.removeInterestAria") : t("desires.interestAria")
-      }
+    <div
       className={cn(
-        "relative w-full overflow-hidden rounded-3xl border p-4 text-left shadow-felt transition-all duration-300 ease-felt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500",
+        "relative flex items-stretch overflow-hidden rounded-3xl border shadow-felt transition-all duration-300 ease-felt",
         matched
           ? "border-bordeaux-600 bg-bordeaux-700 bg-felt-velvet text-blush-100 shadow-ember animate-ember-breathe motion-reduce:animate-none"
           : interested
             ? "border-spice-500/70 bg-charcoal-800 bg-felt-linen text-blush-100"
-            : "border-charcoal-600/60 bg-charcoal-800 bg-felt-linen text-taupe-200 hover:border-spice-400/40 hover:text-blush-100",
+            : "border-charcoal-600/60 bg-charcoal-800 bg-felt-linen text-taupe-200",
         className,
       )}
     >
       {matched && <FireEmbers count={6} />}
-      <div className="relative z-10 flex items-center gap-3">
+
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-pressed={interested}
+        aria-label={
+          interested
+            ? t("desires.removeInterestAria")
+            : t("desires.interestAria")
+        }
+        className="relative z-10 flex flex-1 items-center gap-3 p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-spice-500"
+      >
         <span
           aria-hidden
           className={cn(
@@ -64,25 +72,36 @@ export function DesireCard({
         >
           {matched ? "✨" : interested ? "♥" : "♡"}
         </span>
-        <div className="min-w-0 flex-1">
-          <p className="font-serif text-base">{label}</p>
-          {description && (
-            <p
-              className={cn(
-                "text-xs",
-                matched ? "text-blush-200/80" : "text-taupe-300",
-              )}
-            >
-              {description}
-            </p>
+        <span className="min-w-0 flex-1">
+          <span className="block font-serif text-base">{label}</span>
+          {done && (
+            <span className="mt-0.5 inline-block rounded-full bg-spice-500/20 px-2 py-0.5 text-[11px] text-spice-200">
+              {t("desires.doneBadge")}
+            </span>
           )}
-        </div>
+        </span>
         {matched && (
           <span className="shrink-0 rounded-full border border-spice-400/70 bg-charcoal-900/40 px-2.5 py-1 text-xs font-medium text-blush-100">
             {t("desires.matchBadge")}
           </span>
         )}
-      </div>
-    </button>
+      </button>
+
+      {onToggleDone && (
+        <button
+          type="button"
+          onClick={onToggleDone}
+          aria-pressed={done}
+          aria-label={done ? t("desires.undoneAria") : t("desires.doneAria")}
+          className={cn(
+            "relative z-10 flex w-12 shrink-0 items-center justify-center border-l text-lg transition-colors duration-300 ease-felt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-spice-500",
+            matched ? "border-bordeaux-600/60" : "border-charcoal-600/60",
+            done ? "text-spice-300" : "text-taupe-400 hover:text-spice-300",
+          )}
+        >
+          <span aria-hidden>{done ? "✓" : "○"}</span>
+        </button>
+      )}
+    </div>
   );
 }
