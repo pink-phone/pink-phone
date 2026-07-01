@@ -89,6 +89,7 @@ function MoodCard({
   const inner = (
     <Surface
       tone={has ? "deep" : "velvet"}
+      radius="2xl"
       className={cn(
         "relative h-full overflow-hidden",
         hot && "shadow-ember animate-ember-breathe motion-reduce:animate-none",
@@ -142,7 +143,7 @@ function MoodCard({
       type="button"
       onClick={onClick}
       aria-label={t("dashboard.editMoodAria")}
-      className="block h-full w-full rounded-3xl text-left transition-transform duration-300 ease-felt hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+      className="block h-full w-full rounded-2xl text-left transition-transform duration-300 ease-felt hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
     >
       {inner}
     </button>
@@ -214,7 +215,7 @@ export function DashboardScreen({
         </div>
       ) : (
         /* Espace en attente : inviter le/la partenaire */
-        <Surface tone="velvet" className="space-y-3 text-center">
+        <Surface tone="velvet" radius="2xl" className="space-y-3 text-center">
           <p className="font-serif text-lg text-blush-100">
             {t("dashboard.waitingPartnerTitle")}
           </p>
@@ -252,6 +253,7 @@ export function DashboardScreen({
               <Surface
                 key={n.id}
                 tone="velvet"
+                radius="2xl"
                 className="flex items-center gap-3 px-3 py-2"
               >
                 <span aria-hidden className="text-xl">
@@ -303,7 +305,7 @@ export function DashboardScreen({
           type="button"
           onClick={onOpenEveningMenu}
           className={cn(
-            "relative flex w-full items-center gap-3 overflow-hidden rounded-3xl border p-4 text-left shadow-felt transition-all duration-300 ease-felt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500",
+            "relative flex w-full items-center gap-3 overflow-hidden rounded-2xl border p-4 text-left shadow-felt transition-all duration-300 ease-felt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500",
             eveningMenuMatches > 0
               ? "border-bordeaux-600 bg-bordeaux-700 bg-felt-velvet shadow-ember animate-ember-breathe motion-reduce:animate-none"
               : "border-charcoal-600/60 bg-charcoal-800 bg-felt-linen hover:border-spice-400/40",

@@ -74,13 +74,11 @@ export const Mystère: Story = {
   args: { partners: [{ ...CAMILLE, moodHidden: true }], myMood: null },
 };
 
-/** Les rituels (Menu du soir + Vos envies) + le mur de mots doux. */
+/** Le rituel « Menu du soir » + le mur de mots doux. */
 export const Rituels: Story = {
   args: {
     eveningMenuEnabled: true,
     onOpenEveningMenu: fn(),
-    desiresEnabled: true,
-    onOpenDesires: fn(),
     onComposeLoveNote: fn(),
     loveNotes: [
       NOTE({ id: "n1", authorId: "me", authorName: "Toi", body: "Hâte de te voir." }),
