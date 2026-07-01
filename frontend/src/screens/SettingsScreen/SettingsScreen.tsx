@@ -682,10 +682,12 @@ export function SettingsScreen({
           <p className="text-xs text-taupe-400">{t("settings.pushUnavailable")}</p>
         )}
 
+        {/* Sélecteur compact (calqué sur le réglage de langue) : on choisit le
+            mode, sa description s'affiche EN DESSOUS (plutôt que toutes à la fois). */}
         <div
           role="radiogroup"
           aria-label={t("settings.notifications")}
-          className="space-y-2"
+          className="flex gap-2"
         >
           {MODES.map((mode) => {
             const active = notifMode === mode.id;
@@ -698,43 +700,23 @@ export function SettingsScreen({
                 aria-checked={active}
                 disabled={disabled}
                 onClick={() => onModeChange(mode.id)}
-                className="block w-full text-left disabled:opacity-50"
+                className={cn(
+                  "flex flex-1 items-center justify-center gap-1.5 rounded-2xl border px-3 py-2 text-sm font-medium",
+                  "transition-all duration-300 ease-felt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500 disabled:opacity-50",
+                  active
+                    ? "border-spice-500/70 bg-bordeaux-700 text-blush-100 shadow-glow"
+                    : "border-charcoal-600/60 bg-charcoal-800 text-taupe-300 hover:border-spice-400/40",
+                )}
               >
-                <Surface
-                  tone={active ? "deep" : "velvet"}
-                  className={cn(
-                    "flex items-start gap-3 transition-all duration-300 ease-felt",
-                    active ? "shadow-glow" : "hover:-translate-y-0.5",
-                  )}
-                >
-                  <span aria-hidden className="text-2xl">
-                    {mode.emoji}
-                  </span>
-                  <span className="leading-tight">
-                    <span className="flex items-center gap-2">
-                      <span
-                        className={cn(
-                          "font-serif text-base",
-                          active ? "text-blush-100" : "text-taupe-100",
-                        )}
-                      >
-                        {t(MODE_KEYS[mode.id].title)}
-                      </span>
-                    </span>
-                    <span
-                      className={cn(
-                        "mt-0.5 block text-xs",
-                        active ? "text-blush-200" : "text-taupe-400",
-                      )}
-                    >
-                      {t(MODE_KEYS[mode.id].desc)}
-                    </span>
-                  </span>
-                </Surface>
+                <span aria-hidden>{mode.emoji}</span>
+                {t(MODE_KEYS[mode.id].title)}
               </button>
             );
           })}
         </div>
+        <p className="text-xs text-taupe-300">
+          {t(MODE_KEYS[notifMode].desc)}
+        </p>
 
         {pushError && (
           <p className="rounded-2xl bg-bordeaux-700/40 px-3 py-2 text-xs text-blush-200">
