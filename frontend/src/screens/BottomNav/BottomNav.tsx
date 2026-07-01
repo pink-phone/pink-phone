@@ -1,30 +1,41 @@
 import { useTranslation } from "react-i18next";
 import { cn } from "../../lib/cn";
 
-export type TabId = "dashboard" | "blog" | "challenges";
+export type TabId = "dashboard" | "blog" | "challenges" | "desires";
 
 interface Tab {
   id: TabId;
   emoji: string;
 }
 
-const TABS: Tab[] = [
+const BASE_TABS: Tab[] = [
   { id: "dashboard", emoji: "🏡" },
   { id: "blog", emoji: "📖" },
   { id: "challenges", emoji: "🎲" },
 ];
+// Onglet bucket list (#99) — ajouté seulement si activé pour le salon.
+const DESIRES_TAB: Tab = { id: "desires", emoji: "🔥" };
 
 export interface BottomNavProps {
   active: TabId;
   onChange: (tab: TabId) => void;
   /** Pastilles de nouveautés par onglet. */
   badges?: Partial<Record<TabId, number>>;
+  /** Affiche l'onglet « Envies » (bucket list #99) si activé pour le salon. */
+  desiresEnabled?: boolean;
   className?: string;
 }
 
 /** Barre d'onglets fixe en bas (pattern PWA), avec safe-area. */
-export function BottomNav({ active, onChange, badges = {}, className }: BottomNavProps) {
+export function BottomNav({
+  active,
+  onChange,
+  badges = {},
+  desiresEnabled = false,
+  className,
+}: BottomNavProps) {
   const { t } = useTranslation();
+  const TABS = desiresEnabled ? [...BASE_TABS, DESIRES_TAB] : BASE_TABS;
   return (
     <nav
       aria-label={t("nav.aria")}

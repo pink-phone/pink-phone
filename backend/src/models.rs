@@ -41,6 +41,8 @@ pub struct Space {
     pub allow_media_download: bool,
     /// Liste d'envies à double consentement (#99) activée pour ce salon.
     pub desires_enabled: bool,
+    /// Registre des libellés de la bucket list : explicite (défaut) vs suggestif.
+    pub desires_explicit_labels: bool,
     /// « Menu du soir » : rituel quotidien à double consentement (#97b).
     pub evening_menu_enabled: bool,
     pub created_at: DateTime<Utc>,
@@ -212,8 +214,15 @@ pub struct DesireItem {
     pub code: String,
     /// Catégorie du catalogue (#99 bucket list) — pour le regroupement à l'écran.
     pub category: String,
+    /// J'ai marqué « envie » (privé, révélé seulement en cas de match).
     pub interested: bool,
+    /// J'ai marqué « contre » (limite). Mon état, toujours visible de moi.
+    pub against: bool,
+    /// Réciprocité d'envie (les deux « envie ») → révélé.
     pub matched: bool,
+    /// Au moins un membre est « contre » → limite affichée au couple (bloque le
+    /// match). Surfacé (≠ l'envie double-aveugle) : une limite se respecte.
+    pub limit: bool,
     /// Le couple a coché « ✓ Réalisé » (suivi bucket list, niveau salon).
     pub done: bool,
 }
@@ -303,12 +312,18 @@ pub const DESIRE_CATEGORIES: &[(&str, &[&str])] = &[
         ],
     ),
     (
-        "kamasutra",
+        "positions",
         &[
-            "kamaPosition",
-            "mirror",
-            "tantric",
+            "missionary",
+            "doggy",
+            "cowgirl",
+            "reverseCowgirl",
             "spooning",
+            "lotus",
+            "wheelbarrow",
+            "standing",
+            "edgeOfBed",
+            "mirror",
             "newPositionMonthly",
         ],
     ),
@@ -336,6 +351,22 @@ pub const DESIRE_CATEGORIES: &[(&str, &[&str])] = &[
     (
         "places",
         &["outdoors", "car", "hotel", "anotherRoom", "semiPublic", "voyeur"],
+    ),
+    (
+        // Catégorie « hot » : les actes eux-mêmes (#99, registre assumé).
+        "practices",
+        &[
+            "fellatio",
+            "cunnilingus",
+            "sixtyNine",
+            "mutualMasturbation",
+            "fingering",
+            "rimming",
+            "anal",
+            "facial",
+            "swallow",
+            "squirting",
+        ],
     ),
 ];
 

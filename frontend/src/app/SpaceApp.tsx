@@ -158,7 +158,7 @@ export function SpaceApp({
   const {
     desires,
     refetch: refetchDesires,
-    toggleInterest: toggleDesire,
+    setStance: setDesireStance,
     toggleDone: toggleDesireDone,
   } = useDesires(space.id, space.desiresEnabled);
   // Menu du soir (#97b) : rituel quotidien, gated par le flag du salon.
@@ -200,7 +200,6 @@ export function SpaceApp({
   // Réglages / notifications.
   const [showSettings, setShowSettings] = useState(false);
   const [showBank, setShowBank] = useState(false);
-  const [showDesires, setShowDesires] = useState(false);
   const [showEveningMenu, setShowEveningMenu] = useState(false);
   // Toast éphémère « ✨ Match ce soir ! » (#97b, redesign dashboard).
   const [matchToast, setMatchToast] = useState(false);
@@ -391,7 +390,6 @@ export function SpaceApp({
   // Retour Android / swipe iOS ferment la surface ouverte (au lieu de quitter).
   useBackClose(showSettings, () => setShowSettings(false));
   useBackClose(showBank, () => setShowBank(false));
-  useBackClose(showDesires, () => setShowDesires(false));
   useBackClose(openSheet !== null, () => {
     setOpenSheet(null);
     setEditingPost(null);
@@ -602,6 +600,14 @@ export function SpaceApp({
     }
   };
 
+  const changeDesiresExplicit = async (desiresExplicitLabels: boolean) => {
+    try {
+      setSpace(await api.updateSpace(space.id, { desiresExplicitLabels }));
+    } catch (e) {
+      console.error("changement du registre des libellés échoué", e);
+    }
+  };
+
   const changeEveningMenuEnabled = async (eveningMenuEnabled: boolean) => {
     try {
       // useEveningMenu se recharge/vide via son effet sur `[enabled]` (#97b).
@@ -644,6 +650,7 @@ export function SpaceApp({
             blindMood: space.blindMood,
             allowMediaDownload: space.allowMediaDownload,
             desiresEnabled: space.desiresEnabled,
+            desiresExplicitLabels: space.desiresExplicitLabels,
             eveningMenuEnabled: space.eveningMenuEnabled,
           }}
           members={members.map((m) => ({ id: m.id, name: m.displayName }))}
@@ -659,6 +666,7 @@ export function SpaceApp({
           onBlindMoodChange={changeBlindMood}
           onAllowMediaDownloadChange={changeAllowMediaDownload}
           onDesiresEnabledChange={changeDesiresEnabled}
+          onDesiresExplicitChange={changeDesiresExplicit}
           onEveningMenuEnabledChange={changeEveningMenuEnabled}
           reactions={space.reactions}
           allowCustomReactions={space.allowCustomReactions}
@@ -712,18 +720,6 @@ export function SpaceApp({
     );
   }
 
-  if (showDesires) {
-    return (
-      <div className="mx-auto h-dvh max-w-md overflow-y-auto overscroll-contain bg-charcoal-900 bg-felt-velvet px-4 pb-[calc(2.5rem+env(safe-area-inset-bottom))] pt-[calc(1rem+env(safe-area-inset-top))]">
-        <DesiresScreen
-          items={desires}
-          onToggle={toggleDesire}
-          onToggleDone={toggleDesireDone}
-          onBack={() => setShowDesires(false)}
-        />
-      </div>
-    );
-  }
 
   if (showEveningMenu) {
     return (
@@ -738,13 +734,23 @@ export function SpaceApp({
   }
 
 
+  // La bucket list (#99) est un onglet (si activée). Si on désactive pendant
+  // qu'on y est, on retombe sur l'accueil.
+  const activeTab =
+    tab === "desires" && !space.desiresEnabled ? "dashboard" : tab;
+
   return (
     <AppShell
-      active={tab}
+      active={activeTab}
       onTabChange={setTab}
-      badges={{ blog: newPosts, challenges: newChallenges }}
+      badges={{
+        blog: newPosts,
+        challenges: newChallenges,
+        desires: desires.filter((d) => d.matched).length,
+      }}
+      desiresEnabled={space.desiresEnabled}
     >
-      {tab === "dashboard" && (
+      {activeTab === "dashboard" && (
         <DashboardScreen
           spaceName={space.name}
           partners={partnerCards}
@@ -758,9 +764,6 @@ export function SpaceApp({
           newChallenges={newChallenges}
           notices={dashboardNotices}
           onOpen={setTab}
-          desiresEnabled={space.desiresEnabled}
-          desireMatches={desires.filter((d) => d.matched).length}
-          onOpenDesires={() => setShowDesires(true)}
           eveningMenuEnabled={space.eveningMenuEnabled}
           eveningMenuMatches={eveningMatches}
           onOpenEveningMenu={() => setShowEveningMenu(true)}
@@ -768,6 +771,16 @@ export function SpaceApp({
           loveNotes={loveNotes}
           onComposeLoveNote={() => setOpenSheet("loveNote")}
           onDeleteLoveNote={removeLoveNote}
+        />
+      )}
+
+      {activeTab === "desires" && (
+        <DesiresScreen
+          items={desires}
+          explicit={space.desiresExplicitLabels}
+          onToggleWant={(code) => setDesireStance(code, "want")}
+          onToggleAgainst={(code) => setDesireStance(code, "against")}
+          onToggleDone={toggleDesireDone}
         />
       )}
 

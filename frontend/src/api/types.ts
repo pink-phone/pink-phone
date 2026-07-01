@@ -44,6 +44,8 @@ export interface Space {
   allowMediaDownload: boolean;
   /** Liste d'envies à double consentement (#99) activée pour ce salon. */
   desiresEnabled: boolean;
+  /** Registre des libellés de la bucket list : explicite (défaut) vs suggestif. */
+  desiresExplicitLabels: boolean;
   /** « Menu du soir » : rituel quotidien à double consentement (#97b). */
   eveningMenuEnabled: boolean;
   createdAt: string;
@@ -56,8 +58,14 @@ export interface ApiDesire {
   code: string;
   /** Catégorie du catalogue (bucket list #99) — regroupement à l'écran. */
   category: string;
+  /** J'ai marqué « envie » (privé, révélé seulement en cas de match). */
   interested: boolean;
+  /** J'ai marqué « contre » (ma limite). */
+  against: boolean;
+  /** Réciprocité d'envie → révélé. */
   matched: boolean;
+  /** Au moins un membre est « contre » → limite du couple (surfacée, bloque le match). */
+  limit: boolean;
   /** Le couple a marqué « ✓ Réalisé » (suivi bucket list, niveau salon). */
   done: boolean;
 }

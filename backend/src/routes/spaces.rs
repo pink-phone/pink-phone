@@ -44,6 +44,8 @@ pub struct UpdateSpaceBody {
     pub allow_media_download: Option<bool>,
     /// Active la liste d'envies à double consentement (#99).
     pub desires_enabled: Option<bool>,
+    /// Registre des libellés de la bucket list (explicite vs suggestif).
+    pub desires_explicit_labels: Option<bool>,
     /// Active le « Menu du soir » (rituel quotidien, #97b).
     pub evening_menu_enabled: Option<bool>,
 }
@@ -61,7 +63,7 @@ async fn create_space(
     let mut tx = state.pool.begin().await?;
     let space: Space = sqlx::query_as(
         "INSERT INTO spaces (name) VALUES ($1)
-         RETURNING id, name, timezone, reactions, allow_custom_reactions, blind_mood, allow_media_download, desires_enabled, evening_menu_enabled, created_at",
+         RETURNING id, name, timezone, reactions, allow_custom_reactions, blind_mood, allow_media_download, desires_enabled, desires_explicit_labels, evening_menu_enabled, created_at",
     )
     .bind(name)
     .fetch_one(&mut *tx)
@@ -137,9 +139,10 @@ async fn update_space(
             blind_mood = COALESCE($6, blind_mood),
             allow_media_download = COALESCE($7, allow_media_download),
             desires_enabled = COALESCE($8, desires_enabled),
-            evening_menu_enabled = COALESCE($9, evening_menu_enabled)
+            desires_explicit_labels = COALESCE($9, desires_explicit_labels),
+            evening_menu_enabled = COALESCE($10, evening_menu_enabled)
          WHERE id = $1
-         RETURNING id, name, timezone, reactions, allow_custom_reactions, blind_mood, allow_media_download, desires_enabled, evening_menu_enabled, created_at",
+         RETURNING id, name, timezone, reactions, allow_custom_reactions, blind_mood, allow_media_download, desires_enabled, desires_explicit_labels, evening_menu_enabled, created_at",
     )
     .bind(space_id)
     .bind(name)
@@ -149,6 +152,7 @@ async fn update_space(
     .bind(body.blind_mood)
     .bind(body.allow_media_download)
     .bind(body.desires_enabled)
+    .bind(body.desires_explicit_labels)
     .bind(body.evening_menu_enabled)
     .fetch_one(&state.pool)
     .await?;
@@ -172,7 +176,7 @@ async fn my_spaces(
     auth: AuthUser,
 ) -> ApiResult<Json<Vec<Space>>> {
     let spaces: Vec<Space> = sqlx::query_as(
-        "SELECT s.id, s.name, s.timezone, s.reactions, s.allow_custom_reactions, s.blind_mood, s.allow_media_download, s.desires_enabled, s.evening_menu_enabled, s.created_at
+        "SELECT s.id, s.name, s.timezone, s.reactions, s.allow_custom_reactions, s.blind_mood, s.allow_media_download, s.desires_enabled, s.desires_explicit_labels, s.evening_menu_enabled, s.created_at
          FROM spaces s
          JOIN space_memberships m ON m.space_id = s.id
          WHERE m.user_id = $1
@@ -301,7 +305,7 @@ async fn join_by_invite(
     }
 
     let space: Space = sqlx::query_as(
-        "SELECT id, name, timezone, reactions, allow_custom_reactions, blind_mood, allow_media_download, desires_enabled, evening_menu_enabled, created_at
+        "SELECT id, name, timezone, reactions, allow_custom_reactions, blind_mood, allow_media_download, desires_enabled, desires_explicit_labels, evening_menu_enabled, created_at
          FROM spaces WHERE id = $1 FOR UPDATE",
     )
     .bind(space_id)

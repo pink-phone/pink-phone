@@ -192,23 +192,31 @@ export const updateSpace = (
     blindMood?: boolean;
     allowMediaDownload?: boolean;
     desiresEnabled?: boolean;
+    desiresExplicitLabels?: boolean;
     eveningMenuEnabled?: boolean;
   },
 ) => req<Space>(`/api/spaces/${spaceId}`, { method: "PATCH", json: body });
 
 // ---------- Envies / Dossier Noir (#99) ----------
 
-/** Catalogue d'envies + mon intérêt + état « matché » (double consentement). */
+/** Catalogue d'envies + mon stance + match/limite/réalisé (bucket list #99). */
 export const listDesires = (spaceId: string) =>
   req<ApiDesire[]>(`/api/spaces/${spaceId}/desires`);
 
-export const setDesireInterest = (spaceId: string, code: string) =>
-  req<ApiDesire>(`/api/spaces/${spaceId}/desires/${code}/interest`, {
+/** Pose mon stance sur une envie : `want` (envie) ou `against` (contre/limite). */
+export const setDesireStance = (
+  spaceId: string,
+  code: string,
+  stance: "want" | "against",
+) =>
+  req<ApiDesire>(`/api/spaces/${spaceId}/desires/${code}/stance`, {
     method: "PUT",
+    json: { stance },
   });
 
-export const unsetDesireInterest = (spaceId: string, code: string) =>
-  req<ApiDesire>(`/api/spaces/${spaceId}/desires/${code}/interest`, {
+/** Repasse une envie en neutre (retire mon envie/contre). */
+export const clearDesireStance = (spaceId: string, code: string) =>
+  req<ApiDesire>(`/api/spaces/${spaceId}/desires/${code}/stance`, {
     method: "DELETE",
   });
 

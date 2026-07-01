@@ -4,17 +4,22 @@ import { DesireCard } from "../../components/DesireCard/DesireCard";
 import type { ApiDesire } from "../../api/types";
 
 export interface DesiresScreenProps {
-  /** Catalogue + mon intérêt + match + réalisé (déjà chargé par l'orchestration). */
+  /** Catalogue + mon stance + match/limite/réalisé (déjà chargé par l'orchestration). */
   items: ApiDesire[];
-  /** Bascule mon intérêt pour une envie (par code). */
-  onToggle?: (code: string) => void;
-  /** Bascule « ✓ Réalisé » (couple) pour une envie (par code). */
+  /** Registre des libellés : explicite (défaut) ou suggestif (#99). */
+  explicit?: boolean;
+  /** Pose/retire mon « envie » (par code). */
+  onToggleWant?: (code: string) => void;
+  /** Pose/retire mon « contre » = limite (par code). */
+  onToggleAgainst?: (code: string) => void;
+  /** Bascule « ✓ Réalisé » (couple) (par code). */
   onToggleDone?: (code: string) => void;
+  /** Bouton retour (absent quand la bucket list est un onglet). */
   onBack?: () => void;
 }
 
-// Code stable → clé i18n typée. Mêmes 34 codes que la const Rust
-// `DESIRE_CATEGORIES` (source de vérité ; #99).
+// Code stable → clé i18n typée. Mêmes 50 codes que la const Rust
+// `DESIRE_CATEGORIES` (source de vérité ; #99). Code inconnu → ignoré.
 const LABEL_KEYS = {
   morningCuddle: "desires.items.morningCuddle",
   oilMassage: "desires.items.oilMassage",
@@ -28,10 +33,16 @@ const LABEL_KEYS = {
   photoSession: "desires.items.photoSession",
   writeFantasy: "desires.items.writeFantasy",
   daySexting: "desires.items.daySexting",
-  kamaPosition: "desires.items.kamaPosition",
-  mirror: "desires.items.mirror",
-  tantric: "desires.items.tantric",
+  missionary: "desires.items.missionary",
+  doggy: "desires.items.doggy",
+  cowgirl: "desires.items.cowgirl",
+  reverseCowgirl: "desires.items.reverseCowgirl",
   spooning: "desires.items.spooning",
+  lotus: "desires.items.lotus",
+  wheelbarrow: "desires.items.wheelbarrow",
+  standing: "desires.items.standing",
+  edgeOfBed: "desires.items.edgeOfBed",
+  mirror: "desires.items.mirror",
   newPositionMonthly: "desires.items.newPositionMonthly",
   blindfold: "desires.items.blindfold",
   lightBondage: "desires.items.lightBondage",
@@ -50,42 +61,78 @@ const LABEL_KEYS = {
   anotherRoom: "desires.items.anotherRoom",
   semiPublic: "desires.items.semiPublic",
   voyeur: "desires.items.voyeur",
+  fellatio: "desires.items.fellatio",
+  cunnilingus: "desires.items.cunnilingus",
+  sixtyNine: "desires.items.sixtyNine",
+  mutualMasturbation: "desires.items.mutualMasturbation",
+  fingering: "desires.items.fingering",
+  rimming: "desires.items.rimming",
+  anal: "desires.items.anal",
+  facial: "desires.items.facial",
+  swallow: "desires.items.swallow",
+  squirting: "desires.items.squirting",
 } as const;
+
+// Variante suggestive (uniquement pour les items crus) — utilisée quand le salon
+// désactive les libellés explicites.
+const SOFT_LABEL_KEYS: Partial<Record<keyof typeof LABEL_KEYS, string>> = {
+  fellatio: "desires.itemsSoft.fellatio",
+  cunnilingus: "desires.itemsSoft.cunnilingus",
+  sixtyNine: "desires.itemsSoft.sixtyNine",
+  mutualMasturbation: "desires.itemsSoft.mutualMasturbation",
+  fingering: "desires.itemsSoft.fingering",
+  rimming: "desires.itemsSoft.rimming",
+  anal: "desires.itemsSoft.anal",
+  facial: "desires.itemsSoft.facial",
+  swallow: "desires.itemsSoft.swallow",
+  squirting: "desires.itemsSoft.squirting",
+};
 
 const CATEGORY_KEYS = {
   tender: "desires.categories.tender",
   games: "desires.categories.games",
-  kamasutra: "desires.categories.kamasutra",
+  positions: "desires.categories.positions",
   sensations: "desires.categories.sensations",
   power: "desires.categories.power",
   places: "desires.categories.places",
+  practices: "desires.categories.practices",
 } as const;
 
 const CATEGORY_ORDER = [
   "tender",
   "games",
-  "kamasutra",
+  "positions",
   "sensations",
   "power",
   "places",
+  "practices",
 ] as const;
 
-/** Écran dédié « Bucket list » (#99) : envies rangées par catégorie (sections
- *  repliables). On coche en secret (→ match) et on marque « ✓ Réalisé ». */
+/** Bucket list (#99) : envies par catégorie (sections repliables). Trois états
+ *  (envie/neutre/contre) + « ✓ Réalisé ». Registre de libellés explicite/suggestif. */
 export function DesiresScreen({
   items,
-  onToggle,
+  explicit = true,
+  onToggleWant,
+  onToggleAgainst,
   onToggleDone,
   onBack,
 }: DesiresScreenProps) {
   const { t } = useTranslation();
-  // Catégories ouvertes (repliées par défaut → écran épuré, on explore au tap).
   const [open, setOpen] = useState<Record<string, boolean>>({});
 
   const known = items.filter(
     (d): d is ApiDesire & { code: keyof typeof LABEL_KEYS } =>
       d.code in LABEL_KEYS,
   );
+
+  const labelFor = (code: keyof typeof LABEL_KEYS): string => {
+    if (!explicit) {
+      const soft = SOFT_LABEL_KEYS[code];
+      if (soft) return t(soft as "desires.itemsSoft.fellatio");
+    }
+    return t(LABEL_KEYS[code]);
+  };
 
   return (
     <div className="space-y-5">
@@ -112,6 +159,7 @@ export function DesiresScreen({
           const inCat = known.filter((d) => d.category === cat);
           if (inCat.length === 0) return null;
           const matches = inCat.filter((d) => d.matched).length;
+          const limits = inCat.filter((d) => d.limit).length;
           const dones = inCat.filter((d) => d.done).length;
           const isOpen = open[cat] ?? false;
           return (
@@ -131,6 +179,11 @@ export function DesiresScreen({
                       ✨ {matches}
                     </span>
                   )}
+                  {limits > 0 && (
+                    <span className="rounded-full border border-taupe-300/40 px-2 py-0.5 text-xs text-taupe-300">
+                      ❌ {limits}
+                    </span>
+                  )}
                   {dones > 0 && (
                     <span className="rounded-full bg-spice-500/20 px-2 py-0.5 text-xs text-spice-200">
                       ✓ {dones}
@@ -146,11 +199,18 @@ export function DesiresScreen({
                   {inCat.map((d) => (
                     <Fragment key={d.code}>
                       <DesireCard
-                        label={t(LABEL_KEYS[d.code])}
+                        label={labelFor(d.code)}
                         interested={d.interested}
+                        against={d.against}
                         matched={d.matched}
+                        limit={d.limit}
                         done={d.done}
-                        onToggle={() => onToggle?.(d.code)}
+                        onToggleWant={() => onToggleWant?.(d.code)}
+                        onToggleAgainst={
+                          onToggleAgainst
+                            ? () => onToggleAgainst(d.code)
+                            : undefined
+                        }
                         onToggleDone={
                           onToggleDone ? () => onToggleDone(d.code) : undefined
                         }

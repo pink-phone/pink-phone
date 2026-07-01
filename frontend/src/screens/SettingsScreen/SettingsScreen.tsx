@@ -88,6 +88,7 @@ export interface SettingsScreenProps {
     blindMood?: boolean;
     allowMediaDownload?: boolean;
     desiresEnabled?: boolean;
+    desiresExplicitLabels?: boolean;
     eveningMenuEnabled?: boolean;
   };
   members?: { id: string; name: string }[];
@@ -108,6 +109,8 @@ export interface SettingsScreenProps {
   onAllowMediaDownloadChange?: (enabled: boolean) => void;
   /** Active/désactive la liste d'envies à double consentement (#99). */
   onDesiresEnabledChange?: (enabled: boolean) => void;
+  /** Bascule le registre des libellés de la bucket list (explicite/suggestif). */
+  onDesiresExplicitChange?: (explicit: boolean) => void;
   /** Active/désactive le « Menu du soir » (rituel quotidien, #97b). */
   onEveningMenuEnabledChange?: (enabled: boolean) => void;
   /** Réactions du salon (ordre + emoji libres). Affichées si fournies. */
@@ -146,6 +149,7 @@ export function SettingsScreen({
   onBlindMoodChange,
   onAllowMediaDownloadChange,
   onDesiresEnabledChange,
+  onDesiresExplicitChange,
   onEveningMenuEnabledChange,
   reactions,
   allowCustomReactions = true,
@@ -484,13 +488,23 @@ export function SettingsScreen({
               />
             )}
 
-            {/* Liste d'envies à double consentement (#99) */}
+            {/* Bucket list (#99) */}
             {onDesiresEnabledChange && (
               <Toggle
                 checked={space.desiresEnabled ?? false}
                 onChange={onDesiresEnabledChange}
                 label={t("settings.desiresEnabled")}
                 hint={t("settings.desiresEnabledHint")}
+              />
+            )}
+
+            {/* Registre des libellés bucket list (explicite/suggestif) — si activée. */}
+            {onDesiresExplicitChange && space.desiresEnabled && (
+              <Toggle
+                checked={space.desiresExplicitLabels ?? true}
+                onChange={onDesiresExplicitChange}
+                label={t("settings.desiresExplicit")}
+                hint={t("settings.desiresExplicitHint")}
               />
             )}
 
