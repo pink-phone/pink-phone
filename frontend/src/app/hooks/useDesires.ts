@@ -30,35 +30,36 @@ export function useDesires(spaceId: string, enabled: boolean) {
     refetch();
   }, [refetch]);
 
-  const toggleInterest = async (code: string) => {
+  // Pose (ou retire, si déjà posé) un stance : « want » (envie) ou « against »
+  // (contre/limite). Optimiste ; le serveur renvoie l'état réel (match/limite que
+  // je ne peux pas toujours déduire à cause du double-aveugle).
+  const setStance = async (code: string, stance: "want" | "against") => {
     const current = desires.find((d) => d.code === code);
-    const next = !current?.interested;
-    // Optimiste : on bascule l'intérêt ; le match reste inconnu jusqu'à la
-    // réponse serveur (false si on retire).
+    const already =
+      stance === "want" ? current?.interested : current?.against;
     setDesires((prev) =>
       prev.map((d) =>
         d.code === code
-          ? { ...d, interested: next, matched: next ? d.matched : false }
+          ? {
+              ...d,
+              interested: already ? false : stance === "want",
+              against: already ? false : stance === "against",
+              matched:
+                already || stance === "against" ? false : d.matched,
+              // Poser « contre » = limite certaine ; sinon on garde (serveur corrige).
+              limit: stance === "against" && !already ? true : d.limit,
+            }
           : d,
       ),
     );
     try {
-      const updated = next
-        ? await api.setDesireInterest(spaceId, code)
-        : await api.unsetDesireInterest(spaceId, code);
-      setDesires((prev) =>
-        prev.map((d) => (d.code === code ? updated : d)),
-      );
+      const updated = already
+        ? await api.clearDesireStance(spaceId, code)
+        : await api.setDesireStance(spaceId, code, stance);
+      setDesires((prev) => prev.map((d) => (d.code === code ? updated : d)));
     } catch (e) {
-      console.error("bascule d'envie échouée", e);
-      // Rollback : on rétablit l'état précédent connu.
-      setDesires((prev) =>
-        prev.map((d) =>
-          d.code === code
-            ? { ...d, interested: !next, matched: current?.matched ?? false }
-            : d,
-        ),
-      );
+      console.error("bascule de stance échouée", e);
+      refetch(); // resync (l'état multi-champs est plus sûr rechargé)
     }
   };
 
@@ -82,5 +83,5 @@ export function useDesires(spaceId: string, enabled: boolean) {
     }
   };
 
-  return { desires, refetch, toggleInterest, toggleDone };
+  return { desires, refetch, setStance, toggleDone };
 }

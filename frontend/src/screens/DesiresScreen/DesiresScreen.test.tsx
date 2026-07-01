@@ -12,59 +12,70 @@ const d = (
   code,
   category,
   interested: false,
+  against: false,
   matched: false,
+  limit: false,
   done: false,
   ...over,
 });
 
 describe("DesiresScreen", () => {
-  it("affiche les en-têtes de catégorie (i18n), items repliés par défaut", () => {
+  it("en-têtes de catégorie (dont Pratiques), items repliés par défaut", () => {
     render(
-      <DesiresScreen items={[d("oilMassage", "tender"), d("roleplay", "games")]} />,
+      <DesiresScreen items={[d("oilMassage", "tender"), d("fellatio", "practices")]} />,
     );
     expect(
       screen.getByRole("button", { name: /Tendre & complice/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /Jeux & scénarios/i }),
+      screen.getByRole("button", { name: /Pratiques/i }),
     ).toBeInTheDocument();
-    // Replié : le libellé de l'item n'est pas rendu.
     expect(screen.queryByText("Un massage aux huiles")).toBeNull();
   });
 
-  it("déplie une catégorie au clic et montre ses items", async () => {
-    render(<DesiresScreen items={[d("oilMassage", "tender")]} />);
-    const header = screen.getByRole("button", { name: /Tendre & complice/i });
-    expect(header).toHaveAttribute("aria-expanded", "false");
-    await userEvent.click(header);
-    expect(header).toHaveAttribute("aria-expanded", "true");
-    expect(screen.getByText("Un massage aux huiles")).toBeInTheDocument();
+  it("registre explicite vs suggestif change le libellé d'un item cru", async () => {
+    const { rerender } = render(
+      <DesiresScreen items={[d("fellatio", "practices")]} explicit />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /Pratiques/i }));
+    expect(screen.getByText("Fellation")).toBeInTheDocument();
+    // rerender garde la catégorie dépliée : le libellé bascule en suggestif.
+    rerender(<DesiresScreen items={[d("fellatio", "practices")]} explicit={false} />);
+    expect(screen.getByText("Une gâterie")).toBeInTheDocument();
+    expect(screen.queryByText("Fellation")).toBeNull();
   });
 
-  it("en-tête de catégorie : badge match quand il y a un match dedans", () => {
+  it("en-tête : badge match + badge limite", () => {
     render(
       <DesiresScreen
-        items={[d("oilMassage", "tender", { interested: true, matched: true })]}
+        items={[
+          d("oilMassage", "tender", { interested: true, matched: true }),
+          d("bathTogether", "tender", { limit: true }),
+        ]}
       />,
     );
-    expect(
-      screen.getByRole("button", { name: /Tendre & complice/i }),
-    ).toHaveTextContent("✨ 1");
+    const header = screen.getByRole("button", { name: /Tendre & complice/i });
+    expect(header).toHaveTextContent("✨ 1");
+    expect(header).toHaveTextContent("❌ 1");
   });
 
-  it("toggles d'intérêt et de réalisé câblés sur les bons codes", async () => {
-    const onToggle = vi.fn();
+  it("envie / contre / réalisé câblés sur les bons codes", async () => {
+    const onToggleWant = vi.fn();
+    const onToggleAgainst = vi.fn();
     const onToggleDone = vi.fn();
     render(
       <DesiresScreen
         items={[d("oilMassage", "tender")]}
-        onToggle={onToggle}
+        onToggleWant={onToggleWant}
+        onToggleAgainst={onToggleAgainst}
         onToggleDone={onToggleDone}
       />,
     );
     await userEvent.click(screen.getByRole("button", { name: /Tendre/i }));
     await userEvent.click(screen.getByRole("button", { name: /tente/i }));
-    expect(onToggle).toHaveBeenCalledWith("oilMassage");
+    expect(onToggleWant).toHaveBeenCalledWith("oilMassage");
+    await userEvent.click(screen.getByRole("button", { name: /contre|limite/i }));
+    expect(onToggleAgainst).toHaveBeenCalledWith("oilMassage");
     await userEvent.click(screen.getByRole("button", { name: /réalisé/i }));
     expect(onToggleDone).toHaveBeenCalledWith("oilMassage");
   });

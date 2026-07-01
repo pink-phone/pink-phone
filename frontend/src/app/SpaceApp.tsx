@@ -152,7 +152,7 @@ export function SpaceApp({
   const {
     desires,
     refetch: refetchDesires,
-    toggleInterest: toggleDesire,
+    setStance: setDesireStance,
     toggleDone: toggleDesireDone,
   } = useDesires(space.id, space.desiresEnabled);
   const [openSheet, setOpenSheet] = useState<"post" | "challenge" | null>(null);
@@ -179,7 +179,6 @@ export function SpaceApp({
   // Réglages / notifications.
   const [showSettings, setShowSettings] = useState(false);
   const [showBank, setShowBank] = useState(false);
-  const [showDesires, setShowDesires] = useState(false);
   const [notifMode, setNotifMode] = useState<NotifMode>("ghost");
   const [settingsBusy, setSettingsBusy] = useState(false);
   const [pushError, setPushError] = useState<string | null>(null);
@@ -355,7 +354,6 @@ export function SpaceApp({
   // Retour Android / swipe iOS ferment la surface ouverte (au lieu de quitter).
   useBackClose(showSettings, () => setShowSettings(false));
   useBackClose(showBank, () => setShowBank(false));
-  useBackClose(showDesires, () => setShowDesires(false));
   useBackClose(openSheet !== null, () => {
     setOpenSheet(null);
     setEditingPost(null);
@@ -544,6 +542,14 @@ export function SpaceApp({
     }
   };
 
+  const changeDesiresExplicit = async (desiresExplicitLabels: boolean) => {
+    try {
+      setSpace(await api.updateSpace(space.id, { desiresExplicitLabels }));
+    } catch (e) {
+      console.error("changement du registre des libellés échoué", e);
+    }
+  };
+
   const changeNotifMode = async (mode: NotifMode) => {
     setSettingsBusy(true);
     setPushError(null);
@@ -577,6 +583,7 @@ export function SpaceApp({
             blindMood: space.blindMood,
             allowMediaDownload: space.allowMediaDownload,
             desiresEnabled: space.desiresEnabled,
+            desiresExplicitLabels: space.desiresExplicitLabels,
           }}
           members={members.map((m) => ({ id: m.id, name: m.displayName }))}
           inviteCode={inviteCode}
@@ -591,6 +598,7 @@ export function SpaceApp({
           onBlindMoodChange={changeBlindMood}
           onAllowMediaDownloadChange={changeAllowMediaDownload}
           onDesiresEnabledChange={changeDesiresEnabled}
+          onDesiresExplicitChange={changeDesiresExplicit}
           reactions={space.reactions}
           allowCustomReactions={space.allowCustomReactions}
           onReactionsChange={changeReactions}
@@ -643,27 +651,25 @@ export function SpaceApp({
     );
   }
 
-  if (showDesires) {
-    return (
-      <div className="mx-auto h-dvh max-w-md overflow-y-auto overscroll-contain bg-charcoal-900 bg-felt-velvet px-4 pb-[calc(2.5rem+env(safe-area-inset-bottom))] pt-[calc(1rem+env(safe-area-inset-top))]">
-        <DesiresScreen
-          items={desires}
-          onToggle={toggleDesire}
-          onToggleDone={toggleDesireDone}
-          onBack={() => setShowDesires(false)}
-        />
-      </div>
-    );
-  }
 
+
+  // La bucket list (#99) est un onglet (si activée). Si on désactive pendant
+  // qu'on y est, on retombe sur l'accueil.
+  const activeTab =
+    tab === "desires" && !space.desiresEnabled ? "dashboard" : tab;
 
   return (
     <AppShell
-      active={tab}
+      active={activeTab}
       onTabChange={setTab}
-      badges={{ blog: newPosts, challenges: newChallenges }}
+      badges={{
+        blog: newPosts,
+        challenges: newChallenges,
+        desires: desires.filter((d) => d.matched).length,
+      }}
+      desiresEnabled={space.desiresEnabled}
     >
-      {tab === "dashboard" && (
+      {activeTab === "dashboard" && (
         <DashboardScreen
           spaceName={space.name}
           partners={partnerCards}
@@ -678,9 +684,16 @@ export function SpaceApp({
           newChallenges={newChallenges}
           notices={dashboardNotices}
           onOpen={setTab}
-          desiresEnabled={space.desiresEnabled}
-          desireMatches={desires.filter((d) => d.matched).length}
-          onOpenDesires={() => setShowDesires(true)}
+        />
+      )}
+
+      {activeTab === "desires" && (
+        <DesiresScreen
+          items={desires}
+          explicit={space.desiresExplicitLabels}
+          onToggleWant={(code) => setDesireStance(code, "want")}
+          onToggleAgainst={(code) => setDesireStance(code, "against")}
+          onToggleDone={toggleDesireDone}
         />
       )}
 

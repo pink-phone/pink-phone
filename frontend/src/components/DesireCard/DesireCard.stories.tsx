@@ -17,36 +17,44 @@ const meta = {
     docs: {
       description: {
         component:
-          "Une envie de la bucket list (#99). Bouton « intérêt » (privé, double-aveugle : neutre/coché/matché) + bouton « ✓ Réalisé » (partagé, couple).",
+          "Une envie de la bucket list (#99). 3 états perso (neutre / ♥ envie / 🚫 contre) — l'envie est double-aveugle (révélée en match), le contre pose une limite surfacée. + « ✓ Réalisé » partagé (couple).",
       },
     },
   },
-  argTypes: { onToggle: { action: "intérêt" }, onToggleDone: { action: "réalisé" } },
+  argTypes: {
+    onToggleWant: { action: "envie" },
+    onToggleAgainst: { action: "contre" },
+    onToggleDone: { action: "réalisé" },
+  },
   args: {
-    label: "Massage aux huiles",
+    label: "Un massage aux huiles",
     interested: false,
     matched: false,
-    done: false,
   },
 } satisfies Meta<typeof DesireCard>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** Pas encore coché : cœur creux, surface neutre. */
 export const Neutre: Story = {};
 
-/** Coché par moi seul·e : cœur plein, liseré spice — l'autre n'en sait rien. */
-export const Interesse: Story = {
+export const Envie: Story = {
   args: { interested: true },
 };
 
-/** Match : les deux l'ont coché → braise + badge « Match ! ». */
-export const Matche: Story = {
+export const Contre: Story = {
+  args: { against: true, limit: true },
+};
+
+export const Limite: Story = {
+  name: "Limite du partenaire",
+  args: { limit: true },
+};
+
+export const Match: Story = {
   args: { interested: true, matched: true },
 };
 
-/** Marqué « ✓ Réalisé » (couple) : badge + bouton réalisé actif. */
 export const Realise: Story = {
   args: { interested: true, matched: true, done: true },
 };

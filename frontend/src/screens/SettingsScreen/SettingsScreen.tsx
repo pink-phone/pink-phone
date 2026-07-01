@@ -88,6 +88,7 @@ export interface SettingsScreenProps {
     blindMood?: boolean;
     allowMediaDownload?: boolean;
     desiresEnabled?: boolean;
+    desiresExplicitLabels?: boolean;
   };
   members?: { id: string; name: string }[];
   /** Invitation d'un nouveau membre dans CE salon (#52) — code lisible + générateur. */
@@ -107,6 +108,8 @@ export interface SettingsScreenProps {
   onAllowMediaDownloadChange?: (enabled: boolean) => void;
   /** Active/désactive la liste d'envies à double consentement (#99). */
   onDesiresEnabledChange?: (enabled: boolean) => void;
+  /** Bascule le registre des libellés de la bucket list (explicite/suggestif). */
+  onDesiresExplicitChange?: (explicit: boolean) => void;
   /** Réactions du salon (ordre + emoji libres). Affichées si fournies. */
   reactions?: ReactionId[];
   allowCustomReactions?: boolean;
@@ -143,6 +146,7 @@ export function SettingsScreen({
   onBlindMoodChange,
   onAllowMediaDownloadChange,
   onDesiresEnabledChange,
+  onDesiresExplicitChange,
   reactions,
   allowCustomReactions = true,
   onReactionsChange,
@@ -480,13 +484,23 @@ export function SettingsScreen({
               />
             )}
 
-            {/* Liste d'envies à double consentement (#99) */}
+            {/* Bucket list (#99) */}
             {onDesiresEnabledChange && (
               <Toggle
                 checked={space.desiresEnabled ?? false}
                 onChange={onDesiresEnabledChange}
                 label={t("settings.desiresEnabled")}
                 hint={t("settings.desiresEnabledHint")}
+              />
+            )}
+
+            {/* Registre des libellés bucket list (explicite/suggestif) — si activée. */}
+            {onDesiresExplicitChange && space.desiresEnabled && (
+              <Toggle
+                checked={space.desiresExplicitLabels ?? true}
+                onChange={onDesiresExplicitChange}
+                label={t("settings.desiresExplicit")}
+                hint={t("settings.desiresExplicitHint")}
               />
             )}
           </Surface>

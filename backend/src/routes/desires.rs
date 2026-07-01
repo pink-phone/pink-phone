@@ -3,6 +3,7 @@ use std::collections::HashSet;
 use axum::extract::{Path, State};
 use axum::routing::{get, put};
 use axum::{Json, Router};
+use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::auth::AuthUser;
@@ -11,18 +12,17 @@ use crate::models::{desire_category, DesireItem, DESIRE_CATEGORIES};
 use crate::routes::ensure_member;
 use crate::state::{AppState, EventKind};
 
-// Bucket list d'envies à double consentement (#99), optionnelle par salon. Le
-// catalogue = const `DESIRE_CATEGORIES` (libellés items + catégories via i18n
-// front). Chacun coche en privé ; un code n'est « matché » que si MOI ET un autre
-// membre l'avons coché → l'intérêt brut des autres n'est JAMAIS exposé sans
-// réciprocité. En plus, « ✓ Réalisé » est un suivi NIVEAU SALON (couple).
+// Bucket list (#99), optionnelle par salon. Chacun pose un « stance » par item :
+// 'want' (envie, DOUBLE-AVEUGLE : révélé seulement en cas de réciprocité) ou
+// 'against' (contre = LIMITE, SURFACÉE au couple, bloque le match). Neutre =
+// absence de ligne. « ✓ Réalisé » est un suivi niveau salon (couple).
 
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/api/spaces/{id}/desires", get(list_desires))
         .route(
-            "/api/spaces/{id}/desires/{code}/interest",
-            put(set_interest).delete(clear_interest),
+            "/api/spaces/{id}/desires/{code}/stance",
+            put(set_stance).delete(clear_stance),
         )
         .route(
             "/api/spaces/{id}/desires/{code}/done",
@@ -30,8 +30,7 @@ pub fn router() -> Router<AppState> {
         )
 }
 
-/// Garde commune : membre du salon ET fonctionnalité activée (#99). 403 si
-/// désactivée (défense en profondeur ; le front ne propose l'écran que si activée).
+/// Garde commune : membre du salon ET fonctionnalité activée (#99). 403 si off.
 async fn ensure_enabled(
     pool: &sqlx::PgPool,
     user_id: Uuid,
@@ -54,18 +53,6 @@ fn category_of(code: &str) -> ApiResult<&'static str> {
     desire_category(code).ok_or(ApiError::NotFound)
 }
 
-/// Le couple a-t-il marqué ce code « réalisé » ?
-async fn is_done(pool: &sqlx::PgPool, space_id: Uuid, code: &str) -> ApiResult<bool> {
-    let exists: bool = sqlx::query_scalar(
-        "SELECT EXISTS(SELECT 1 FROM desire_done WHERE space_id = $1 AND code = $2)",
-    )
-    .bind(space_id)
-    .bind(code)
-    .fetch_one(pool)
-    .await?;
-    Ok(exists)
-}
-
 async fn list_desires(
     State(state): State<AppState>,
     auth: AuthUser,
@@ -73,11 +60,30 @@ async fn list_desires(
 ) -> ApiResult<Json<Vec<DesireItem>>> {
     ensure_enabled(&state.pool, auth.user_id, space_id).await?;
 
-    // Mes intérêts + les codes pour lesquels un AUTRE membre a un intérêt (sans
-    // jamais dire QUI) : `matched` = intersection (réciprocité). + le set des codes
-    // « réalisés » par le couple.
-    let mine: HashSet<String> = sqlx::query_scalar(
-        "SELECT code FROM desire_interests WHERE space_id = $1 AND user_id = $2",
+    // Mon stance par code.
+    let my_rows: Vec<(String, String)> = sqlx::query_as(
+        "SELECT code, stance FROM desire_interests WHERE space_id = $1 AND user_id = $2",
+    )
+    .bind(space_id)
+    .bind(auth.user_id)
+    .fetch_all(&state.pool)
+    .await?;
+    let my_want: HashSet<&str> = my_rows
+        .iter()
+        .filter(|(_, s)| s == "want")
+        .map(|(c, _)| c.as_str())
+        .collect();
+    let my_against: HashSet<&str> = my_rows
+        .iter()
+        .filter(|(_, s)| s == "against")
+        .map(|(c, _)| c.as_str())
+        .collect();
+
+    // Ce que les AUTRES membres ont posé (sans dire qui) : leurs 'want' (secret,
+    // sert au match) et leurs 'against' (surfacés en limite).
+    let other_want: HashSet<String> = sqlx::query_scalar(
+        "SELECT DISTINCT code FROM desire_interests
+         WHERE space_id = $1 AND user_id <> $2 AND stance = 'want'",
     )
     .bind(space_id)
     .bind(auth.user_id)
@@ -85,9 +91,9 @@ async fn list_desires(
     .await?
     .into_iter()
     .collect();
-    let others: HashSet<String> = sqlx::query_scalar(
+    let other_against: HashSet<String> = sqlx::query_scalar(
         "SELECT DISTINCT code FROM desire_interests
-         WHERE space_id = $1 AND user_id <> $2",
+         WHERE space_id = $1 AND user_id <> $2 AND stance = 'against'",
     )
     .bind(space_id)
     .bind(auth.user_id)
@@ -103,18 +109,20 @@ async fn list_desires(
             .into_iter()
             .collect();
 
-    // Items dans l'ordre du catalogue (catégorie par catégorie).
     let mut items = Vec::new();
     for (category, codes) in DESIRE_CATEGORIES {
         for &code in *codes {
-            let interested = mine.contains(code);
+            let interested = my_want.contains(code);
+            let against = my_against.contains(code);
             items.push(DesireItem {
                 code: code.to_string(),
                 category: category.to_string(),
                 interested,
-                // Double-aveugle : on ne révèle un match que si JE suis aussi
-                // intéressé·e (sinon je découvrirais le secret de l'autre).
-                matched: interested && others.contains(code),
+                against,
+                // Double-aveugle : match seulement si JE veux aussi.
+                matched: interested && other_want.contains(code),
+                // Surfacé : n'importe quel « contre » = limite du couple.
+                limit: against || other_against.contains(code),
                 done: done.contains(code),
             });
         }
@@ -122,75 +130,130 @@ async fn list_desires(
     Ok(Json(items))
 }
 
-/// Vrai si un AUTRE membre est intéressé par ce code (→ match si je le suis aussi).
-async fn other_interested(
+/// Reconstruit la vue d'UN item (après un toggle) avec toutes ses facettes.
+async fn build_item(
     pool: &sqlx::PgPool,
     space_id: Uuid,
     me: Uuid,
     code: &str,
-) -> ApiResult<bool> {
-    let exists: bool = sqlx::query_scalar(
+    category: &str,
+) -> ApiResult<DesireItem> {
+    let my_stance: Option<String> = sqlx::query_scalar(
+        "SELECT stance FROM desire_interests WHERE space_id = $1 AND user_id = $2 AND code = $3",
+    )
+    .bind(space_id)
+    .bind(me)
+    .bind(code)
+    .fetch_optional(pool)
+    .await?;
+    let interested = my_stance.as_deref() == Some("want");
+    let against = my_stance.as_deref() == Some("against");
+    let other_want: bool = sqlx::query_scalar(
         "SELECT EXISTS(SELECT 1 FROM desire_interests
-         WHERE space_id = $1 AND code = $2 AND user_id <> $3)",
+         WHERE space_id = $1 AND code = $2 AND user_id <> $3 AND stance = 'want')",
     )
     .bind(space_id)
     .bind(code)
     .bind(me)
     .fetch_one(pool)
     .await?;
-    Ok(exists)
+    let other_against: bool = sqlx::query_scalar(
+        "SELECT EXISTS(SELECT 1 FROM desire_interests
+         WHERE space_id = $1 AND code = $2 AND user_id <> $3 AND stance = 'against')",
+    )
+    .bind(space_id)
+    .bind(code)
+    .bind(me)
+    .fetch_one(pool)
+    .await?;
+    let done: bool = sqlx::query_scalar(
+        "SELECT EXISTS(SELECT 1 FROM desire_done WHERE space_id = $1 AND code = $2)",
+    )
+    .bind(space_id)
+    .bind(code)
+    .fetch_one(pool)
+    .await?;
+    Ok(DesireItem {
+        code: code.to_string(),
+        category: category.to_string(),
+        interested,
+        against,
+        matched: interested && other_want,
+        limit: against || other_against,
+        done,
+    })
 }
 
-async fn set_interest(
+#[derive(Deserialize)]
+pub struct StanceBody {
+    /// 'want' (envie) ou 'against' (contre / limite).
+    pub stance: String,
+}
+
+async fn set_stance(
     State(state): State<AppState>,
     auth: AuthUser,
     Path((space_id, code)): Path<(Uuid, String)>,
+    Json(body): Json<StanceBody>,
 ) -> ApiResult<Json<DesireItem>> {
     ensure_enabled(&state.pool, auth.user_id, space_id).await?;
     let category = category_of(&code)?;
+    if body.stance != "want" && body.stance != "against" {
+        return Err(ApiError::BadRequest("stance invalide".into()));
+    }
 
-    let res = sqlx::query(
-        "INSERT INTO desire_interests (space_id, user_id, code)
-         VALUES ($1, $2, $3) ON CONFLICT DO NOTHING",
+    let prev: Option<String> = sqlx::query_scalar(
+        "SELECT stance FROM desire_interests WHERE space_id = $1 AND user_id = $2 AND code = $3",
     )
     .bind(space_id)
     .bind(auth.user_id)
     .bind(&code)
+    .fetch_optional(&state.pool)
+    .await?;
+    sqlx::query(
+        "INSERT INTO desire_interests (space_id, user_id, code, stance)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (space_id, user_id, code) DO UPDATE SET stance = EXCLUDED.stance",
+    )
+    .bind(space_id)
+    .bind(auth.user_id)
+    .bind(&code)
+    .bind(&body.stance)
     .execute(&state.pool)
     .await?;
 
-    let matched = other_interested(&state.pool, space_id, auth.user_id, &code).await?;
+    let item = build_item(&state.pool, space_id, auth.user_id, &code, category).await?;
+    let changed = prev.as_deref() != Some(body.stance.as_str());
 
-    // Un NOUVEAU match (je viens de cocher, l'autre l'avait déjà) → on prévient le
-    // partenaire (event temps réel + push « C'est un match ! »). Pas d'émission si
-    // rien n'a changé (re-PUT idempotent) ni si l'autre n'a pas coché (double-aveugle).
-    if res.rows_affected() > 0 && matched {
+    if body.stance == "want" {
+        // Nouveau match (je viens de vouloir, l'autre voulait déjà) → révèle +
+        // push. Uniquement si le stance a changé (pas de re-push idempotent).
+        if changed && item.matched {
+            state.emit(space_id, auth.user_id, EventKind::Desire);
+            crate::notifications::notify_members(
+                &state,
+                space_id,
+                auth.user_id,
+                "C'est un match !".into(),
+            );
+        }
+    } else if changed {
+        // « Contre » : la limite est SURFACÉE au couple → on rafraîchit l'autre
+        // (pas de push : silencieux, ça apparaît à l'écran).
         state.emit(space_id, auth.user_id, EventKind::Desire);
-        crate::notifications::notify_members(
-            &state,
-            space_id,
-            auth.user_id,
-            "C'est un match !".into(),
-        );
     }
 
-    Ok(Json(DesireItem {
-        code: code.clone(),
-        category: category.to_string(),
-        interested: true,
-        matched,
-        done: is_done(&state.pool, space_id, &code).await?,
-    }))
+    Ok(Json(item))
 }
 
-async fn clear_interest(
+async fn clear_stance(
     State(state): State<AppState>,
     auth: AuthUser,
     Path((space_id, code)): Path<(Uuid, String)>,
 ) -> ApiResult<Json<DesireItem>> {
     ensure_enabled(&state.pool, auth.user_id, space_id).await?;
     let category = category_of(&code)?;
-    sqlx::query(
+    let res = sqlx::query(
         "DELETE FROM desire_interests WHERE space_id = $1 AND user_id = $2 AND code = $3",
     )
     .bind(space_id)
@@ -198,19 +261,18 @@ async fn clear_interest(
     .bind(&code)
     .execute(&state.pool)
     .await?;
-    // Plus intéressé·e → plus de match de mon point de vue (double-aveugle). On
-    // n'émet pas d'event : retirer mon intérêt ne doit pas signaler à l'autre.
-    Ok(Json(DesireItem {
-        code: code.clone(),
-        category: category.to_string(),
-        interested: false,
-        matched: false,
-        done: is_done(&state.pool, space_id, &code).await?,
-    }))
+    // Retirer un « contre » (ou un « want » matché) change ce que voit l'autre →
+    // on rafraîchit. (Un « want » privé non matché n'expose rien : refetch inoffensif.)
+    if res.rows_affected() > 0 {
+        state.emit(space_id, auth.user_id, EventKind::Desire);
+    }
+    Ok(Json(
+        build_item(&state.pool, space_id, auth.user_id, &code, category).await?,
+    ))
 }
 
-/// « ✓ Réalisé » est NIVEAU SALON (le couple coche). Émet un event pour que
-/// l'autre voie le badge — ce n'est pas un secret (≠ l'intérêt double-aveugle).
+/// « ✓ Réalisé » est NIVEAU SALON (le couple coche). Émet un event (badge partagé,
+/// ≠ secret).
 async fn set_done(
     State(state): State<AppState>,
     auth: AuthUser,
@@ -228,7 +290,9 @@ async fn set_done(
     .execute(&state.pool)
     .await?;
     state.emit(space_id, auth.user_id, EventKind::Desire);
-    Ok(Json(done_view(&state.pool, space_id, auth.user_id, &code, category, true).await?))
+    Ok(Json(
+        build_item(&state.pool, space_id, auth.user_id, &code, category).await?,
+    ))
 }
 
 async fn clear_done(
@@ -244,34 +308,7 @@ async fn clear_done(
         .execute(&state.pool)
         .await?;
     state.emit(space_id, auth.user_id, EventKind::Desire);
-    Ok(Json(done_view(&state.pool, space_id, auth.user_id, &code, category, false).await?))
-}
-
-/// Construit la vue d'un item après un toggle « réalisé » : on res, sert l'état
-/// d'intérêt/match de l'appelant (inchangé par le done) + le `done` fourni.
-async fn done_view(
-    pool: &sqlx::PgPool,
-    space_id: Uuid,
-    me: Uuid,
-    code: &str,
-    category: &str,
-    done: bool,
-) -> ApiResult<DesireItem> {
-    let interested: bool = sqlx::query_scalar(
-        "SELECT EXISTS(SELECT 1 FROM desire_interests
-         WHERE space_id = $1 AND user_id = $2 AND code = $3)",
-    )
-    .bind(space_id)
-    .bind(me)
-    .bind(code)
-    .fetch_one(pool)
-    .await?;
-    let matched = interested && other_interested(pool, space_id, me, code).await?;
-    Ok(DesireItem {
-        code: code.to_string(),
-        category: category.to_string(),
-        interested,
-        matched,
-        done,
-    })
+    Ok(Json(
+        build_item(&state.pool, space_id, auth.user_id, &code, category).await?,
+    ))
 }

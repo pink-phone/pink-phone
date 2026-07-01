@@ -2,30 +2,27 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { DesiresScreen } from "./DesiresScreen";
 import type { ApiDesire } from "../../api/types";
 
-// Un échantillon du catalogue catégorisé (#99).
 const CATALOG: Array<[string, string]> = [
   ["morningCuddle", "tender"],
   ["oilMassage", "tender"],
-  ["bathTogether", "tender"],
   ["roleplay", "games"],
-  ["truthOrDare", "games"],
-  ["kamaPosition", "kamasutra"],
-  ["mirror", "kamasutra"],
+  ["missionary", "positions"],
+  ["doggy", "positions"],
   ["blindfold", "sensations"],
-  ["spanking", "sensations"],
   ["gentleDomination", "power"],
-  ["outdoors", "places"],
   ["hotel", "places"],
+  ["fellatio", "practices"],
+  ["anal", "practices"],
 ];
 
-const items = (
-  over: Record<string, Partial<ApiDesire>> = {},
-): ApiDesire[] =>
+const d = (over: Record<string, Partial<ApiDesire>> = {}): ApiDesire[] =>
   CATALOG.map(([code, category]) => ({
     code,
     category,
     interested: false,
+    against: false,
     matched: false,
+    limit: false,
     done: false,
     ...over[code],
   }));
@@ -38,14 +35,14 @@ const meta = {
     docs: {
       description: {
         component:
-          "Bucket list (#99) : envies par catégorie (sections repliables). Coche secrète → match ; « ✓ Réalisé » au niveau du couple.",
+          "Bucket list (#99) : envies par catégorie (repliables). 3 états (envie/neutre/contre) + « ✓ Réalisé ». Registre explicite/suggestif.",
       },
     },
   },
   argTypes: {
-    onToggle: { action: "intérêt" },
+    onToggleWant: { action: "envie" },
+    onToggleAgainst: { action: "contre" },
     onToggleDone: { action: "réalisé" },
-    onBack: { action: "back" },
   },
   decorators: [
     (Story) => (
@@ -59,13 +56,18 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** Sections repliées par défaut (badges match/réalisé sur les en-têtes). */
-export const ParDéfaut: Story = {
+export const Explicite: Story = {
   args: {
-    items: items({
+    explicit: true,
+    items: d({
       oilMassage: { interested: true, matched: true },
-      bathTogether: { done: true },
-      roleplay: { interested: true },
+      missionary: { done: true },
+      anal: { against: true, limit: true },
+      fellatio: { limit: true },
     }),
   },
+};
+
+export const Suggestif: Story = {
+  args: { explicit: false, items: d() },
 };
