@@ -244,6 +244,27 @@ export const en: Resources = {
       squirting: "Take her over the edge",
     },
   },
+  eveningMenu: {
+    title: "Tonight's menu",
+    intro:
+      "Secretly tick what tempts you tonight. It's only revealed on a match. Resets each day.",
+    matchCount_one: "✨ {{count}} match",
+    matchCount_other: "✨ {{count}} matches",
+    pickAria: "Pick for tonight",
+    removeAria: "Remove from tonight",
+    items: {
+      cuddle: "Cuddles under the covers",
+      movie: "A movie, snuggled up",
+      candlelight: "Candlelit dinner",
+      bath: "A bath together",
+      massage: "A massage",
+      slowDance: "A slow dance, just us",
+      game: "A playful game",
+      roleplay: "A role play",
+      newThing: "Try something new",
+      passionate: "A passionate night",
+    },
+  },
   postComposer: {
     sheetWrite: "Write",
     sheetEdit: "Edit draft",
@@ -388,6 +409,9 @@ export const en: Resources = {
     desiresExplicit: "Explicit labels",
     desiresExplicitHint:
       "Bucket list: direct, blunt labels (“Fellatio”, “Anal sex”…). Turn off for a more suggestive register.",
+    eveningMenuEnabled: "Tonight's menu",
+    eveningMenuEnabledHint:
+      "Turn on the evening ritual on the home screen: each of you secretly ticks what tempts you “for tonight”; it's revealed on a match. Resets each day.",
     reactionsIntro: "Choose the space's reactions and their order.",
     reactionEnable: "Enable reaction",
     reactionDisable: "Disable reaction",

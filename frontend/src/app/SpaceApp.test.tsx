@@ -73,6 +73,7 @@ const space: Space = {
   allowMediaDownload: false,
   desiresEnabled: false,
   desiresExplicitLabels: true,
+  eveningMenuEnabled: false,
   createdAt: "2026-06-24T10:00:00.000Z",
 };
 const user: UserPublic = {

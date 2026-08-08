@@ -89,6 +89,7 @@ export interface SettingsScreenProps {
     allowMediaDownload?: boolean;
     desiresEnabled?: boolean;
     desiresExplicitLabels?: boolean;
+    eveningMenuEnabled?: boolean;
   };
   members?: { id: string; name: string }[];
   /** Invitation d'un nouveau membre dans CE salon (#52) — code lisible + générateur. */
@@ -110,6 +111,8 @@ export interface SettingsScreenProps {
   onDesiresEnabledChange?: (enabled: boolean) => void;
   /** Bascule le registre des libellés de la bucket list (explicite/suggestif). */
   onDesiresExplicitChange?: (explicit: boolean) => void;
+  /** Active/désactive le « Menu du soir » (rituel quotidien, #97b). */
+  onEveningMenuEnabledChange?: (enabled: boolean) => void;
   /** Réactions du salon (ordre + emoji libres). Affichées si fournies. */
   reactions?: ReactionId[];
   allowCustomReactions?: boolean;
@@ -147,6 +150,7 @@ export function SettingsScreen({
   onAllowMediaDownloadChange,
   onDesiresEnabledChange,
   onDesiresExplicitChange,
+  onEveningMenuEnabledChange,
   reactions,
   allowCustomReactions = true,
   onReactionsChange,
@@ -501,6 +505,16 @@ export function SettingsScreen({
                 onChange={onDesiresExplicitChange}
                 label={t("settings.desiresExplicit")}
                 hint={t("settings.desiresExplicitHint")}
+              />
+            )}
+
+            {/* Menu du soir : rituel quotidien (#97b) */}
+            {onEveningMenuEnabledChange && (
+              <Toggle
+                checked={space.eveningMenuEnabled ?? false}
+                onChange={onEveningMenuEnabledChange}
+                label={t("settings.eveningMenuEnabled")}
+                hint={t("settings.eveningMenuEnabledHint")}
               />
             )}
           </Surface>

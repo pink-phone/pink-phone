@@ -46,6 +46,8 @@ export interface Space {
   desiresEnabled: boolean;
   /** Registre des libellés de la bucket list : explicite (défaut) vs suggestif. */
   desiresExplicitLabels: boolean;
+  /** « Menu du soir » : rituel quotidien à double consentement (#97b). */
+  eveningMenuEnabled: boolean;
   createdAt: string;
 }
 
@@ -66,6 +68,13 @@ export interface ApiDesire {
   limit: boolean;
   /** Le couple a marqué « ✓ Réalisé » (suivi bucket list, niveau salon). */
   done: boolean;
+}
+
+/** Un item du « Menu du soir » (#97b) pour ce soir : mon choix du jour + match. */
+export interface ApiEveningMenuItem {
+  code: string;
+  picked: boolean;
+  matched: boolean;
 }
 
 export interface Member {

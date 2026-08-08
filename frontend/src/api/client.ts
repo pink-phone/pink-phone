@@ -3,6 +3,7 @@ import type {
   ApiChallenge,
   ApiComment,
   ApiDesire,
+  ApiEveningMenuItem,
   ApiPost,
   AuthConfig,
   ChallengeSuggestion,
@@ -191,6 +192,7 @@ export const updateSpace = (
     allowMediaDownload?: boolean;
     desiresEnabled?: boolean;
     desiresExplicitLabels?: boolean;
+    eveningMenuEnabled?: boolean;
   },
 ) => req<Space>(`/api/spaces/${spaceId}`, { method: "PATCH", json: body });
 
@@ -225,6 +227,22 @@ export const setDesireDone = (spaceId: string, code: string) =>
 
 export const unsetDesireDone = (spaceId: string, code: string) =>
   req<ApiDesire>(`/api/spaces/${spaceId}/desires/${code}/done`, {
+    method: "DELETE",
+  });
+
+// ---------- Menu du soir (#97b) ----------
+
+/** Menu du soir pour CE SOIR : mes choix du jour + matchs (rituel quotidien). */
+export const listEveningMenu = (spaceId: string) =>
+  req<ApiEveningMenuItem[]>(`/api/spaces/${spaceId}/evening-menu`);
+
+export const pickEveningMenu = (spaceId: string, code: string) =>
+  req<ApiEveningMenuItem>(`/api/spaces/${spaceId}/evening-menu/${code}`, {
+    method: "PUT",
+  });
+
+export const unpickEveningMenu = (spaceId: string, code: string) =>
+  req<ApiEveningMenuItem>(`/api/spaces/${spaceId}/evening-menu/${code}`, {
     method: "DELETE",
   });
 

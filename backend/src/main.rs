@@ -182,6 +182,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 tick.tick().await;
                 crate::routes::media::purge_orphan_media(&pool, &media_dir).await;
                 crate::routes::spaces::purge_stale_invites(&pool).await;
+                crate::routes::evening_menu::purge_old_picks(&pool).await;
             }
         });
     }

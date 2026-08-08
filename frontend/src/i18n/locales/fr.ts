@@ -245,6 +245,27 @@ export const fr = {
       squirting: "L'emmener très loin",
     },
   },
+  eveningMenu: {
+    title: "Menu du soir",
+    intro:
+      "Coche en secret ce qui te tente pour ce soir. Ça ne se révèle qu'en cas de match. Remis à zéro chaque jour.",
+    matchCount_one: "✨ {{count}} match",
+    matchCount_other: "✨ {{count}} matchs",
+    pickAria: "Choisir pour ce soir",
+    removeAria: "Retirer de ce soir",
+    items: {
+      cuddle: "Câlins sous la couette",
+      movie: "Un film, blotti·e·s",
+      candlelight: "Dîner aux chandelles",
+      bath: "Un bain à deux",
+      massage: "Un massage",
+      slowDance: "Un slow tous les deux",
+      game: "Un jeu un peu coquin",
+      roleplay: "Un jeu de rôle",
+      newThing: "Tenter une nouveauté",
+      passionate: "Une nuit passionnée",
+    },
+  },
   postComposer: {
     sheetWrite: "Écrire",
     sheetEdit: "Modifier le brouillon",
@@ -389,6 +410,9 @@ export const fr = {
     desiresExplicit: "Libellés explicites",
     desiresExplicitHint:
       "Bucket list : libellés directs et crus (« Fellation », « Sodomie »…). Désactive pour un registre plus suggestif.",
+    eveningMenuEnabled: "Menu du soir",
+    eveningMenuEnabledHint:
+      "Active le rituel du soir sur l'accueil : chacun coche en secret ses envies « pour ce soir » ; ça se révèle en match. Remis à zéro chaque jour.",
     reactionsIntro: "Choisis les réactions du salon et leur ordre.",
     reactionEnable: "Activer la réaction",
     reactionDisable: "Désactiver la réaction",
