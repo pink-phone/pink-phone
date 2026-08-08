@@ -227,6 +227,17 @@ pub struct DesireItem {
     pub done: bool,
 }
 
+/// Un item du « Menu du soir » (#97b) pour ce soir, côté membre courant : mon
+/// choix du jour + l'état « matché » (les deux l'ont coché aujourd'hui). Double
+/// consentement/double-aveugle : `matched` n'est vrai qu'en cas de réciprocité.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EveningMenuItem {
+    pub code: String,
+    pub picked: bool,
+    pub matched: bool,
+}
+
 /// Un « mot doux » (#102) tel que renvoyé au membre courant. Si `open_at` est dans
 /// le futur ET que je ne suis pas l'auteur·e, le mot est **scellé** : `body` est
 /// `None` et `sealed` vrai (je vois qu'une surprise m'attend + sa date, pas son
@@ -242,17 +253,6 @@ pub struct LoveNote {
     pub sealed: bool,
     pub open_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
-}
-
-/// Un item du « Menu du soir » (#97b) pour ce soir, côté membre courant : mon
-/// choix du jour + l'état « matché » (les deux l'ont coché aujourd'hui). Même
-/// double-aveugle que `DesireItem` : `matched` n'est vrai qu'en cas de réciprocité.
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct EveningMenuItem {
-    pub code: String,
-    pub picked: bool,
-    pub matched: bool,
 }
 
 /// "Vu" d'un fil (blog/défis) par un membre — horodatage de dernière consultation.
@@ -380,7 +380,7 @@ pub fn desire_category(code: &str) -> Option<&'static str> {
 }
 /// Catalogue du « Menu du soir » (#97b), du plus tendre au plus épicé. Codes
 /// stables (libellés via i18n front) ; source de vérité du menu + validation des
-/// coches. Distinct de `DESIRE_CODES` (registre « programme de la soirée »).
+/// coches (« programme de la soirée »).
 pub const EVENING_MENU_CODES: [&str; 10] = [
     "cuddle",
     "movie",

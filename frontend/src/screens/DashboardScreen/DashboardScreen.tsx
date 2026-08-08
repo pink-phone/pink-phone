@@ -45,12 +45,6 @@ export interface DashboardScreenProps {
   onOpen?: (tab: "blog" | "challenges") => void;
   /** Notices du salon non vues (#84/#85) — déjà filtrées par l'orchestration. */
   notices?: { id: string; kind: string; actorName?: string }[];
-  /** Liste d'envies activée pour le salon (#99) → affiche l'entrée dédiée. */
-  desiresEnabled?: boolean;
-  /** Nombre d'envies « matchées » (réciproques) → pastille sur l'entrée. */
-  desireMatches?: number;
-  /** Ouvre l'écran « Vos envies » (#99). */
-  onOpenDesires?: () => void;
   /** Menu du soir activé pour le salon (#97b) → affiche l'entrée dédiée. */
   eveningMenuEnabled?: boolean;
   /** Nombre de matchs du soir (réciproques) → badge + braise sur l'entrée. */
@@ -170,9 +164,6 @@ export function DashboardScreen({
   newChallenges = 0,
   onOpen,
   notices = [],
-  desiresEnabled = false,
-  desireMatches = 0,
-  onOpenDesires,
   eveningMenuEnabled = false,
   eveningMenuMatches = 0,
   onOpenEveningMenu,
@@ -343,35 +334,6 @@ export function DashboardScreen({
             </span>
           )}
           <span aria-hidden className="relative z-10 text-taupe-400">
-            →
-          </span>
-        </button>
-      )}
-
-      {/* Entrée « Vos envies » (#99) — seulement si activée pour le salon. */}
-      {desiresEnabled && onOpenDesires && (
-        <button
-          type="button"
-          onClick={onOpenDesires}
-          className="flex w-full items-center gap-3 rounded-2xl border border-charcoal-600/60 bg-charcoal-800 bg-felt-linen p-4 text-left shadow-felt transition-all duration-300 ease-felt hover:border-spice-400/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
-        >
-          <span aria-hidden className="text-2xl">
-            {desireMatches > 0 ? "✨" : "🤫"}
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="font-serif text-base text-blush-100">
-              {t("desires.dashboardEntry")}
-            </p>
-            <p className="text-xs text-taupe-300">
-              {t("desires.dashboardHint")}
-            </p>
-          </div>
-          {desireMatches > 0 && (
-            <span className="shrink-0 rounded-full border border-spice-500/70 bg-bordeaux-700 px-2.5 py-1 text-xs text-blush-100 shadow-glow">
-              {t("desires.matchBadge")}
-            </span>
-          )}
-          <span aria-hidden className="text-taupe-400">
             →
           </span>
         </button>
