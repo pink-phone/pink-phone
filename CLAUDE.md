@@ -91,3 +91,47 @@ Skeuomorphic, soft, warm — **not** flat-and-cold, **not** candy/barbie pink, *
 Mobile-first: respect safe-area insets; Storybook defaults to a mobile viewport and charcoal background.
 
 PWA install: the manifest (in `frontend/vite.config.ts`) + `injectManifest` SW + icons in `frontend/public/` (`pwa-192x192.png`, `pwa-512x512.png`, `pwa-maskable-512x512.png`, `apple-touch-icon.png`, regenerated from an SVG via `rsvg-convert`) make it installable. `src/app/InstallPrompt.tsx` shows an in-app banner (`InstallBanner`): native prompt on Android (`beforeinstallprompt`), manual instructions on iOS (no native prompt; relies on `apple-mobile-web-app-*` meta in `index.html`).
+
+## Security review scope (white-hat)
+
+This section adds project-specific scope on top of the global white-hat rules (`~/.claude/CLAUDE.md` — authorization gate, hard prohibitions, methodology, reporting format, disclosure). It doesn't loosen anything there.
+
+### Authorization
+
+PinkPhone is the user's own personal project — full owner attestation for both modes below. No third-party code is in scope; if a reviewed dependency's vendored code or a third-party service integration comes up, treat *that* as out of scope for exploitation (CVE lookup / advisory only).
+
+- **Static review**: the whole repo (`frontend/`, `backend/`, `deploy/`, workflows) is always in scope, no gate needed.
+- **Dynamic testing**: only against a self-hosted instance the user controls — `docker-compose.local.yml`/`docker-compose.yml` run locally, or the domain/IP recorded in **[SECURITY_SCOPE.local.md](SECURITY_SCOPE.local.md)** (gitignored, never committed — keeps a real target out of git history; empty/placeholder there means no confirmed target, so no active testing against a remote host). Never test any other host, even one that looks like a PinkPhone deployment (e.g. found via cert transparency or Docker Hub image pulls) without the user confirming it's theirs first, in that file. No stated rate limit beyond "don't degrade the local Postgres/API for actual use" — self-imposed, be conservative.
+
+### Sensitive-data handling specific to this app
+
+PinkPhone stores intimate content for (at least) two real people — the user and their partner. Even though the user owns the deployment, the partner's data isn't solely the user's to expose. Applies on top of the global "minimal PoC" rule:
+
+- Never read/dump actual mood entries, posts, comments, or media content beyond the single minimal record needed to prove a vuln (e.g. one IDOR read, not an enumeration).
+- Never decrypt or exfiltrate `MEDIA_KEY`-protected content as a demonstration step beyond confirming decryption is *possible* against test data you created yourself.
+- Prefer testing with data you create in a fresh space/test account over touching pre-existing space content, when the PoC allows it.
+
+### Priority attack surface
+
+Roughly in order of where a real defect would matter most in this codebase:
+
+1. **Multi-tenant isolation (`Space`)** — everything is keyed by `space_id` and gated by `routes::ensure_member` (`backend/src/routes/`). This is the single highest-value target: check every route touching posts/challenges/moods/media/interactions for a missing or misordered `ensure_member` call, and for IDOR via guessable/enumerable IDs (UUIDs mitigate but don't eliminate — check for ID leakage in responses/logs/WS events).
+2. **Media pipeline** — authenticated streaming route, `viewOnce` deletion-after-read, AES-256-GCM at rest (`MEDIA_KEY`). Check: path traversal via the UUID→file mapping, auth check ordering vs. stream start, `viewOnce` race conditions (two concurrent reads), and that `MEDIA_KEY`/decrypted bytes never land in logs or error responses.
+3. **Auth** — Argon2id parameters, JWT issuance/verification and the startup guard against the dev secret, OIDC Authorization Code + PKCE flow and `id_token`/JWKS validation (`routes/oidc.rs`), token handling in the `#token=` redirect (fragment vs query — check it can't leak via Referer).
+4. **WebSocket** — JWT passed in the query string (`spaceSocketUrl`): check whether it can leak via reverse-proxy access logs, Referer headers on any resource loaded from within the socket-bearing page, or browser history.
+5. **Notifications** — VAPID key handling, `push_subscriptions` storage/authorization, SSRF surface in OIDC discovery/JWKS fetch (`routes/oidc.rs` fetches from `OIDC_*` issuer URLs — confirm those are admin-configured, not user-influenced).
+6. **CORS / headers / error verbosity** — confirm prod builds (same-origin via nginx) don't accidentally widen CORS, and that `cargo` panics or `sqlx` errors don't leak query text/paths in responses.
+7. **Dependency CVEs** — `Cargo.lock`, `frontend/package-lock.json`.
+
+### Known accepted risk — don't re-report
+
+These are intentional, already documented in this file; only flag them if you find a way to escalate impact beyond what's described here:
+
+- `src/lib/pin.ts` PIN lock is explicitly a **soft device deterrent** (salted SHA-256 in localStorage), not real crypto — expected to be locally bypassable by anyone with device/devtools access. Not a valid finding on its own.
+- `src/lib/biometric.ts` WebAuthn unlock has **no server-side check** by design (convenience layer over the PIN, OS-validated) — same caveat.
+- Free-text moods/reactions travel as `string` client-side; server validates "predefined OR bounded emoji/label" — this is a deliberate open union, not unvalidated input, unless you can show the server-side bound check is actually missing/bypassable.
+- `MEDIA_KEY` must never change once set (documented operational constraint) — flag key *rotation support being absent* only if the user asks for that as a feature, not as a security bug.
+
+### Reporting
+
+Confirmed findings go into `SECURITY_FINDINGS.md` at the repo root (create it if absent), one entry per finding using the format in the global CLAUDE.md §4, appended in date order with a status (`open`/`fixed`) kept up to date as issues are remediated. Do not commit findings that are still unconfirmed/`needs verification` — keep those in the conversation until resolved one way or the other.
