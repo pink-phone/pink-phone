@@ -5,6 +5,9 @@ storybook-static
 coverage
 lcov.info
 *.local
+# *.local ne matche pas les doubles extensions (ex. .local.md) — entrée explicite
+# pour la cible de test dynamique (ne doit jamais atterrir dans l'historique git).
+SECURITY_SCOPE.local.md
 .DS_Store
 .env
 .env.*

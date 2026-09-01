@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::routing::{get, post};
@@ -7,10 +9,24 @@ use serde::{Deserialize, Serialize};
 use crate::auth::{hash_password, issue_token, verify_login, AuthUser};
 use crate::error::{ApiError, ApiResult};
 use crate::models::{User, UserPublic};
+use crate::rate_limit::ClientIp;
 use crate::state::{AppState, EventKind};
 
 /// Borne du nom affiché (cohérent avec les autres champs texte courts).
 const MAX_DISPLAY_NAME_LEN: usize = 80;
+
+/// Rate limiting par IP (SECURITY_FINDINGS.md #2) : login/register n'avaient
+/// aucune limite de tentatives, ouvrant un brute-force de mots de passe
+/// parallélisable et un risque d'épuisement du pool DB. Messages VOLONTAIREMENT
+/// identiques quelle que soit la clé qui a débordé (pas d'oracle d'énumération).
+const LOGIN_MAX_ATTEMPTS: usize = 10;
+const LOGIN_WINDOW: Duration = Duration::from_secs(60);
+const REGISTER_MAX_ATTEMPTS: usize = 5;
+const REGISTER_WINDOW: Duration = Duration::from_secs(60);
+
+fn too_many_requests() -> ApiError {
+    ApiError::TooManyRequests("trop de tentatives, réessaie dans une minute".into())
+}
 
 pub fn router() -> Router<AppState> {
     Router::new()
@@ -44,10 +60,18 @@ pub struct AuthResponse {
 
 async fn register(
     State(state): State<AppState>,
+    ip: ClientIp,
     Json(body): Json<RegisterBody>,
 ) -> ApiResult<(StatusCode, Json<AuthResponse>)> {
     if !state.config.password_auth_enabled {
         return Err(ApiError::Forbidden);
+    }
+    if state.rate_limiter.is_limited(
+        &format!("register:{}", ip.0),
+        REGISTER_MAX_ATTEMPTS,
+        REGISTER_WINDOW,
+    ) {
+        return Err(too_many_requests());
     }
     let email = body.email.trim().to_lowercase();
     if email.is_empty() || body.password.len() < 8 {
@@ -83,10 +107,18 @@ async fn register(
 
 async fn login(
     State(state): State<AppState>,
+    ip: ClientIp,
     Json(body): Json<LoginBody>,
 ) -> ApiResult<Json<AuthResponse>> {
     if !state.config.password_auth_enabled {
         return Err(ApiError::Forbidden);
+    }
+    if state.rate_limiter.is_limited(
+        &format!("login:{}", ip.0),
+        LOGIN_MAX_ATTEMPTS,
+        LOGIN_WINDOW,
+    ) {
+        return Err(too_many_requests());
     }
     let email = body.email.trim().to_lowercase();
     let user: Option<User> = sqlx::query_as(
