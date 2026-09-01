@@ -5,6 +5,7 @@ mod invite_code;
 mod models;
 mod notifications;
 mod pagination;
+mod rate_limit;
 mod routes;
 mod state;
 
@@ -168,6 +169,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         oidc_tickets,
         oidc_cache,
         events,
+        rate_limiter: std::sync::Arc::new(rate_limit::RateLimiter::new()),
     };
 
     // Purges périodiques (toutes les heures ; 1er passage immédiat) : médias
@@ -197,7 +199,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let listener = tokio::net::TcpListener::bind(&bind_addr).await?;
     tracing::info!("PinkPhone API à l'écoute sur http://{bind_addr}");
-    axum::serve(listener, app).await?;
+    // `with_connect_info` : nécessaire pour que l'extracteur `ClientIp` (rate
+    // limiting, SECURITY_FINDINGS.md #1-2) retombe sur l'IP de connexion TCP
+    // directe quand l'en-tête `X-Real-IP` du reverse-proxy est absent (dev sans
+    // proxy notamment).
+    axum::serve(
+        listener,
+        app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+    )
+    .await?;
 
     Ok(())
 }

@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::routing::{get, post};
@@ -8,8 +10,18 @@ use uuid::Uuid;
 use crate::auth::AuthUser;
 use crate::error::{ApiError, ApiResult};
 use crate::models::{Member, Space, REACTIONS};
+use crate::rate_limit::ClientIp;
 use crate::routes::ensure_member;
 use crate::state::{AppState, EventKind};
+
+/// Rate limiting du rejoint par code (SECURITY_FINDINGS.md #1) : le code
+/// n'a que 32×32×10 = 10 240 valeurs possibles et `join_by_invite` ne prend
+/// que le code (pas le salon visé) — sans limite, un compte peut balayer tout
+/// l'espace de codes et tomber sur N'IMPORTE QUELLE invitation active de
+/// l'instance. Double clé (IP ET compte) : une IP qui change de compte, ou un
+/// compte qui change d'IP, reste bornée par l'autre facteur.
+const JOIN_MAX_ATTEMPTS: usize = 8;
+const JOIN_WINDOW: Duration = Duration::from_secs(60);
 
 // Un salon accueille jusqu'à 8 membres (#52 multi-partenaires) : le couple reste
 // le cas par défaut, mais le polyamour / les petits groupes sont permis. Plafond
@@ -268,8 +280,23 @@ pub struct JoinBody {
 async fn join_by_invite(
     State(state): State<AppState>,
     auth: AuthUser,
+    ip: ClientIp,
     Json(body): Json<JoinBody>,
 ) -> ApiResult<(StatusCode, Json<Space>)> {
+    if state
+        .rate_limiter
+        .is_limited(&format!("join:ip:{}", ip.0), JOIN_MAX_ATTEMPTS, JOIN_WINDOW)
+        || state.rate_limiter.is_limited(
+            &format!("join:user:{}", auth.user_id),
+            JOIN_MAX_ATTEMPTS,
+            JOIN_WINDOW,
+        )
+    {
+        return Err(ApiError::TooManyRequests(
+            "trop de tentatives, réessaie dans une minute".into(),
+        ));
+    }
+
     let mut tx = state.pool.begin().await?;
 
     // Lookup insensible à la casse (#89) ; invitation verrouillée le temps de la

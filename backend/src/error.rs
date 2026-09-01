@@ -19,6 +19,8 @@ pub enum ApiError {
     NotFound,
     #[error("{0}")]
     Conflict(String),
+    #[error("{0}")]
+    TooManyRequests(String),
     #[error("erreur interne")]
     Internal,
 }
@@ -31,6 +33,7 @@ impl ApiError {
             ApiError::Forbidden => StatusCode::FORBIDDEN,
             ApiError::NotFound => StatusCode::NOT_FOUND,
             ApiError::Conflict(_) => StatusCode::CONFLICT,
+            ApiError::TooManyRequests(_) => StatusCode::TOO_MANY_REQUESTS,
             ApiError::Internal => StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
@@ -43,6 +46,7 @@ impl ApiError {
             ApiError::Forbidden => "forbidden",
             ApiError::NotFound => "not_found",
             ApiError::Conflict(_) => "conflict",
+            ApiError::TooManyRequests(_) => "too_many_requests",
             ApiError::Internal => "internal",
         }
     }
@@ -110,6 +114,11 @@ mod tests {
         let e = ApiError::Conflict("doublon".into());
         assert_eq!(e.status(), StatusCode::CONFLICT, "Conflict status");
         assert_eq!(e.code(), "conflict", "Conflict code");
+
+        // TooManyRequests
+        let e = ApiError::TooManyRequests("trop de tentatives".into());
+        assert_eq!(e.status(), StatusCode::TOO_MANY_REQUESTS, "TooManyRequests status");
+        assert_eq!(e.code(), "too_many_requests", "TooManyRequests code");
 
         // Internal
         assert_eq!(

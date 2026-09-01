@@ -60,6 +60,7 @@ fn build_app(pool: PgPool) -> (Router, AppState) {
         oidc_tickets: Arc::new(Mutex::new(Default::default())),
         oidc_cache: Arc::new(Mutex::new(None)),
         events,
+        rate_limiter: Arc::new(crate::rate_limit::RateLimiter::new()),
     };
     let app = crate::routes::api_router().with_state(state.clone());
     (app, state)
@@ -125,7 +126,12 @@ async fn req(
     let mut builder = Request::builder()
         .method(method)
         .uri(path)
-        .header(header::AUTHORIZATION, format!("Bearer {token}"));
+        .header(header::AUTHORIZATION, format!("Bearer {token}"))
+        // Le harnais appelle le routeur directement via `oneshot` (pas de vrai
+        // listener TCP) : `ConnectInfo` n'est jamais posé. `X-Real-IP` fait
+        // passer l'extracteur `ClientIp` (rate limiting) comme en prod derrière
+        // nginx, plutôt que de dépendre d'une info de connexion absente ici.
+        .header("x-real-ip", "127.0.0.1");
     let body = match body {
         Some(j) => {
             builder = builder.header(header::CONTENT_TYPE, "application/json");
@@ -866,6 +872,58 @@ async fn auth_register_refuse_mdp_court_et_email_deja_pris(pool: PgPool) {
     // Email déjà pris → 400 générique (jamais « email existe »).
     let (st, _) = req(&app, "POST", "/api/auth/register", "", Some(body("autremotdepasse"))).await;
     assert_eq!(st, StatusCode::BAD_REQUEST);
+}
+
+// --- Tests : rate limiting (SECURITY_FINDINGS.md #1-2) ----------------------
+
+/// `req()` pose toujours `X-Real-IP: 127.0.0.1` (cf. le harnais) : toutes les
+/// requêtes d'un même test partagent donc la même clé de rate limiting.
+#[sqlx::test]
+async fn register_rate_limite_apres_n_tentatives(pool: PgPool) {
+    let (app, _state) = build_app(pool.clone());
+    let body = |n: usize| {
+        json!({ "email": format!("rl{n}@test.local"), "displayName": "RL", "password": "motdepasse" })
+    };
+    // Les REGISTER_MAX_ATTEMPTS (5) premières tentatives passent la garde de
+    // rate limiting (chacune un email distinct → 201, pas de 400 « déjà pris »).
+    for i in 0..5 {
+        let (st, _) = req(&app, "POST", "/api/auth/register", "", Some(body(i))).await;
+        assert_eq!(st, StatusCode::CREATED, "tentative {i} sous la limite");
+    }
+    // La 6e, dans la même fenêtre, est rate limitée avant même la validation.
+    let (st, _) = req(&app, "POST", "/api/auth/register", "", Some(body(99))).await;
+    assert_eq!(st, StatusCode::TOO_MANY_REQUESTS);
+}
+
+#[sqlx::test]
+async fn login_rate_limite_apres_n_tentatives(pool: PgPool) {
+    let (app, _state) = build_app(pool.clone());
+    let attempt = || json!({ "email": "personne@test.local", "password": "x" });
+    // Les LOGIN_MAX_ATTEMPTS (10) premières tentatives passent la garde (401 :
+    // email inconnu, anti-énumération — cf. auth_register_login_me_flux…).
+    for i in 0..10 {
+        let (st, _) = req(&app, "POST", "/api/auth/login", "", Some(attempt())).await;
+        assert_eq!(st, StatusCode::UNAUTHORIZED, "tentative {i} sous la limite");
+    }
+    let (st, _) = req(&app, "POST", "/api/auth/login", "", Some(attempt())).await;
+    assert_eq!(st, StatusCode::TOO_MANY_REQUESTS);
+}
+
+#[sqlx::test]
+async fn join_rate_limite_apres_n_tentatives(pool: PgPool) {
+    let (app, state) = build_app(pool.clone());
+    let bob = seed_user(&pool, "bob").await;
+    let tb = token_for(&state, bob);
+    let attempt = || json!({ "code": "NopeNope#9" });
+    // Les JOIN_MAX_ATTEMPTS (8) premières tentatives passent la garde de rate
+    // limiting (400 : code inconnu — le rate limiting est vérifié AVANT le
+    // lookup en base, donc un code toujours invalide suffit à le tester).
+    for i in 0..8 {
+        let (st, _) = req(&app, "POST", "/api/spaces/join", &tb, Some(attempt())).await;
+        assert_eq!(st, StatusCode::BAD_REQUEST, "tentative {i} sous la limite");
+    }
+    let (st, _) = req(&app, "POST", "/api/spaces/join", &tb, Some(attempt())).await;
+    assert_eq!(st, StatusCode::TOO_MANY_REQUESTS);
 }
 
 #[sqlx::test]
