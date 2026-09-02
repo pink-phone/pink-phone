@@ -9,6 +9,9 @@ use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use axum::response::Response;
 use axum::routing::post;
 use axum::{Json, Router};
+use little_exif::exif_tag::ExifTag;
+use little_exif::filetype::FileExtension;
+use little_exif::metadata::Metadata as ExifMetadata;
 use rand::{rngs::OsRng, RngCore};
 use serde::Serialize;
 use std::io::SeekFrom;
@@ -104,6 +107,70 @@ const ALLOWED_MIMES: &[&str] = &[
 
 fn mime_allowed(mime: &str) -> bool {
     ALLOWED_MIMES.contains(&mime)
+}
+
+/// Correspondance MIME → type reconnu par `little_exif`, pour les seuls formats
+/// où retirer les métadonnées a du sens (photos). `None` pour les vidéos et les
+/// formats non couverts par la lib — l'appelant garde alors les octets bruts.
+///
+/// PNG est DÉLIBÉRÉMENT ABSENT malgré le support de `little_exif` : son chemin
+/// PNG passe par `quick-xml` 0.37.5 pour le XMP (`clear_metadata` →
+/// `xmp::remove_exif_from_xmp`), une version affectée par deux advisories haute
+/// sévérité (RUSTSEC-2026-0194/0195, déni de service — allocation/complexité
+/// non bornées sur une entrée XML forgée). `little_exif` épingle `quick-xml =
+/// "0.37.5"` dans son propre `Cargo.toml` : impossible de corriger par un
+/// simple `cargo update` tant que la lib amont ne bouge pas. Plutôt
+/// qu'introduire une nouvelle surface de déni de service pour fermer une fuite
+/// de vie privée, on exclut PNG du nettoyage (retour au comportement
+/// inchangé pour ce format — ni pire ni meilleur qu'avant #14) ; JPEG, WebP et
+/// HEIF/HEIC ne passent par aucun code lié à `quick-xml` dans cette lib (vérifié
+/// dans ses sources) et restent couverts. PNG est rarement porteur d'EXIF/GPS
+/// en pratique (ce n'est pas un format de sortie d'appareil photo) — impact
+/// pratique minime. À revoir si `little_exif`/`quick-xml` publient un correctif.
+fn exif_file_type(mime: &str) -> Option<FileExtension> {
+    match mime {
+        "image/jpeg" => Some(FileExtension::JPEG),
+        "image/webp" => Some(FileExtension::WEBP),
+        "image/heic" | "image/heif" => Some(FileExtension::HEIF),
+        _ => None,
+    }
+}
+
+/// Retire les métadonnées EXIF (GPS, modèle d'appareil, date de prise de vue…)
+/// d'une photo à l'upload (SECURITY_FINDINGS.md #14) : les photos de téléphone
+/// embarquent typiquement les coordonnées GPS du lieu de la prise (souvent le
+/// domicile), qui survivraient sinon telles quelles jusqu'au téléchargement par
+/// le/la partenaire (confirmé par PoC : upload puis re-téléchargement d'un JPEG
+/// avec un marqueur EXIF/GPS factice → octets identiques, marqueur intact).
+///
+/// L'orientation est délibérément PRÉSERVÉE : les navigateurs appliquent la
+/// rotation depuis le tag EXIF `Orientation` (`image-orientation: from-image`,
+/// comportement par défaut depuis des années) — tout effacer sans distinction
+/// ferait apparaître de travers une photo prise en portrait. On lit donc ce tag
+/// avant d'effacer, puis on le réinsère seul (aucune autre donnée) si présent.
+///
+/// Best-effort et non bloquant : `None` (octets originaux conservés par
+/// l'appelant, cf. `upload`) si le format n'est pas couvert (vidéos ; formats
+/// non supportés par `little_exif`) ou si la lecture/écriture échoue pour une
+/// raison quelconque (fichier légèrement non conforme…) — on ne fait jamais
+/// échouer un upload légitime à cause d'un nettoyage de métadonnées.
+fn strip_metadata(bytes: &[u8], mime: &str) -> Option<Vec<u8>> {
+    let file_type = exif_file_type(mime)?;
+    let mut buffer = bytes.to_vec();
+
+    let orientation = ExifMetadata::new_from_vec(&buffer, file_type)
+        .ok()
+        .and_then(|m| m.get_tag(&ExifTag::Orientation(Vec::new())).next().cloned());
+
+    ExifMetadata::clear_metadata(&mut buffer, file_type).ok()?;
+
+    if let Some(orientation_tag) = orientation {
+        let mut minimal = ExifMetadata::new();
+        minimal.set_tag(orientation_tag);
+        minimal.write_to_vec(&mut buffer, file_type).ok()?;
+    }
+
+    Some(buffer)
 }
 
 /// Plage `Range` demandée, bornes inclusives.
@@ -248,6 +315,22 @@ async fn upload(
             "type de média non autorisé : {mime}"
         )));
     }
+
+    // Retire les métadonnées EXIF (GPS…) avant tout le reste, y compris le
+    // chiffrement (SECURITY_FINDINGS.md #14). CPU-bound (parsing/réécriture de
+    // segments) → spawn_blocking (RUST-02). Best-effort : en cas d'échec ou de
+    // format non couvert (vidéos…), on garde les octets originaux tels quels
+    // plutôt que d'échouer l'upload.
+    let bytes = {
+        let mime_for_strip = mime.clone();
+        let original = bytes.clone(); // `Bytes::clone` = partage Arc, pas de copie (RUST-06)
+        match tokio::task::spawn_blocking(move || strip_metadata(&original, &mime_for_strip))
+            .await
+        {
+            Ok(Some(stripped)) => Bytes::from(stripped),
+            _ => bytes,
+        }
+    };
 
     // Chiffrement au repos si une clé est configurée (sinon stockage en clair).
     // AES-GCM sur un fichier (jusqu'à 100 Mo) est CPU-bound → `spawn_blocking`
@@ -698,5 +781,96 @@ mod tests {
         let blob = encrypt(&key, b"secret").unwrap();
         assert!(decrypt(&[9u8; 32], &blob).is_none()); // GCM rejette
         assert!(decrypt(&key, b"court").is_none()); // < 12 octets de nonce
+    }
+
+    /// Construit un JPEG minimal (via le crate `image`, dev-dependency
+    /// uniquement — jamais dans le binaire de prod) puis y embarque un GPS et
+    /// une orientation via `little_exif`, pour servir de fixture réaliste aux
+    /// tests SECURITY_FINDINGS.md #14 ci-dessous.
+    fn fixture_jpeg_avec_gps_et_orientation(orientation: u16) -> Vec<u8> {
+        use little_exif::rational::uR64;
+
+        let img = image::RgbImage::from_pixel(4, 4, image::Rgb([200, 50, 80]));
+        let mut jpeg_bytes: Vec<u8> = Vec::new();
+        image::DynamicImage::ImageRgb8(img)
+            .write_to(&mut std::io::Cursor::new(&mut jpeg_bytes), image::ImageFormat::Jpeg)
+            .expect("encodage JPEG de test");
+
+        let mut metadata = ExifMetadata::new();
+        metadata.set_tag(ExifTag::GPSLatitude(vec![
+            uR64 { nominator: 48, denominator: 1 },
+            uR64 { nominator: 51, denominator: 1 },
+            uR64 { nominator: 0, denominator: 1 },
+        ]));
+        metadata.set_tag(ExifTag::Orientation(vec![orientation]));
+        metadata
+            .write_to_vec(&mut jpeg_bytes, FileExtension::JPEG)
+            .expect("écriture EXIF de test");
+
+        // Vérifie que la fixture porte bien ce qu'on croit y avoir mis, sinon
+        // le test principal ne prouverait rien.
+        let check = ExifMetadata::new_from_vec(&jpeg_bytes, FileExtension::JPEG).unwrap();
+        assert!(check.get_tag(&ExifTag::GPSLatitude(vec![])).next().is_some());
+        jpeg_bytes
+    }
+
+    #[test]
+    fn strip_metadata_retire_le_gps_et_garde_l_orientation() {
+        let original = fixture_jpeg_avec_gps_et_orientation(6); // 6 = rotation 90°
+        let stripped = strip_metadata(&original, "image/jpeg").expect("stripping JPEG supporté");
+
+        assert_ne!(stripped, original, "les octets doivent changer (métadonnées retirées)");
+
+        let after = ExifMetadata::new_from_vec(&stripped, FileExtension::JPEG).unwrap();
+        assert!(
+            after.get_tag(&ExifTag::GPSLatitude(vec![])).next().is_none(),
+            "le GPS ne doit plus être présent"
+        );
+        let orientation_after = after
+            .get_tag(&ExifTag::Orientation(vec![]))
+            .next()
+            .expect("l'orientation doit être préservée");
+        assert_eq!(orientation_after, &ExifTag::Orientation(vec![6]));
+
+        // L'image reste décodable et de mêmes dimensions (pixels intacts).
+        let decoded = image::load_from_memory_with_format(&stripped, image::ImageFormat::Jpeg)
+            .expect("l'image nettoyée doit rester décodable");
+        assert_eq!((decoded.width(), decoded.height()), (4, 4));
+    }
+
+    #[test]
+    fn strip_metadata_sans_orientation_prealable_nen_ajoute_pas() {
+        // Une image sans tag Orientation au départ ne doit pas se retrouver
+        // avec une orientation par défaut ajoutée artificiellement.
+        let img = image::RgbImage::from_pixel(2, 2, image::Rgb([0, 0, 0]));
+        let mut bytes = Vec::new();
+        image::DynamicImage::ImageRgb8(img)
+            .write_to(&mut std::io::Cursor::new(&mut bytes), image::ImageFormat::Jpeg)
+            .unwrap();
+
+        let stripped = strip_metadata(&bytes, "image/jpeg").expect("stripping JPEG supporté");
+        // Pas d'EXIF du tout au départ (fixture générée sans little_exif) : la
+        // lecture peut légitimement échouer ("No EXIF data found!") plutôt que
+        // renvoyer un `Metadata` vide — dans les deux cas, aucune orientation.
+        let has_orientation = ExifMetadata::new_from_vec(&stripped, FileExtension::JPEG)
+            .ok()
+            .is_some_and(|m| m.get_tag(&ExifTag::Orientation(vec![])).next().is_some());
+        assert!(!has_orientation);
+    }
+
+    #[test]
+    fn strip_metadata_format_non_couvert_renvoie_none() {
+        // Vidéo (ou tout type hors de exif_file_type) : pas de traitement, la
+        // fonction appelante garde les octets originaux (cf. `upload`).
+        assert!(strip_metadata(b"peu importe le contenu", "video/mp4").is_none());
+    }
+
+    /// PNG exclu volontairement (quick-xml 0.37.5 vulnérable via le chemin XMP
+    /// de little_exif, cf. le commentaire d'`exif_file_type`) — ne doit PAS
+    /// redevenir couvert par erreur lors d'une future modification.
+    #[test]
+    fn strip_metadata_png_exclu_volontairement() {
+        assert!(exif_file_type("image/png").is_none());
+        assert!(strip_metadata(b"peu importe le contenu", "image/png").is_none());
     }
 }
