@@ -33,6 +33,10 @@ services:
       DB_PASSWORD: ${POSTGRES_PASSWORD}
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET requis}
       BIND_ADDR: 0.0.0.0:8080
+      # Déploiement same-origin (nginx sert front + API) : pas besoin de CORS.
+      # Vide => l'API ne pose aucun Access-Control-Allow-Origin, donc aucun appel
+      # cross-origin n'est accepté par le navigateur (SECURITY_FINDINGS.md #3).
+      CORS_ORIGIN: ${CORS_ORIGIN:-}
       MEDIA_DIR: /data/media
       # Chiffrement des médias au repos (base64 de 32 octets). Vide => clair.
       # Générer : openssl rand -base64 32
