@@ -99,6 +99,12 @@ async fn subscribe(
     auth: AuthUser,
     Json(body): Json<SubscribeBody>,
 ) -> ApiResult<StatusCode> {
+    // SECURITY_FINDINGS.md #11 (SSRF) : `endpoint` finit comme cible d'une
+    // requête HTTP sortante (notify_members) — rejeté ici si ce n'est pas un
+    // vrai service de push public (échec rapide ; revalidé aussi à l'envoi).
+    if !crate::notifications::endpoint_is_safe(&body.endpoint).await {
+        return Err(ApiError::BadRequest("endpoint de notification invalide".into()));
+    }
     sqlx::query(
         "INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth)
          VALUES ($1, $2, $3, $4)
