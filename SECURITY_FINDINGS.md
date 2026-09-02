@@ -436,6 +436,55 @@ value:
 
 ---
 
+### 11. SSRF via unvalidated Web Push subscription endpoint
+
+- **Status**: fixed (2026-09-02) — [backend/src/notifications.rs](backend/src/notifications.rs), [backend/src/routes/notifications.rs](backend/src/routes/notifications.rs)
+- **Location**: [backend/src/routes/notifications.rs](backend/src/routes/notifications.rs) (`subscribe`, `POST /api/me/push`); consumed later by `notify_members` in [backend/src/notifications.rs](backend/src/notifications.rs)
+- **Class**: CWE-918 (Server-Side Request Forgery)
+- **Severity**: High — self-contained (no victim interaction needed) and confirmed live
+- **Confidence**: confirmed (live PoC against `pinkphone.home.example.com`)
+
+**Finding**: `POST /api/me/push` stored `endpoint` (the Web Push subscription URL) with **zero**
+validation — no scheme check, no host allowlist, no check against internal/private address
+ranges. That `endpoint` is later used, verbatim, as the target of an outbound HTTPS request made
+by the server itself (`notify_members`, fired on every new post/comment/challenge/mood-nudge/love
+note/desire-match/evening-menu-match). Any authenticated user could register an `endpoint`
+pointing anywhere — an internal service on the docker/home network, a cloud metadata endpoint
+(`169.254.169.254`) if ever hosted on cloud infra, or a third party to relay/obscure requests —
+and get the server to make that request on their behalf, next time any space event fires.
+**Fully self-contained**: an attacker doesn't need a partner's cooperation at all — two accounts
+of their own in the same space (self-created, no invite needed beyond what they already control)
+is enough: subscribe account B to the malicious endpoint, have account A post anything, and the
+server fires the request.
+
+**Live PoC**: `POST /api/me/push` with
+`{"endpoint":"http://169.254.169.254/latest/meta-data/","keys":{"p256dh":"AAAA","auth":"BBBB"}}`
+(pentest-alice's token) → **`204 No Content`**, accepted and stored as-is. Cleaned up immediately
+via `DELETE /api/me/push?endpoint=...` (never triggered an actual send — that would have required
+also firing a `notify_members` event, judged unnecessary beyond this point: the acceptance itself
+already proves the missing validation conclusively, and this specific instance isn't cloud-hosted
+so there was nothing meaningful behind that particular metadata IP to reach — but the identical
+flaw would matter a lot on a cloud-hosted deployment).
+
+**Remediation**: validate `endpoint` before storing it — require `https://`, resolve the host, and
+reject if any resolved address is loopback/private/link-local/reserved. Revalidate at send time
+too (not just at subscribe time) to shrink the DNS-rebinding window.
+
+**Fix applied**: `notifications::endpoint_is_safe()` — requires `https://`, then rejects loopback/
+private (RFC 1918)/link-local/unspecified/multicast/broadcast/documentation IPv4 ranges, the IPv6
+equivalents (loopback, unique-local `fc00::/7`, link-local `fe80::/10`, unspecified, multicast),
+and IPv4-mapped IPv6 addresses disguising a private IPv4 (`::ffff:10.0.0.1`). For a hostname, all
+DNS-resolved addresses are checked, not just the first. Called both at `subscribe()` (fails fast
+with `400`) and again inside `notify_members`'s send loop right before each request (shrinks, but
+does not eliminate, a DNS-rebinding window — documented as a known residual limitation rather than
+solved, since closing it fully would need per-connection IP pinning inside `web-push`'s own HTTP
+client, which isn't exposed for hooking). A subscription that fails re-validation at send time is
+purged. Covered by 8 unit tests (pure IP-classification cases + `endpoint_is_safe` scheme/IP-literal
+cases); DNS-resolution-dependent hostname cases aren't unit tested (would need network access in
+CI) but are exercised by the same code path as the tested IP-literal cases.
+
+---
+
 ### Reviewed and not flagged (dynamic)
 
 Unauthenticated requests to `GET /api/auth/me`, the media stream route (with random UUIDs), and

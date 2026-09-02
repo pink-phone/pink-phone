@@ -1,3 +1,5 @@
+use std::net::{IpAddr, Ipv4Addr};
+
 use serde_json::json;
 use uuid::Uuid;
 use web_push::{
@@ -12,6 +14,78 @@ struct SubRow {
     endpoint: String,
     p256dh: String,
     auth: String,
+}
+
+/// `true` si `ip` désigne une adresse interne/privée/réservée qu'un endpoint de
+/// notification push n'a aucune raison légitime de cibler (SECURITY_FINDINGS.md
+/// #11, SSRF) : un vrai service de push (FCM, Mozilla, Apple, Windows…) répond
+/// toujours depuis une IP publique.
+fn is_disallowed_ip(ip: IpAddr) -> bool {
+    match ip {
+        IpAddr::V4(v4) => is_disallowed_ipv4(v4),
+        IpAddr::V6(v6) => match v6.to_ipv4_mapped() {
+            // Une IPv4 privée déguisée en IPv6 mappée (::ffff:10.0.0.1) reste
+            // une IPv4 privée : on ré-applique le même contrôle.
+            Some(mapped) => is_disallowed_ipv4(mapped),
+            None => {
+                v6.is_loopback()
+                    || v6.is_unspecified()
+                    || v6.is_multicast()
+                    // Unique local fc00::/7 (équivalent IPv6 des plages privées).
+                    || (v6.segments()[0] & 0xfe00) == 0xfc00
+                    // Link-local fe80::/10.
+                    || (v6.segments()[0] & 0xffc0) == 0xfe80
+            }
+        },
+    }
+}
+
+fn is_disallowed_ipv4(v4: Ipv4Addr) -> bool {
+    v4.is_loopback()
+        || v4.is_private()
+        || v4.is_link_local()
+        || v4.is_unspecified()
+        || v4.is_multicast()
+        || v4.is_broadcast()
+        || v4.is_documentation()
+}
+
+/// Un endpoint de notification push est-il sûr à appeler (SECURITY_FINDINGS.md
+/// #11) ? `subscribe()` (routes/notifications.rs) n'imposait AUCUNE contrainte
+/// sur `endpoint` avant de le stocker, alors qu'il finit tel quel comme cible
+/// d'une requête HTTP sortante ici — n'importe quel utilisateur authentifié
+/// pouvait ainsi faire du serveur un relais SSRF (réseau interne, service
+/// cloud de métadonnées…), sans même dépendre d'une action d'un·e partenaire :
+/// deux comptes à soi dans le même salon suffisent à se déclencher la notif.
+/// On exige `https://` (les vrais services de push n'utilisent que ça) et on
+/// résout le host pour rejeter toute IP privée/loopback/link-local/réservée —
+/// y compris pour un nom de domaine, en vérifiant TOUTES les IP résolues.
+/// Ré-appelée à l'ENVOI (pas seulement à l'abonnement) pour réduire la fenêtre
+/// d'un DNS rebinding (résidu connu : rien n'empêche un changement de DNS
+/// pile entre cette résolution et la connexion HTTP elle-même côté `web-push`).
+pub(crate) async fn endpoint_is_safe(endpoint: &str) -> bool {
+    let Ok(url) = url::Url::parse(endpoint) else {
+        return false;
+    };
+    if url.scheme() != "https" {
+        return false;
+    }
+    let Some(host) = url.host_str().map(str::to_string) else {
+        return false;
+    };
+    let port = url.port_or_known_default().unwrap_or(443);
+    if let Ok(ip) = host.parse::<IpAddr>() {
+        return !is_disallowed_ip(ip);
+    }
+    let resolved = tokio::net::lookup_host((host.as_str(), port)).await;
+    let safe = match resolved {
+        Ok(addrs) => {
+            let addrs: Vec<_> = addrs.collect();
+            !addrs.is_empty() && addrs.iter().all(|a| !is_disallowed_ip(a.ip()))
+        }
+        Err(_) => false,
+    };
+    safe
 }
 
 /// Corps générique des notifications push : le contenu intime (titre de récit,
@@ -62,6 +136,20 @@ pub fn notify_members(state: &AppState, space_id: Uuid, actor_id: Uuid, title: S
         let client = push_client;
 
         for sub in subs {
+            // Revalidation à l'envoi (SECURITY_FINDINGS.md #11) : réduit la
+            // fenêtre d'un DNS rebinding par rapport à une validation faite une
+            // fois pour toutes à l'abonnement.
+            if !endpoint_is_safe(&sub.endpoint).await {
+                tracing::warn!(
+                    target: "notifications",
+                    "endpoint de notification refusé à l'envoi (SSRF) — purgé"
+                );
+                let _ = sqlx::query("DELETE FROM push_subscriptions WHERE endpoint = $1")
+                    .bind(&sub.endpoint)
+                    .execute(&pool)
+                    .await;
+                continue;
+            }
             let info = SubscriptionInfo::new(
                 sub.endpoint.clone(),
                 sub.p256dh.clone(),
@@ -115,4 +203,57 @@ pub fn notify_members(state: &AppState, space_id: Uuid, actor_id: Uuid, title: S
             }
         }
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn ipv4_privees_et_reservees_refusees() {
+        assert!(is_disallowed_ip("127.0.0.1".parse().unwrap()));
+        assert!(is_disallowed_ip("10.0.0.5".parse().unwrap()));
+        assert!(is_disallowed_ip("172.16.0.1".parse().unwrap()));
+        assert!(is_disallowed_ip("192.168.1.1".parse().unwrap()));
+        assert!(is_disallowed_ip("169.254.169.254".parse().unwrap())); // métadonnées cloud
+        assert!(is_disallowed_ip("0.0.0.0".parse().unwrap()));
+    }
+
+    #[test]
+    fn ipv4_publique_autorisee() {
+        assert!(!is_disallowed_ip("8.8.8.8".parse().unwrap()));
+        assert!(!is_disallowed_ip("142.250.190.4".parse().unwrap()));
+    }
+
+    #[test]
+    fn ipv6_privees_refusees() {
+        assert!(is_disallowed_ip("::1".parse().unwrap())); // loopback
+        assert!(is_disallowed_ip("fc00::1".parse().unwrap())); // unique local
+        assert!(is_disallowed_ip("fe80::1".parse().unwrap())); // link-local
+    }
+
+    #[test]
+    fn ipv4_privee_deguisee_en_ipv6_mappee_refusee() {
+        // ::ffff:10.0.0.1 est une IPv4 privée déguisée : doit être refusée.
+        assert!(is_disallowed_ip("::ffff:10.0.0.1".parse().unwrap()));
+        assert!(!is_disallowed_ip("::ffff:8.8.8.8".parse().unwrap()));
+    }
+
+    #[tokio::test]
+    async fn endpoint_https_requis() {
+        assert!(!endpoint_is_safe("http://fcm.googleapis.com/fcm/send/abc").await);
+    }
+
+    #[tokio::test]
+    async fn endpoint_ip_litterale_privee_refusee() {
+        assert!(!endpoint_is_safe("https://127.0.0.1/steal").await);
+        assert!(!endpoint_is_safe("https://169.254.169.254/latest/meta-data/").await);
+        assert!(!endpoint_is_safe("https://192.168.1.1:8080/").await);
+    }
+
+    #[tokio::test]
+    async fn endpoint_url_invalide_refusee() {
+        assert!(!endpoint_is_safe("pas-une-url").await);
+        assert!(!endpoint_is_safe("").await);
+    }
 }
