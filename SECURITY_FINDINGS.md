@@ -549,6 +549,59 @@ quota, judged disproportionate to add for this app's scale. Covered by a new int
 
 ---
 
+### 14. Uploaded photos kept their original EXIF metadata (GPS location, device, timestamp)
+
+- **Status**: fixed (2026-09-02) — [backend/src/routes/media.rs](backend/src/routes/media.rs) (`upload`, `strip_metadata`)
+- **Location**: [backend/src/routes/media.rs](backend/src/routes/media.rs) (`upload`)
+- **Class**: CWE-200 (Exposure of Sensitive Information); privacy, not an access-control bug
+- **Severity**: Medium — no unauthorized access involved, but a realistic, high-consequence privacy
+  leak once media leaves the app (via the download feature this was found while testing) for an
+  app whose entire value proposition is protecting intimate content
+- **Confidence**: confirmed (live PoC)
+
+**Finding**: media bytes were stored and served completely unprocessed — no image pipeline of any
+kind existed. Live PoC on `pinkphone.home.example.com`: uploaded a JPEG containing a fake
+EXIF-shaped marker (`PENTEST-GPS-MARKER-48.8566N-2.3522E`), downloaded it back, and confirmed the
+result was **byte-for-byte identical** to the original, marker fully intact. A real phone photo
+carries genuine EXIF GPS coordinates (typically wherever the photo was taken — often home) by
+default on most devices; anyone who downloads such a photo through the app's own explicit
+"downloadable" feature — the very thing being tested here — walks away with a file that still
+carries that location data, with nothing in the product's UI suggesting this.
+
+**Remediation**: strip identifying metadata from photos at upload, before storage/encryption,
+while preserving visual correctness (in particular EXIF `Orientation`, which browsers apply
+automatically — naively wiping all EXIF would make portrait photos render sideways once the tag
+is gone).
+
+**Fix applied**: added `little_exif` (pure Rust, read **and** write EXIF support, no `libheif`/
+native dependency required for HEIC — important since iPhones default to that format and this
+app is explicitly an iOS PWA). `strip_metadata()` reads the `Orientation` tag if present, clears
+all EXIF, then writes back *only* that one tag if it was there — GPS, camera make/model, and
+timestamp never survive; a portrait photo still displays right-side-up. Runs in `spawn_blocking`
+(CPU-bound), before encryption, best-effort (any failure or unsupported format keeps the original
+bytes rather than failing the upload). Covered by 5 unit tests, including a realistic fixture
+(built with the `image` crate as a **dev-only** dependency — never shipped in the binary) carrying
+both a real GPS tag and a rotated orientation, asserting the output loses the GPS, keeps the
+orientation, and stays a valid, correctly-sized decodable image.
+
+**Scope, and a fresh issue caught by re-running `cargo audit` after adding the dependency**:
+covers JPEG, WebP, and HEIC/HEIF. **PNG is deliberately excluded**: `little_exif`'s PNG code path
+(`clear_metadata` → `xmp::remove_exif_from_xmp`) goes through `quick-xml 0.37.5`, itself affected
+by two HIGH-severity (7.5) advisories (RUSTSEC-2026-0194/0195, DoS via unbounded allocation /
+quadratic parsing on crafted XML) — pinned by `little_exif`'s own `Cargo.toml`
+(`quick-xml = "0.37.5"`), so `cargo update` alone can't reach a patched `>=0.41.0`. Rather than
+close a privacy leak by opening a DoS hole, PNG was left out of `exif_file_type()` entirely (JPEG/
+WebP/HEIF source code was checked and confirmed to never touch `quick-xml`) — PNG uploads behave
+exactly as before this fix. Low practical cost: PNG isn't a typical camera-output format and
+rarely carries GPS EXIF in the first place. Revisit if `little_exif`/`quick-xml` publish a fix.
+`cargo audit` still lists the advisory (the vulnerable crate stays in the dependency graph even
+though this codebase's only call site into it is now avoided) — same "confirmed unreachable, not
+independently upgradable, tracked rather than hidden" treatment as the `rsa`/Marvin-Attack case in
+finding #10. Also newly listed: `paste` (unmaintained, informational only, not a vulnerability)
+and the pre-existing `spin` (yanked, informational).
+
+---
+
 ### Reviewed and not flagged (dynamic)
 
 Unauthenticated requests to `GET /api/auth/me`, the media stream route (with random UUIDs), and
