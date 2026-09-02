@@ -485,6 +485,42 @@ CI) but are exercised by the same code path as the tested IP-literal cases.
 
 ---
 
+### 12. Rate limiter itself was unbounded/CPU-heavy under a high-cardinality-key flood
+
+- **Status**: fixed (2026-09-02) — [backend/src/rate_limit.rs](backend/src/rate_limit.rs)
+- **Location**: [backend/src/rate_limit.rs](backend/src/rate_limit.rs) (`RateLimiter::is_limited`)
+- **Class**: CWE-400 (Uncontrolled Resource Consumption)
+- **Severity**: Low–Medium — not remotely triggerable without real traffic volume + IP diversity; caught by this session's own stress test rather than external testing
+- **Confidence**: confirmed (reproduced and measured locally, not tested against the live instance — would require actually generating a large distinct-IP flood against someone's home network, judged disproportionate for a PoC)
+
+**Finding**: found while hardening finding #1/#2's rate limiter, by writing a stress test for it
+rather than trusting the design by inspection. Two related problems:
+
+1. The stale-entry cleanup (fires once the map exceeds 10,000 keys) only removes keys that have
+   gone quiet — a flood of **always-new** keys (trivial with IPv6: an attacker with a single /64
+   has 2^64 addresses) never looks "quiet" while the attack is ongoing, so the very fix intended
+   to stop brute-force could itself be turned into a memory-exhaustion vector. The hard cap added
+   to close this (`HARD_CAP`) is necessary but not sufficient on its own:
+2. Naively evicting back down to *exactly* the cap meant the very next insertion hit the cap
+   again, re-triggering a full O(n log n) sort **on every single subsequent request across the
+   entire API** (the limiter's mutex is shared by login/register/join) for as long as the flood
+   continued. Measured directly: the stress test added for this fix (~50,500 distinct keys) took
+   **57 seconds** with the naive version — i.e. this component, built to stop a DoS, would have
+   become a severe DoS amplifier (CPU + global lock contention) under exactly the load pattern it
+   was supposed to defend against.
+
+**Remediation**: amortize the expensive maintenance instead of re-running it near every call once
+thresholds are crossed, and evict with headroom rather than down to the exact limit.
+
+**Fix applied**: maintenance (stale-purge + hard-cap eviction) now runs at most once every 256
+calls (`MAINTENANCE_INTERVAL`), and eviction overshoots to 90% of the cap
+(`HARD_CAP_MARGIN`) rather than stopping exactly at it — creating headroom so thousands of new
+keys can arrive before maintenance needs to run again. Same stress test after the fix: **0.24
+seconds** (≈240×). Covered by `plafond_dur_tient_sous_un_flot_de_cles_toujours_nouvelles`, with an
+assertion tolerance that accounts for the bounded slack the amortization intentionally allows.
+
+---
+
 ### Reviewed and not flagged (dynamic)
 
 Unauthenticated requests to `GET /api/auth/me`, the media stream route (with random UUIDs), and
