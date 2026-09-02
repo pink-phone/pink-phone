@@ -189,6 +189,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         oidc_cache,
         events,
         rate_limiter: std::sync::Arc::new(rate_limit::RateLimiter::new()),
+        ws_connections: std::sync::Arc::new(rate_limit::ConnectionTracker::new()),
     };
 
     // Purges périodiques (toutes les heures ; 1er passage immédiat) : médias
