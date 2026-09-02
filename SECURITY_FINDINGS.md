@@ -187,25 +187,40 @@ nginx-level header for this specific field since CSP already covers it.
 
 ---
 
-### 6. Live verification of finding #1/#2's fix was inconclusive — an edge-layer limiter intercepts first
+### 6. Live verification of finding #1/#2's fix — confirmed deployed and working (post-redeploy)
 
-- **Status**: needs verification
-- **Location**: a reverse proxy (outside this repo)
-- **Confidence**: needs verification
+- **Status**: verified fixed (2026-09-02), live on `pinkphone.home.example.com`
+- **Location**: a reverse proxy (login/register — masks the app-level limiter) + [backend/src/routes/spaces.rs](backend/src/routes/spaces.rs) (`join_by_invite` — app-level limiter directly observed)
+- **Confidence**: confirmed (observed live, before and after redeploy)
 
-Sending repeated failed `POST /api/auth/login` attempts does eventually get a `429` — but its
-body is nginx's **stock** error page (`<title>429 Too Many Requests</title>`, `Server:
-nginx/1.31.4`), not the API's JSON shape (`{"code":"too_many_requests",...}`) added by this
-session's fix. That means a reverse proxy (or an nginx instance in front of the app) already enforces
-its own request throttling ahead of the application — good defense-in-depth, observed
-token-bucket-like behavior (budget partially consumed then slowly refilling) — but it also means
-this black-box test **cannot confirm or deny** whether the just-merged app-level fix
-(`develop`, commit `8e88f52`) is actually running on this instance yet, since the edge layer
-always answers first. Action for the user: confirm the deployed image includes this fix (rebuild
-+ redeploy from `develop`/a new release tag), since a reverse proxy's generic throttle may not cover
-`/api/spaces/join` the same way it covers `/api/auth/login`, and the invite-brute-force finding
-(#1) was not itself re-tested live (would require consuming a real invite code, out of scope for
-a minimal-impact PoC).
+**Before redeploy**: repeated failed `POST /api/auth/login` got a `429` whose body was nginx's
+stock error page (`<title>429 Too Many Requests</title>`), not the app's JSON — proof that
+a reverse proxy throttles this path ahead of the application, independent of whether the app-level fix
+was even deployed.
+
+**After merging `develop` → `prod` (commit `7b1fec8`), pushing, and the user rebuilding/
+redeploying via the pipeline**: re-ran the login probe — still masked by a reverse proxy's edge
+throttle (429 at attempt ~7, same stock HTML body), which fires before the app ever sees enough
+requests to hit its own 10/60s ceiling on this path. **However**, testing `POST /api/spaces/join`
+directly (two real pentest accounts created — `pentest-alice@example.invalid` /
+`pentest-bob@example.invalid`, a real test space + real invite code from alice) got the app's
+**own** JSON 429 (`{"code":"too_many_requests","error":"trop de tentatives, réessaie dans une
+minute"}`) at attempt **9 of 9** with bogus codes — exactly matching `JOIN_MAX_ATTEMPTS = 8` in
+[backend/src/routes/spaces.rs](backend/src/routes/spaces.rs). This conclusively confirms the
+app-level fix for finding #1 is live and enforcing correctly in production; a reverse proxy does not
+appear to throttle this specific path the same way it does login, so the app-level limiter is
+doing the real work here. The legitimate join (real code) right after was itself correctly
+blocked too, since it shares the same rate-limit budget — expected, and clears after the 60s
+window.
+
+**IDOR / multi-tenant isolation, also verified live**: before bob joined alice's test space, `GET
+.../posts`, `GET .../members`, and `POST .../posts` all correctly returned `403 forbidden` for
+bob's token. Matches the static-review conclusion that `ensure_member` is applied consistently.
+
+**Cleanup note**: the app has no account/space deletion endpoint. Two test accounts, one test
+space (`902c73cf-0798-4cd9-ba2c-b58bb989f64e`, "Pentest Space (à supprimer)"), and one test post
+now exist in production and need manual removal via `psql` if desired (see emails above, both
+tagged `pentest-*@example.invalid` / content tagged "pentest"/"à supprimer" for easy filtering).
 
 ---
 
