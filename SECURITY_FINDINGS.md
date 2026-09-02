@@ -551,7 +551,7 @@ quota, judged disproportionate to add for this app's scale. Covered by a new int
 
 ### 14. Uploaded photos kept their original EXIF metadata (GPS location, device, timestamp)
 
-- **Status**: fixed (2026-09-02) — [backend/src/routes/media.rs](backend/src/routes/media.rs) (`upload`, `strip_metadata`)
+- **Status**: verified fixed and live (2026-09-02) on `pinkphone.home.example.com` — [backend/src/routes/media.rs](backend/src/routes/media.rs) (`upload`, `strip_metadata`)
 - **Location**: [backend/src/routes/media.rs](backend/src/routes/media.rs) (`upload`)
 - **Class**: CWE-200 (Exposure of Sensitive Information); privacy, not an access-control bug
 - **Severity**: Medium — no unauthorized access involved, but a realistic, high-consequence privacy
@@ -599,6 +599,13 @@ though this codebase's only call site into it is now avoided) — same "confirme
 independently upgradable, tracked rather than hidden" treatment as the `rsa`/Marvin-Attack case in
 finding #10. Also newly listed: `paste` (unmaintained, informational only, not a vulnerability)
 and the pre-existing `spin` (yanked, informational).
+
+**Live verification, post-redeploy**: built a realistic JPEG fixture carrying both a genuine
+`GPSLatitude` tag and a rotated `Orientation` (6 = 90°) using the same `little_exif`/`image`
+crates as the fix itself, uploaded it to `pinkphone.home.example.com`, downloaded it back, and
+inspected the result directly (not just a byte-diff this time): **`GPSLatitude` absent,
+`Orientation` still `[6]`** — exactly the intended behavior, confirmed live rather than only in
+unit tests.
 
 ---
 
