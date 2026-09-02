@@ -1,0 +1,18 @@
+# Config de `cargo audit` (CI + usage local). Advisories déjà investiguées et
+# jugées non exploitables dans l'usage de ce projet — voir SECURITY_FINDINGS.md
+# pour le raisonnement complet ; ne pas ignorer une nouvelle advisory sans
+# documenter pourquoi là-bas.
+[advisories]
+ignore = [
+    # rsa (Marvin Attack, timing side-channel sur des opérations à clé PRIVÉE) :
+    # tracé jusqu'à jwt-simple/web-push, qui ne l'utilise que pour VAPID — VAPID
+    # signe exclusivement en ES256/P-256, jamais en RSA. Pas de fix amont dispo.
+    # SECURITY_FINDINGS.md #10.
+    "RUSTSEC-2023-0071",
+    # quick-xml (DoS : allocation/complexité non bornées sur XML forgé) : chemin
+    # PNG de little_exif uniquement (xmp::remove_exif_from_xmp), volontairement
+    # jamais emprunté — PNG est exclu de exif_file_type() précisément pour ça.
+    # JPEG/WebP/HEIF ne touchent jamais quick-xml. SECURITY_FINDINGS.md #14.
+    "RUSTSEC-2026-0194",
+    "RUSTSEC-2026-0195",
+]
