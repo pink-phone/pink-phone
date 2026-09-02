@@ -1,21 +1,31 @@
-//! Limitation de débit en mémoire (process-local), fenêtre glissante par clé.
+//! Limitation de débit et de ressources en mémoire (process-local).
 //!
-//! Protège les endpoints propices au brute-force (login/register/join-by-invite,
-//! SECURITY_FINDINGS.md #1-2) : sans ça, rien ne borne le nombre de tentatives.
-//! Même approche « TTL en mémoire, purgé au fil de l'eau » que les flux OIDC
-//! (`state.rs::OidcFlow`/`LoginTicket`) — pas de dépendance externe (Redis…) pour
-//! un besoin aussi simple. Limite connue : ne fonctionne qu'à un seul process ; un
-//! déploiement multi-réplicas de l'API partagerait un compteur par réplica (pas de
-//! garantie globale). Acceptable pour l'échelle visée (une instance par couple/petit
-//! groupe) ; à revoir si l'API est un jour répliquée horizontalement.
+//! Deux mécanismes complémentaires :
+//! - [`RateLimiter`] : fenêtre glissante par clé, protège les endpoints propices
+//!   au brute-force (login/register/join-by-invite/upload, SECURITY_FINDINGS.md
+//!   #1-2/#13) — sans ça, rien ne borne le nombre de tentatives.
+//! - [`ConnectionTracker`] : plafonne les connexions WebSocket SIMULTANÉES par
+//!   utilisateur (SECURITY_FINDINGS.md #15) — un débit d'ouverture sous le seuil
+//!   du `RateLimiter` peut quand même accumuler un nombre illimité de connexions
+//!   ouvertes en parallèle, chacune coûtant une tâche + un descripteur de fichier
+//!   pour la durée de vie de la session.
+//!
+//! Même approche « TTL/compteur en mémoire, purgé au fil de l'eau » que les flux
+//! OIDC (`state.rs::OidcFlow`/`LoginTicket`) — pas de dépendance externe (Redis…)
+//! pour un besoin aussi simple. Limite connue, commune aux deux mécanismes : ne
+//! fonctionne qu'à un seul process ; un déploiement multi-réplicas de l'API
+//! partagerait un compteur par réplica (pas de garantie globale). Acceptable
+//! pour l'échelle visée (une instance par couple/petit groupe) ; à revoir si
+//! l'API est un jour répliquée horizontalement.
 
 use std::collections::HashMap;
 use std::net::{IpAddr, SocketAddr};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 use axum::extract::{ConnectInfo, FromRequestParts};
 use axum::http::request::Parts;
+use uuid::Uuid;
 
 use crate::error::ApiError;
 use crate::state::AppState;
@@ -111,6 +121,69 @@ impl RateLimiter {
         by_last_activity.sort_by_key(|(_, t)| *t);
         for (key, _) in by_last_activity.into_iter().take(n) {
             hits.remove(&key);
+        }
+    }
+}
+
+/// Plafonne les connexions WebSocket SIMULTANÉES par utilisateur
+/// (SECURITY_FINDINGS.md #15, CWE-400) : `is_limited` borne le DÉBIT de
+/// nouvelles tentatives, mais une connexion WS reste ouverte des heures — un
+/// flot de tentatives largement sous le seuil de débit accumule quand même un
+/// nombre illimité de connexions ouvertes en simultané (chacune = 1 tâche
+/// tokio + 1 `broadcast::Receiver` + 1 descripteur de fichier ; le fan-out de
+/// `AppState::emit` coûte O(nombre d'abonnés), donc un flot de connexions
+/// ralentit la diffusion des événements pour TOUT LE MONDE, pas seulement
+/// l'attaquant). Confirmé en direct (bug bounty) : 200 connexions concurrentes
+/// depuis une seule identité, toutes acceptées, sans aucun frein.
+pub struct ConnectionTracker {
+    counts: Mutex<HashMap<Uuid, usize>>,
+}
+
+/// Décrémente le compteur au `Drop`, quelle que soit la façon dont la
+/// connexion se termine (fermeture propre, erreur, timeout…) — pas de fuite de
+/// compteur possible en oubliant un site de sortie de `handle_socket`.
+pub struct ConnectionGuard {
+    tracker: Arc<ConnectionTracker>,
+    user_id: Uuid,
+}
+
+impl Default for ConnectionTracker {
+    fn default() -> Self {
+        Self { counts: Mutex::new(HashMap::new()) }
+    }
+}
+
+impl ConnectionTracker {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// Tente de réserver une connexion pour `user_id`. `None` si `user_id` a
+    /// déjà `max` connexions ouvertes (l'appelant doit refuser l'upgrade, 429).
+    pub fn try_acquire(
+        tracker: Arc<Self>,
+        user_id: Uuid,
+        max: usize,
+    ) -> Option<ConnectionGuard> {
+        let mut counts = tracker.counts.lock().unwrap();
+        let entry = counts.entry(user_id).or_insert(0);
+        if *entry >= max {
+            return None;
+        }
+        *entry += 1;
+        drop(counts);
+        Some(ConnectionGuard { tracker, user_id })
+    }
+}
+
+impl Drop for ConnectionGuard {
+    fn drop(&mut self) {
+        let mut counts = self.tracker.counts.lock().unwrap();
+        if let Some(c) = counts.get_mut(&self.user_id) {
+            *c = c.saturating_sub(1);
+            if *c == 0 {
+                counts.remove(&self.user_id);
+            }
         }
     }
 }
@@ -217,6 +290,51 @@ mod tests {
             state.map.len() <= max_expected,
             "la table ({} clés) doit rester bornée (≤ {max_expected})",
             state.map.len()
+        );
+    }
+
+    /// SECURITY_FINDINGS.md #15 : confirmé en direct (200 connexions WS
+    /// concurrentes acceptées depuis une seule identité) — le plafond doit
+    /// refuser toute tentative au-delà de `max`.
+    #[test]
+    fn connection_tracker_plafonne_par_utilisateur() {
+        let tracker = Arc::new(ConnectionTracker::new());
+        let user = Uuid::new_v4();
+        let mut guards = Vec::new();
+        for i in 0..3 {
+            let g = ConnectionTracker::try_acquire(tracker.clone(), user, 3);
+            assert!(g.is_some(), "connexion {i} devrait être acceptée (sous le plafond)");
+            guards.push(g);
+        }
+        assert!(
+            ConnectionTracker::try_acquire(tracker.clone(), user, 3).is_none(),
+            "la 4e connexion doit être refusée (plafond atteint)"
+        );
+    }
+
+    #[test]
+    fn connection_tracker_independant_par_utilisateur() {
+        let tracker = Arc::new(ConnectionTracker::new());
+        let alice = Uuid::new_v4();
+        let bob = Uuid::new_v4();
+        let _a = ConnectionTracker::try_acquire(tracker.clone(), alice, 1).unwrap();
+        // Alice est au plafond, mais Bob a son propre compteur : pas affecté.
+        assert!(ConnectionTracker::try_acquire(tracker.clone(), bob, 1).is_some());
+    }
+
+    #[test]
+    fn connection_tracker_libere_la_place_au_drop() {
+        let tracker = Arc::new(ConnectionTracker::new());
+        let user = Uuid::new_v4();
+        let guard = ConnectionTracker::try_acquire(tracker.clone(), user, 1).unwrap();
+        assert!(
+            ConnectionTracker::try_acquire(tracker.clone(), user, 1).is_none(),
+            "plafond atteint (1/1)"
+        );
+        drop(guard); // simule la déconnexion (fermeture propre, erreur, timeout…)
+        assert!(
+            ConnectionTracker::try_acquire(tracker.clone(), user, 1).is_some(),
+            "la place doit être libérée après le Drop du guard"
         );
     }
 }

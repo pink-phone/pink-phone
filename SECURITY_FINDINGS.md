@@ -609,6 +609,49 @@ unit tests.
 
 ---
 
+### 15. No limit on concurrent WebSocket connections
+
+- **Status**: fixed (2026-09-02) — [backend/src/rate_limit.rs](backend/src/rate_limit.rs) (`ConnectionTracker`), [backend/src/routes/ws.rs](backend/src/routes/ws.rs)
+- **Location**: [backend/src/routes/ws.rs](backend/src/routes/ws.rs) (`ws_handler`, `GET /api/spaces/{id}/ws`)
+- **Class**: CWE-400 (Uncontrolled Resource Consumption)
+- **Severity**: Medium — needs a valid account (not anonymous), but self-contained and confirmed at real scale
+- **Confidence**: confirmed (live load test against `pinkphone.home.example.com`)
+
+**Finding**: unlike every other mutating/expensive endpoint touched this session, the WebSocket
+upgrade route had no rate limiting on connection *attempts* and, more importantly, no cap on how
+many connections could be held open *simultaneously* by one identity. Each open connection costs
+a tokio task, a `broadcast::Receiver`, and a file descriptor for its entire (potentially
+hours-long) lifetime; `AppState::emit`'s fan-out to all subscribers is O(number of connected
+sockets), so a flood of connections degrades event delivery for *every* user on the instance, not
+just the attacker.
+
+**Live load test**: opened 50, then 200, truly concurrent WebSocket connections from a single
+account (Node.js script, native `WebSocket`) against `pinkphone.home.example.com`. **All 200
+succeeded** (avg. handshake ~373 ms), no rejections, no server-side closures, and `/health`
+stayed fast (~25 ms) and `200` throughout and after — confirms both the absence of any cap *and*
+that this specific test stayed well inside "minimal PoC" territory (no degradation observed or
+intended; stopped at 200 deliberately rather than pushing toward an actual resource-exhaustion
+outcome on the user's own home server, per the engagement's non-destructive-testing rule).
+
+**Remediation**: add both a rate limit on new connection attempts (churn/reconnect-storm abuse)
+and a hard cap on concurrent open connections per identity (the actual resource being exhausted).
+
+**Fix applied**: two complementary mechanisms in `rate_limit.rs`. (1) The existing `RateLimiter`,
+keyed by IP and `user_id`, 20 attempts/60s — generous enough for normal reconnect-on-focus
+behavior (`SpaceApp` resyncs on `visibilitychange`). (2) A new `ConnectionTracker`: a
+per-`user_id` open-connection counter with a `try_acquire`/`ConnectionGuard` pattern — the guard
+is threaded into `handle_socket` and decrements the count on `Drop`, covering every exit path
+(clean close, network error, lag-induced close) without needing to touch each one individually.
+Capped at 10 concurrent connections per user (phone + tablet + desktop + a few browser tabs,
+comfortably above real usage, well below anything useful for abuse). Both checks run before the
+WS upgrade completes, so a rejected attempt never even opens a socket. Covered by 3 new unit
+tests on `ConnectionTracker` (cap enforcement, per-user independence, release-on-drop) — a full
+integration test would need a real WebSocket client handshake, judged not worth the added test
+harness complexity given the behavior was already confirmed live at real scale (200 connections)
+against production.
+
+---
+
 ### Reviewed and not flagged (dynamic)
 
 Unauthenticated requests to `GET /api/auth/me`, the media stream route (with random UUIDs), and
@@ -624,6 +667,16 @@ at the same freshly-uploaded `view_once` media on `pinkphone.home.example.com`. 
 `200`, 29× `404`** — the atomic claim (`UPDATE ... WHERE consumed = false ... RETURNING id` before
 ever reading the file) holds under real concurrent load, exactly as the static review concluded.
 No race condition.
+
+**OIDC end-to-end, both paths live-tested**: failure path via `curl` — unknown/wrong `state`,
+empty/missing `code` at `/api/auth/oidc/exchange`, and an explicit provider `error=access_denied`
+— all collapse to the same generic outcome (`#error=oidc` redirect or generic `401`/`422`), no
+oracle revealing which check failed. Success path via a real login through the user's own
+Authentik instance (user entered their own password; Claude never touches credential fields,
+categorically) — completed twice: once fresh, once as a silent SSO re-auth after logout — both
+landed correctly on the real dashboard with a clean URL (no lingering `#code=`/`#token=`
+fragment), no console errors. Confirms the SEC-006 design (JWT only ever in a POST response body,
+never a URL) in practice, not just by reading the code.
 
 ---
 

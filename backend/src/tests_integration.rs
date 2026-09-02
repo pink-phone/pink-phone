@@ -61,6 +61,7 @@ fn build_app(pool: PgPool) -> (Router, AppState) {
         oidc_cache: Arc::new(Mutex::new(None)),
         events,
         rate_limiter: Arc::new(crate::rate_limit::RateLimiter::new()),
+        ws_connections: Arc::new(crate::rate_limit::ConnectionTracker::new()),
     };
     let app = crate::routes::api_router().with_state(state.clone());
     (app, state)

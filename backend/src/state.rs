@@ -1,5 +1,5 @@
 use crate::config::Config;
-use crate::rate_limit::RateLimiter;
+use crate::rate_limit::{ConnectionTracker, RateLimiter};
 use jsonwebtoken::jwk::JwkSet;
 use serde::Serialize;
 use sqlx::PgPool;
@@ -88,9 +88,11 @@ pub struct AppState {
     pub oidc_cache: Arc<Mutex<Option<OidcCache>>>,
     /// Bus d'événements temps réel (alimente les WebSockets par espace).
     pub events: broadcast::Sender<SpaceEvent>,
-    /// Limitation de débit en mémoire (login/register/join-by-invite — RUST style,
+    /// Limitation de débit en mémoire (login/register/join-by-invite/upload —
     /// cf. `rate_limit.rs`).
     pub rate_limiter: Arc<RateLimiter>,
+    /// Plafond de connexions WebSocket simultanées par utilisateur (SECURITY_FINDINGS.md #15).
+    pub ws_connections: Arc<ConnectionTracker>,
 }
 
 impl AppState {
