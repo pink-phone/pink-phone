@@ -565,6 +565,10 @@ async fn upload_media(app: &Router, space: Uuid, token: &str, view_once: bool) -
                     header::CONTENT_TYPE,
                     format!("multipart/form-data; boundary={b}"),
                 )
+                // Comme `req()` : `oneshot` ne pose pas de `ConnectInfo`, il faut
+                // fournir `X-Real-IP` pour que `ClientIp` (rate limiting upload,
+                // SECURITY_FINDINGS.md #13) s'extraie sans échouer en 500.
+                .header("x-real-ip", "127.0.0.1")
                 .body(Body::from(body))
                 .unwrap(),
         )
@@ -924,6 +928,56 @@ async fn join_rate_limite_apres_n_tentatives(pool: PgPool) {
     }
     let (st, _) = req(&app, "POST", "/api/spaces/join", &tb, Some(attempt())).await;
     assert_eq!(st, StatusCode::TOO_MANY_REQUESTS);
+}
+
+/// SECURITY_FINDINGS.md #13 : l'upload média n'avait aucune limite de fréquence,
+/// laissant un membre enchaîner des requêtes de 100 Mo sans frein (CWE-400).
+#[sqlx::test]
+async fn upload_media_rate_limite_apres_n_tentatives(pool: PgPool) {
+    let (app, state) = build_app(pool.clone());
+    let alice = seed_user(&pool, "alice").await;
+    let space = seed_space(&pool, alice).await;
+    let ta = token_for(&state, alice);
+    let b = "PinkBoundary";
+    let body = format!(
+        "--{b}\r\nContent-Disposition: form-data; name=\"file\"; filename=\"x.jpg\"\r\n\
+         Content-Type: image/jpeg\r\n\r\nHELLOIMG\r\n--{b}--\r\n",
+    );
+
+    // Les UPLOAD_MAX_ATTEMPTS (30) premiers uploads passent.
+    for i in 0..30 {
+        let resp = app
+            .clone()
+            .oneshot(
+                Request::builder()
+                    .method("POST")
+                    .uri(format!("/api/spaces/{space}/media"))
+                    .header(header::AUTHORIZATION, format!("Bearer {ta}"))
+                    .header(header::CONTENT_TYPE, format!("multipart/form-data; boundary={b}"))
+                    .header("x-real-ip", "127.0.0.1")
+                    .body(Body::from(body.clone()))
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), StatusCode::CREATED, "upload {i} sous la limite");
+    }
+    // Le 31e est bloqué.
+    let resp = app
+        .clone()
+        .oneshot(
+            Request::builder()
+                .method("POST")
+                .uri(format!("/api/spaces/{space}/media"))
+                .header(header::AUTHORIZATION, format!("Bearer {ta}"))
+                .header(header::CONTENT_TYPE, format!("multipart/form-data; boundary={b}"))
+                .header("x-real-ip", "127.0.0.1")
+                .body(Body::from(body))
+                .unwrap(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(resp.status(), StatusCode::TOO_MANY_REQUESTS);
 }
 
 #[sqlx::test]
