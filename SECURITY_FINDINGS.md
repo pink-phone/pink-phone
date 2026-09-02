@@ -273,6 +273,62 @@ content tagged "pentest"/"à supprimer").
 
 ---
 
+### 7. SVG accepted as valid image media — stored active content
+
+- **Status**: fixed (2026-09-02) — [backend/src/routes/media.rs](backend/src/routes/media.rs) (`mime_allowed` → explicit allowlist)
+- **Location**: [backend/src/routes/media.rs](backend/src/routes/media.rs) (`mime_allowed`, was: `mime.split('/').next() == "image" | "video"`)
+- **Class**: CWE-434 (Unrestricted Upload of File with Dangerous Type); CWE-79-adjacent (SVG active content)
+- **Severity**: Medium (see exploitability caveats below — this is a genuine gap, not a proven universal 1-click XSS)
+- **Confidence**: confirmed at the server level (live PoC); client-side script-execution impact is browser-dependent and not independently confirmed
+
+**Finding**: `mime_allowed` only checked the MIME type's prefix (`image/` or `video/`), so
+`image/svg+xml` passed. SVG is an XML document format that can embed a `<script>` element. Live
+PoC against `pinkphone.home.example.com` (pentest-alice's test space): uploaded a 167-byte SVG
+containing `<script>console.log(...)</script>` via `POST /api/spaces/{id}/media` with
+`Content-Type: image/svg+xml` — accepted (`201`, mime stored as-is), then re-fetched via
+`GET /api/spaces/{id}/media/{mid}` — served back with `Content-Type: image/svg+xml` unchanged,
+`X-Content-Type-Options: nosniff` present (irrelevant here — `nosniff` guards against the browser
+*guessing* a different type than declared; the declared type itself is the dangerous one) and
+**no** `Content-Security-Policy` on this response (the app's CSP is only set by
+`frontend/nginx.conf` on the SPA document route, not on API responses).
+
+**Why this isn't a slam-dunk universal XSS (and why it's still worth fixing)**: within the app's
+own UI, `SafeMedia` renders images via `<img src={blobUrl}>` — browsers never execute scripts
+embedded in an SVG loaded as an `<img>`, regardless of CSP. The download button
+([frontend/src/components/SafeMedia/SafeMedia.tsx:168](frontend/src/components/SafeMedia/SafeMedia.tsx#L168))
+uses `<a href={blobUrl} download>`, which forces a save rather than a render — also safe. The
+realistic trigger is a user (or an attacker who tricks a partner) opening the media's `blob:`
+object URL as a **top-level navigation** — e.g. a browser's native "open image in new tab" escape
+hatch that bypasses the page's own `onContextMenu` preventDefault (Firefox's Shift+right-click is
+one documented example). Per the Fetch/CSP spec, a `blob:` URL is supposed to inherit the
+creating document's CSP — and the SPA's CSP (`script-src 'self'`, no `unsafe-inline`) would then
+block the inline `<script>` in current Chrome/Firefox. **Not independently verified here**
+(attempted a local, isolated repro to confirm blob-CSP inheritance empirically; environment
+tooling issues prevented completing it in this session — treat the CSP mitigation as *likely but
+unconfirmed*, not relied upon). WebKit/Safari has historically had a weaker track record on
+blob-CSP inheritance than Chromium/Firefox, which matters here since this app is explicitly
+distributed as an iOS PWA. Independent of script execution entirely, SVG's XML parser also
+carries a CSP-independent DoS surface (entity expansion / "billion laughs") that a raster-image
+allowlist closes as a side effect.
+
+**Impact if exploitable**: a script running in the app's origin can read `localStorage` (`pp_token`,
+the JWT) and call the API with it — i.e., exactly the "retrieve media you shouldn't have access
+to" scenario asked about: exfiltrate every post/media/mood/challenge in every space the victim
+belongs to, not just the one media item.
+
+**Remediation**: don't rely on inherited-CSP browser behavior for a media pipeline that's
+supposed to hold intimate content — validate the upload itself. Replace the prefix check with an
+explicit allowlist of safe raster/video MIME types (no SVG, no other XML/script-capable format).
+
+**Fix applied**: `mime_allowed` now checks against `ALLOWED_MIMES`, an explicit list (JPEG, PNG,
+WebP, GIF, HEIC/HEIF, AVIF; MP4, WebM, QuickTime, M4V, 3GPP, Ogg) — `image/svg+xml` (and anything
+else not on the list) is rejected at upload. Covered by a new unit test
+(`mime_svg_toujours_refuse`). The PoC SVG itself was uploaded standalone (never attached to a
+post) so it's already covered by the existing hourly orphan-media purge — no manual cleanup
+needed for it specifically.
+
+---
+
 ### Reviewed and not flagged (dynamic)
 
 Unauthenticated requests to `GET /api/auth/me`, the media stream route (with random UUIDs), and
