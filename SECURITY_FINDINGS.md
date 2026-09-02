@@ -521,6 +521,34 @@ assertion tolerance that accounts for the bounded slack the amortization intenti
 
 ---
 
+### 13. No rate limiting on media upload
+
+- **Status**: fixed (2026-09-02) — [backend/src/routes/media.rs](backend/src/routes/media.rs) (`upload`)
+- **Location**: [backend/src/routes/media.rs](backend/src/routes/media.rs) (`POST /api/spaces/{id}/media`)
+- **Class**: CWE-400 (Uncontrolled Resource Consumption)
+- **Severity**: Medium — needs an authenticated space member (not anonymous), but that includes
+  anyone who joined via a leaked/guessed invite, and it's disk exhaustion on the host itself
+- **Confidence**: confirmed (code reading; no live PoC — didn't want to actually fill disk on the
+  user's home server to prove it)
+
+**Finding**: unlike login/register/join, `upload` had no rate limiting at all — only the existing
+global `DefaultBodyLimit` (100 MB, sized for legitimate photo/video posts) capped a single
+request. A member could script repeated 100 MB uploads with no frequency limit and fill the host's
+disk.
+
+**Remediation**: add a rate limit generous enough for legitimate use (a full gallery is
+`MAX_MEDIA` = 10 items) but bounding sustained automated abuse.
+
+**Fix applied**: same `RateLimiter`, keyed by IP and by `user_id` (whichever trips first), 30
+uploads/60s — comfortably covers composing several posts with full galleries in a burst. Checked
+before `ensure_member` (consistent with the other rate-limited routes: reject before any DB
+work). Honestly scoped: this bounds *automated/scripted* abuse, not a determined single member's
+ability to eventually fill disk over enough real elapsed time — that would need an actual disk
+quota, judged disproportionate to add for this app's scale. Covered by a new integration test
+(`upload_media_rate_limite_apres_n_tentatives`, real multipart requests against a live Postgres).
+
+---
+
 ### Reviewed and not flagged (dynamic)
 
 Unauthenticated requests to `GET /api/auth/me`, the media stream route (with random UUIDs), and
@@ -530,6 +558,12 @@ plain, non-verbose parse error with no path/query internals. `/api/notifications
 the VAPID **public** key only, as intended. `Server: nginx/1.31.4` is disclosed on every
 response (minor fingerprinting; low-priority `server_tokens off;` hardening, not filed as its
 own numbered finding).
+
+**`view_once` concurrency, live-tested**: fired 30 truly concurrent `GET` requests (`xargs -P 30`)
+at the same freshly-uploaded `view_once` media on `pinkphone.home.example.com`. Result: **1×
+`200`, 29× `404`** — the atomic claim (`UPDATE ... WHERE consumed = false ... RETURNING id` before
+ever reading the file) holds under real concurrent load, exactly as the static review concluded.
+No race condition.
 
 ---
 

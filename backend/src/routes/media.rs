@@ -13,6 +13,7 @@ use rand::{rngs::OsRng, RngCore};
 use serde::Serialize;
 use std::io::SeekFrom;
 use std::path::PathBuf;
+use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
 use tokio_util::io::ReaderStream;
 use uuid::Uuid;
@@ -20,8 +21,19 @@ use uuid::Uuid;
 use crate::auth::AuthUser;
 use crate::error::{ApiError, ApiResult};
 use crate::models::Media;
+use crate::rate_limit::ClientIp;
 use crate::routes::ensure_member;
 use crate::state::AppState;
+
+/// Rate limiting de l'upload (SECURITY_FINDINGS.md #13) : rien ne bornait le
+/// nombre d'uploads par unité de temps — un membre authentifié (légitime, ou
+/// via une invitation qu'il a fait fuiter) pouvait enchaîner des requêtes de
+/// 100 Mo (`DefaultBodyLimit`, main.rs) sans aucune limite de fréquence et
+/// remplir le disque du serveur (CWE-400). Plafond généreux (une galerie
+/// complète, MAX_MEDIA = 10, tient dans une seule fenêtre) : ce n'est pas une
+/// garantie de quota disque total, juste un frein contre l'abus automatisé.
+const UPLOAD_MAX_ATTEMPTS: usize = 30;
+const UPLOAD_WINDOW: Duration = Duration::from_secs(60);
 
 /// Chiffre `plaintext` en AES-256-GCM ; renvoie nonce(12o) ++ ciphertext.
 pub(crate) fn encrypt(key: &[u8; 32], plaintext: &[u8]) -> Option<Vec<u8>> {
@@ -181,9 +193,23 @@ pub async fn purge_orphan_media(pool: &sqlx::PgPool, media_dir: &str) {
 async fn upload(
     State(state): State<AppState>,
     auth: AuthUser,
+    ip: ClientIp,
     Path(space_id): Path<Uuid>,
     mut multipart: Multipart,
 ) -> ApiResult<(StatusCode, Json<MediaCreated>)> {
+    if state
+        .rate_limiter
+        .is_limited(&format!("upload:ip:{}", ip.0), UPLOAD_MAX_ATTEMPTS, UPLOAD_WINDOW)
+        || state.rate_limiter.is_limited(
+            &format!("upload:user:{}", auth.user_id),
+            UPLOAD_MAX_ATTEMPTS,
+            UPLOAD_WINDOW,
+        )
+    {
+        return Err(ApiError::TooManyRequests(
+            "trop d'uploads, réessaie dans une minute".into(),
+        ));
+    }
     ensure_member(&state.pool, auth.user_id, space_id).await?;
 
     // On garde le `Bytes` tel quel (déjà possédé, partage Arc) plutôt qu'un
