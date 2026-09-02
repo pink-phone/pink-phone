@@ -116,7 +116,7 @@ from the sandbox, conservative request volumes throughout.
 
 ### 3. `CORS_ORIGIN` left at the dev default in production
 
-- **Status**: open
+- **Status**: fixed (2026-09-02) — [backend/src/main.rs](backend/src/main.rs) (CORS layer), [deploy/docker-compose.yml](deploy/docker-compose.yml), [deploy/docker-compose.local.yml](deploy/docker-compose.local.yml), [backend/.env.example](backend/.env.example)
 - **Location**: [backend/src/config.rs:82](backend/src/config.rs#L82) (default `"http://localhost:5173"`); this instance's `.env`/compose config (not in this repo)
 - **Class**: CWE-942 (Permissive Cross-domain Policy) / CWE-1188 (Insecure Default Initialization)
 - **Severity**: Low (mitigating factor below)
@@ -141,11 +141,25 @@ vars for this instance may also be at defaults.
 this instance's environment, or drop the `CorsLayer` entirely for same-origin deployments and
 gate it behind `cors_origin` being non-empty.
 
+**Fix applied**: root cause was systemic, not specific to this instance — neither
+`deploy/docker-compose.yml` nor `docker-compose.local.yml` ever set `CORS_ORIGIN`, so *every*
+self-hosted deployment following `INSTALL.md` silently fell back to the dev default. Changed
+`main.rs` to only call `.allow_origin(...)` when `CORS_ORIGIN` is non-empty — left unset,
+`CorsLayer` never adds `Access-Control-Allow-Origin`, so no cross-origin request is accepted by
+the browser (same-origin requests are unaffected either way, since browsers don't apply CORS to
+them). Both deploy compose files now set `CORS_ORIGIN` explicitly to `""`; `.env.example` comment
+updated to explain when to leave it empty vs. set it for dev. The existing startup-guard block in
+`main.rs` also now warns if an exposed instance is still at the literal dev-default value (same
+pattern as the `DB_PASSWORD`/`MEDIA_KEY` warnings), as a safety net for anyone bypassing the
+compose files. **User action still needed on this specific instance**: set `CORS_ORIGIN=""` (or
+redeploy from the updated compose file) to actually pick up the fix — the code change alone
+doesn't retroactively change an already-running container's env.
+
 ---
 
 ### 4. Missing `Strict-Transport-Security` header
 
-- **Status**: open
+- **Status**: fixed (2026-09-02) — [frontend/nginx.conf](frontend/nginx.conf)
 - **Location**: `frontend/nginx.conf` (document headers block) and/or the a reverse proxy layer in front of it
 - **Class**: CWE-319 / CWE-523 (Unprotected Transport of Credentials) — missing HSTS
 - **Severity**: Low–Medium
@@ -162,11 +176,16 @@ telling the browser to never attempt `http://` again for this host.
 at whichever layer terminates TLS first (a reverse proxy, or `frontend/nginx.conf` if a reverse proxy just
 forwards). Start without `preload` until confirmed stable across all subdomains.
 
+**Fix applied**: added the header to `frontend/nginx.conf`'s `location /` block, alongside the
+other SEC-007 hardening headers (no `preload`, per the remediation note above — can be added
+later once confirmed stable). Ships in the `web` image on the next build; picks up automatically
+on this instance's next `docker compose pull && up -d`.
+
 ---
 
 ### 5. Duplicate, contradictory `X-Frame-Options` header (documentation bug, not currently exploitable)
 
-- **Status**: open (doc/config cleanup)
+- **Status**: fixed (2026-09-02) — [frontend/nginx.conf](frontend/nginx.conf) (comment corrected)
 - **Location**: [frontend/nginx.conf](frontend/nginx.conf) (`X-Frame-Options "DENY"`, comment "SEC-NEW-005") vs. the a reverse proxy layer (observed sending `SAMEORIGIN`)
 - **Class**: CWE-1021 (Improper Restriction of Rendered UI Layers) — informational; CSP already mitigates
 - **Severity**: Informational
@@ -184,6 +203,13 @@ present, so clickjacking protection is intact regardless of the duplicate.
 **Remediation**: update the `nginx.conf` comment (the assumption doesn't hold for
 `X-Frame-Options`), and either align the value with a reverse proxy's or drop the redundant
 nginx-level header for this specific field since CSP already covers it.
+
+**Fix applied**: kept `nginx.conf`'s own `X-Frame-Options: DENY` (still needed for a standalone
+deployment with no reverse proxy in front, per the original SEC-NEW-005 rationale) and rewrote
+the comment to state accurately that a third-party proxy's own headers *add to* rather than
+*replace* these, that duplicate/conflicting values are possible, and that it's harmless here only
+because CSP's `frame-ancestors 'none'` supersedes both. No functional change — this was a
+documentation bug, not a behavior bug.
 
 ---
 
