@@ -678,6 +678,47 @@ landed correctly on the real dashboard with a clean URL (no lingering `#code=`/`
 fragment), no console errors. Confirms the SEC-006 design (JWT only ever in a POST response body,
 never a URL) in practice, not just by reading the code.
 
+**Full IDOR sweep, remaining space-scoped routes**: with a confirmed non-member account (bob, not
+yet joined to alice's test space), hit all 8 remaining `GET` routes (`desires`, `evening-menu`,
+`challenges`, `moods`, `suggestions`, `seen`, `notices`, `love-notes`) and 8 write routes (set
+desire stance, evening-menu pick, create challenge, set mood, mark seen, post a love note, patch
+the space, create an invite) not otherwise covered by earlier live testing. **16/16 correctly
+returned `403`.** Extends the `posts`/`members` IDOR confirmation from earlier in this engagement
+to every remaining route — `ensure_member`/`ensure_enabled` gating has no gaps.
+
+**HTTP request smuggling across the proxy chain (a reverse proxy → nginx → API)**: sent six raw
+malformed requests directly over TLS (`openssl s_client`, `Connection: close` on every one to
+avoid touching any pooled/shared connection) probing classic ambiguous-framing triggers: `Content-
+Length` + `Transfer-Encoding: chunked` together, duplicate `Transfer-Encoding` headers, an
+obfuscated value (leading double-space, and mixed case `Chunked`), duplicate conflicting `Content-
+Length` values, and a malformed non-hex chunk size. Every case was handled safely — either
+rejected outright with `400` before reaching the application, or (the two obfuscated-encoding
+cases) treated consistently as an empty body by both nginx and the Rust backend, with no
+disagreement between layers. No smuggling primitive found. Deliberately did not attempt an actual
+two-request smuggling PoC (which would mean trying to desync a real connection and potentially
+intercept another session's response) — the ambiguity-rejection results already answer the
+question, and that further step risks the very live-traffic-impacting outcome the engagement's
+non-destructive-testing rule exists to prevent.
+
+**Double-blind business logic (desires "want"/"against", evening menu), live-tested**: alice set
+`want` on a desire item — bob's view showed no trace of it (`interested: false, matched: false`)
+until he also set `want` on the same item, at which point **both** sides correctly flipped to
+`matched: true` in the same request/response cycle. The intentionally-NOT-blind `against` (limit)
+path was checked separately: bob's `against` was visible to alice as `limit: true` immediately,
+with no reciprocal action needed — confirmed as designed, not a leak. Evening-menu match-of-the-
+day showed the identical pattern (private until reciprocated, then revealed to both). No
+information disclosure in either direction.
+
+**Service worker / PWA (`frontend/src/sw.js`), code-reviewed**: including the custom Web Share
+Target feature (`POST /share-target` → OS-shared media cached client-side, retrieved by the app
+via `GET /__shared-media[/n]`) — filenames are `encodeURIComponent`-escaped before use as a header
+value (no CRLF/header-injection surface), the whole mechanism is same-origin-only with no server
+round-trip (Cache Storage API, per-device), and requires a deliberate user share action to
+trigger. `notificationclick` opens/focuses `/` with no user-controlled input in the target URL —
+no open-redirect surface. Push payload content is always one of a small set of static,
+server-chosen strings (never user-controlled) and is rendered via the browser's native
+`showNotification` (no HTML/JS execution even hypothetically). Nothing to fix.
+
 ---
 
 ### Reviewed and not flagged
