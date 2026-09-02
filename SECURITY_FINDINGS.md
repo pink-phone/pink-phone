@@ -217,10 +217,33 @@ window.
 .../posts`, `GET .../members`, and `POST .../posts` all correctly returned `403 forbidden` for
 bob's token. Matches the static-review conclusion that `ensure_member` is applied consistently.
 
-**Cleanup note**: the app has no account/space deletion endpoint. Two test accounts, one test
-space (`902c73cf-0798-4cd9-ba2c-b58bb989f64e`, "Pentest Space (à supprimer)"), and one test post
-now exist in production and need manual removal via `psql` if desired (see emails above, both
-tagged `pentest-*@example.invalid` / content tagged "pentest"/"à supprimer" for easy filtering).
+**Direct-access retest (bypassing a reverse proxy)**: the user exposed the API container directly
+(`http://atlas-docker.home:8095`, recorded in `SECURITY_SCOPE.local.md`), letting the app-level
+limiter be tested in isolation instead of always losing the race to a reverse proxy's own edge
+throttle. Results, both with the app's own JSON 429 body:
+- `POST /api/auth/login`: `401` × 10, `429` on attempt **11** — exact match for `LOGIN_MAX_ATTEMPTS = 10`.
+- `POST /api/auth/register` (deliberately-too-short password, 400 each time, no account created): `400` × 5, `429` on attempt **6** — exact match for `REGISTER_MAX_ATTEMPTS = 5`.
+
+All three limiters (`login`=10, `register`=5, `join`=8, all per 60s) are now individually
+confirmed live and enforcing at their exact coded thresholds. Note: a reverse proxy still fires first
+on the public path for login/register (its own throttle is stricter/faster there), so the app
+limiter is a true defense-in-depth backstop on that path rather than the first line of defense —
+worth knowing, not worth changing.
+
+**Aside — transient outage during testing, explained**: mid-retest, the direct endpoint returned
+a couple of `502`s then briefly refused connections before recovering on its own. This coincided
+with a `git push` to `prod` from this session, which triggers `.forgejo/workflows/release.yml`
+and (per the user) redeploys automatically — the API container was restarting, not crashing
+under the test load. Confirmed recovered (both direct and public paths healthy) before
+continuing; no indication the rate limiter itself caused any instability.
+
+**Cleanup note**: the app has no account/space deletion endpoint. Only two real accounts exist
+from this whole engagement — `pentest-alice@example.invalid` and `pentest-bob@example.invalid`
+(the login/register threshold probes used wrong passwords / too-short passwords on purpose, so
+none of those attempts created accounts) — plus one test space
+(`902c73cf-0798-4cd9-ba2c-b58bb989f64e`, "Pentest Space (à supprimer)") and one test post inside
+it. These need manual removal via `psql` if desired (filter on `pentest-*@example.invalid` /
+content tagged "pentest"/"à supprimer").
 
 ---
 
