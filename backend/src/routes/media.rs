@@ -63,12 +63,35 @@ fn media_path(dir: &str, key: &str) -> PathBuf {
     PathBuf::from(dir).join(key)
 }
 
-/// Le Content-Type déclaré à l'upload est stocké tel quel et renvoyé à la lecture.
-/// On le borne donc à de vrais médias (image/vidéo) pour ne pas servir plus tard
-/// un `text/html`/`application/javascript` arbitraire (SEC-008). Le frontend
-/// n'envoie déjà que `accept="image/*,video/*"`.
+/// Types MIME acceptés à l'upload : liste blanche EXPLICITE plutôt qu'un simple
+/// préfixe `image/`/`video/` (SECURITY_FINDINGS.md #7). Le Content-Type déclaré
+/// est stocké tel quel et renvoyé sans modification à la lecture (SEC-008) — un
+/// préfixe seul laissait passer `image/svg+xml` : un SVG est un document XML
+/// pouvant embarquer un `<script>`, exécuté si jamais servi/ouvert comme document
+/// plutôt qu'affiché en `<img>` (ex. « ouvrir l'image dans un nouvel onglet » côté
+/// navigateur, un raccourci que certains navigateurs offrent même quand le clic
+/// droit est neutralisé côté JS). La liste blanche ne couvre que des formats
+/// matriciels sans contenu actif ; le frontend n'envoie déjà que
+/// `accept="image/*,video/*"` mais ce n'est qu'un filtre de confort côté client,
+/// pas une garantie — cette fonction est la seule vraie barrière.
+const ALLOWED_MIMES: &[&str] = &[
+    "image/jpeg",
+    "image/png",
+    "image/webp",
+    "image/gif",
+    "image/heic",
+    "image/heif",
+    "image/avif",
+    "video/mp4",
+    "video/webm",
+    "video/quicktime",
+    "video/x-m4v",
+    "video/3gpp",
+    "video/ogg",
+];
+
 fn mime_allowed(mime: &str) -> bool {
-    matches!(mime.split('/').next(), Some("image") | Some("video"))
+    ALLOWED_MIMES.contains(&mime)
 }
 
 /// Plage `Range` demandée, bornes inclusives.
@@ -616,13 +639,22 @@ mod tests {
     fn mime_liste_blanche() {
         assert!(mime_allowed("image/jpeg"));
         assert!(mime_allowed("image/png"));
+        assert!(mime_allowed("image/webp"));
         assert!(mime_allowed("video/mp4"));
         assert!(mime_allowed("video/quicktime"));
         assert!(!mime_allowed("text/html"));
         assert!(!mime_allowed("application/javascript"));
         assert!(!mime_allowed("application/octet-stream"));
         assert!(!mime_allowed(""));
-        assert!(!mime_allowed("imagexml")); // pas de "/" → pas image/*
+        assert!(!mime_allowed("imagexml")); // pas de "/" → pas dans la liste
+    }
+
+    /// SECURITY_FINDINGS.md #7 : un SVG est un document XML pouvant embarquer un
+    /// `<script>` — jamais accepté, même si son préfixe est `image/`.
+    #[test]
+    fn mime_svg_toujours_refuse() {
+        assert!(!mime_allowed("image/svg+xml"));
+        assert!(!mime_allowed("image/svg"));
     }
 
     #[test]
