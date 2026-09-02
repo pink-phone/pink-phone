@@ -104,6 +104,123 @@ shipped.
 
 ---
 
+---
+
+## 2026-09-02 — Dynamic review of `https://pinkphone.home.example.com` (Mode B)
+
+Reviewer: Claude (white-hat dynamic review, Mode B). Authorization: user-attested self-hosted
+instance, target confirmed in `SECURITY_SCOPE.local.md` (gitignored, not in this history).
+Scope: passive recon + minimal-impact black-box probes only — no account created, no real
+invite/space touched, no credential of a real account attempted. Tooling: `curl`/`openssl`
+from the sandbox, conservative request volumes throughout.
+
+### 3. `CORS_ORIGIN` left at the dev default in production
+
+- **Status**: open
+- **Location**: [backend/src/config.rs:82](backend/src/config.rs#L82) (default `"http://localhost:5173"`); this instance's `.env`/compose config (not in this repo)
+- **Class**: CWE-942 (Permissive Cross-domain Policy) / CWE-1188 (Insecure Default Initialization)
+- **Severity**: Low (mitigating factor below)
+- **Confidence**: confirmed (observed live)
+
+**Finding**: `OPTIONS /api/auth/me` with `Origin: https://evil.example` gets back
+`access-control-allow-origin: http://localhost:5173` — a fixed value, not a reflection of the
+request's `Origin`. That means `CORS_ORIGIN` was never set for this deployment and fell back to
+`config.rs`'s dev default. Since the PWA is served same-origin behind nginx in production, the
+CORS layer isn't needed for normal use at all; what's live instead grants cross-origin API
+access to whatever runs on `http://localhost:5173` in a visitor's own browser (typically *any*
+local Vite dev server, since 5173 is Vite's default port for any project).
+
+**Impact**: low in practice — PinkPhone authenticates via an explicit `Authorization: Bearer`
+header taken from `localStorage`, not cookies, so a cross-origin page at `localhost:5173` has no
+ambient credential to attach; it cannot read the production origin's `localStorage` either
+(browser origin isolation). Exploitation would need a *second*, unrelated bug that leaks the
+JWT to that origin. Still real misconfiguration and a signal worth double-checking: other env
+vars for this instance may also be at defaults.
+
+**Remediation**: set `CORS_ORIGIN` to the real origin (`https://pinkphone.home.example.com`) in
+this instance's environment, or drop the `CorsLayer` entirely for same-origin deployments and
+gate it behind `cors_origin` being non-empty.
+
+---
+
+### 4. Missing `Strict-Transport-Security` header
+
+- **Status**: open
+- **Location**: `frontend/nginx.conf` (document headers block) and/or the a reverse proxy layer in front of it
+- **Class**: CWE-319 / CWE-523 (Unprotected Transport of Credentials) — missing HSTS
+- **Severity**: Low–Medium
+- **Confidence**: confirmed (observed live)
+
+**Finding**: TLS is valid (Let's Encrypt wildcard `*.home.example.com`) and `http://` correctly
+301-redirects to `https://`, but no response carries a `Strict-Transport-Security` header. Every
+visit is therefore a fresh opportunity for an on-path attacker (hostile Wi-Fi, compromised
+router) to intercept the initial plaintext `http://` request before the redirect fires and strip
+TLS for that session (classic SSL-stripping) — HSTS is exactly what closes this window by
+telling the browser to never attempt `http://` again for this host.
+
+**Remediation**: add `add_header Strict-Transport-Security "max-age=63072000; includeSubDomains" always;`
+at whichever layer terminates TLS first (a reverse proxy, or `frontend/nginx.conf` if a reverse proxy just
+forwards). Start without `preload` until confirmed stable across all subdomains.
+
+---
+
+### 5. Duplicate, contradictory `X-Frame-Options` header (documentation bug, not currently exploitable)
+
+- **Status**: open (doc/config cleanup)
+- **Location**: [frontend/nginx.conf](frontend/nginx.conf) (`X-Frame-Options "DENY"`, comment "SEC-NEW-005") vs. the a reverse proxy layer (observed sending `SAMEORIGIN`)
+- **Class**: CWE-1021 (Improper Restriction of Rendered UI Layers) — informational; CSP already mitigates
+- **Severity**: Informational
+- **Confidence**: confirmed (observed live)
+
+**Finding**: the document response (`GET /`) carries **two** `X-Frame-Options` headers with
+different values — `DENY` (from `frontend/nginx.conf`) and `SAMEORIGIN` (from a reverse proxy).
+`nginx.conf`'s own comment says re-adding these headers is "inoffensif (mêmes valeurs)" — that
+assumption is factually wrong for this specific header. Browser handling of duplicate
+`X-Frame-Options` with conflicting values is undefined/inconsistent across engines. **Not
+currently exploitable**: the same response also carries `Content-Security-Policy: ...
+frame-ancestors 'none'`, which every modern browser prefers over `X-Frame-Options` when both are
+present, so clickjacking protection is intact regardless of the duplicate.
+
+**Remediation**: update the `nginx.conf` comment (the assumption doesn't hold for
+`X-Frame-Options`), and either align the value with a reverse proxy's or drop the redundant
+nginx-level header for this specific field since CSP already covers it.
+
+---
+
+### 6. Live verification of finding #1/#2's fix was inconclusive — an edge-layer limiter intercepts first
+
+- **Status**: needs verification
+- **Location**: a reverse proxy (outside this repo)
+- **Confidence**: needs verification
+
+Sending repeated failed `POST /api/auth/login` attempts does eventually get a `429` — but its
+body is nginx's **stock** error page (`<title>429 Too Many Requests</title>`, `Server:
+nginx/1.31.4`), not the API's JSON shape (`{"code":"too_many_requests",...}`) added by this
+session's fix. That means a reverse proxy (or an nginx instance in front of the app) already enforces
+its own request throttling ahead of the application — good defense-in-depth, observed
+token-bucket-like behavior (budget partially consumed then slowly refilling) — but it also means
+this black-box test **cannot confirm or deny** whether the just-merged app-level fix
+(`develop`, commit `8e88f52`) is actually running on this instance yet, since the edge layer
+always answers first. Action for the user: confirm the deployed image includes this fix (rebuild
++ redeploy from `develop`/a new release tag), since a reverse proxy's generic throttle may not cover
+`/api/spaces/join` the same way it covers `/api/auth/login`, and the invite-brute-force finding
+(#1) was not itself re-tested live (would require consuming a real invite code, out of scope for
+a minimal-impact PoC).
+
+---
+
+### Reviewed and not flagged (dynamic)
+
+Unauthenticated requests to `GET /api/auth/me`, the media stream route (with random UUIDs), and
+the WebSocket upgrade route all correctly fail closed (401 or the expected upgrade-precondition
+`400`, no data or stack trace leaked). A malformed-JSON body to `/api/auth/login` returns a
+plain, non-verbose parse error with no path/query internals. `/api/notifications/vapid` exposes
+the VAPID **public** key only, as intended. `Server: nginx/1.31.4` is disclosed on every
+response (minor fingerprinting; low-priority `server_tokens off;` hardening, not filed as its
+own numbered finding).
+
+---
+
 ### Reviewed and not flagged
 
 For traceability: authentication (JWT iss/aud/exp + `min_token_iat` revocation), OIDC (PKCE,
