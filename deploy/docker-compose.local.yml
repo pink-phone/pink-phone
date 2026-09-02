@@ -43,6 +43,8 @@ services:
       # Must stay >= 32 chars (the startup guard rejects shorter secrets when exposed).
       JWT_SECRET: local-demo-only-not-for-production
       BIND_ADDR: 0.0.0.0:8080
+      # Same-origin (nginx sert front + API) : pas besoin de CORS (SECURITY_FINDINGS.md #3).
+      CORS_ORIGIN: ""
       MEDIA_DIR: /data/media
     volumes:
       - pink-media:/data/media

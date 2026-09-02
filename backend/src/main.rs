@@ -64,6 +64,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "DB_PASSWORD par défaut ('pink') avec une API exposée — à changer."
             );
         }
+        // CORS_ORIGIN au défaut dev alors que l'API est exposée (SECURITY_FINDINGS.md #3) :
+        // sans effet sur l'app elle-même (servie same-origin derrière nginx en prod), mais
+        // ça autorise en pratique tout serveur de dev Vite local (port 5173 par défaut,
+        // n'importe quel projet) à faire des requêtes cross-origin vers cette API — signe
+        // que `CORS_ORIGIN` n'a pas été positionné pour ce déploiement.
+        if exposed && config.cors_origin == "http://localhost:5173" {
+            tracing::warn!(
+                "CORS_ORIGIN au défaut de dev ('http://localhost:5173') avec une API exposée \
+                 — positionne CORS_ORIGIN sur l'origine réelle du déploiement."
+            );
+        }
         if config.media_key_bytes().is_none() {
             if config.media_key.trim().is_empty() {
                 tracing::warn!(
@@ -148,8 +159,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // chaque connexion s'abonne via `events.subscribe()`.
     let (events, _) = tokio::sync::broadcast::channel(256);
 
-    let cors = CorsLayer::new()
-        .allow_origin(config.cors_origin.parse::<HeaderValue>()?)
+    // `CORS_ORIGIN` vide (déploiement same-origin recommandé, cf. INSTALL.md/deploy/) :
+    // on n'appelle PAS `.allow_origin` du tout plutôt que de retomber sur un défaut —
+    // sans lui, `CorsLayer` ne pose jamais d'`Access-Control-Allow-Origin`, donc tout
+    // appel cross-origin échoue côté navigateur (SECURITY_FINDINGS.md #3). Les requêtes
+    // same-origin (le cas réel en prod, via nginx) ne sont de toute façon jamais
+    // soumises au contrôle CORS du navigateur.
+    let mut cors = CorsLayer::new()
         .allow_methods([
             Method::GET,
             Method::POST,
@@ -158,6 +174,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             Method::DELETE,
         ])
         .allow_headers([header::AUTHORIZATION, header::CONTENT_TYPE]);
+    if !config.cors_origin.is_empty() {
+        cors = cors.allow_origin(config.cors_origin.parse::<HeaderValue>()?);
+    }
 
     let bind_addr = config.bind_addr.clone();
     let state = AppState {
