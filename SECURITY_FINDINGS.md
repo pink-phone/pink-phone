@@ -329,6 +329,113 @@ needed for it specifically.
 
 ---
 
+## 2026-09-02 — Extended static review (backend, continued)
+
+Reviewer: Claude (white-hat static review, Mode A), continuing the same engagement per user
+request to keep looking for more issues, focused this round on: dependency CVEs, and a closer
+pass on auth/logging code not yet deep-dived.
+
+### 8. Log injection via unescaped client-supplied log message (`/api/logs`)
+
+- **Status**: fixed (2026-09-02) — [backend/src/routes/logs.rs](backend/src/routes/logs.rs)
+- **Location**: [backend/src/routes/logs.rs](backend/src/routes/logs.rs) (`ingest`)
+- **Class**: CWE-117 (Improper Output Neutralization for Logs); secondary CWE-400 (Uncontrolled Resource Consumption, `level` field)
+- **Severity**: Low
+- **Confidence**: confirmed by code reading (Rust `tracing`/`fmt` semantics are well-defined; no dynamic PoC — can't observe this instance's raw `docker logs` remotely)
+
+**Finding**: `entry.message` was interpolated directly into the log line via `Display`
+(`"log client : {message}"`), while `context` and `user_agent` were already safely
+Debug-formatted (`?context`, `?ua`, which escapes control characters). `message` was the one
+field a client could use to inject raw newlines (forging fake-looking log lines) or ANSI/terminal
+escape sequences into `docker logs` — the app's own docs say this is exactly where an operator
+reads these logs directly (`"visible via docker logs"`). Separately, `level` had **no length
+bound at all** (unlike message/context/user_agent, all truncated) while the route sits under the
+same global 100 MB body limit as media uploads — a client could send up to 50 entries per request
+each carrying a huge `level` string, flooding the log stream / disk.
+
+**Remediation**: escape control characters in `message` before logging (or move it to a
+Debug-formatted structured field, like the others); bound `level`'s length the same way as the
+other fields.
+
+**Fix applied**: added `escape_for_log()` (`str::escape_debug()`) applied to both `message` and
+`level`; `level` is now also truncated to 32 bytes. Covered by a new unit test
+(`escape_for_log_neutralise_les_caracteres_de_controle`).
+
+---
+
+### 9. OIDC account takeover via unverified email claim
+
+- **Status**: fixed (2026-09-02) — [backend/src/routes/oidc.rs](backend/src/routes/oidc.rs)
+- **Location**: [backend/src/routes/oidc.rs](backend/src/routes/oidc.rs) (`callback_inner` / `upsert_oidc_user`)
+- **Class**: CWE-345 (Insufficient Verification of Data Authenticity); CWE-287-adjacent (Improper Authentication)
+- **Severity**: Medium (precondition-gated — see below)
+- **Confidence**: confirmed by code reading + integration test; not exploitable against this specific instance without a second, less-trusted OIDC issuer (see precondition)
+
+**Finding**: `upsert_oidc_user` links a login to an **existing** password-based account by email
+match (`UPDATE users SET oidc_sub = $1 WHERE email = $2`) whenever no `oidc_sub` match is found
+first. The `id_token` claims struct (`IdClaims`) never deserialized `email_verified` — meaning the
+`email` claim was trusted for account linking regardless of whether the OIDC provider actually
+verified it. Any OIDC provider (or provider configuration) that issues a token with an `email`
+claim the holder doesn't actually control — self-service email fields, some SAML-to-OIDC bridges,
+misconfigured providers — would let that identity silently take over whichever existing PinkPhone
+account already has that email address, on password-auth accounts that never opted into OIDC.
+
+**Precondition**: this depends on `OIDC_ISSUER` pointing at a provider that doesn't verify email
+ownership. A well-configured private IdP the same admin controls (e.g. Authentik/Keycloak used
+exactly to gate the couple's own accounts) typically does verify email and sets
+`email_verified: true`, in which case this was never reachable on *this* instance. Flagged and
+fixed anyway because relying on "our IdP happens to be careful" isn't a substitute for checking
+the claim the spec provides for exactly this purpose, and because `OIDC_ISSUER` is admin-supplied
+config that could point anywhere.
+
+**Remediation**: check `email_verified` before trusting `email` for existing-account linking.
+
+**Fix applied**: extracted the decision into a small pure function,
+`trusted_email(sub, claimed_email, email_verified)` — returns the provider's email only when
+`email_verified == Some(true)`, otherwise the pre-existing synthetic fallback
+(`{sub}@oidc.local`, already used when no email is provided at all). Applied **before** either
+the linking-by-email step or new-account creation — not just the linking step — because an
+initial fix that only gated linking still hit a **unique-constraint violation** on account
+creation when the unverified email collided with an existing account's real email; caught by
+writing the test first (`oidc_email_non_verifie_ne_hijacke_pas_un_compte_existant`, initially
+failed with exactly that DB error) before landing the corrected version. Covered by 3 unit tests
+on `trusted_email` (verified/unverified/absent) in `backend/src/routes/oidc.rs`.
+
+---
+
+### 10. Dependency hygiene — `cargo audit` findings
+
+- **Status**: partially fixed (2026-09-02) — [backend/Cargo.lock](backend/Cargo.lock)
+- **Class**: CWE-1104-adjacent (Use of Unmaintained Third-Party Components)
+- **Severity**: Informational (see per-item reachability analysis)
+- **Confidence**: confirmed (tool output); reachability verified via `cargo tree -i`
+
+Ran `cargo audit` for the first time on this project (installed `cargo-audit`, not previously in
+the toolchain). Findings, each checked for actual reachability rather than reported at face
+value:
+
+- **`h2` 0.4.14, RUSTSEC-2026-0258** (unbounded empty DATA frames, DoS) — real dependency of
+  `axum`'s and `reqwest`'s HTTP/2 stack (server *and* outbound client to OIDC/push endpoints).
+  **Fixed**: `cargo update -p h2` → 0.4.19 (patched version available, drop-in).
+- **`anyhow` 1.0.102, RUSTSEC-2026-0190** and **`event-listener` 5.4.1, RUSTSEC-2026-0221**
+  (soundness issues, not directly web-reachable in this app's usage) — **fixed** via
+  `cargo update` regardless, cost-free.
+- **`rsa` 0.7.2/0.9.10, RUSTSEC-2023-0071** (Marvin Attack timing side-channel in private-key
+  operations) — **not fixed, no patched version exists upstream**. Traced via `cargo tree -i` to
+  `web-push` → `jwt-simple`, which supports RSA algorithms `jwt-simple` itself never uses here:
+  VAPID (this app's only use of `jwt-simple`/`web-push`) signs exclusively with ES256/P-256 per
+  RFC 8292, and separately, `jsonwebtoken`'s own RS256 path (used for OIDC `id_token` verification)
+  depends on `ring`, not `rsa`, and only ever *verifies* with a *public* key — the Marvin Attack's
+  actual risk (recovering a *private* key via timing) doesn't apply to either use in this
+  codebase. Dead dependency weight, not a live vulnerability here — left as-is; would need an
+  upstream fix or dropping `jwt-simple`/`web-push`'s RSA feature (not currently possible via
+  Cargo features) to fully silence the advisory.
+- **`spin` 0.9.8, yanked** — not a vulnerability, informational only, deep transitive dependency.
+
+`npm audit --omit=dev` on `frontend/`: **0 vulnerabilities**.
+
+---
+
 ### Reviewed and not flagged (dynamic)
 
 Unauthenticated requests to `GET /api/auth/me`, the media stream route (with random UUIDs), and
