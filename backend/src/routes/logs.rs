@@ -42,12 +42,28 @@ fn truncate(s: &str, max: usize) -> &str {
     &s[..end]
 }
 
+/// Échappe les caractères de contrôle (`\n`, `\r`, séquences ANSI/terminal…) avant
+/// d'écrire un texte CLIENT dans les logs serveur (CWE-117, injection de logs).
+/// Sans ça, `message` était interpolé tel quel (Display) dans la ligne de log —
+/// `context`/`user_agent` étaient déjà safe (formatés en `?`/Debug, qui échappe) ;
+/// seul `message` restait le point d'injection : un client aurait pu forger de
+/// fausses lignes de log (retours à la ligne) ou injecter des séquences
+/// d'échappement terminal dans `docker logs`, visible en clair par l'opérateur.
+fn escape_for_log(s: &str) -> String {
+    s.escape_debug().to_string()
+}
+
 async fn ingest(auth: AuthUser, Json(batch): Json<ClientLogBatch>) -> StatusCode {
     let ua = batch.user_agent.as_deref().map(|u| truncate(u, 256));
     // Borne le lot pour éviter d'inonder les logs depuis un client compromis.
     for entry in batch.entries.iter().take(50) {
-        let level = entry.level.as_deref().unwrap_or("error");
-        let message = truncate(&entry.message, 2000);
+        // `level` n'était ni tronqué ni échappé (SECURITY_FINDINGS.md #8) : seul
+        // champ client à ne passer par AUCUNE des deux bornes, alors que le body
+        // limit global (100 Mo, pensé pour l'upload média) s'applique aussi à
+        // cette route — un client aurait pu gonfler chaque entrée d'un `level`
+        // énorme et flooder les logs serveur (CWE-400) jusqu'à saturer le disque.
+        let level = escape_for_log(truncate(entry.level.as_deref().unwrap_or("error"), 32));
+        let message = escape_for_log(truncate(&entry.message, 2000));
         let context = entry.context.as_deref().map(|c| truncate(c, 512));
         tracing::warn!(
             target: "client",
@@ -82,5 +98,17 @@ mod tests {
         // milieu d'un caractère).
         assert_eq!(truncate("é", 1), "");
         assert_eq!(truncate("aé", 2), "a");
+    }
+
+    /// SECURITY_FINDINGS.md #8 : un message client contenant un retour à la
+    /// ligne ou une séquence d'échappement terminal ne doit jamais atterrir tel
+    /// quel dans les logs serveur (forgerie de ligne / injection terminal).
+    #[test]
+    fn escape_for_log_neutralise_les_caracteres_de_controle() {
+        assert_eq!(escape_for_log("ligne1\nligne2"), "ligne1\\nligne2");
+        assert_eq!(escape_for_log("retour\rchariot"), "retour\\rchariot");
+        // Séquence d'échappement ANSI (ESC = \x1b) : échappée, pas interprétée.
+        assert_eq!(escape_for_log("\x1b[31mrouge\x1b[0m"), "\\u{1b}[31mrouge\\u{1b}[0m");
+        assert_eq!(escape_for_log("message normal"), "message normal");
     }
 }

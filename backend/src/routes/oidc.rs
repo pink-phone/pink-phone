@@ -188,6 +188,13 @@ struct TokenResponse {
 struct IdClaims {
     sub: String,
     email: Option<String>,
+    /// Le fournisseur atteste avoir vérifié cette adresse (lien cliqué, OTP…).
+    /// SECURITY_FINDINGS.md #9 : sans ce contrôle, `upsert_oidc_user` lie/à un
+    /// compte EXISTANT par email — un fournisseur qui n'exige pas de vérification
+    /// d'email laisserait n'importe qui revendiquer l'email de quelqu'un d'autre
+    /// et prendre le contrôle de son compte PinkPhone existant (CWE-345). Absent
+    /// du claim (`None`) ⇒ traité comme non vérifié, jamais comme vérifié par défaut.
+    email_verified: Option<bool>,
     name: Option<String>,
     preferred_username: Option<String>,
     nonce: Option<String>,
@@ -322,10 +329,11 @@ async fn callback_inner(
     }
 
     // Résolution / création du compte.
-    let email = claims
-        .email
-        .map(|e| e.trim().to_lowercase())
-        .unwrap_or_else(|| format!("{}@oidc.local", claims.sub));
+    let email = trusted_email(
+        &claims.sub,
+        claims.email.as_deref(),
+        claims.email_verified == Some(true),
+    );
     let display = claims
         .name
         .or(claims.preferred_username)
@@ -338,7 +346,24 @@ async fn callback_inner(
     issue_token(&state.config.jwt_secret, user_id)
 }
 
-/// Lie par `oidc_sub`, sinon par email (compte existant), sinon crée.
+/// Email à utiliser pour lier/créer le compte (SECURITY_FINDINGS.md #9) : celui
+/// du fournisseur UNIQUEMENT s'il atteste l'avoir vérifié, sinon un repli
+/// synthétique basé sur `sub` (garanti unique, jamais de collision avec un
+/// compte existant). Sans ce garde-fou, `upsert_oidc_user` lierait/créerait par
+/// email sur la seule foi d'un claim non vérifié : n'importe qui prétendant à
+/// l'email de quelqu'un d'autre prendrait le contrôle de son compte PinkPhone
+/// existant (CWE-345) — ou, pour un compte à créer, entrerait en collision avec
+/// l'email — bien réel, lui — d'un compte existant (violation de contrainte
+/// unique). Fonction pure, testée indépendamment de tout fournisseur OIDC.
+fn trusted_email(sub: &str, claimed_email: Option<&str>, email_verified: bool) -> String {
+    match claimed_email.filter(|_| email_verified) {
+        Some(e) => e.trim().to_lowercase(),
+        None => format!("{sub}@oidc.local"),
+    }
+}
+
+/// Lie par `oidc_sub`, sinon par email (compte existant), sinon crée. `email`
+/// doit déjà être digne de confiance à cet appel — voir `trusted_email`.
 async fn upsert_oidc_user(
     state: &AppState,
     sub: &str,
@@ -384,4 +409,33 @@ async fn upsert_oidc_user(
     .await?;
     tx.commit().await?;
     Ok(id)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn email_verifie_utilise_tel_quel_normalise() {
+        assert_eq!(
+            trusted_email("sub-1", Some("  Partenaire@Example.COM "), true),
+            "partenaire@example.com"
+        );
+    }
+
+    #[test]
+    fn email_non_verifie_jamais_utilise() {
+        // Même si un email est présent, un claim non vérifié retombe sur le
+        // repli synthétique — jamais sur l'email prétendu (SECURITY_FINDINGS.md #9).
+        assert_eq!(
+            trusted_email("sub-1", Some("victime@example.com"), false),
+            "sub-1@oidc.local"
+        );
+    }
+
+    #[test]
+    fn aucun_email_fourni_retombe_sur_le_repli() {
+        assert_eq!(trusted_email("sub-1", None, true), "sub-1@oidc.local");
+        assert_eq!(trusted_email("sub-1", None, false), "sub-1@oidc.local");
+    }
 }
