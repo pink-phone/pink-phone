@@ -719,6 +719,33 @@ no open-redirect surface. Push payload content is always one of a small set of s
 server-chosen strings (never user-controlled) and is rendered via the browser's native
 `showNotification` (no HTML/JS execution even hypothetically). Nothing to fix.
 
+**JWT algorithm confusion (`alg:none` / HS256↔RS256 downgrade), verified against the exact crate
+source in use**: read `jsonwebtoken` 9.3.1's own `decoding.rs`/`validation.rs` (the version pinned
+in `Cargo.lock`) rather than relying on general knowledge of the crate. `Validation::default()` —
+used by `auth::verify_token` for session JWTs — resolves to `Validation::new(Algorithm::HS256)`,
+and `verify_signature()` rejects any token whose header `alg` isn't in the validator's allowed set
+*before* attempting any signature check (`!validation.algorithms.contains(&header.alg)` →
+`InvalidAlgorithm`, checked ahead of `verify()`). Session tokens can't be forged with `alg: none`
+or swapped to a different algorithm. The OIDC `id_token` path (`oidc.rs`) explicitly pins
+`Validation::new(Algorithm::RS256)`, so the classic "downgrade RS256 to HS256 and HMAC-sign with
+the provider's public key bytes" trick is equally blocked — an attacker-supplied `alg: HS256`
+token is rejected by the same header/allow-list check before the key material is ever used to
+verify anything. Not exploitable in either code path.
+
+**Frontend bundle recon**: no source map served (`index-*.js.map` → `404`, correctly excluded
+from the production build). Downloaded and grepped the actual production JS bundle (377 KB) for
+credential/secret patterns (API key prefixes, PEM private key headers, `JWT_SECRET`/`MEDIA_KEY`/
+`VAPID_PRIVATE` literals) and unexpected absolute URLs — nothing beyond i18n form-field labels and
+two harmless standard references (an XML namespace URL, React's own error-doc link). No dev/
+staging endpoint or credential leaked into the client bundle.
+
+**Classic misconfiguration checks**: `/.env`, `/.git/config`, `/docker-compose.yml` all return
+`200` — but the response body is the SPA shell (`index.html`) in every case, not real file
+content, which is expected `try_files ... /index.html` SPA-fallback behavior rather than actual
+exposure (confirmed by inspecting the response bodies: identical HTML boilerplate for all three;
+these files were never shipped in the `web` image to begin with). `TRACE` → `405` (disabled, no
+cross-site-tracing surface). `/assets/` → `404`, not a directory listing.
+
 ---
 
 ### Reviewed and not flagged
