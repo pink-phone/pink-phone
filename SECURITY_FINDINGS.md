@@ -748,6 +748,67 @@ cross-site-tracing surface). `/assets/` → `404`, not a directory listing.
 
 ---
 
+## 2026-09-10 — Static review: `pinkctl` (admin CLI) and `pinkdev` (dev CLI)
+
+Reviewer: Claude (white-hat static review, Mode A), triggered by the addition of two new CLIs
+(`backend/src/bin/pinkctl.rs`, ~2550 lines; `frontend/scripts/pinkdev.mjs`, ~410 lines) plus the
+`.forgejo/workflows/deploy.yml` changes that invoke `pinkctl` remotely over SSH.
+
+**Overall result: sound design, one real finding.** Read `pinkctl.rs` in full: every one of its
+~100 SQL statements uses bound parameters (one instance of `format!()` building a query was
+checked specifically — it only stitches together static SQL fragments, the actual user-supplied
+value is still bound via `$1`, not interpolated); every filesystem path for media deletion is
+built from a `storage_key` read back from the database (server-generated UUID), never from raw
+CLI input, so no path-traversal surface; passwords are always Argon2-hashed via the same
+`hash_password` the main server uses; destructive operations require an explicit `--confirm`
+(single record) or an exact confirmation phrase (`nuke`, matched via `==`, not prefix/contains);
+`media verify` never prints or writes decrypted bytes, matching its own doc comment; the tool
+never binds to a network port itself (confirmed: no listener setup anywhere in the file) and is
+only reachable via `docker exec`, a boundary `INSTALL.md`'s new "Admin CLI" section documents
+explicitly and correctly, including an explicit argument against ever wrapping it in a
+network-facing interface. `resolve_password()` already refuses `--password` as a CLI argument on
+an "exposed" deployment (same heuristic as the server's own startup guard) specifically to avoid
+the password sitting in shell history / `ps` / `/proc` — exactly the mitigation I'd have
+otherwise had to ask for. The notification-sending refactor (`notifications.rs`, shared
+`send_and_handle()` used by both `notify_members` and the new `pinkctl notify test`) still routes
+every send through `endpoint_is_safe()` — the SSRF fix from finding #11 survived the refactor.
+`pinkdev.mjs`: scaffolded component/screen names are regex-validated (`^[A-Z][A-Za-z0-9]*$`)
+*before* being interpolated into generated `.tsx` source or used in file paths, and every
+subprocess call uses an argument array with no shell (`spawnSync(cmd, args, ...)`, never a
+concatenated shell string) — no command-injection surface, though this is dev-only tooling never
+shipped in an image regardless.
+
+### 16. CI deploy step disables SSH host-key verification entirely
+
+- **Status**: partially fixed (2026-09-10) — [.forgejo/workflows/deploy.yml](.forgejo/workflows/deploy.yml)
+- **Location**: `.forgejo/workflows/deploy.yml` (the `ssh`/`scp` invocations added to call `pinkctl` on the deploy target)
+- **Class**: CWE-295 (Improper Certificate/Host Validation) — SSH host-key equivalent
+- **Severity**: Low — same-home-network deploy target; an attacker positioned to exploit this would already need a foothold on that network, at which point they have larger problems available
+- **Confidence**: confirmed (code reading); not exploited, no live MITM attempted (would require a privileged network position outside this engagement's authorized scope anyway)
+
+**Finding**: both the `ssh` and `scp` invocations used `-o StrictHostKeyChecking=no`, which accepts
+*any* host key presented, including one that changed since the last successful deploy — the one
+signal that actually indicates something is wrong (DNS hijack, ARP spoofing, a swapped/compromised
+host). `no` disables that check unconditionally, not just the "first-contact" prompt.
+
+**Remediation**: use `accept-new` instead — same non-interactive behavior for a host never seen
+before (no CI hang waiting on a prompt), but it *does* refuse to connect if a previously-accepted
+host key later changes.
+
+**Fix applied, with an honest caveat**: swapped both flags to `accept-new`. **This only provides
+real protection if `~/.ssh/known_hosts` persists between workflow runs** — on an ephemeral/
+per-run CI container (which this `runs-on: docker` runner appears to be, based on the rest of the
+pipeline never persisting any state between steps or runs), `known_hosts` starts empty every
+time, so `accept-new` has no prior key to compare against and behaves identically to `no` in
+practice. Closing this properly would mean pinning the deploy host's public key ahead of time
+(e.g. as a Forgejo variable/secret populated once via `ssh-keyscan`, checked into `known_hosts` at
+the start of the job) — not done here, since it needs a new secret and an operational step from
+the user, and the realistic exposure is already low for a same-LAN home deployment. Flagged
+rather than silently left as `no`, so the gap is a documented, deliberate trade-off rather than an
+oversight.
+
+---
+
 ### Reviewed and not flagged
 
 For traceability: authentication (JWT iss/aud/exp + `min_token_iat` revocation), OIDC (PKCE,
