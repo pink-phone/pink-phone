@@ -1,8 +1,10 @@
 //! `pinkctl` — outil d'administration pour une instance PinkPhone self-hosted.
 //!
 //! Binaire séparé du serveur (`pinkphone-api`), mais qui réutilise directement
-//! le pool DB et la logique métier du crate `pinkphone_api` (pas d'appel HTTP) :
-//! utile même API arrêtée (diagnostics, migrations, comptes de support).
+//! le pool DB et la logique métier du crate `pinkphone_api` : utile même API
+//! arrêtée (diagnostics, migrations, comptes de support). Toutes les commandes
+//! parlent DIRECTEMENT à Postgres (pas de HTTP) sauf `ping`, qui vérifie
+//! justement que le process serveur répond — cf. sa doc.
 //!
 //! Lecture de la config : mêmes variables d'environnement que le serveur
 //! (`.env`, `DATABASE_URL`/`DB_*`, `MEDIA_DIR`, ...) — voir `config.rs`.
@@ -89,6 +91,23 @@ enum Command {
     /// duplique pas le contenu). Refusé sur un déploiement exposé — les
     /// comptes créés ont un mot de passe connu, jamais acceptable en prod.
     SeedDemo,
+    /// État de santé du backing store (DB + stockage média) — pas du process.
+    ///
+    /// Pas le process serveur lui-même (cf. `ping` pour ça) : DB joignable,
+    /// migrations à jour (échoue si une migration manque — code et schéma
+    /// désynchronisés), et MEDIA_DIR accessible en écriture.
+    Health,
+    /// Vérifie que le serveur RÉPOND (requête HTTP sur `/health`).
+    ///
+    /// Nécessite `docker exec <api-container> pinkctl ping` sur le conteneur
+    /// DÉJÀ lancé — un `docker compose run` spawnerait un nouveau conteneur
+    /// sans serveur à joindre en local, et échouerait toujours pour la
+    /// mauvaise raison.
+    Ping {
+        /// URL à taper (défaut : http://127.0.0.1:<port de BIND_ADDR>/health).
+        #[arg(long)]
+        url: Option<String>,
+    },
 }
 
 /// Volontairement pas un simple booléen `--confirm` (contrairement à `user
@@ -300,8 +319,15 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
     match cli.command {
         Command::Config { action } => match action {
             ConfigCmd::Check => {
-                for line in config_check(&config) {
+                let lines = config_check(&config);
+                for line in &lines {
                     println!("{line}");
+                }
+                // Exit non-zero sur un ✖ (pas un ⚠) : utilisable comme gate CI/
+                // post-déploiement (cf. INSTALL.md#admin-cli-pinkctl), pas
+                // seulement comme diagnostic lu par un humain.
+                if has_blocking_issue(&lines) {
+                    return Err("configuration bloquante (✖ ci-dessus) — voir INSTALL.md".into());
                 }
             }
         },
@@ -402,6 +428,17 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
             let pool = connect(&config).await?;
             seed_demo(&pool, &config).await?
         }
+        Command::Health => {
+            let pool = connect(&config).await?;
+            let lines = health_check(&pool, &config.media_dir).await?;
+            for line in &lines {
+                println!("{line}");
+            }
+            if has_blocking_issue(&lines) {
+                return Err("état de santé dégradé (✖ ci-dessus)".into());
+            }
+        }
+        Command::Ping { url } => ping(&config.bind_addr, url.as_deref()).await?,
     }
     Ok(())
 }
@@ -569,6 +606,15 @@ fn config_check(config: &Config) -> Vec<String> {
     ));
 
     lines
+}
+
+/// `true` si au moins une ligne de `config_check` est bloquante (✖, pas ⚠) —
+/// c'est ce qui fait exit non-zéro `pinkctl config check` (cf. #70, gate
+/// CI/post-déploiement). Extrait en fonction pure pour être testable sans
+/// devoir relancer le binaire compilé (Cargo ne pose pas `CARGO_BIN_EXE_*`
+/// pour un test à l'intérieur du binaire qu'il référencerait lui-même).
+fn has_blocking_issue(lines: &[String]) -> bool {
+    lines.iter().any(|l| l.starts_with('✖'))
 }
 
 // ---------- db ----------
@@ -1324,6 +1370,85 @@ async fn seed_demo(pool: &PgPool, config: &Config) -> Result<(), Box<dyn std::er
     Ok(())
 }
 
+// ---------- health / ping ----------
+
+/// État du BACKING STORE (DB + médias) — pas du process serveur (cf. `ping`).
+/// Renvoie des lignes ✔/✖ dans le même style que `config_check` (et gérées
+/// par le même `has_blocking_issue` côté appelant).
+async fn health_check(
+    pool: &PgPool,
+    media_dir: &str,
+) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+    let mut lines = Vec::new();
+
+    // Si `connect()` (appelé avant) a réussi, la DB était joignable à ce
+    // moment — cette requête confirme qu'elle répond ENCORE (pas juste que la
+    // poignée de main initiale a marché).
+    match sqlx::query_scalar::<_, i32>("SELECT 1").fetch_one(pool).await {
+        Ok(_) => lines.push("✔ base de données joignable".to_string()),
+        Err(e) => lines.push(format!("✖ base de données injoignable : {e}")),
+    }
+
+    let migrator = sqlx::migrate!("./migrations");
+    let applied: Vec<i64> = sqlx::query_scalar(
+        "SELECT version FROM _sqlx_migrations WHERE success = true ORDER BY version",
+    )
+    .fetch_all(pool)
+    .await
+    .unwrap_or_default();
+    let pending = migrator.iter().filter(|m| !applied.contains(&m.version)).count();
+    if pending == 0 {
+        lines.push(format!("✔ migrations à jour ({} appliquées)", applied.len()));
+    } else {
+        lines.push(format!(
+            "✖ {pending} migration(s) en attente — code et schéma DB désynchronisés"
+        ));
+    }
+
+    let probe = Path::new(media_dir).join(format!(".pinkctl-health-{}", Uuid::new_v4()));
+    match tokio::fs::write(&probe, b"pinkctl health check").await {
+        Ok(()) => {
+            let _ = tokio::fs::remove_file(&probe).await;
+            lines.push(format!("✔ MEDIA_DIR ({media_dir}) accessible en écriture"));
+        }
+        Err(e) => lines.push(format!(
+            "✖ MEDIA_DIR ({media_dir}) inaccessible en écriture : {e}"
+        )),
+    }
+
+    Ok(lines)
+}
+
+/// URL par défaut de `ping` : le port de `BIND_ADDR`, sur loopback — appelant
+/// et serveur sont dans le MÊME conteneur/netns (`docker exec`), donc
+/// loopback est toujours correct même si le serveur a bindé `0.0.0.0`
+/// (BIND_ADDR n'est qu'une adresse d'écoute, pas la destination du client).
+fn default_health_url(bind_addr: &str) -> String {
+    let port = bind_addr.rsplit(':').next().unwrap_or("8080");
+    format!("http://127.0.0.1:{port}/health")
+}
+
+/// Vérifie que le serveur répond réellement (requête HTTP sur `/health`).
+/// Seule commande de `pinkctl` qui parle HTTP plutôt que DB directe — voir la
+/// doc de `Command::Ping` pour la contrainte `docker exec` (pas `run`).
+async fn ping(bind_addr: &str, url_override: Option<&str>) -> Result<(), Box<dyn std::error::Error>> {
+    let url = url_override
+        .map(str::to_string)
+        .unwrap_or_else(|| default_health_url(bind_addr));
+
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(5))
+        .build()?;
+    match client.get(&url).send().await {
+        Ok(resp) if resp.status().is_success() => {
+            println!("✔ {url} → {}", resp.status());
+            Ok(())
+        }
+        Ok(resp) => Err(format!("✖ {url} → {} (attendu 2xx)", resp.status()).into()),
+        Err(e) => Err(format!("✖ impossible de joindre {url} : {e}").into()),
+    }
+}
+
 // ---------- tests ----------
 
 #[cfg(test)]
@@ -1400,6 +1525,40 @@ mod tests {
         assert!(lines.iter().any(|l| l.starts_with("✔ MEDIA_KEY")));
         assert!(lines.iter().any(|l| l.starts_with("✔ clés VAPID")));
         assert!(!lines.iter().any(|l| l.starts_with('✖')));
+    }
+
+    #[test]
+    fn has_blocking_issue_detecte_seulement_les_croix_pas_les_avertissements() {
+        assert!(!has_blocking_issue(&[]));
+        assert!(!has_blocking_issue(&[
+            "✔ tout va bien".into(),
+            "⚠ juste un avertissement".into(),
+            "· info neutre".into(),
+        ]));
+        assert!(has_blocking_issue(&[
+            "✔ tout va bien".into(),
+            "✖ ceci est bloquant".into(),
+        ]));
+    }
+
+    /// Vérifie le lien entre `config_check` (le contenu) et `has_blocking_issue`
+    /// (ce qui gate le code de sortie de `pinkctl config check` — cf. #70,
+    /// health-check post-déploiement) sur les deux scénarios déjà couverts
+    /// individuellement ci-dessus.
+    #[test]
+    fn config_check_expose_secret_faible_est_bloquant_et_rien_d_autre_ne_lest() {
+        let dev = dev_config(); // loopback : jamais bloquant, juste des ⚠
+        assert!(!has_blocking_issue(&config_check(&dev)));
+
+        let exposed = Config {
+            bind_addr: "0.0.0.0:8080".into(),
+            jwt_secret: "dev-insecure-secret".into(),
+            ..base_config()
+        };
+        assert!(has_blocking_issue(&config_check(&exposed)));
+
+        let clean = base_config(); // exposé, mais secret fort + tout renseigné
+        assert!(!has_blocking_issue(&config_check(&clean)));
     }
 
     #[test]
@@ -1502,6 +1661,59 @@ mod tests {
         assert!(preview.ends_with('…'));
         assert!(preview.len() < long.len());
         assert!(long.starts_with(preview.trim_end_matches('…')));
+    }
+
+    #[test]
+    fn default_health_url_prend_le_port_de_bind_addr_toujours_en_loopback() {
+        assert_eq!(default_health_url("0.0.0.0:8080"), "http://127.0.0.1:8080/health");
+        assert_eq!(default_health_url("127.0.0.1:8080"), "http://127.0.0.1:8080/health");
+        assert_eq!(default_health_url("[::]:9000"), "http://127.0.0.1:9000/health");
+    }
+
+    #[tokio::test]
+    async fn ping_reussit_sur_200() {
+        use axum::routing::get;
+        use axum::Router;
+
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let app = Router::new().route("/health", get(|| async { "ok" }));
+        tokio::spawn(async move {
+            axum::serve(listener, app).await.unwrap();
+        });
+
+        ping("127.0.0.1:0", Some(&format!("http://{addr}/health")))
+            .await
+            .unwrap();
+    }
+
+    #[tokio::test]
+    async fn ping_echoue_sur_reponse_non_2xx() {
+        use axum::http::StatusCode;
+        use axum::routing::get;
+        use axum::Router;
+
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let app = Router::new()
+            .route("/health", get(|| async { (StatusCode::INTERNAL_SERVER_ERROR, "nope") }));
+        tokio::spawn(async move {
+            axum::serve(listener, app).await.unwrap();
+        });
+
+        let err = ping("127.0.0.1:0", Some(&format!("http://{addr}/health")))
+            .await
+            .unwrap_err();
+        assert!(err.to_string().contains("500"));
+    }
+
+    #[tokio::test]
+    async fn ping_echoue_si_rien_necoute() {
+        // Port 1 (privilégié) : personne dessus, connexion refusée — déterministe.
+        let err = ping("127.0.0.1:0", Some("http://127.0.0.1:1/health"))
+            .await
+            .unwrap_err();
+        assert!(err.to_string().contains("impossible de joindre"));
     }
 }
 
@@ -2297,5 +2509,42 @@ mod integration_tests {
         user_list(&pool, true).await.unwrap();
         space_list(&pool, true).await.unwrap();
         catalog_list(&pool, true).await.unwrap();
+    }
+
+    #[sqlx::test]
+    async fn health_check_tout_vert_sur_base_fraiche_et_dossier_ecrivable(pool: PgPool) {
+        let dir = std::env::temp_dir().join(format!("pinkctl-test-{}", Uuid::new_v4()));
+        tokio::fs::create_dir_all(&dir).await.unwrap();
+
+        let lines = health_check(&pool, dir.to_str().unwrap()).await.unwrap();
+        assert!(!has_blocking_issue(&lines), "{lines:?}");
+        assert!(lines.iter().any(|l| l.starts_with("✔ base de données")));
+        assert!(lines.iter().any(|l| l.contains("migrations à jour")));
+        assert!(lines.iter().any(|l| l.starts_with("✔ MEDIA_DIR")));
+    }
+
+    #[sqlx::test]
+    async fn health_check_signale_un_media_dir_inaccessible(pool: PgPool) {
+        let lines = health_check(&pool, "/chemin/qui/n-existe-pas-du-tout")
+            .await
+            .unwrap();
+        assert!(has_blocking_issue(&lines));
+        assert!(lines.iter().any(|l| l.starts_with("✖ MEDIA_DIR")));
+    }
+
+    #[sqlx::test]
+    async fn health_check_signale_une_migration_en_attente(pool: PgPool) {
+        // `#[sqlx::test]` applique TOUTES les migrations ; on simule un schéma
+        // en retard en retirant la trace de la plus récente.
+        sqlx::query(
+            "DELETE FROM _sqlx_migrations WHERE version = (SELECT max(version) FROM _sqlx_migrations)",
+        )
+        .execute(&pool)
+        .await
+        .unwrap();
+
+        let lines = health_check(&pool, "/tmp").await.unwrap();
+        assert!(has_blocking_issue(&lines));
+        assert!(lines.iter().any(|l| l.contains("en attente")));
     }
 }

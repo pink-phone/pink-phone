@@ -156,7 +156,11 @@ Open the app via your HTTPS domain, create an account, create a **space**, then 
 
 ## Admin CLI (pinkctl)
 
-`pinkctl` is a separate binary in the same image, for account/space support tasks (create/reset-password/delete a user, create/rename/delete a space or remove one member, list migrations, prune/verify media, list push subscriptions, toggle a catalog item) without going through the app. It talks to Postgres directly — no HTTP, no server, no listening port of its own. `--json` on any `list` subcommand switches to machine-readable output.
+`pinkctl` is a separate binary in the same image, for account/space support tasks (create/reset-password/delete a user, create/rename/delete a space or remove one member, list migrations, prune/verify media, list push subscriptions, toggle a catalog item) without going through the app. It talks to Postgres directly — no HTTP, no server, no listening port of its own (the one exception is `ping`, see below). `--json` on any `list` subcommand switches to machine-readable output.
+
+Two commands specifically for checking a deployment is actually working, both exiting non-zero on failure (scriptable as a gate):
+- `pinkctl health` — backing store only: DB reachable, migrations up to date, `MEDIA_DIR` writable. Works via `docker compose run --rm api pinkctl health` (a throwaway container — doesn't need the running one to be healthy).
+- `pinkctl ping [--url <url>]` — the one command that makes an HTTP call: hits the server's own `/health` endpoint to confirm the process itself is actually serving. Only meaningful against the **already-running** container — use `docker exec -it <api-container> pinkctl ping`, never `docker compose run` (that spawns a fresh container with nothing listening locally, so it would always fail for the wrong reason).
 
 - **Docker-exec only, never expose it over the network.** There is no login for `pinkctl` itself, and there shouldn't be one: whoever can run it already has `DATABASE_URL`/`DB_PASSWORD` (often `JWT_SECRET`/`MEDIA_KEY` too) via the container's environment, so a password prompt inside the CLI wouldn't create a real second boundary — it would just be a second thing to get right. The actual boundary is **who can reach a shell on the host/container**: SSH keys + `docker`-group membership. Run it via:
   ```bash
