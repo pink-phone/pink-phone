@@ -4,6 +4,10 @@ version = "0.1.0"
 edition = "2021"
 description = "API Rust/Axum de PinkPhone — Notre Jardin Secret"
 license = "AGPL-3.0-or-later"
+# `bin/pinkctl.rs` a fait de ce package un crate à deux binaires : sans ça,
+# `cargo run` (documenté dans CLAUDE.md pour lancer le serveur) devient ambigu
+# et refuse de démarrer. `cargo run --bin pinkctl -- ...` reste inchangé.
+default-run = "pinkphone-api"
 
 [dependencies]
 axum = { version = "0.8", features = ["multipart", "macros", "ws"] }
@@ -59,6 +63,10 @@ rand = "0.8"
 aes-gcm = "0.10"
 url = "2"
 little_exif = "0.6.23"
+
+# CLI d'administration (`bin/pinkctl.rs`).
+clap = { version = "4", features = ["derive"] }
+rpassword = "7"
 
 [features]
 # Tests d'intégration (routes/SQL) qui exigent une vraie Postgres jetable

@@ -1,19 +1,3 @@
-mod auth;
-mod config;
-mod error;
-mod invite_code;
-mod models;
-mod notifications;
-mod pagination;
-mod rate_limit;
-mod routes;
-mod state;
-
-// Tests d'intégration (routes + SQL) sur une vraie Postgres jetable, gated par la
-// feature `integration` (cf. Cargo.toml) → exclus du `cargo test` no-DB.
-#[cfg(all(test, feature = "integration"))]
-mod tests_integration;
-
 use axum::extract::DefaultBodyLimit;
 use axum::http::{header, HeaderValue, Method};
 use axum::routing::get;
@@ -24,8 +8,9 @@ use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::EnvFilter;
 
-use crate::config::Config;
-use crate::state::AppState;
+use pinkphone_api::config::Config;
+use pinkphone_api::state::AppState;
+use pinkphone_api::{config, rate_limit, routes};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -202,11 +187,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                 tokio::time::interval(std::time::Duration::from_secs(3600));
             loop {
                 tick.tick().await;
-                crate::routes::media::purge_orphan_media(&state.pool, &media_dir).await;
-                crate::routes::spaces::purge_stale_invites(&state.pool).await;
-                crate::routes::evening_menu::purge_old_picks(&state.pool).await;
+                routes::media::purge_orphan_media(&state.pool, &media_dir).await;
+                routes::spaces::purge_stale_invites(&state.pool).await;
+                routes::evening_menu::purge_old_picks(&state.pool).await;
                 // Livre les mots doux différés arrivés à échéance (#102).
-                crate::routes::love_notes::deliver_due_notes(&state).await;
+                routes::love_notes::deliver_due_notes(&state).await;
             }
         });
     }

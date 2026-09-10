@@ -39,7 +39,9 @@ const UPLOAD_MAX_ATTEMPTS: usize = 30;
 const UPLOAD_WINDOW: Duration = Duration::from_secs(60);
 
 /// Chiffre `plaintext` en AES-256-GCM ; renvoie nonce(12o) ++ ciphertext.
-pub(crate) fn encrypt(key: &[u8; 32], plaintext: &[u8]) -> Option<Vec<u8>> {
+/// `pub` (pas `pub(crate)`) : réutilisée par `bin/pinkctl.rs` (`media verify`),
+/// un binaire séparé du même package.
+pub fn encrypt(key: &[u8; 32], plaintext: &[u8]) -> Option<Vec<u8>> {
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key));
     let mut nonce = [0u8; 12];
     OsRng.fill_bytes(&mut nonce);
@@ -50,8 +52,9 @@ pub(crate) fn encrypt(key: &[u8; 32], plaintext: &[u8]) -> Option<Vec<u8>> {
     Some(out)
 }
 
-/// Déchiffre un blob nonce(12o) ++ ciphertext produit par `encrypt`.
-pub(crate) fn decrypt(key: &[u8; 32], blob: &[u8]) -> Option<Vec<u8>> {
+/// Déchiffre un blob nonce(12o) ++ ciphertext produit par `encrypt`. `pub` pour
+/// la même raison que `encrypt` ci-dessus.
+pub fn decrypt(key: &[u8; 32], blob: &[u8]) -> Option<Vec<u8>> {
     if blob.len() < 12 {
         return None;
     }

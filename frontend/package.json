@@ -13,6 +13,7 @@
     "build-storybook": "storybook build",
     "screenshots": "node scripts/screenshots.mjs",
     "og": "node scripts/og-image.mjs",
+    "pinkdev": "node scripts/pinkdev.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "coverage": "vitest run --coverage"

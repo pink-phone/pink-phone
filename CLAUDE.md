@@ -19,9 +19,20 @@ npm run build-storybook # static Storybook — also the de-facto "does everythin
 npx tsc --noEmit        # type-check only
 npm run test            # Vitest (run once); npm run test:watch to watch
 npm run screenshots     # regenerate docs/screenshots/* from built Storybook (one-time: npx playwright install chromium)
+npm run pinkdev -- new-component <Name>   # scaffold src/components/<Name>/ (.tsx + .stories.tsx + .test.tsx)
+npm run pinkdev -- new-screen <Name>      # same, under src/screens/
+npm run pinkdev -- check [--integration]  # runs all the gates below (+ backend) in one shot, front AND back
+npm run pinkdev -- dev [--seed]           # docker compose up -d (db) + cargo run + npm run dev, one terminal, Ctrl+C stops both
+npm run pinkdev -- seed                   # demo dataset (2 accounts + shared space + a mood/post/challenge) — idempotent
+npm run pinkdev -- package                # build the real Docker images from local source (pinkphone-{api,web}:local)
+npm run pinkdev -- docker [--down]        # package + run the full stack in Docker (nginx same-origin, like prod) — or tear it down
+npm run pinkdev -- clean [--volumes]      # rm -rf node_modules/target/dist/storybook-static + docker compose down (+ -v: also wipes the local DB)
+npm run pinkdev -- screenshots / og       # aliases for npm run screenshots / npm run og, kept as separate scripts too
 ```
 
-Tests use **Vitest + Testing Library + jsdom** (`vitest.config.ts`, setup `src/test/setup.ts` which boots i18n in `fr`); test files are `*.test.ts(x)` next to the code (pure functions like `app/mappers.ts`, `lib/`, plus component tests via RTL). There is **no linter** configured. The compile gate is `tsc` (strict mode, incl. `noUnusedLocals`/`noUnusedParameters`); run `npm run build`, `npm run build-storybook` and `npm run test` to verify changes — all must exit 0.
+`dev` uses `cargo-watch` for backend hot-reload if it's installed (`cargo install cargo-watch`) — falls back to plain `cargo run` (no auto-reload) otherwise. Both `dev`'s spawned processes run detached (their own process group) so Ctrl+C/shutdown kills the whole subtree, not just the direct child — matters for `cargo-watch`, which itself spawns the compiled server as a further child.
+
+Tests use **Vitest + Testing Library + jsdom** (`vitest.config.ts`, setup `src/test/setup.ts` which boots i18n in `fr`); test files are `*.test.ts(x)` next to the code (pure functions like `app/mappers.ts`, `lib/`, plus component tests via RTL). There is **no linter** configured. The compile gate is `tsc` (strict mode, incl. `noUnusedLocals`/`noUnusedParameters`); run `npm run build`, `npm run build-storybook` and `npm run test` to verify changes — all must exit 0 (`npm run pinkdev -- check` runs these three plus `cargo build`/`cargo test` in one command; `frontend/scripts/pinkdev.mjs`, dev-only tool, not shipped/deployed). `new-component`/`new-screen` scaffold the three files the golden rule above needs, pre-filled with a minimal presentational skeleton that already passes `tsc`/`vitest` — fill in the TODO and iterate in Storybook.
 
 ## What this is
 

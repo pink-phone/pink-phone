@@ -153,3 +153,21 @@ Open the app via your HTTPS domain, create an account, create a **space**, then 
   docker exec -e MEDIA_KEY_NEW="$NEW" <api-container> pinkphone-api rotate-media-key
   # then set MEDIA_KEY = "$NEW" in your secrets and redeploy. Back up the new key.
   ```
+
+## Admin CLI (pinkctl)
+
+`pinkctl` is a separate binary in the same image, for account/space support tasks (create/reset-password/delete a user, create/rename/delete a space or remove one member, list migrations, prune/verify media, list push subscriptions, toggle a catalog item) without going through the app. It talks to Postgres directly — no HTTP, no server, no listening port of its own. `--json` on any `list` subcommand switches to machine-readable output.
+
+- **Docker-exec only, never expose it over the network.** There is no login for `pinkctl` itself, and there shouldn't be one: whoever can run it already has `DATABASE_URL`/`DB_PASSWORD` (often `JWT_SECRET`/`MEDIA_KEY` too) via the container's environment, so a password prompt inside the CLI wouldn't create a real second boundary — it would just be a second thing to get right. The actual boundary is **who can reach a shell on the host/container**: SSH keys + `docker`-group membership. Run it via:
+  ```bash
+  docker exec -it <api-container> pinkctl --help
+  ```
+  For a remote host, that means SSH in first, then `docker exec` — not a bespoke network-facing admin port. Don't build a wrapper (web terminal, RPC, exposed port) that lets `pinkctl` be invoked over the network; that would add a new, custom-authenticated attack surface to an app that stores intimate data for two real people, for no real gain over SSH.
+- On a deployment `pinkctl` considers "exposed" (`BIND_ADDR` not loopback — the same heuristic the server's startup guard uses), it refuses `user create --password <pw>` / `user reset-password --password <pw>`: a password passed as an argument sits in the shell history and in `ps`/`/proc` for anyone else with shell access to that host. Omit `--password` and it prompts for a hidden input instead. On a local/dev loopback setup (`docker-compose.local.yml`), `--password` is allowed for convenience.
+- `user delete`/`media prune --apply` are irreversible and require `--confirm`/`--apply` explicitly — there's no interactive "are you sure?" prompt, so double-check the target before adding that flag.
+- **`pinkctl nuke`** wipes the entire instance — every user, space, post, challenge, mood, and media file on disk — for a full reset. The catalog (bucket list / evening menu content) and the global challenge bank are never touched (they're reference content, not user data). Run it bare first to see the counts of what would be deleted without touching anything:
+  ```bash
+  docker exec -it <api-container> pinkctl nuke
+  docker exec -it <api-container> pinkctl nuke --confirm NUKE-EVERYTHING   # actually does it
+  ```
+  It takes the literal phrase `NUKE-EVERYTHING`, not a plain `--confirm` flag — on purpose, so a reflexive/copy-pasted `--confirm` from another command can't trigger it by accident.

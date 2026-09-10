@@ -26,6 +26,10 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates libssl3 \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /app/target/release/pinkphone-api /usr/local/bin/pinkphone-api
+# CLI d'admin (`pinkctl`) — cf. INSTALL.md#admin-cli-pinkctl. `cargo build --release`
+# (sans --bin) compile déjà les deux binaires ; sans cette ligne le second restait
+# dans l'image builder et n'atterrissait jamais dans l'image finale.
+COPY --from=builder /app/target/release/pinkctl /usr/local/bin/pinkctl
 ENV MEDIA_DIR=/data/media \
     BIND_ADDR=0.0.0.0:8080
 RUN mkdir -p /data/media
