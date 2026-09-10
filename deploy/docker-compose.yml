@@ -69,8 +69,10 @@ services:
       - pink
 
 networks:
+  # Pas de `name:` fixe : plusieurs stacks (prod + beta) peuvent tourner sur le
+  # même hôte Docker sans collision de réseau — chacune obtient un réseau nommé
+  # d'après son dossier de déploiement (ex. pinkphone_pink / pinkphone-beta_pink).
   pink:
-    name: pinkphone-network
 
 volumes:
   pink-pgdata:
