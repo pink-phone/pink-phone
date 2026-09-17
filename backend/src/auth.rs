@@ -1,6 +1,4 @@
-use argon2::password_hash::rand_core::OsRng;
-use argon2::password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
-use argon2::Argon2;
+use argon2::{Argon2, PasswordHash, PasswordHasher, PasswordVerifier};
 use axum::extract::FromRequestParts;
 use axum::http::header::AUTHORIZATION;
 use axum::http::request::Parts;
@@ -22,9 +20,9 @@ use crate::state::AppState;
 // `spawn_blocking`).
 
 fn hash_sync(password: &str) -> ApiResult<String> {
-    let salt = SaltString::generate(&mut OsRng);
+    // Le salt est généré en interne (feature `getrandom`, activée par défaut).
     Argon2::default()
-        .hash_password(password.as_bytes(), &salt)
+        .hash_password(password.as_bytes())
         .map(|h| h.to_string())
         .map_err(|_| ApiError::Internal)
 }
@@ -209,5 +207,23 @@ mod tests {
         )
         .unwrap();
         assert!(verify_token(secret, &token).is_err());
+    }
+
+    #[test]
+    fn hash_puis_verify_roundtrip() {
+        let hash = hash_sync("correct horse battery staple").unwrap();
+        assert!(verify_sync("correct horse battery staple", &hash));
+        assert!(!verify_sync("mauvais mot de passe", &hash));
+    }
+
+    #[test]
+    fn verify_reste_compatible_avec_un_hash_argon2_0_5() {
+        // Généré avec argon2 0.5.3 (avant la migration vers 0.6) pour le mot de
+        // passe "correct horse battery staple" — le format PHC n'a pas changé,
+        // seule l'API Rust a bougé : ce hash doit rester vérifiable après le
+        // passage à argon2 0.6.
+        let hash = "$argon2id$v=19$m=19456,t=2,p=1$ECoRJYofVa/e/sCzb5YdEw$iOFLEkkGUc9rkbIlcdSt9udVJUvgVhlXXdlzzjf2gkM";
+        assert!(verify_sync("correct horse battery staple", hash));
+        assert!(!verify_sync("mauvais mot de passe", hash));
     }
 }
