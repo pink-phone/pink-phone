@@ -128,6 +128,11 @@ fn random_b64(len: usize) -> String {
     URL_SAFE_NO_PAD.encode(bytes)
 }
 
+/// `code_challenge` PKCE (méthode S256, RFC 7636 §4.2).
+fn pkce_challenge(verifier: &str) -> String {
+    URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()))
+}
+
 // ---------- /api/auth/oidc/login ----------
 
 async fn login(State(state): State<AppState>) -> ApiResult<Redirect> {
@@ -139,8 +144,7 @@ async fn login(State(state): State<AppState>) -> ApiResult<Redirect> {
     let csrf = random_b64(16);
     let nonce = random_b64(16);
     let verifier = random_b64(32);
-    let challenge =
-        URL_SAFE_NO_PAD.encode(Sha256::digest(verifier.as_bytes()));
+    let challenge = pkce_challenge(&verifier);
 
     {
         let mut states = state.oidc_states.lock().unwrap();
@@ -437,5 +441,25 @@ mod tests {
     fn aucun_email_fourni_retombe_sur_le_repli() {
         assert_eq!(trusted_email("sub-1", None, true), "sub-1@oidc.local");
         assert_eq!(trusted_email("sub-1", None, false), "sub-1@oidc.local");
+    }
+
+    #[test]
+    fn pkce_challenge_vecteur_rfc_7636_annexe_b() {
+        assert_eq!(
+            pkce_challenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"),
+            "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+        );
+    }
+
+    #[test]
+    fn random_b64_longueur_alphabet_et_unicite() {
+        let a = random_b64(32);
+        let b = random_b64(32);
+        // 32 octets → 43 caractères base64url sans padding.
+        assert_eq!(a.len(), 43);
+        assert!(a
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_'));
+        assert_ne!(a, b);
     }
 }
