@@ -53,7 +53,7 @@ web-push = { version = "0.10", default-features = false, features = ["hyper-clie
 # OIDC (Authorization Code + PKCE, implémenté manuellement).
 reqwest = { version = "0.12", features = ["json"] }
 sha2 = "0.10"
-base64 = "0.22"
+base64 = "0.23"
 rand = "0.8"
 # Chiffrement des médias au repos (AES-256-GCM).
 aes-gcm = "0.11"
