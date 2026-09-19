@@ -1071,22 +1071,21 @@ async fn notify_list(
     email: Option<&str>,
     json: bool,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let base_query = "SELECT u.email, coalesce(s.notif_mode, 'ghost'), ps.endpoint, ps.created_at
+    let email = email.map(|e| e.trim().to_lowercase());
+
+    // Requête littérale (sqlx 0.9 refuse le SQL construit par `format!`) : le
+    // filtre optionnel passe par un paramètre lié, jamais par interpolation.
+    let rows: Vec<(String, String, String, DateTime<Utc>)> = sqlx::query_as(
+        "SELECT u.email, coalesce(s.notif_mode, 'ghost'), ps.endpoint, ps.created_at
          FROM push_subscriptions ps
          JOIN users u ON u.id = ps.user_id
-         LEFT JOIN user_settings s ON s.user_id = ps.user_id";
-
-    let rows: Vec<(String, String, String, DateTime<Utc>)> = if let Some(email) = email {
-        let email = email.trim().to_lowercase();
-        sqlx::query_as(&format!("{base_query} WHERE u.email = $1 ORDER BY ps.created_at"))
-            .bind(email)
-            .fetch_all(pool)
-            .await?
-    } else {
-        sqlx::query_as(&format!("{base_query} ORDER BY u.email, ps.created_at"))
-            .fetch_all(pool)
-            .await?
-    };
+         LEFT JOIN user_settings s ON s.user_id = ps.user_id
+         WHERE ($1::text IS NULL OR u.email = $1)
+         ORDER BY u.email, ps.created_at",
+    )
+    .bind(email)
+    .fetch_all(pool)
+    .await?;
 
     if !json && rows.is_empty() {
         println!("aucun abonnement push.");
