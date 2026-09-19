@@ -8,7 +8,7 @@
 //! La comparaison à la saisie est **insensible à la casse** (cf. `normalize` +
 //! l'index `lower(code)` côté SQL). Espace ≈ 32 × 32 × 10 ≈ 10 000 combinaisons.
 
-use rand::Rng;
+use rand::RngExt;
 
 /// Mots « tendresse / intimité » (1er mot du code).
 const WARM: &[&str] = &[
@@ -28,10 +28,10 @@ const COZY: &[&str] = &[
 
 /// Génère un code d'invitation aléatoire (`MotMot#chiffre`).
 pub fn generate() -> String {
-    let mut rng = rand::thread_rng();
-    let warm = WARM[rng.gen_range(0..WARM.len())];
-    let cozy = COZY[rng.gen_range(0..COZY.len())];
-    let digit = rng.gen_range(0..10);
+    let mut rng = rand::rng();
+    let warm = WARM[rng.random_range(0..WARM.len())];
+    let cozy = COZY[rng.random_range(0..COZY.len())];
+    let digit = rng.random_range(0..10);
     format!("{warm}{cozy}#{digit}")
 }
 
