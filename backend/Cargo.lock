@@ -2032,7 +2032,7 @@ dependencies = [
  "image",
  "jsonwebtoken",
  "little_exif",
- "rand 0.8.6",
+ "rand 0.10.2",
  "reqwest",
  "serde",
  "serde_json",
