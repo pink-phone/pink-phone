@@ -4,7 +4,7 @@ use serde_json::json;
 use uuid::Uuid;
 use web_push::{
     ContentEncoding, SubscriptionInfo, VapidSignatureBuilder, WebPushClient,
-    WebPushError, WebPushMessageBuilder, URL_SAFE_NO_PAD,
+    WebPushError, WebPushMessageBuilder,
 };
 
 use crate::state::AppState;
@@ -156,9 +156,9 @@ pub fn notify_members(state: &AppState, space_id: Uuid, actor_id: Uuid, title: S
                 sub.auth.clone(),
             );
 
+            // web-push 0.11 : la clé est toujours du base64 URL-safe sans padding.
             let signature = match VapidSignatureBuilder::from_base64(
                 &config.vapid_private_key,
-                URL_SAFE_NO_PAD,
                 &info,
             ) {
                 Ok(mut builder) => {
@@ -190,8 +190,8 @@ pub fn notify_members(state: &AppState, space_id: Uuid, actor_id: Uuid, title: S
 
             match client.send(message).await {
                 Ok(()) => {}
-                Err(WebPushError::EndpointNotValid)
-                | Err(WebPushError::EndpointNotFound) => {
+                Err(WebPushError::EndpointNotValid(_))
+                | Err(WebPushError::EndpointNotFound(_)) => {
                     let _ = sqlx::query(
                         "DELETE FROM push_subscriptions WHERE endpoint = $1",
                     )
@@ -230,6 +230,36 @@ mod tests {
         assert!(is_disallowed_ip("::1".parse().unwrap())); // loopback
         assert!(is_disallowed_ip("fc00::1".parse().unwrap())); // unique local
         assert!(is_disallowed_ip("fe80::1".parse().unwrap())); // link-local
+    }
+
+    #[test]
+    fn signature_vapid_et_message_chiffre_se_construisent() {
+        // Couvre la chaîne web-push sans réseau : clé VAPID base64url (sans
+        // padding), signature ES256, puis chiffrement aes128gcm du payload
+        // pour une souscription (clés d'exemple de la doc web-push).
+        let info = SubscriptionInfo::new(
+            "https://push.example.com/send/abc",
+            "BLMbF9ffKBiWQLCKvTHb6LO8Nb6dcUh6TItC455vu2kElga6PQvUmaFyCdykxY2nOSSL3yKgfbmFLRTUaGv4yV8",
+            "xS03Fi5ErfTNH_l9WHE9Ig",
+        );
+        let mut builder = VapidSignatureBuilder::from_base64(
+            "IQ9Ur0ykXoHS9gzfYX0aBjy9lvdrjx_PFUXmie9YRcY",
+            &info,
+        )
+        .expect("clé VAPID base64url valide");
+        builder.add_claim("sub", "mailto:test@example.com");
+        let signature = builder.build().expect("signature VAPID");
+
+        let mut message = WebPushMessageBuilder::new(&info);
+        message.set_payload(ContentEncoding::Aes128Gcm, b"{\"title\":\"test\"}");
+        message.set_vapid_signature(signature);
+        message.build().expect("message push chiffré");
+    }
+
+    #[test]
+    fn cle_vapid_invalide_refusee() {
+        let info = SubscriptionInfo::new("https://push.example.com/x", "AAAA", "AAAA");
+        assert!(VapidSignatureBuilder::from_base64("pas-une-cle", &info).is_err());
     }
 
     #[test]
