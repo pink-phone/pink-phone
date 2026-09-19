@@ -19,9 +19,9 @@ tokio = { version = "1", features = [
     "time",
 ] }
 tower = "0.5"
-tower-http = { version = "0.6", features = ["cors", "trace"] }
+tower-http = { version = "0.7", features = ["cors", "trace"] }
 
-sqlx = { version = "0.8", default-features = false, features = [
+sqlx = { version = "0.9", default-features = false, features = [
     "runtime-tokio",
     "tls-rustls",
     "postgres",
@@ -51,10 +51,13 @@ tokio-util = { version = "0.7", features = ["io"] }
 web-push = { version = "0.11", default-features = false, features = ["hyper-client"] }
 
 # OIDC (Authorization Code + PKCE, implémenté manuellement).
-reqwest = { version = "0.12", features = ["json"] }
-sha2 = "0.10"
-base64 = "0.22"
-rand = "0.8"
+# 0.13 passe par défaut à rustls/aws-lc ; on garde OpenSSL (libssl3 est déjà dans
+# l'image runtime) et le reste des features par défaut de 0.12. `form` est
+# devenue optionnelle.
+reqwest = { version = "0.13", default-features = false, features = ["json", "form", "native-tls", "charset", "http2", "system-proxy"] }
+sha2 = "0.11"
+base64 = "0.23"
+rand = "0.10"
 # Chiffrement des médias au repos (AES-256-GCM).
 aes-gcm = "0.11"
 url = "2"

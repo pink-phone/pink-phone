@@ -12,7 +12,8 @@ use axum::{Json, Router};
 use little_exif::exif_tag::ExifTag;
 use little_exif::filetype::FileExtension;
 use little_exif::metadata::Metadata as ExifMetadata;
-use rand::{rngs::OsRng, RngCore};
+use rand::rngs::SysRng;
+use rand::TryRng;
 use serde::Serialize;
 use std::io::SeekFrom;
 use std::path::PathBuf;
@@ -42,7 +43,9 @@ const UPLOAD_WINDOW: Duration = Duration::from_secs(60);
 pub(crate) fn encrypt(key: &[u8; 32], plaintext: &[u8]) -> Option<Vec<u8>> {
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key));
     let mut nonce = [0u8; 12];
-    OsRng.fill_bytes(&mut nonce);
+    // Source OS ; en cas d'échec du RNG système on refuse de chiffrer plutôt que
+    // d'utiliser un nonce nul/répété (catastrophique pour AES-GCM).
+    SysRng.try_fill_bytes(&mut nonce).ok()?;
     let ct = cipher.encrypt(Nonce::from_slice(&nonce), plaintext).ok()?;
     let mut out = Vec::with_capacity(12 + ct.len());
     out.extend_from_slice(&nonce);
@@ -773,6 +776,22 @@ mod tests {
         let blob = encrypt(&key, msg).expect("chiffrement");
         assert_ne!(&blob[..], &msg[..]); // bien chiffré
         assert_eq!(decrypt(&key, &blob).expect("déchiffrement"), msg);
+    }
+
+    #[test]
+    fn nonce_aleatoire_jamais_nul_ni_reutilise() {
+        // Un nonce AES-GCM répété avec la même clé est catastrophique : deux
+        // chiffrements du même clair doivent avoir des nonces (12 premiers
+        // octets) différents, et un nonce jamais entièrement nul.
+        let key = [7u8; 32];
+        let nonces: Vec<Vec<u8>> = (0..64)
+            .map(|_| encrypt(&key, b"meme clair").unwrap()[..12].to_vec())
+            .collect();
+        for n in &nonces {
+            assert_ne!(n, &vec![0u8; 12]);
+        }
+        let uniques: std::collections::HashSet<_> = nonces.iter().collect();
+        assert_eq!(uniques.len(), nonces.len());
     }
 
     #[test]
