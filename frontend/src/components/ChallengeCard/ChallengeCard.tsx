@@ -73,7 +73,7 @@ export function ChallengeCard({
       )}
     >
       {showEmber && <FireEmbers count={7} />}
-      <div className="relative z-10 space-y-3">
+      <div className="relative z-10 space-y-v3-3">
         <div className="flex items-center justify-between gap-2">
           <Badge tone={INTENSITY_TONE[intensity]}>
             {t(`challenges.intensity.${intensity}`)}

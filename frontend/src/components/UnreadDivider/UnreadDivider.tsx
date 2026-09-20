@@ -35,11 +35,11 @@ export function UnreadDivider({
         aria-label={label}
         className={cn("flex items-center gap-3 py-1", className)}
       >
-        <span className="h-px flex-1 bg-gradient-to-r from-transparent to-taupe-400/25" />
+        <span className="h-px flex-1 bg-linear-to-r from-transparent to-taupe-400/25" />
         <span className="rounded-full bg-charcoal-700/50 px-3 py-0.5 text-[10px] font-medium uppercase tracking-[0.12em] text-taupe-400">
           {label}
         </span>
-        <span className="h-px flex-1 bg-gradient-to-l from-transparent to-taupe-400/25" />
+        <span className="h-px flex-1 bg-linear-to-l from-transparent to-taupe-400/25" />
       </div>
     );
   }
@@ -50,11 +50,11 @@ export function UnreadDivider({
       aria-label={label}
       className={cn("flex items-center gap-3 py-1", className)}
     >
-      <span className="h-px flex-1 bg-gradient-to-r from-transparent to-spice-400/50" />
+      <span className="h-px flex-1 bg-linear-to-r from-transparent to-spice-400/50" />
       <span className="rounded-full bg-spice-500/15 px-3 py-0.5 text-[11px] font-medium uppercase tracking-[0.15em] text-spice-300">
         {label}
       </span>
-      <span className="h-px flex-1 bg-gradient-to-l from-transparent to-spice-400/50" />
+      <span className="h-px flex-1 bg-linear-to-l from-transparent to-spice-400/50" />
     </div>
   );
 }

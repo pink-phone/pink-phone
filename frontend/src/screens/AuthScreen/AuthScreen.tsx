@@ -46,7 +46,7 @@ export function AuthScreen({
 
   return (
     <main className="flex min-h-dvh items-center justify-center p-6">
-      <Surface tone="velvet" className="w-full max-w-sm space-y-5">
+      <Surface tone="velvet" className="w-full max-w-sm space-y-v3-5">
         <header className="text-center">
           <h1 className="font-serif text-3xl text-blush-100">{t("app.name")}</h1>
           <p className="mt-1 text-sm text-taupe-300">
@@ -59,7 +59,7 @@ export function AuthScreen({
         </header>
 
         {oidcEnabled && (
-          <div className="space-y-3">
+          <div className="space-y-v3-3">
             <Button
               type="button"
               variant={passwordEnabled ? "secondary" : "primary"}
@@ -86,7 +86,7 @@ export function AuthScreen({
 
         {passwordEnabled && (
         <form
-          className="space-y-4"
+          className="space-y-v3-4"
           onSubmit={(e) => {
             e.preventDefault();
             if (canSubmit && !busy)

@@ -72,13 +72,13 @@ export function ChallengeBankManager({
   };
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-v3-3">
       <p className="text-xs text-taupe-400">{t("challengeBank.intro")}</p>
 
       {suggestions.length === 0 ? (
         <p className="text-sm text-taupe-400">{t("challengeBank.empty")}</p>
       ) : (
-        <ul className="space-y-2">
+        <ul className="space-y-v3-2">
           {suggestions.map((s) => (
             <li
               key={s.id}
@@ -121,7 +121,7 @@ export function ChallengeBankManager({
       )}
 
       {/* Formulaire d'ajout / édition */}
-      <Surface tone="velvet" className="space-y-3">
+      <Surface tone="velvet" className="space-y-v3-3">
         <TextField
           label={t("challengeComposer.titleLabel")}
           value={title}

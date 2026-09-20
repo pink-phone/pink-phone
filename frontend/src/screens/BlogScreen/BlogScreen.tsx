@@ -117,7 +117,7 @@ export function BlogScreen({
   );
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-v3-5">
       <header className="flex items-center justify-between pt-2">
         <h1 className="font-serif text-2xl text-blush-100">{t("blog.title")}</h1>
         <div className="flex items-center gap-2">
@@ -167,12 +167,12 @@ export function BlogScreen({
         <div className="flex flex-col items-stretch gap-5">
           {/* Section brouillons repliable (repliée par défaut). */}
           {drafts.length > 0 && (
-            <div className="space-y-5">
+            <div className="space-y-v3-5">
               <button
                 type="button"
                 onClick={toggleDrafts}
                 aria-expanded={draftsOpen}
-                className="flex w-full items-center justify-between rounded-2xl border border-dashed border-taupe-300/30 bg-charcoal-800/40 px-4 py-2.5 text-sm text-taupe-200 transition-colors duration-300 ease-felt hover:border-spice-400/40 hover:text-blush-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+                className="flex w-full items-center justify-between rounded-2xl border border-dashed border-taupe-300/30 bg-charcoal-800/40 px-4 py-2.5 text-sm text-taupe-200 transition-colors duration-300 ease-felt hover:border-spice-400/40 hover:text-blush-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500"
               >
                 <span>✎ {t("blog.draftsToggle", { count: drafts.length })}</span>
                 <span aria-hidden className="text-xs text-taupe-400">
