@@ -101,7 +101,7 @@ export function BlogPost({
   return (
     <Surface
       tone="velvet"
-      className={cn("w-full space-y-4", draft && "relative", className)}
+      className={cn("w-full space-y-v3-4", draft && "relative", className)}
     >
       {/* Brouillon : liseré pointillé « croquis en cours » (overlay additif, ne
           touche pas à la bordure de la Surface ni à la lisibilité). */}
@@ -255,7 +255,7 @@ export function BlogPost({
                       <p className="mb-1 text-[11px] uppercase tracking-wide text-taupe-300">
                         {t("blog.seenByTitle")}
                       </p>
-                      <ul className="space-y-1">
+                      <ul className="space-y-v3-1">
                         {seenBy.map((s) => (
                           <li
                             key={s.name}

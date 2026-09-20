@@ -133,7 +133,7 @@ export function ContextMenu({ items, ariaLabel, className }: ContextMenuProps) {
         aria-haspopup="menu"
         aria-expanded={open}
         onClick={toggle}
-        className="flex h-11 w-11 items-center justify-center rounded-full text-base leading-none text-taupe-400 transition-colors duration-300 ease-felt hover:text-blush-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+        className="flex h-11 w-11 items-center justify-center rounded-full text-base leading-none text-taupe-400 transition-colors duration-300 ease-felt hover:text-blush-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500"
       >
         ⋯
       </button>

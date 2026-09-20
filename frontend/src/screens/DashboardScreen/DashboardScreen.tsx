@@ -143,7 +143,7 @@ function MoodCard({
       type="button"
       onClick={onClick}
       aria-label={t("dashboard.editMoodAria")}
-      className="block h-full w-full rounded-2xl text-left transition-transform duration-300 ease-felt hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+      className="block h-full w-full rounded-2xl text-left transition-transform duration-300 ease-felt hover:-translate-y-0.5 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500"
     >
       {inner}
     </button>
@@ -181,7 +181,7 @@ export function DashboardScreen({
   const shownNotices = notices.filter((n) => NOTICE_META[n.kind]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-v3-6">
       <header className="relative pt-2 text-center">
         <p className="text-xs uppercase tracking-[0.2em] text-taupe-400">
           {t("dashboard.today")}
@@ -215,7 +215,7 @@ export function DashboardScreen({
         </div>
       ) : (
         /* Espace en attente : inviter le/la partenaire */
-        <Surface tone="velvet" radius="2xl" className="space-y-3 text-center">
+        <Surface tone="velvet" radius="2xl" className="space-y-v3-3 text-center">
           <p className="font-serif text-lg text-blush-100">
             {t("dashboard.waitingPartnerTitle")}
           </p>
@@ -245,7 +245,7 @@ export function DashboardScreen({
         <section
           aria-label={t("dashboard.noticesSection")}
           aria-live="polite"
-          className="space-y-2"
+          className="space-y-v3-2"
         >
           {shownNotices.map((n) => {
             const meta = NOTICE_META[n.kind];
@@ -271,7 +271,7 @@ export function DashboardScreen({
       )}
 
       {(newPosts > 0 || newComments > 0 || newChallenges > 0) && (
-        <section className="space-y-2">
+        <section className="space-y-v3-2">
           <h2 className="text-xs uppercase tracking-[0.15em] text-taupe-400">
             {t("dashboard.newHeader")}
           </h2>
@@ -305,7 +305,7 @@ export function DashboardScreen({
           type="button"
           onClick={onOpenEveningMenu}
           className={cn(
-            "relative flex w-full items-center gap-3 overflow-hidden rounded-2xl border p-4 text-left shadow-felt transition-all duration-300 ease-felt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500",
+            "relative flex w-full items-center gap-3 overflow-hidden rounded-2xl border p-4 text-left shadow-felt transition-all duration-300 ease-felt focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500",
             eveningMenuMatches > 0
               ? "border-bordeaux-600 bg-bordeaux-700 bg-felt-velvet shadow-ember animate-ember-breathe motion-reduce:animate-none"
               : "border-charcoal-600/60 bg-charcoal-800 bg-felt-linen hover:border-spice-400/40",
@@ -365,7 +365,7 @@ function NewsPill({
     <button
       type="button"
       onClick={onClick}
-      className="inline-flex items-center gap-1.5 rounded-full border border-spice-500/70 bg-bordeaux-700 px-3 py-1.5 text-sm text-blush-100 shadow-glow transition-transform duration-300 ease-felt hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+      className="inline-flex items-center gap-1.5 rounded-full border border-spice-500/70 bg-bordeaux-700 px-3 py-1.5 text-sm text-blush-100 shadow-glow transition-transform duration-300 ease-felt hover:-translate-y-0.5 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500"
     >
       {children}
     </button>

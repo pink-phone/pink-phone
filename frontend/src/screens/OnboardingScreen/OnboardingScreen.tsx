@@ -35,12 +35,12 @@ export function OnboardingScreen({
         <p className="mt-1 text-sm text-taupe-300">{t("onboarding.subtitle")}</p>
       </header>
 
-      <Surface tone="velvet" className="w-full max-w-sm space-y-3">
+      <Surface tone="velvet" className="w-full max-w-sm space-y-v3-3">
         <h2 className="font-serif text-lg text-taupe-100">
           {t("onboarding.createTitle")}
         </h2>
         <form
-          className="space-y-3"
+          className="space-y-v3-3"
           onSubmit={(e) => {
             e.preventDefault();
             if (name.trim() && !busy) onCreate(name.trim());
@@ -57,12 +57,12 @@ export function OnboardingScreen({
         </form>
       </Surface>
 
-      <Surface tone="velvet" className="w-full max-w-sm space-y-3">
+      <Surface tone="velvet" className="w-full max-w-sm space-y-v3-3">
         <h2 className="font-serif text-lg text-taupe-100">
           {t("onboarding.joinTitle")}
         </h2>
         <form
-          className="space-y-3"
+          className="space-y-v3-3"
           onSubmit={(e) => {
             e.preventDefault();
             if (joinId.trim() && !busy) onJoin(joinId.trim());

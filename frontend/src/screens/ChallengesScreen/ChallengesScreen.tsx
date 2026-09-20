@@ -46,7 +46,7 @@ export function ChallengesScreen({
 }: ChallengesScreenProps) {
   const { t } = useTranslation();
   return (
-    <div className="space-y-6">
+    <div className="space-y-v3-6">
       <header className="flex items-center justify-between pt-2">
         <h1 className="font-serif text-2xl text-blush-100">
           {t("challenges.title")}
@@ -87,7 +87,7 @@ export function ChallengesScreen({
           });
         }
         return (
-          <section key={status} className="space-y-3">
+          <section key={status} className="space-y-v3-3">
             <h2 className="text-xs uppercase tracking-[0.15em] text-taupe-400">
               {t(`challenges.sections.${status}`)}
             </h2>

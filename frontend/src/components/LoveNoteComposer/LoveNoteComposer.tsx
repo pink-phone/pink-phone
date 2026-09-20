@@ -42,7 +42,7 @@ export function LoveNoteComposer({
   };
 
   return (
-    <div className={cn("space-y-3", className)}>
+    <div className={cn("space-y-v3-3", className)}>
       <TextArea
         label={t("loveNotes.composerLabel")}
         value={draft}
@@ -70,7 +70,7 @@ export function LoveNoteComposer({
             value={when}
             onChange={(e) => setWhen(e.target.value)}
             aria-label={t("loveNotes.scheduleAria")}
-            className="rounded-xl border border-charcoal-600/60 bg-charcoal-800 px-2 py-1.5 text-xs text-blush-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+            className="rounded-xl border border-charcoal-600/60 bg-charcoal-800 px-2 py-1.5 text-xs text-blush-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500"
           />
         )}
         <Button

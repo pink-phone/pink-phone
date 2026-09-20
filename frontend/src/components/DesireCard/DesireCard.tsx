@@ -76,7 +76,7 @@ export function DesireCard({
         aria-label={
           interested ? t("desires.removeInterestAria") : t("desires.interestAria")
         }
-        className="relative z-10 flex flex-1 items-center gap-3 p-4 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-spice-500"
+        className="relative z-10 flex flex-1 items-center gap-3 p-4 text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-spice-500"
       >
         <span
           aria-hidden
@@ -131,7 +131,7 @@ export function DesireCard({
             against ? t("desires.removeAgainstAria") : t("desires.againstAria")
           }
           className={cn(
-            "relative z-10 flex w-12 shrink-0 items-center justify-center border-l text-lg transition-colors duration-300 ease-felt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-spice-500",
+            "relative z-10 flex w-12 shrink-0 items-center justify-center border-l text-lg transition-colors duration-300 ease-felt focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-spice-500",
             matched ? "border-bordeaux-600/60" : "border-charcoal-600/60",
             against
               ? "bg-charcoal-900/50 text-taupe-100"
@@ -149,7 +149,7 @@ export function DesireCard({
           aria-pressed={done}
           aria-label={done ? t("desires.undoneAria") : t("desires.doneAria")}
           className={cn(
-            "relative z-10 flex w-12 shrink-0 items-center justify-center border-l text-lg transition-colors duration-300 ease-felt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-spice-500",
+            "relative z-10 flex w-12 shrink-0 items-center justify-center border-l text-lg transition-colors duration-300 ease-felt focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-spice-500",
             matched ? "border-bordeaux-600/60" : "border-charcoal-600/60",
             done ? "text-spice-300" : "text-taupe-400 hover:text-spice-300",
           )}

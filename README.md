@@ -28,7 +28,7 @@
 
 ## 🧱 Stack
 
-- **Front** — React 18 + TypeScript + Tailwind v3 + `vite-plugin-pwa`. **Storybook** as the design surface (every component lives there before being used).
+- **Front** — React 18 + TypeScript + Tailwind v4 + `vite-plugin-pwa`. **Storybook** as the design surface (every component lives there before being used).
 - **Back** — Rust / **Axum** + Tokio, Postgres via `sqlx` (runtime queries), JWT + Argon2id, Web Push (VAPID), WebSocket.
 - **Deployment** — Docker images (nginx web + api) on Docker Hub, behind a reverse proxy (TLS).
 
@@ -75,7 +75,7 @@ Two top-level apps: **`frontend/`** (React/Vite/Storybook PWA) and **`backend/`*
 
 ## 🎨 Art direction — "felted"
 
-Soft skeuomorphism: desaturated roses (Blush → Spice → Bordeaux), warm neutrals (Charcoal, Taupe), serif titles (Playfair) / sans body (Inter), generous rounding, soft shadows, slow transitions. Palette as **CSS variables** (themeable) in `frontend/src/index.css`; tokens in `frontend/tailwind.config.js`.
+Soft skeuomorphism: desaturated roses (Blush → Spice → Bordeaux), warm neutrals (Charcoal, Taupe), serif titles (Playfair) / sans body (Inter), generous rounding, soft shadows, slow transitions. Palette as **CSS variables** (themeable) in `frontend/src/index.css`; tokens in the `@theme` block of `frontend/src/index.css`.
 
 ## 📝 License
 

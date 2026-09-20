@@ -17,7 +17,7 @@ export function EveningMenuScreen({
 }: EveningMenuScreenProps) {
   const { t } = useTranslation();
   return (
-    <div className="space-y-5">
+    <div className="space-y-v3-5">
       <header className="flex items-center gap-3 pt-2">
         {onBack && (
           <button
