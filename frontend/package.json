@@ -50,6 +50,12 @@
     "workbox-precaching": "^7.3.0"
   },
   "overrides": {
-    "@babel/plugin-transform-runtime": "^7.29.0"
+    "@babel/plugin-transform-runtime": "^7.29.0",
+    "i18next": {
+      "typescript": "$typescript"
+    },
+    "react-i18next": {
+      "typescript": "$typescript"
+    }
   }
 }
