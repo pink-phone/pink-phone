@@ -227,7 +227,7 @@ export function PostComposer({
                     onClick={() => move(i, -1)}
                     disabled={i === 0}
                     aria-label={t("postComposer.moveUp")}
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-taupe-300 hover:text-blush-100 disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-taupe-300 hover:text-blush-100 disabled:opacity-30 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500"
                   >
                     ▲
                   </button>
@@ -236,7 +236,7 @@ export function PostComposer({
                     onClick={() => move(i, 1)}
                     disabled={i === items.length - 1}
                     aria-label={t("postComposer.moveDown")}
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-taupe-300 hover:text-blush-100 disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-taupe-300 hover:text-blush-100 disabled:opacity-30 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500"
                   >
                     ▼
                   </button>
@@ -244,7 +244,7 @@ export function PostComposer({
                     type="button"
                     onClick={() => removeAt(i)}
                     aria-label={t("postComposer.remove")}
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-taupe-300 hover:text-spice-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-taupe-300 hover:text-spice-300 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500"
                   >
                     ✕
                   </button>

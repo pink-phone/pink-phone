@@ -1,14 +1,134 @@
-@import "@fontsource/playfair-display/400.css";
-@import "@fontsource/playfair-display/600.css";
-@import "@fontsource/inter/400.css";
-@import "@fontsource/inter/500.css";
-@import "@fontsource/inter/600.css";
+/* Les polices (@fontsource) sont importées dans src/fonts.ts — voir ce fichier. */
+@import "tailwindcss";
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Fichiers scannés pour les classes (Tailwind 4 : détection automatique du
+   projet ; on ajoute explicitement le dossier caché .storybook). */
+@source "../index.html";
+@source "../.storybook";
 
-/* ---- Thèmes : canaux RGB des couleurs (cf. tailwind.config.js) ----
+/* ---- Design system "felted" (Tailwind 4 : config CSS-first) ----
+   DA "Pink Phone" — skeuomorphisme feutré. Pas de flat froid, pas de rose
+   "bonbon". Surfaces douces, roses désaturés, neutres chauds.
+
+   `inline` : les utilitaires référencent directement les variables de thème
+   (--blush-50, …) au point d'usage, pour que [data-theme=…] (ci-dessous) les
+   surcharge. Les modificateurs d'opacité (bg-spice-500/40) fonctionnent via
+   color-mix sur ces couleurs. */
+@theme inline {
+  --color-blush-50: rgb(var(--blush-50));
+  --color-blush-100: rgb(var(--blush-100));
+  --color-blush-200: rgb(var(--blush-200));
+  --color-blush-300: rgb(var(--blush-300));
+
+  --color-spice-300: rgb(var(--spice-300));
+  --color-spice-400: rgb(var(--spice-400));
+  --color-spice-500: rgb(var(--spice-500));
+  --color-spice-600: rgb(var(--spice-600));
+
+  --color-bordeaux-500: rgb(var(--bordeaux-500));
+  --color-bordeaux-600: rgb(var(--bordeaux-600));
+  --color-bordeaux-700: rgb(var(--bordeaux-700));
+
+  --color-charcoal-900: rgb(var(--charcoal-900));
+  --color-charcoal-800: rgb(var(--charcoal-800));
+  --color-charcoal-700: rgb(var(--charcoal-700));
+  --color-charcoal-600: rgb(var(--charcoal-600));
+
+  --color-taupe-100: rgb(var(--taupe-100));
+  --color-taupe-200: rgb(var(--taupe-200));
+  --color-taupe-300: rgb(var(--taupe-300));
+  --color-taupe-400: rgb(var(--taupe-400));
+
+  /* Titres : serif élégante haut contraste — l'élégance du murmure.
+     Corps : sans-serif ronde et chaleureuse, lisible sans être clinique. */
+  --font-serif: "Playfair Display", Georgia, serif;
+  --font-sans: "Inter", system-ui, sans-serif;
+
+  /* Pas d'angles droits agressifs — arrondi généreux partout. */
+  --radius-xl: 1rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
+
+  /* Ombres portées très douces pour la profondeur "feutrée". */
+  --shadow-felt: 0 2px 8px -2px rgba(0, 0, 0, 0.35), 0 8px 28px -8px rgba(0, 0, 0, 0.45);
+  --shadow-felt-sm: 0 1px 4px -1px rgba(0, 0, 0, 0.3);
+  /* Soft glow (Mood actif). */
+  --shadow-glow: 0 0 16px -2px rgb(var(--spice-500) / 0.55);
+  /* Braise : halo chaud (états "hot") — spice + bordeaux profond. */
+  --shadow-ember:
+    0 0 18px -2px rgb(var(--spice-400) / 0.55), 0 0 36px -6px rgb(var(--bordeaux-600) / 0.5);
+
+  /* Tout est fluide et lent — pas de mouvements brusques. */
+  --ease-felt: cubic-bezier(0.22, 0.61, 0.36, 1);
+
+  /* Apparitions douces — pas de popups agressifs. */
+  --animate-fade-in: fade-in 0.35s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  --animate-slide-up: slide-up 0.4s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  /* Braise (états "hot"). */
+  --animate-ember-breathe: ember-breathe 3.6s ease-in-out infinite;
+  --animate-ember-rise: ember-rise 2.6s ease-out infinite;
+
+  @keyframes fade-in {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes slide-up {
+    from {
+      opacity: 0;
+      transform: translateY(16px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  /* Halo de braise qui respire (états "hot"). */
+  @keyframes ember-breathe {
+    0%,
+    100% {
+      box-shadow:
+        0 0 10px -2px rgb(var(--spice-400) / 0.35), 0 0 20px -6px rgb(var(--bordeaux-600) / 0.35);
+    }
+    50% {
+      box-shadow:
+        0 0 22px 0px rgb(var(--spice-400) / 0.7), 0 0 44px -4px rgb(var(--bordeaux-600) / 0.55);
+    }
+  }
+  /* Particule de feu qui s'élève et s'éteint. */
+  @keyframes ember-rise {
+    0% {
+      transform: translateY(0) scale(1);
+      opacity: 0;
+    }
+    20% {
+      opacity: 0.85;
+    }
+    100% {
+      transform: translateY(-42px) scale(0.3);
+      opacity: 0;
+    }
+  }
+}
+
+/* Textures subtiles (velours / lin feutré) — bruit doux non agressif. */
+@utility bg-felt-velvet {
+  background-image:
+    radial-gradient(circle at 30% 20%, rgb(var(--spice-500) / 0.08), transparent 60%),
+    radial-gradient(circle at 80% 80%, rgb(var(--bordeaux-600) / 0.1), transparent 55%);
+}
+@utility bg-felt-linen {
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.012) 0 2px,
+    transparent 2px 4px
+  );
+}
+
+/* ---- Thèmes : canaux RGB des couleurs (cf. @theme ci-dessus) ----
    :root = thème "felted" (défaut). Un thème = un override de ces variables sur
    [data-theme="…"] (posé sur <html> par src/theme.ts). */
 :root,
@@ -58,6 +178,27 @@
 }
 
 @layer base {
+  /* Parité avec Tailwind 3 (migration v4) : la v4 a changé trois défauts du
+     preflight qui modifieraient silencieusement le rendu. */
+  /* Couleur de bordure par défaut : gray-200 en v3 (currentColor en v4). */
+  *,
+  ::after,
+  ::before,
+  ::backdrop,
+  ::file-selector-button {
+    border-color: #e5e7eb;
+  }
+  /* Les boutons gardaient cursor:pointer en v3 (default en v4). */
+  button:not(:disabled),
+  [role="button"]:not(:disabled) {
+    cursor: pointer;
+  }
+  /* Couleur des placeholders : gray-400 en v3 (currentColor à 50 % en v4). */
+  input::placeholder,
+  textarea::placeholder {
+    color: #9ca3af;
+  }
+
   html,
   body,
   #root {

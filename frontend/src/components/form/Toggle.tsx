@@ -29,7 +29,7 @@ export function Toggle({ checked, onChange, label, hint, className }: ToggleProp
         onClick={() => onChange(!checked)}
         className={cn(
           "relative h-7 w-12 shrink-0 rounded-full border transition-colors duration-300 ease-felt",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500",
+          "focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500",
           checked
             ? "border-spice-500/70 bg-spice-500/80 shadow-glow"
             : "border-charcoal-600/70 bg-charcoal-700",

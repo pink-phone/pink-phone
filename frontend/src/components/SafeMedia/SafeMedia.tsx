@@ -186,7 +186,7 @@ export function SafeMedia({
       }
       aria-pressed={isRevealed}
       className={cn(
-        "relative mx-auto aspect-[4/5] w-full max-w-sm select-none overflow-hidden rounded-3xl shadow-felt outline-none",
+        "relative mx-auto aspect-[4/5] w-full max-w-sm select-none overflow-hidden rounded-3xl shadow-felt outline-hidden",
         // iOS : neutralise le menu contextuel natif (Copier/Enregistrer) du press-and-hold.
         "[-webkit-touch-callout:none] [-webkit-user-select:none]",
         "ring-1 ring-charcoal-600/60 focus-visible:ring-2 focus-visible:ring-spice-500",
@@ -284,7 +284,7 @@ export function SafeMedia({
           onPointerDown={(e) => e.stopPropagation()}
           aria-label={muted ? t("safeMedia.unmute") : t("safeMedia.mute")}
           aria-pressed={!muted}
-          className="absolute bottom-1.5 left-1.5 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-charcoal-900/70 text-lg leading-none text-blush-100 shadow-felt-sm backdrop-blur-sm transition-colors duration-200 ease-felt hover:bg-charcoal-900/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+          className="absolute bottom-1.5 left-1.5 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-charcoal-900/70 text-lg leading-none text-blush-100 shadow-felt-sm backdrop-blur-xs transition-colors duration-200 ease-felt hover:bg-charcoal-900/90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500"
         >
           {/* L'emoji a une métrique qui le fait remonter ; on le recale d'1px. */}
           <span aria-hidden className="block translate-y-px leading-none">
@@ -301,7 +301,7 @@ export function SafeMedia({
           onClick={download}
           onPointerDown={(e) => e.stopPropagation()}
           aria-label={t("safeMedia.download")}
-          className="absolute bottom-1.5 right-1.5 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-charcoal-900/70 text-lg leading-none text-blush-100 shadow-felt-sm backdrop-blur-sm transition-colors duration-200 ease-felt hover:bg-charcoal-900/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+          className="absolute bottom-1.5 right-1.5 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-charcoal-900/70 text-lg leading-none text-blush-100 shadow-felt-sm backdrop-blur-xs transition-colors duration-200 ease-felt hover:bg-charcoal-900/90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500"
         >
           ⤓
         </button>

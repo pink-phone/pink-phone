@@ -72,7 +72,7 @@ export function LoveNote({
           type="button"
           onClick={onDelete}
           aria-label={t("loveNotes.deleteAria")}
-          className="absolute right-1.5 top-1.5 flex h-9 w-9 items-center justify-center rounded-full text-bordeaux-700/50 transition-colors duration-300 ease-felt hover:text-bordeaux-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+          className="absolute right-1.5 top-1.5 flex h-9 w-9 items-center justify-center rounded-full text-bordeaux-700/50 transition-colors duration-300 ease-felt hover:text-bordeaux-700 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500"
         >
           <span aria-hidden>✕</span>
         </button>

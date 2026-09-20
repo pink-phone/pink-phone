@@ -57,7 +57,7 @@ export function VerdictPicker({ value, onChange, className }: VerdictPickerProps
             onClick={() => onChange?.(o.id)}
             className={cn(
               "inline-flex flex-1 items-center justify-center gap-1.5 rounded-2xl border px-3 py-2 text-xs font-medium",
-              "transition-all duration-300 ease-felt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500",
+              "transition-all duration-300 ease-felt focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500",
               active
                 ? o.activeClass
                 : "border-charcoal-600/60 bg-charcoal-800 text-taupe-300 hover:border-spice-400/40",

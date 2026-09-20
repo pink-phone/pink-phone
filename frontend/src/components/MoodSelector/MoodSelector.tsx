@@ -79,7 +79,7 @@ export function MoodSelector({
               onClick={() => (active ? onClear?.() : onChange?.(mood.id))}
               className={cn(
                 "group relative flex min-w-0 flex-1 basis-0 flex-col items-center gap-1.5 rounded-2xl border px-1 py-3",
-                "transition-all duration-300 ease-felt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500",
+                "transition-all duration-300 ease-felt focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500",
                 active
                   ? hot
                     ? "border-spice-500/70 bg-bordeaux-700 bg-felt-velvet shadow-ember animate-ember-breathe motion-reduce:animate-none"
@@ -134,7 +134,7 @@ export function MoodSelector({
                   onChange={(e) => setEmoji(e.target.value)}
                   maxLength={8}
                   aria-label={t("moods.addEmojiAria")}
-                  className="w-14 bg-transparent text-center text-3xl text-blush-100 focus-visible:outline-none"
+                  className="w-14 bg-transparent text-center text-3xl text-blush-100 focus-visible:outline-hidden"
                 />
                 {emoji === "" && (
                   <span className="pointer-events-none absolute inset-0 flex items-center justify-center">
@@ -155,7 +155,7 @@ export function MoodSelector({
                   maxLength={24}
                   aria-label={t("moods.addLabelAria")}
                   placeholder={t("moods.labelPlaceholder")}
-                  className="min-w-0 flex-1 rounded-xl border border-charcoal-600/60 bg-charcoal-900/50 px-3 py-1.5 text-sm text-blush-100 placeholder:text-taupe-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+                  className="min-w-0 flex-1 rounded-xl border border-charcoal-600/60 bg-charcoal-900/50 px-3 py-1.5 text-sm text-blush-100 placeholder:text-taupe-400 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500"
                 />
                 {customActive && (
                   <button
@@ -167,7 +167,7 @@ export function MoodSelector({
                       setLabel("");
                       onClear?.();
                     }}
-                    className="shrink-0 rounded-full px-2 py-1.5 text-sm text-taupe-300 transition-colors duration-200 ease-felt hover:text-blush-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+                    className="shrink-0 rounded-full px-2 py-1.5 text-sm text-taupe-300 transition-colors duration-200 ease-felt hover:text-blush-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500"
                   >
                     ✕
                   </button>
@@ -175,7 +175,7 @@ export function MoodSelector({
                 <button
                   type="submit"
                   aria-label={t("common.save")}
-                  className="shrink-0 rounded-xl border border-spice-500/70 bg-bordeaux-700 px-3 py-1.5 text-sm text-blush-100 transition-transform duration-200 ease-felt hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+                  className="shrink-0 rounded-xl border border-spice-500/70 bg-bordeaux-700 px-3 py-1.5 text-sm text-blush-100 transition-transform duration-200 ease-felt hover:-translate-y-0.5 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500"
                 >
                   ✓
                 </button>
@@ -193,7 +193,7 @@ export function MoodSelector({
             onClick={openEditor}
             className={cn(
               "group mx-auto flex w-[calc((100%_-_2rem)/5)] flex-col items-center gap-1.5 rounded-2xl border px-1 py-3",
-              "transition-all duration-300 ease-felt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500",
+              "transition-all duration-300 ease-felt focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500",
               customActive
                 ? "border-spice-500/70 bg-bordeaux-700 bg-felt-velvet shadow-glow"
                 : "border-dashed border-charcoal-600/60 bg-charcoal-800 hover:-translate-y-0.5 hover:border-spice-400/50",
