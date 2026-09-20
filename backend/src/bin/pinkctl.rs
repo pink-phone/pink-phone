@@ -108,6 +108,11 @@ enum Command {
         #[arg(long)]
         url: Option<String>,
     },
+    /// Version et commit source de ce build (aucune base ni config requise).
+    ///
+    /// Injectés à la compilation par le pipeline (APP_VERSION / APP_COMMIT) ;
+    /// `dev` pour un build local. Même valeur que `GET /api/version`.
+    Version,
 }
 
 /// Volontairement pas un simple booléen `--confirm` (contrairement à `user
@@ -439,8 +444,27 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
             }
         }
         Command::Ping { url } => ping(&config.bind_addr, url.as_deref()).await?,
+        Command::Version => {
+            let b = pinkphone_api::routes::version::build_info();
+            if json {
+                println!("{}", serde_json::to_string(&b)?);
+            } else {
+                println!("{}", version_line(b.version, b.commit));
+            }
+        }
     }
     Ok(())
+}
+
+/// Ligne lisible : `0.0.147 (commit 432f3f5)` — SHA raccourci à 7 caractères,
+/// `commit inconnu` hors pipeline.
+fn version_line(version: &str, commit: &str) -> String {
+    if commit.is_empty() {
+        format!("{version} (commit inconnu)")
+    } else {
+        let short = commit.get(..7).unwrap_or(commit);
+        format!("{version} (commit {short})")
+    }
 }
 
 /// `true` seulement si `confirm` est EXACTEMENT la phrase attendue.
@@ -1454,6 +1478,20 @@ async fn ping(bind_addr: &str, url_override: Option<&str>) -> Result<(), Box<dyn
 mod tests {
     use super::*;
     use base64::{engine::general_purpose::STANDARD, Engine};
+
+    #[test]
+    fn version_line_raccourcit_le_sha_a_7_caracteres() {
+        assert_eq!(
+            version_line("0.0.147", "432f3f5abcdef0123456789abcdef0123456789a"),
+            "0.0.147 (commit 432f3f5)"
+        );
+    }
+
+    #[test]
+    fn version_line_sans_commit_ou_sha_court() {
+        assert_eq!(version_line("dev", ""), "dev (commit inconnu)");
+        assert_eq!(version_line("gh-1.4.0", "abc"), "gh-1.4.0 (commit abc)");
+    }
 
     /// Config de base "propre" (secret fort, tout défini) : point de départ des
     /// tests de `config_check`, qu'on dérange champ par champ.

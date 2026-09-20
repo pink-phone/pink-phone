@@ -13,7 +13,14 @@ COPY . .
 # Storybook valide en plus l'intégrité des stories (règle Storybook-first).
 RUN npm run test
 RUN npm run build-storybook
-ENV VITE_API_URL=""
+# Version du build (écran Réglages « À propos » + /version.json) : déclarées ici,
+# APRÈS les tests et Storybook, pour ne pas invalider leur cache à chaque release.
+# « dev » / vide quand l'image est construite hors pipeline.
+ARG APP_VERSION=dev
+ARG APP_COMMIT=
+ENV VITE_API_URL="" \
+    VITE_APP_VERSION=$APP_VERSION \
+    VITE_APP_COMMIT=$APP_COMMIT
 RUN npm run build
 
 FROM nginx:alpine
