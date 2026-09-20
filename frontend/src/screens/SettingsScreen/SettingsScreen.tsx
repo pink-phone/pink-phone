@@ -9,6 +9,10 @@ import type { ReactionId } from "../../components/ReactionBar/ReactionBar";
 import { Sheet } from "../../components/Sheet/Sheet";
 import { LockScreen } from "../../components/LockScreen/LockScreen";
 import { ReleaseNotes } from "../../components/ReleaseNotes/ReleaseNotes";
+import {
+  BuildInfo,
+  type BuildInfoProps,
+} from "../../components/BuildInfo/BuildInfo";
 import { RELEASE_NOTES, CURRENT_VERSION } from "../../releaseNotes";
 import {
   isPinSet,
@@ -115,6 +119,8 @@ export interface SettingsScreenProps {
   /** Compte : nom affiché courant + renommage (PATCH /me). Affiché si fourni. */
   userName?: string;
   onRenameUser?: (name: string) => Promise<void> | void;
+  /** Version du bundle web + du serveur (section « À propos »). Affichée si fourni. */
+  buildInfo?: BuildInfoProps;
 }
 
 /** Réglages : mode de notification « à la carte » + apparence + déconnexion. */
@@ -147,6 +153,7 @@ export function SettingsScreen({
   onLogoutAll,
   userName,
   onRenameUser,
+  buildInfo,
 }: SettingsScreenProps) {
   const { t, i18n } = useTranslation();
   const currentLang = i18n.resolvedLanguage ?? i18n.language;
@@ -924,6 +931,7 @@ export function SettingsScreen({
             )}
           </button>
         </Surface>
+        {buildInfo && <BuildInfo {...buildInfo} />}
       </section>
 
       {(onLogout || onLogoutAll) && (

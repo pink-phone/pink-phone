@@ -1,11 +1,33 @@
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
+
+// Émet /version.json (version + commit du build, mêmes valeurs que celles
+// embarquées dans le bundle) : signal exact et lisible sans exécuter l'app, pour
+// les vérifications de déploiement (deploy.yml). Servi en no-cache (nginx
+// `location /`) et hors precache du service worker (le glob par défaut n'inclut
+// pas le JSON) : il reflète toujours le déploiement en cours.
+function versionJson(): Plugin {
+  return {
+    name: "pp-version-json",
+    generateBundle() {
+      this.emitFile({
+        type: "asset",
+        fileName: "version.json",
+        source: JSON.stringify({
+          version: process.env.VITE_APP_VERSION || "dev",
+          commit: process.env.VITE_APP_COMMIT ?? "",
+        }),
+      });
+    },
+  };
+}
 
 // PinkPhone est distribuée en PWA (hors stores) — installable sur l'écran d'accueil.
 export default defineConfig({
   plugins: [
     react(),
+    versionJson(),
     VitePWA({
       registerType: "autoUpdate",
       // injectManifest : on fournit notre propre service worker (gestion du push).

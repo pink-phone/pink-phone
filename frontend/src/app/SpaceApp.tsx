@@ -45,6 +45,8 @@ import { useChallenges } from "./hooks/useChallenges";
 import { useMoods } from "./hooks/useMoods";
 import { useSeen } from "./hooks/useSeen";
 import { useLoveNotes } from "./hooks/useLoveNotes";
+import { useApiBuild } from "./hooks/useApiBuild";
+import { WEB_BUILD } from "../lib/buildInfo";
 import {
   toChallengeData,
   toCommentViews,
@@ -177,6 +179,8 @@ export function SpaceApp({
 
   // Réglages / notifications.
   const [showSettings, setShowSettings] = useState(false);
+  // Version du serveur : lue à chaque ouverture des Réglages (section « À propos »).
+  const apiBuild = useApiBuild(showSettings);
   const [showBank, setShowBank] = useState(false);
   const [notifMode, setNotifMode] = useState<NotifMode>("ghost");
   const [settingsBusy, setSettingsBusy] = useState(false);
@@ -583,6 +587,7 @@ export function SpaceApp({
           onReactionsChange={changeReactions}
           userName={authUser?.displayName}
           onRenameUser={updateDisplayName}
+          buildInfo={{ web: WEB_BUILD, api: apiBuild }}
           onBack={() => setShowSettings(false)}
           onLogout={logout}
           onLogoutAll={async () => {

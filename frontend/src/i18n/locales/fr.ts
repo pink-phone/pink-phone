@@ -331,6 +331,12 @@ export const fr = {
     releaseNotes: "Notes de version",
     releaseNotesHint: "Découvre les nouveautés de l'app.",
     releaseNotesNew: "Nouveautés",
+    buildApp: "Application",
+    buildServer: "Serveur",
+    buildLoading: "…",
+    buildUnavailable: "indisponible",
+    buildMismatch:
+      "L'application et le serveur ne sont pas sur la même version. Recharge la page pour mettre à jour.",
   },
   releaseNotes: {
     title: "Notes de version",

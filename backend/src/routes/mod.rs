@@ -12,6 +12,7 @@ pub mod posts;
 pub mod seen;
 pub mod spaces;
 pub mod suggestions;
+pub mod version;
 pub mod ws;
 
 use axum::Router;
@@ -55,5 +56,6 @@ pub fn api_router() -> Router<AppState> {
         .merge(seen::router())
         .merge(notices::router())
         .merge(suggestions::router())
+        .merge(version::router())
         .merge(ws::router())
 }

@@ -1088,3 +1088,14 @@ async fn suggestions_crud_validation_et_autz(pool: PgPool) {
     let (st, _) = req(&app, "DELETE", &format!("{base}/{sid}"), &ta, None).await;
     assert_eq!(st, StatusCode::NO_CONTENT);
 }
+
+/// `/api/version` est publique (comme `/api/auth/config`) : sert au check de
+/// déploiement et à l'écran Réglages, sans session.
+#[sqlx::test]
+async fn version_publique_sans_authentification(pool: PgPool) {
+    let (app, _state) = build_app(pool);
+    let (st, body) = req(&app, "GET", "/api/version", "", None).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(body["version"], crate::routes::version::VERSION);
+    assert_eq!(body["commit"], crate::routes::version::COMMIT);
+}

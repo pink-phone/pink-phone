@@ -1,4 +1,5 @@
 import type { ChallengeStatus, Intensity, Verdict } from "../domain/types";
+import type { BuildInfo } from "../lib/buildInfo";
 import type {
   ApiChallenge,
   ApiComment,
@@ -157,6 +158,10 @@ export const logoutAll = () =>
  */
 export const getAuthConfig = () =>
   withRetry(() => req<AuthConfig>("/api/auth/config"));
+
+/** Version + commit source de l'API (route publique, sans session). */
+export const getApiVersion = () =>
+  withRetry(() => req<BuildInfo>("/api/version"));
 
 /** URL de démarrage du flux OIDC (redirection plein écran, pas un fetch). */
 export const oidcLoginUrl = () => `${BASE}/api/auth/oidc/login`;
