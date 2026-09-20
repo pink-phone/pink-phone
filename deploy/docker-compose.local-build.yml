@@ -6,16 +6,26 @@
 #   docker compose -f docker-compose.local.yml -f docker-compose.local-build.yml up -d --build
 #
 # Utilisé par `npm run pinkdev -- package`/`docker` (frontend/scripts/pinkdev.mjs).
+#
+# APP_VERSION / APP_COMMIT : version affichée dans l'app (Réglages → À propos),
+# `pinkctl version` et GET /api/version. `local` + le commit courant (pinkdev
+# exporte APP_COMMIT depuis git ; vide si lancé à la main sans cette variable).
 
 services:
   api:
     build:
       context: ../backend
+      args:
+        APP_VERSION: local
+        APP_COMMIT: ${APP_COMMIT:-}
     image: pinkphone-api:local
     pull_policy: never
 
   web:
     build:
       context: ../frontend
+      args:
+        APP_VERSION: local
+        APP_COMMIT: ${APP_COMMIT:-}
     image: pinkphone-web:local
     pull_policy: never

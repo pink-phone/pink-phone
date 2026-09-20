@@ -11,6 +11,15 @@ RUN mkdir src && echo "fn main() {}" > src/main.rs \
     && cargo build --release \
     && rm -rf src
 
+# Version du build (pinkctl version, GET /api/version) : lue à la compilation via
+# option_env!. Déclarés APRÈS le cache des dépendances ci-dessus pour ne pas
+# l'invalider à chaque release. Valeur par défaut « dev » quand l'image est
+# construite hors pipeline (docker build local, pinkdev).
+ARG APP_VERSION=dev
+ARG APP_COMMIT=
+ENV APP_VERSION=$APP_VERSION \
+    APP_COMMIT=$APP_COMMIT
+
 # Build réel.
 COPY src ./src
 COPY migrations ./migrations

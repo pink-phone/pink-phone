@@ -304,11 +304,19 @@ function dev(withSeed) {
 
 // ---------- docker (build + run les vraies images, depuis le code local) ----------
 
+// SHA du commit courant, passé aux builds d'images (APP_COMMIT → Réglages → À
+// propos, `pinkctl version`, GET /api/version). Vide si git est indisponible.
+function gitHead() {
+  const r = spawnSync("git", ["rev-parse", "HEAD"], { cwd: DEPLOY_DIR, encoding: "utf8" });
+  return r.status === 0 ? r.stdout.trim() : "";
+}
+
 function composeRun(extraArgs, label) {
   console.log(`▶ docker ${[...COMPOSE_ARGS, ...extraArgs].join(" ")}`);
   const result = spawnSync("docker", [...COMPOSE_ARGS, ...extraArgs], {
     cwd: DEPLOY_DIR,
     stdio: "inherit",
+    env: { ...process.env, APP_COMMIT: process.env.APP_COMMIT ?? gitHead() },
   });
   if (result.status !== 0) {
     console.error(`✖ ${label} a échoué.`);
