@@ -39,7 +39,7 @@ export function EveningMenu({ items, onToggle, className }: EveningMenuProps) {
   const matchCount = known.filter((i) => i.matched).length;
 
   return (
-    <section className={cn("space-y-3", className)}>
+    <section className={cn("space-y-v3-3", className)}>
       <div className="flex items-baseline justify-between gap-2">
         <h2 className="font-serif text-lg text-taupe-100">
           {t("eveningMenu.title")}
@@ -64,7 +64,7 @@ export function EveningMenu({ items, onToggle, className }: EveningMenuProps) {
                 : t("eveningMenu.pickAria")
             }
             className={cn(
-              "inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-sm transition-all duration-300 ease-felt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500",
+              "inline-flex items-center gap-1.5 rounded-full border px-3 py-2 text-sm transition-all duration-300 ease-felt focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500",
               i.matched
                 ? "border-bordeaux-600 bg-bordeaux-700 bg-felt-velvet text-blush-100 shadow-ember animate-ember-breathe motion-reduce:animate-none"
                 : i.picked

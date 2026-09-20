@@ -27,9 +27,9 @@ export function ReleaseNotes({ notes }: ReleaseNotesProps) {
   }
 
   return (
-    <ol className="space-y-5">
+    <ol className="space-y-v3-5">
       {notes.map((note, i) => (
-        <li key={note.version} className="space-y-2">
+        <li key={note.version} className="space-y-v3-2">
           <div className="flex items-baseline justify-between gap-3">
             <h3 className="font-serif text-lg text-blush-100">
               {note.version}
@@ -43,7 +43,7 @@ export function ReleaseNotes({ notes }: ReleaseNotesProps) {
               {fmtDate(note.date)}
             </span>
           </div>
-          <ul className="space-y-1.5">
+          <ul className="space-y-v3-1.5">
             {(isFr ? note.items.fr : note.items.en).map((item, j) => (
               <li
                 key={j}

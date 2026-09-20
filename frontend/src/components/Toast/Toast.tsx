@@ -49,7 +49,7 @@ export function Toast({
       <button
         type="button"
         onClick={() => onDismissRef.current?.()}
-        className="text-left focus-visible:outline-none"
+        className="text-left focus-visible:outline-hidden"
       >
         {message}
       </button>

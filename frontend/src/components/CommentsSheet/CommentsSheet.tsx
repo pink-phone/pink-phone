@@ -105,7 +105,7 @@ export function CommentsSheet({
 
   return (
     <Sheet open={open} title={t("comments.sheetTitle")} onClose={onClose}>
-      <div className="space-y-4">
+      <div className="space-y-v3-4">
         {loading ? (
           <p className="py-6 text-center text-sm text-taupe-400">
             {t("common.loading")}
@@ -115,7 +115,7 @@ export function CommentsSheet({
             {t("comments.empty")}
           </p>
         ) : (
-          <ul className="space-y-3">
+          <ul className="space-y-v3-3">
             {hasMore && (
               <li className="flex">
                 <Button
@@ -176,7 +176,7 @@ export function CommentsSheet({
                   </div>
                 </div>
                 {editingId === c.id ? (
-                  <div className="mt-1 space-y-2">
+                  <div className="mt-1 space-y-v3-2">
                     <TextArea
                       ref={editRef}
                       label={t("comments.editLabel")}
@@ -222,7 +222,7 @@ export function CommentsSheet({
         <form
           // Collé au bas de la feuille : reste visible au-dessus du clavier
           // virtuel iOS quand la liste défile (UI-UX4).
-          className="sticky bottom-0 space-y-2 bg-charcoal-800 pb-1 pt-2"
+          className="sticky bottom-0 space-y-v3-2 bg-charcoal-800 pb-1 pt-2"
           onSubmit={(e) => {
             e.preventDefault();
             submit();

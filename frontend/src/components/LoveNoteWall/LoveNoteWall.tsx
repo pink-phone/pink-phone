@@ -29,7 +29,7 @@ export function LoveNoteWall({
   const { t } = useTranslation();
 
   return (
-    <section className={cn("space-y-3", className)}>
+    <section className={cn("space-y-v3-3", className)}>
       <div className="flex items-center justify-between gap-2">
         <h2 className="font-serif text-lg text-taupe-100">
           {t("loveNotes.title")}

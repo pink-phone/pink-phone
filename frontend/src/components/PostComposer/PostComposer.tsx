@@ -167,7 +167,7 @@ export function PostComposer({
 
   return (
     <form
-      className="space-y-4"
+      className="space-y-v3-4"
       onSubmit={(e) => {
         e.preventDefault();
         submit(false);
@@ -187,14 +187,14 @@ export function PostComposer({
         rows={editing ? 14 : 5}
       />
 
-      <div className="space-y-2">
+      <div className="space-y-v3-2">
         <span className="block text-xs font-medium text-taupe-200">
           {t("postComposer.mediaLabel")}
         </span>
 
         {/* Liste ordonnée des médias (réordo ▲▼ + retrait ✕). */}
         {items.length > 0 && (
-          <ul className="space-y-2">
+          <ul className="space-y-v3-2">
             {items.map((it, i) => (
               <li
                 key={it.kind === "existing" ? `e-${it.id}` : `n-${i}-${it.file.name}`}
@@ -227,7 +227,7 @@ export function PostComposer({
                     onClick={() => move(i, -1)}
                     disabled={i === 0}
                     aria-label={t("postComposer.moveUp")}
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-taupe-300 hover:text-blush-100 disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-taupe-300 hover:text-blush-100 disabled:opacity-30 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500"
                   >
                     ▲
                   </button>
@@ -236,7 +236,7 @@ export function PostComposer({
                     onClick={() => move(i, 1)}
                     disabled={i === items.length - 1}
                     aria-label={t("postComposer.moveDown")}
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-taupe-300 hover:text-blush-100 disabled:opacity-30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-taupe-300 hover:text-blush-100 disabled:opacity-30 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500"
                   >
                     ▼
                   </button>
@@ -244,7 +244,7 @@ export function PostComposer({
                     type="button"
                     onClick={() => removeAt(i)}
                     aria-label={t("postComposer.remove")}
-                    className="flex h-8 w-8 items-center justify-center rounded-full text-taupe-300 hover:text-spice-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+                    className="flex h-8 w-8 items-center justify-center rounded-full text-taupe-300 hover:text-spice-300 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500"
                   >
                     ✕
                   </button>
@@ -298,7 +298,7 @@ export function PostComposer({
         />
       )}
 
-      <div className="space-y-2 pt-1">
+      <div className="space-y-v3-2 pt-1">
         <div className="flex gap-2">
           <Button
             type="submit"

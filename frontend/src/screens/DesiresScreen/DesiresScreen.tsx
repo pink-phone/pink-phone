@@ -135,7 +135,7 @@ export function DesiresScreen({
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-v3-5">
       <header className="flex items-center gap-3 pt-2">
         {onBack && (
           <button
@@ -154,7 +154,7 @@ export function DesiresScreen({
 
       <p className="text-sm text-taupe-300">{t("desires.intro")}</p>
 
-      <div className="space-y-3">
+      <div className="space-y-v3-3">
         {CATEGORY_ORDER.map((cat) => {
           const inCat = known.filter((d) => d.category === cat);
           if (inCat.length === 0) return null;
@@ -163,12 +163,12 @@ export function DesiresScreen({
           const dones = inCat.filter((d) => d.done).length;
           const isOpen = open[cat] ?? false;
           return (
-            <section key={cat} className="space-y-3">
+            <section key={cat} className="space-y-v3-3">
               <button
                 type="button"
                 onClick={() => setOpen((o) => ({ ...o, [cat]: !isOpen }))}
                 aria-expanded={isOpen}
-                className="flex w-full items-center justify-between gap-2 rounded-2xl border border-charcoal-600/60 bg-charcoal-800/60 px-4 py-3 text-left transition-colors duration-300 ease-felt hover:border-spice-400/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+                className="flex w-full items-center justify-between gap-2 rounded-2xl border border-charcoal-600/60 bg-charcoal-800/60 px-4 py-3 text-left transition-colors duration-300 ease-felt hover:border-spice-400/40 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500"
               >
                 <span className="font-serif text-base text-blush-100">
                   {t(CATEGORY_KEYS[cat])}
