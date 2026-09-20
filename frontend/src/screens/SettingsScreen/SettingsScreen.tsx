@@ -313,7 +313,7 @@ export function SettingsScreen({
       ? [space.timezone, ...tzOptions]
       : tzOptions;
   return (
-    <div className="space-y-6">
+    <div className="space-y-v3-6">
       <header className="flex items-center gap-3 pt-2">
         {onBack && (
           <button
@@ -329,7 +329,7 @@ export function SettingsScreen({
       </header>
 
       {userName !== undefined && onRenameUser && (
-        <section className="space-y-3">
+        <section className="space-y-v3-3">
           <h2 className="text-xs uppercase tracking-[0.15em] text-taupe-400">
             {t("settings.accountSection")}
           </h2>
@@ -365,11 +365,11 @@ export function SettingsScreen({
       )}
 
       {space && (
-        <section className="space-y-3">
+        <section className="space-y-v3-3">
           <h2 className="text-xs uppercase tracking-[0.15em] text-taupe-400">
             {t("settings.spaceSection")}
           </h2>
-          <Surface tone="velvet" className="space-y-4">
+          <Surface tone="velvet" className="space-y-v3-4">
             {/* Nom du salon */}
             <form
               className="flex items-end gap-2"
@@ -394,7 +394,7 @@ export function SettingsScreen({
             </form>
 
             {/* Fuseau horaire */}
-            <div className="space-y-1.5">
+            <div className="space-y-v3-1.5">
               <label
                 htmlFor="space-tz"
                 className="block text-xs font-medium text-taupe-200"
@@ -430,7 +430,7 @@ export function SettingsScreen({
 
             {/* Membres + invitation d'un nouveau membre (#52) */}
             {members && members.length > 0 && (
-              <div className="space-y-2">
+              <div className="space-y-v3-2">
                 <span className="block text-xs font-medium text-taupe-200">
                   {t("settings.members")}
                 </span>
@@ -481,7 +481,7 @@ export function SettingsScreen({
 
       {/* Mes salons (#67) — replié par défaut, après « Notre salon ». */}
       {spaces && spaces.length > 0 && (
-        <section className="space-y-3">
+        <section className="space-y-v3-3">
           <h2>
             <button
               type="button"
@@ -519,13 +519,13 @@ export function SettingsScreen({
           </h2>
 
           {spacesOpen && (
-            <Surface tone="velvet" className="animate-slide-up motion-reduce:animate-none space-y-4">
+            <Surface tone="velvet" className="animate-slide-up motion-reduce:animate-none space-y-v3-4">
               {/* Sélecteur : seulement utile à partir de 2 salons. */}
               {spaces.length >= 2 ? (
                 <div
                   role="radiogroup"
                   aria-label={t("settings.spacesSection")}
-                  className="space-y-2"
+                  className="space-y-v3-2"
                 >
                   {spaces.map((s) => {
                     const active = s.id === currentSpaceId;
@@ -631,7 +631,7 @@ export function SettingsScreen({
       )}
 
       {reactions && onReactionsChange && (
-        <section className="space-y-3">
+        <section className="space-y-v3-3">
           <h2 className="text-xs uppercase tracking-[0.15em] text-taupe-400">
             {t("settings.reactionsSection")}
           </h2>
@@ -645,7 +645,7 @@ export function SettingsScreen({
         </section>
       )}
 
-      <section className="space-y-3">
+      <section className="space-y-v3-3">
         <h2 className="text-xs uppercase tracking-[0.15em] text-taupe-400">
           {t("settings.notifications")}
         </h2>
@@ -657,7 +657,7 @@ export function SettingsScreen({
         <div
           role="radiogroup"
           aria-label={t("settings.notifications")}
-          className="space-y-2"
+          className="space-y-v3-2"
         >
           {MODES.map((mode) => {
             const active = notifMode === mode.id;
@@ -715,7 +715,7 @@ export function SettingsScreen({
         )}
       </section>
 
-      <section className="space-y-3">
+      <section className="space-y-v3-3">
         <h2 className="text-xs uppercase tracking-[0.15em] text-taupe-400">
           {t("settings.language")}
         </h2>
@@ -744,13 +744,13 @@ export function SettingsScreen({
         </div>
       </section>
 
-      <section className="space-y-3">
+      <section className="space-y-v3-3">
         <h2 className="text-xs uppercase tracking-[0.15em] text-taupe-400">
           {t("settings.appearance")}
         </h2>
-        <Surface tone="velvet" className="space-y-4">
+        <Surface tone="velvet" className="space-y-v3-4">
             {/* Thème */}
-            <div className="space-y-1.5">
+            <div className="space-y-v3-1.5">
               <span className="block text-xs font-medium text-taupe-200">
                 {t("settings.theme")}
               </span>
@@ -794,11 +794,11 @@ export function SettingsScreen({
           </Surface>
         </section>
 
-      <section className="space-y-3">
+      <section className="space-y-v3-3">
         <h2 className="text-xs uppercase tracking-[0.15em] text-taupe-400">
           {t("settings.securitySection")}
         </h2>
-        <Surface tone="velvet" className="space-y-3">
+        <Surface tone="velvet" className="space-y-v3-3">
           <div className="flex items-start gap-3">
             <span aria-hidden className="text-2xl">
               🔒
@@ -861,7 +861,7 @@ export function SettingsScreen({
           {/* Biométrie : repli du PIN, donc proposée seulement si un PIN existe
               ET si l'appareil a un capteur (FaceID/Touch ID/empreinte). */}
           {pinSet && bioSupported && (
-            <div className="space-y-2 border-t border-charcoal-600/40 pt-3">
+            <div className="space-y-v3-2 border-t border-charcoal-600/40 pt-3">
               <div className="flex items-start gap-3">
                 <span aria-hidden className="text-2xl">
                   🔓
@@ -896,7 +896,7 @@ export function SettingsScreen({
         </Surface>
       </section>
 
-      <section className="space-y-3">
+      <section className="space-y-v3-3">
         <h2 className="text-xs uppercase tracking-[0.15em] text-taupe-400">
           {t("settings.aboutSection")}
         </h2>
@@ -927,7 +927,7 @@ export function SettingsScreen({
       </section>
 
       {(onLogout || onLogoutAll) && (
-        <section className="space-y-2 pt-2">
+        <section className="space-y-v3-2 pt-2">
           {onLogout && (
             <Button variant="secondary" className="w-full" onClick={onLogout}>
               {t("common.logout")}

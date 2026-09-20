@@ -18,7 +18,7 @@ type Story = StoryObj;
 
 export const Champs: Story = {
   render: () => (
-    <div className="w-80 space-y-4">
+    <div className="w-80 space-y-v3-4">
       <TextField label="Titre" placeholder="Cette idée qui me trotte…" />
       <TextArea label="Récit" placeholder="Raconte…" hint="Markdown léger bientôt." />
     </div>

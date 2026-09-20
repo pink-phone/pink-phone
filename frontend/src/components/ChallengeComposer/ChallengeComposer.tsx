@@ -82,7 +82,7 @@ export function ChallengeComposer({
 
   return (
     <form
-      className="space-y-4"
+      className="space-y-v3-4"
       onSubmit={(e) => {
         e.preventDefault();
         submit();
@@ -90,7 +90,7 @@ export function ChallengeComposer({
     >
       {/* La "banque" : remplir d'un geste (masquée en édition) */}
       {!editing && (
-      <div className="space-y-1.5">
+      <div className="space-y-v3-1.5">
         <div className="flex items-center justify-between">
           <span className="block text-xs font-medium text-taupe-200">
             {t("challengeComposer.inspiration")}

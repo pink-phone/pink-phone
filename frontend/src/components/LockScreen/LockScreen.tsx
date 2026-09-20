@@ -64,7 +64,7 @@ export function LockScreen({
 
   return (
     <div className={cn("flex w-full max-w-xs flex-col items-center gap-6", className)}>
-      <div className="space-y-1 text-center">
+      <div className="space-y-v3-1 text-center">
         <span aria-hidden className="text-3xl">
           🔒
         </span>

@@ -58,7 +58,7 @@ export const DashboardDuCouple: Story = {
       <h2 className="mb-4 text-center font-serif text-xl text-blush-100">
         Aujourd'hui
       </h2>
-      <div className="space-y-4">
+      <div className="space-y-v3-4">
         {(
           [
             { who: "Toi", id: "veryHot" as MoodId, when: "il y a 2 h" },

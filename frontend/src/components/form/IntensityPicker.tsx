@@ -26,7 +26,7 @@ export function IntensityPicker({
   const { t } = useTranslation();
   const fieldLabel = label ?? t("challengeComposer.intensityLabel");
   return (
-    <div className={cn("space-y-1.5", className)}>
+    <div className={cn("space-y-v3-1.5", className)}>
       <span className="block text-xs font-medium text-taupe-200">{fieldLabel}</span>
       <div role="radiogroup" aria-label={fieldLabel} className="flex gap-2">
         {ORDER.map((id) => {

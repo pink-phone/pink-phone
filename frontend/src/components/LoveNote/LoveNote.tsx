@@ -66,7 +66,7 @@ export function LoveNote({
   const scheduled = isMine && !!openAt && new Date(openAt) > new Date();
 
   return (
-    <Surface tone="blush" className={cn("relative space-y-2", className)}>
+    <Surface tone="blush" className={cn("relative space-y-v3-2", className)}>
       {isMine && onDelete && (
         <button
           type="button"

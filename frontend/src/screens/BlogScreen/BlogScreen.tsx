@@ -117,7 +117,7 @@ export function BlogScreen({
   );
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-v3-5">
       <header className="flex items-center justify-between pt-2">
         <h1 className="font-serif text-2xl text-blush-100">{t("blog.title")}</h1>
         <div className="flex items-center gap-2">
@@ -167,7 +167,7 @@ export function BlogScreen({
         <div className="flex flex-col items-stretch gap-5">
           {/* Section brouillons repliable (repliée par défaut). */}
           {drafts.length > 0 && (
-            <div className="space-y-5">
+            <div className="space-y-v3-5">
               <button
                 type="button"
                 onClick={toggleDrafts}

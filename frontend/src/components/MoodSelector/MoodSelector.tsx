@@ -64,7 +64,7 @@ export function MoodSelector({
   };
 
   return (
-    <div className={cn("space-y-2", className)}>
+    <div className={cn("space-y-v3-2", className)}>
       <div role="radiogroup" aria-label={t("moods.aria")} className="flex justify-center gap-2">
         {MOODS.map((mood) => {
           const active = value === mood.id;
