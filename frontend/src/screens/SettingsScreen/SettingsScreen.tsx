@@ -320,7 +320,7 @@ export function SettingsScreen({
             type="button"
             onClick={onBack}
             aria-label={t("common.back")}
-            className="flex h-11 w-11 items-center justify-center rounded-full text-taupe-300 transition-colors duration-300 ease-felt hover:text-blush-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+            className="flex h-11 w-11 items-center justify-center rounded-full text-taupe-300 transition-colors duration-300 ease-felt hover:text-blush-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500"
           >
             ←
           </button>
@@ -408,7 +408,7 @@ export function SettingsScreen({
                   id="space-tz"
                   value={space.timezone}
                   onChange={(e) => onTimezoneChange?.(e.target.value)}
-                  className="w-full appearance-none rounded-2xl border border-charcoal-600/60 bg-charcoal-800 px-3 py-2 pr-9 text-sm text-taupe-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+                  className="w-full appearance-none rounded-2xl border border-charcoal-600/60 bg-charcoal-800 px-3 py-2 pr-9 text-sm text-taupe-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500"
                 >
                   {tzList.map((tz) => (
                     <option key={tz} value={tz}>
@@ -487,7 +487,7 @@ export function SettingsScreen({
               type="button"
               onClick={() => setSpacesOpen((o) => !o)}
               aria-expanded={spacesOpen}
-              className="flex w-full items-center justify-between rounded-2xl px-1 py-1 transition-colors duration-300 ease-felt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500/50"
+              className="flex w-full items-center justify-between rounded-2xl px-1 py-1 transition-colors duration-300 ease-felt focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500/50"
             >
               <span className="text-xs uppercase tracking-[0.15em] text-taupe-400">
                 {t("settings.spacesSection")}
@@ -539,7 +539,7 @@ export function SettingsScreen({
                         onClick={() => onSwitchSpace?.(s.id)}
                         className={cn(
                           "flex w-full items-center justify-between rounded-2xl border px-3 py-2.5 text-sm",
-                          "transition-all duration-300 ease-felt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500",
+                          "transition-all duration-300 ease-felt focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500",
                           active
                             ? "border-spice-500/70 bg-bordeaux-700 text-blush-100 shadow-glow"
                             : "border-charcoal-600/60 bg-charcoal-900/40 text-taupe-200 hover:border-spice-400/40 hover:bg-charcoal-700/60",
@@ -731,7 +731,7 @@ export function SettingsScreen({
                 onClick={() => void i18n.changeLanguage(lng)}
                 className={cn(
                   "flex-1 rounded-2xl border px-3 py-2 text-sm font-medium",
-                  "transition-all duration-300 ease-felt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500",
+                  "transition-all duration-300 ease-felt focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500",
                   active
                     ? "border-spice-500/70 bg-bordeaux-700 text-blush-100 shadow-glow"
                     : "border-charcoal-600/60 bg-charcoal-800 text-taupe-300 hover:border-spice-400/40",
@@ -770,7 +770,7 @@ export function SettingsScreen({
                       onClick={() => chooseTheme(th)}
                       className={cn(
                         "flex-1 rounded-2xl border px-3 py-2 text-sm font-medium",
-                        "transition-all duration-300 ease-felt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500",
+                        "transition-all duration-300 ease-felt focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500",
                         active
                           ? "border-spice-500/70 bg-bordeaux-700 text-blush-100 shadow-glow"
                           : "border-charcoal-600/60 bg-charcoal-800 text-taupe-300 hover:border-spice-400/40",
@@ -904,7 +904,7 @@ export function SettingsScreen({
           <button
             type="button"
             onClick={openReleaseNotes}
-            className="flex w-full items-center gap-3 rounded-2xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+            className="flex w-full items-center gap-3 rounded-2xl text-left focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500"
           >
             <span aria-hidden className="text-2xl">
               ✨
@@ -938,7 +938,7 @@ export function SettingsScreen({
               <button
                 type="button"
                 onClick={onLogoutAll}
-                className="block w-full rounded-2xl px-4 py-2.5 text-center text-xs text-taupe-300 underline underline-offset-2 transition-colors duration-300 ease-felt hover:text-spice-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+                className="block w-full rounded-2xl px-4 py-2.5 text-center text-xs text-taupe-300 underline underline-offset-2 transition-colors duration-300 ease-felt hover:text-spice-300 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500"
               >
                 {t("settings.logoutAll")}
               </button>

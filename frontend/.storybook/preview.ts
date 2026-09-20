@@ -1,4 +1,6 @@
 import type { Preview } from "@storybook/react-vite";
+// Polices hors-ligne (@fontsource), comme dans l'app.
+import "../src/fonts";
 // Charge les tokens DA + Tailwind dans Storybook (mêmes styles que l'app).
 import "../src/index.css";
 // Rétablit le scroll que l'app verrouille volontairement sur le body (après index.css).
