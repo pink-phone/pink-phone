@@ -44,6 +44,19 @@
   --font-serif: "Playfair Display", Georgia, serif;
   --font-sans: "Inter", system-ui, sans-serif;
 
+  /* Interlignes des tailles de texte : longueurs absolues comme en Tailwind 3.
+     La v4 les exprime en ratios sans unité (text-sm = 1.4286), qui sont
+     ré-appliqués à la taille de chaque descendant : un `text-[10px]` sous un
+     `text-sm` passait de 20px hérités à 14.3px (badges, libellés de boutons). */
+  --text-xs--line-height: 1rem;
+  --text-sm--line-height: 1.25rem;
+  --text-base--line-height: 1.5rem;
+  --text-lg--line-height: 1.75rem;
+  --text-xl--line-height: 1.75rem;
+  --text-2xl--line-height: 2rem;
+  --text-3xl--line-height: 2.25rem;
+  --text-4xl--line-height: 2.5rem;
+
   /* Pas d'angles droits agressifs — arrondi généreux partout. */
   --radius-xl: 1rem;
   --radius-2xl: 1.5rem;
@@ -126,6 +139,21 @@
     rgba(255, 255, 255, 0.012) 0 2px,
     transparent 2px 4px
   );
+}
+
+/* space-y-v3-N : espacement vertical avec la sémantique de Tailwind 3
+   (`space-y-N` en v3). La v4 pose la marge sur `:not(:last-child)`
+   (margin-bottom) là où la v3 la posait sur les frères suivants
+   `:not([hidden]) ~ :not([hidden])` (margin-top). Avec un premier enfant hors
+   flux (cadre `absolute` d'un brouillon, élément masqué), la v3 espaçait quand
+   même le suivant, pas la v4 : la carte brouillon se retrouvait plus courte que
+   son cadre en pointillés. Nom distinct de `space-y-*` : une surcharge du même
+   nom n'empêche pas Tailwind d'émettre aussi sa règle native (marges doublées).
+   À migrer vers flex + gap le jour où l'on assumera ce changement visuel. */
+@utility space-y-v3-* {
+  & > :not([hidden]) ~ :not([hidden]) {
+    margin-top: calc(var(--spacing) * --value(number));
+  }
 }
 
 /* ---- Thèmes : canaux RGB des couleurs (cf. @theme ci-dessus) ----

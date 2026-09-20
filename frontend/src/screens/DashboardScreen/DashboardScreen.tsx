@@ -157,7 +157,7 @@ export function DashboardScreen({
   const isGroup = partners.length >= 2;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-v3-6">
       <header className="relative pt-2 text-center">
         <p className="text-xs uppercase tracking-[0.2em] text-taupe-400">
           {t("dashboard.today")}
@@ -191,7 +191,7 @@ export function DashboardScreen({
         </div>
       ) : (
         /* Espace en attente : inviter le/la partenaire */
-        <Surface tone="velvet" className="space-y-3 text-center">
+        <Surface tone="velvet" className="space-y-v3-3 text-center">
           <p className="font-serif text-lg text-blush-100">
             {t("dashboard.waitingPartnerTitle")}
           </p>
@@ -221,7 +221,7 @@ export function DashboardScreen({
         <section
           aria-label={t("dashboard.noticesSection")}
           aria-live="polite"
-          className="space-y-2"
+          className="space-y-v3-2"
         >
           {shownNotices.map((n) => {
             const meta = NOTICE_META[n.kind];
@@ -246,7 +246,7 @@ export function DashboardScreen({
       )}
 
       {(newPosts > 0 || newComments > 0 || newChallenges > 0) && (
-        <section className="space-y-2">
+        <section className="space-y-v3-2">
           <h2 className="text-xs uppercase tracking-[0.15em] text-taupe-400">
             {t("dashboard.newHeader")}
           </h2>
@@ -274,7 +274,7 @@ export function DashboardScreen({
       )}
 
       {/* Mon humeur du jour */}
-      <section className="space-y-3">
+      <section className="space-y-v3-3">
         <h2 className="font-serif text-lg text-taupe-100">
           {t("dashboard.moodQuestion")}
         </h2>

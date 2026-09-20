@@ -46,12 +46,12 @@ export function LoveNoteWall({
   };
 
   return (
-    <section className={cn("space-y-3", className)}>
+    <section className={cn("space-y-v3-3", className)}>
       <h2 className="font-serif text-lg text-taupe-100">
         {t("loveNotes.title")}
       </h2>
 
-      <div className="space-y-2">
+      <div className="space-y-v3-2">
         <TextArea
           label={t("loveNotes.composerLabel")}
           value={draft}

@@ -65,7 +65,7 @@ export const CycleDeVie: Story = {
   render: (args) => {
     const [status, setStatus] = useState<ChallengeStatus>("proposed");
     return (
-      <div className="space-y-3">
+      <div className="space-y-v3-3">
         <ChallengeCard
           {...args}
           status={status}

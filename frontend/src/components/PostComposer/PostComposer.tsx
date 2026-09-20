@@ -167,7 +167,7 @@ export function PostComposer({
 
   return (
     <form
-      className="space-y-4"
+      className="space-y-v3-4"
       onSubmit={(e) => {
         e.preventDefault();
         submit(false);
@@ -187,14 +187,14 @@ export function PostComposer({
         rows={editing ? 14 : 5}
       />
 
-      <div className="space-y-2">
+      <div className="space-y-v3-2">
         <span className="block text-xs font-medium text-taupe-200">
           {t("postComposer.mediaLabel")}
         </span>
 
         {/* Liste ordonnée des médias (réordo ▲▼ + retrait ✕). */}
         {items.length > 0 && (
-          <ul className="space-y-2">
+          <ul className="space-y-v3-2">
             {items.map((it, i) => (
               <li
                 key={it.kind === "existing" ? `e-${it.id}` : `n-${i}-${it.file.name}`}
@@ -298,7 +298,7 @@ export function PostComposer({
         />
       )}
 
-      <div className="space-y-2 pt-1">
+      <div className="space-y-v3-2 pt-1">
         <div className="flex gap-2">
           <Button
             type="submit"

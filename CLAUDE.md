@@ -27,7 +27,7 @@ Tests use **Vitest + Testing Library + jsdom** (`vitest.config.ts`, setup `src/t
 
 PinkPhone (displayed in-app as "Pink Phone") is an intimate PWA for couples (MVP: exclusive couple, but data model is multi-partner ready). Three MVP features: **Blog** (intimate journal), **Mood** (a shared "sexual weather" indicator), **Défis** (challenges with a state machine). Distributed as a PWA, deliberately outside app stores.
 
-Stack: React 18 + TypeScript + Tailwind v3 + `vite-plugin-pwa`, Storybook (`@storybook/react-vite`) for the frontend; a **Rust/Axum + Postgres** backend lives in `backend/` (see `backend/README.md`). The running app talks to the API (`src/api/`, `src/auth/`, `src/app/`); `src/mock/data.ts` now only feeds Storybook stories.
+Stack: React 18 + TypeScript + Tailwind v4 + `vite-plugin-pwa`, Storybook (`@storybook/react-vite`) for the frontend; a **Rust/Axum + Postgres** backend lives in `backend/` (see `backend/README.md`). The running app talks to the API (`src/api/`, `src/auth/`, `src/app/`); `src/mock/data.ts` now only feeds Storybook stories.
 
 ## Architecture
 
@@ -81,10 +81,11 @@ The **web image** (`frontend/Dockerfile`, with `frontend/nginx.conf`) is nginx s
 
 ## Design system — "felted"
 
-Skeuomorphic, soft, warm — **not** flat-and-cold, **not** candy/barbie pink, **not** clinical or explicit. All tokens live in `frontend/tailwind.config.js`; the app is dark-only (charcoal background), so use the palette directly (no `dark:` variants are configured).
+Skeuomorphic, soft, warm — **not** flat-and-cold, **not** candy/barbie pink, **not** clinical or explicit. All tokens live in the `@theme` block of `frontend/src/index.css` (Tailwind 4, CSS-first — there is no `tailwind.config.js`); the app is dark-only (charcoal background), so use the palette directly (no `dark:` variants are configured).
 
 - Colors: `blush` (light card fills) → `spice` (primary accent) → `bordeaux` (hot/active states); neutrals `charcoal` (bg) and `taupe` (text).
-- Fonts: `font-serif` = Playfair Display (titles), `font-sans` = Inter (body), loaded offline via `@fontsource` in `src/index.css`.
+- Fonts: `font-serif` = Playfair Display (titles), `font-sans` = Inter (body), loaded offline via `@fontsource`, imported in `src/fonts.ts` (not `@import` in the CSS: Tailwind 4 inlines imports without rewriting the `url()`s of the `@font-face`, so no font file would be emitted).
+- Vertical spacing: use **`space-y-v3-N`** (defined in `src/index.css`), not the native `space-y-N`. Tailwind 4 changed `space-y` to margin-bottom on `:not(:last-child)`; with an out-of-flow first child (e.g. the absolute dashed frame of a draft post) the layout differs from the v3 one we designed against. Text-size line-heights are also kept as absolute lengths (v3 values) in `@theme`.
 - Shapes/feel: generous rounding (`rounded-2xl`/`3xl`), soft shadows (`shadow-felt`, `shadow-glow`), subtle textures (`bg-felt-velvet`/`bg-felt-linen`), slow transitions (`ease-felt`). Active controls get a soft glow, not a flat color swap.
 - Security as sensuality: media is blurred by default and revealed by press-and-hold (`SafeMedia`) — keep that gesture, don't reduce it to a toggle.
 

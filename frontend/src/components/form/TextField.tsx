@@ -16,7 +16,7 @@ const fieldClass =
 export function TextField({ label, hint, className, ...props }: TextFieldProps) {
   const id = useId();
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-v3-1.5">
       <label htmlFor={id} className="block text-xs font-medium text-taupe-200">
         {label}
       </label>
