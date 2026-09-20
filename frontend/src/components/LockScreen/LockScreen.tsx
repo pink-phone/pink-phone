@@ -64,7 +64,7 @@ export function LockScreen({
 
   return (
     <div className={cn("flex w-full max-w-xs flex-col items-center gap-6", className)}>
-      <div className="space-y-1 text-center">
+      <div className="space-y-v3-1 text-center">
         <span aria-hidden className="text-3xl">
           🔒
         </span>
@@ -104,7 +104,7 @@ export function LockScreen({
             type="button"
             disabled={busy}
             onClick={() => append(k)}
-            className="flex h-16 w-16 items-center justify-center rounded-full border border-charcoal-600/60 bg-charcoal-800 font-serif text-2xl text-blush-100 shadow-felt-sm transition-all duration-200 ease-felt hover:-translate-y-0.5 hover:border-spice-400/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500 active:translate-y-0 disabled:opacity-50"
+            className="flex h-16 w-16 items-center justify-center rounded-full border border-charcoal-600/60 bg-charcoal-800 font-serif text-2xl text-blush-100 shadow-felt-sm transition-all duration-200 ease-felt hover:-translate-y-0.5 hover:border-spice-400/40 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500 active:translate-y-0 disabled:opacity-50"
           >
             {k}
           </button>
@@ -125,7 +125,7 @@ export function LockScreen({
           type="button"
           disabled={busy}
           onClick={() => append("0")}
-          className="flex h-16 w-16 items-center justify-center rounded-full border border-charcoal-600/60 bg-charcoal-800 font-serif text-2xl text-blush-100 shadow-felt-sm transition-all duration-200 ease-felt hover:-translate-y-0.5 hover:border-spice-400/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500 disabled:opacity-50"
+          className="flex h-16 w-16 items-center justify-center rounded-full border border-charcoal-600/60 bg-charcoal-800 font-serif text-2xl text-blush-100 shadow-felt-sm transition-all duration-200 ease-felt hover:-translate-y-0.5 hover:border-spice-400/40 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500 disabled:opacity-50"
         >
           0
         </button>
@@ -145,7 +145,7 @@ export function LockScreen({
           type="button"
           disabled={busy}
           onClick={onBiometric}
-          className="flex min-h-[44px] items-center gap-2 rounded-full px-4 py-3 text-sm text-taupe-200 transition-colors duration-200 ease-felt hover:text-blush-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500 disabled:opacity-50"
+          className="flex min-h-[44px] items-center gap-2 rounded-full px-4 py-3 text-sm text-taupe-200 transition-colors duration-200 ease-felt hover:text-blush-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500 disabled:opacity-50"
         >
           <span aria-hidden className="text-xl">
             🔓

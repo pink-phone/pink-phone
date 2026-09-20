@@ -84,14 +84,14 @@ export function Sheet({ open, title, onClose, children, className }: SheetProps)
         aria-hidden
         tabIndex={-1}
         onClick={onClose}
-        className="absolute inset-0 animate-fade-in motion-reduce:animate-none bg-charcoal-900/70 backdrop-blur-sm"
+        className="absolute inset-0 animate-fade-in motion-reduce:animate-none bg-charcoal-900/70 backdrop-blur-xs"
       />
       <div
         ref={panelRef}
         tabIndex={-1}
         onKeyDown={onPanelKeyDown}
         className={cn(
-          "relative max-h-[90dvh] w-full max-w-md animate-slide-up motion-reduce:animate-none overflow-y-auto rounded-t-3xl outline-none",
+          "relative max-h-[90dvh] w-full max-w-md animate-slide-up motion-reduce:animate-none overflow-y-auto rounded-t-3xl outline-hidden",
           "border-x border-t border-charcoal-600/60 bg-charcoal-800 bg-felt-velvet shadow-felt",
           "px-5 pb-[calc(1.5rem+env(safe-area-inset-bottom))] pt-3",
           className,

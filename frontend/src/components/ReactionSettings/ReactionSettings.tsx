@@ -35,11 +35,11 @@ export function ReactionSettings({
   const add = (id: ReactionId) => onChange([...value, id], allowCustom);
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-v3-3">
       <p className="text-xs text-taupe-400">{t("settings.reactionsIntro")}</p>
 
       {/* Réactions actives, ordonnables */}
-      <ul className="space-y-1.5">
+      <ul className="space-y-v3-1.5">
         {value.map((id, i) => (
           <li
             key={id}

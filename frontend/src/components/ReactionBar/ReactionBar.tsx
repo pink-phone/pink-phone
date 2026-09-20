@@ -101,7 +101,7 @@ export function ReactionBar({
             onClick={() => onToggle?.(key)}
             className={cn(
               "relative inline-flex items-center gap-1.5 overflow-hidden rounded-full border px-3 py-1 text-sm",
-              "transition-all duration-300 ease-felt focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500",
+              "transition-all duration-300 ease-felt focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500",
               active
                 ? hot
                   ? "border-spice-500/70 bg-bordeaux-700 text-blush-100 shadow-ember animate-ember-breathe motion-reduce:animate-none"
@@ -139,7 +139,7 @@ export function ReactionBar({
               maxLength={16}
               aria-label={t("reactions.addAria")}
               placeholder={t("reactions.addPlaceholder")}
-              className="w-16 rounded-full border border-spice-400/50 bg-charcoal-800 px-3 py-1 text-center text-base text-blush-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+              className="w-16 rounded-full border border-spice-400/50 bg-charcoal-800 px-3 py-1 text-center text-base text-blush-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500"
             />
           </form>
         ) : (
@@ -150,7 +150,7 @@ export function ReactionBar({
             // Cercle visible de 32px, mais la cible tactile est portée à 44px via
             // un overlay invisible (`before:`) — accessibilité (UI-A11Y3) sans
             // grossir le bouton dans la rangée compacte de réactions.
-            className="group relative inline-flex h-8 w-8 items-center justify-center rounded-full border border-charcoal-600/60 bg-charcoal-800 transition-all duration-300 ease-felt before:absolute before:left-1/2 before:top-1/2 before:h-11 before:w-11 before:-translate-x-1/2 before:-translate-y-1/2 before:content-[''] hover:border-spice-400/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+            className="group relative inline-flex h-8 w-8 items-center justify-center rounded-full border border-charcoal-600/60 bg-charcoal-800 transition-all duration-300 ease-felt before:absolute before:left-1/2 before:top-1/2 before:h-11 before:w-11 before:-translate-x-1/2 before:-translate-y-1/2 before:content-[''] hover:border-spice-400/40 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500"
           >
             {/* Smiley grisé + badge « ＋ » : affordance « ajouter une réaction ». */}
             <span className="relative inline-flex text-base opacity-50 grayscale transition-all duration-300 ease-felt group-hover:opacity-100 group-hover:grayscale-0">

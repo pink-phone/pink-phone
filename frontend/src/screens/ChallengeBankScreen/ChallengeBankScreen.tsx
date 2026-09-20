@@ -93,7 +93,7 @@ export function ChallengeBankScreen({
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-v3-6">
       <header className="flex items-center gap-3 pt-2">
         {onBack && (
           <button
@@ -119,16 +119,16 @@ export function ChallengeBankScreen({
         const items = suggestions.filter((s) => s.intensity === tone);
         if (items.length === 0) return null;
         return (
-          <section key={tone} className="space-y-2">
+          <section key={tone} className="space-y-v3-2">
             <Badge tone={INTENSITY_TONE[tone]}>
               {t(`challenges.intensity.${tone}`)}
             </Badge>
-            <ul className="space-y-2">
+            <ul className="space-y-v3-2">
               {items.map((s) => (
                 <li key={s.id}>
                   <Surface
                     tone="velvet"
-                    className={`space-y-1 ${s.hidden ? "opacity-50" : ""}`}
+                    className={`space-y-v3-1 ${s.hidden ? "opacity-50" : ""}`}
                   >
                     <div className="flex items-center gap-2">
                       <span className="min-w-0 flex-1 font-serif text-sm text-blush-100">
@@ -217,7 +217,7 @@ export function ChallengeBankScreen({
         }
         onClose={() => setFormOpen(false)}
       >
-        <div className="space-y-3">
+        <div className="space-y-v3-3">
           <TextField
             label={t("challengeComposer.titleLabel")}
             value={title}

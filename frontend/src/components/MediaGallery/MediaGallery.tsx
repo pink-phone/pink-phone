@@ -41,7 +41,7 @@ export function MediaGallery({ media, className }: MediaGalleryProps) {
   }
 
   return (
-    <div className={cn("space-y-2", className)}>
+    <div className={cn("space-y-v3-2", className)}>
       <div
         className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         onScroll={(e) => {

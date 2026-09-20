@@ -82,7 +82,7 @@ export function ChallengeComposer({
 
   return (
     <form
-      className="space-y-4"
+      className="space-y-v3-4"
       onSubmit={(e) => {
         e.preventDefault();
         submit();
@@ -90,7 +90,7 @@ export function ChallengeComposer({
     >
       {/* La "banque" : remplir d'un geste (masquée en édition) */}
       {!editing && (
-      <div className="space-y-1.5">
+      <div className="space-y-v3-1.5">
         <div className="flex items-center justify-between">
           <span className="block text-xs font-medium text-taupe-200">
             {t("challengeComposer.inspiration")}
@@ -99,7 +99,7 @@ export function ChallengeComposer({
             <button
               type="button"
               onClick={() => setRound((r) => r + 1)}
-              className="text-xs text-taupe-400 transition-colors duration-300 ease-felt hover:text-spice-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+              className="text-xs text-taupe-400 transition-colors duration-300 ease-felt hover:text-spice-300 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500"
             >
               {t("challengeComposer.reshuffle")}
             </button>
@@ -115,7 +115,7 @@ export function ChallengeComposer({
                 setDescription(p.description);
                 setIntensity(p.intensity);
               }}
-              className="rounded-full transition-transform duration-300 ease-felt hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-spice-500"
+              className="rounded-full transition-transform duration-300 ease-felt hover:-translate-y-0.5 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500"
             >
               <Badge tone={INTENSITY_TONE[p.intensity]}>{p.title}</Badge>
             </button>

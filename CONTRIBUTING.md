@@ -66,7 +66,7 @@ Every user-facing string goes through `t(...)`. Dictionaries live in `frontend/s
 
 ## 🎨 "Felted" design system
 
-Dark-only, mobile-first. Colors as CSS variables (`frontend/src/index.css`) + Tailwind tokens (`frontend/tailwind.config.js`). Generous rounding, soft shadows (`shadow-felt`), slow transitions (`ease-felt`). Respect `prefers-reduced-motion`. Security is *sensual*: media blurred and revealed by press-and-hold (`SafeMedia`) — don't reduce that gesture to a toggle.
+Dark-only, mobile-first. Colors as CSS variables + Tailwind tokens (`@theme` block), both in `frontend/src/index.css`. Generous rounding, soft shadows (`shadow-felt`), slow transitions (`ease-felt`). Respect `prefers-reduced-motion`. Security is *sensual*: media blurred and revealed by press-and-hold (`SafeMedia`) — don't reduce that gesture to a toggle.
 
 ## 🔀 Git & commits
 
