@@ -171,3 +171,18 @@ export const MonCompte: Story = {
     </div>
   ),
 };
+
+/** « À propos » : version de l'app + du serveur, avec le commit source. */
+export const AvecVersion: Story = {
+  args: {
+    buildInfo: {
+      web: { version: "0.0.147", commit: "432f3f5abcdef0123456789abcdef0123456789a" },
+      api: { version: "0.0.147", commit: "432f3f5abcdef0123456789abcdef0123456789a" },
+    },
+  },
+  render: (args) => (
+    <div className="w-[380px]">
+      <SettingsScreen {...args} />
+    </div>
+  ),
+};

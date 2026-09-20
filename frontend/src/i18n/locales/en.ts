@@ -331,6 +331,12 @@ export const en: Resources = {
     releaseNotes: "What's new",
     releaseNotesHint: "See the latest app updates.",
     releaseNotesNew: "New",
+    buildApp: "App",
+    buildServer: "Server",
+    buildLoading: "…",
+    buildUnavailable: "unavailable",
+    buildMismatch:
+      "The app and the server are not on the same version. Reload the page to update.",
   },
   releaseNotes: {
     title: "What's new",

@@ -116,12 +116,20 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      # APP_VERSION / APP_COMMIT : affichés dans l'app (Réglages → À propos) et
+      # servis par GET /api/version et /version.json. Préfixe `gh-` pour distinguer
+      # un build public d'un build interne (Forgejo, `0.0.N`) ; les tags Docker Hub
+      # restent `X.Y.Z`. Le SHA est celui du dépôt GitHub (le miroir réécrit
+      # l'historique : il diffère du SHA Forgejo du même commit).
       - name: Build & push API (natif, par digest)
         id: api
         uses: docker/build-push-action@v6
         with:
           context: ./backend
           platforms: ${{ matrix.platform }}
+          build-args: |
+            APP_VERSION=gh-${{ needs.prepare.outputs.version }}
+            APP_COMMIT=${{ github.sha }}
           outputs: type=image,name=${{ env.API_IMAGE }},push-by-digest=true,name-canonical=true,push=true
 
       - name: Build & push Web (natif, par digest)
@@ -130,6 +138,9 @@ jobs:
         with:
           context: ./frontend
           platforms: ${{ matrix.platform }}
+          build-args: |
+            APP_VERSION=gh-${{ needs.prepare.outputs.version }}
+            APP_COMMIT=${{ github.sha }}
           outputs: type=image,name=${{ env.WEB_IMAGE }},push-by-digest=true,name-canonical=true,push=true
 
       - name: Exporter les digests
