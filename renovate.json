@@ -2,5 +2,13 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "config:recommended"
+  ],
+  "packageRules": [
+    {
+      "description": "Override npm volontaire (frontend/package.json, bloc overrides) : garde @babel/plugin-transform-runtime en 7.x. Sans lui, npm install/ci échoue en ERESOLVE avec @vitejs/plugin-react 6 (peer optionnel @rolldown/plugin-babel tiré vers Babel 8 alors que storybook et workbox sont en Babel 7). Le passer en 8 ramènerait le conflit.",
+      "matchManagers": ["npm"],
+      "matchPackageNames": ["@babel/plugin-transform-runtime"],
+      "enabled": false
+    }
   ]
 }
