@@ -36,7 +36,9 @@ serde_json = "1"
 uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 
-jsonwebtoken = "9"
+# 11 exige de choisir un backend crypto (sinon panic au 1er encode/decode) : rust_crypto
+# = pur Rust (hmac, sha2, rsa, p256…), pas d aws-lc-sys (C lourd, cf. reqwest).
+jsonwebtoken = { version = "11", features = ["rust_crypto"] }
 # default features incluent password-hash + rand → OsRng via argon2::password_hash::rand_core
 argon2 = "0.6"
 
