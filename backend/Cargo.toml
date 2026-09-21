@@ -36,7 +36,7 @@ serde_json = "1"
 uuid = { version = "1", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 
-jsonwebtoken = "9"
+jsonwebtoken = "11"
 # default features incluent password-hash + rand → OsRng via argon2::password_hash::rand_core
 argon2 = "0.6"
 
