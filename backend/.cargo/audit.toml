@@ -6,8 +6,10 @@
 ignore = [
     # rsa (Marvin Attack, timing side-channel sur des opérations à clé PRIVÉE) :
     # tracé jusqu'à jwt-simple/web-push, qui ne l'utilise que pour VAPID — VAPID
-    # signe exclusivement en ES256/P-256, jamais en RSA. Pas de fix amont dispo.
-    # SECURITY_FINDINGS.md #10.
+    # signe exclusivement en ES256/P-256, jamais en RSA. Aussi tiré par
+    # jsonwebtoken (backend rust_crypto) : uniquement pour VÉRIFIER la signature
+    # RS256 des id_token OIDC (clé PUBLIQUE du JWKS) — jamais d'opération à clé
+    # privée RSA côté serveur. Pas de fix amont dispo. SECURITY_FINDINGS.md #10.
     "RUSTSEC-2023-0071",
     # quick-xml (DoS : allocation/complexité non bornées sur XML forgé) : chemin
     # PNG de little_exif uniquement (xmp::remove_exif_from_xmp), volontairement
