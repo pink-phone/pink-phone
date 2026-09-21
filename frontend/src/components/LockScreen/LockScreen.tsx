@@ -42,7 +42,7 @@ export function LockScreen({
   const [entry, setEntry] = useState("");
   // Timer de soumission différée, nettoyé au démontage (REACT-06) : évite un
   // `onSubmit` tardif si le composant disparaît dans les 120 ms.
-  const submitTimer = useRef<ReturnType<typeof setTimeout>>();
+  const submitTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => () => clearTimeout(submitTimer.current), []);
 
   // Une erreur (code refusé) vide la saisie pour réessayer.
