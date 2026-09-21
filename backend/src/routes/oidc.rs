@@ -318,14 +318,14 @@ async fn callback_inner(
         }
     };
 
-    let mut validation = Validation::new(Algorithm::RS256);
-    validation.set_audience(&[&state.config.oidc_client_id]);
     // Issuer autoritatif issu de la discovery (évite tout écart de slash final
     // entre OIDC_ISSUER configuré et le claim `iss` du jeton).
-    validation.set_issuer(&[meta.issuer.as_str()]);
-    let claims = decode::<IdClaims>(&token.id_token, &key, &validation)
-        .map_err(|_| ApiError::Unauthorized)?
-        .claims;
+    let claims = validate_id_token(
+        &token.id_token,
+        &key,
+        &state.config.oidc_client_id,
+        meta.issuer.as_str(),
+    )?;
 
     if claims.nonce.as_deref() != Some(flow.nonce.as_str()) {
         return Err(ApiError::Unauthorized);
@@ -347,6 +347,25 @@ async fn callback_inner(
 
     let user_id = upsert_oidc_user(state, &claims.sub, &email, &display).await?;
     issue_token(&state.config.jwt_secret, user_id)
+}
+
+/// Valide un `id_token` : signature RS256 (clé du JWKS), `aud` = notre client_id,
+/// `iss` = l'issuer de la discovery, `exp`. L'algorithme est ÉPINGLÉ à RS256 : un
+/// jeton HS256 (confusion d'algorithme, clé publique utilisée comme secret HMAC)
+/// ou `none` est refusé avant toute vérification de signature. Fonction pure,
+/// testée avec de vrais jetons RSA (le nonce est vérifié par l'appelant).
+fn validate_id_token(
+    id_token: &str,
+    key: &DecodingKey,
+    client_id: &str,
+    issuer: &str,
+) -> ApiResult<IdClaims> {
+    let mut validation = Validation::new(Algorithm::RS256);
+    validation.set_audience(&[client_id]);
+    validation.set_issuer(&[issuer]);
+    decode::<IdClaims>(id_token, key, &validation)
+        .map(|data| data.claims)
+        .map_err(|_| ApiError::Unauthorized)
 }
 
 /// Email à utiliser pour lier/créer le compte (SECURITY_FINDINGS.md #9) : celui
@@ -417,6 +436,65 @@ async fn upsert_oidc_user(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    // Jetons RS256 réels, signés hors ligne avec une clé RSA-2048 jetable dont la
+    // partie privée n a jamais été enregistrée : seuls le JWK PUBLIC et les jetons
+    // sont ici. exp = 2100-01-01 (sauf EXPIRE). iss=https://idp.example.com,
+    // aud=pinkphone-client, nonce=n0nce, sub=user-123.
+    const JWK: &str = "{\"kty\":\"RSA\",\"n\":\"newfPjiAP8W85TIfZKIW_QqkF1_nXahkj_VKF8QPh16lsHYCWvyk5uL5H0TQkPshU5xGzX41oWgIy4MlrQlIREhZn7ljfy144CiAzwdbzLAni4bkSgafN_mzMvwmxhWG94ognlhxGpTsF9u1zVGm3YkEbOkTzLBar8CLOEdoAV6NRv3emxNN-dAEXqFOQhnjY4wpffSBPGzV_KtXH1ms816t-g4G9NRtlY2YTOZgLGjoLXUA-fZ-CP13KCNfyILZSVK1hf4Cj5TvtfG3mUMulIuq55h9l79cegEG2FoKnm40js0MBsQkwpEof4_HLXCwDarKe1y5FLGuWH8wHYGeYQ\",\"e\":\"AQAB\",\"kid\":\"test-key-1\",\"alg\":\"RS256\",\"use\":\"sig\"}";
+    const VALID: &str = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InRlc3Qta2V5LTEifQ.eyJpc3MiOiJodHRwczovL2lkcC5leGFtcGxlLmNvbSIsImF1ZCI6InBpbmtwaG9uZS1jbGllbnQiLCJzdWIiOiJ1c2VyLTEyMyIsIm5vbmNlIjoibjBuY2UiLCJleHAiOjQxMDI0NDQ4MDAsImlhdCI6MTcwMDAwMDAwMCwiZW1haWwiOiJhbGljZUBleGFtcGxlLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlfQ.J_XQIX5BwL9N2vCsE6B3fJ_QzugX0KkAlpNu1fn9q10sd0Jb_Qi46ez1xEjeeC4eQmBW-21DtXqOzR7spSDvEgjj1CnNHC8rzHKyFqOhaqFAJ83768lowo_Jan7cX6ULw1DirR5bTbZYNSqKR06n8B4YPVjv4Og2pQ-TZk4pdlglnaEj4cS7vKlLFsoCQjjOvBHUzSUWmiZZwgiqoii9gVGBRwJuUWbi1QrngIy5Zi64SnyMzZvckHYSw6kkZHYKdD7EhxRtbMcHxqwEv89JHM6LsXRsx59-ekb5RphQZTtAEa2N07W3eeCQEQxao70FOyjDt5cs5I5Se2e3ipcJmQ";
+    const MAUVAISE_AUD: &str = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InRlc3Qta2V5LTEifQ.eyJpc3MiOiJodHRwczovL2lkcC5leGFtcGxlLmNvbSIsImF1ZCI6ImF1dHJlLWNsaWVudCIsInN1YiI6InVzZXItMTIzIiwibm9uY2UiOiJuMG5jZSIsImV4cCI6NDEwMjQ0NDgwMCwiaWF0IjoxNzAwMDAwMDAwLCJlbWFpbCI6ImFsaWNlQGV4YW1wbGUuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWV9.ly9JrMjvuj_KTDCSa9nc3JPmH6dUG_Jw-xonbaVqcRFC_ByEcfA2IEyL7I0zFgOFDRUkyr5fd_Kfpo2TA1fvw6MAXmcpSUQ9Pcr4gXZ_D4v6UTopuHq7-eseMhFVEEd85uX1HlhfmRD7QIPSfJ3N4n-auZmZLRzaflb2Y2BNtrXZk-Xkkik_M9r9XvOgpg2GbPNRDindGjRzALJJedBy2sHGFVmZDnjONRH0w6_DIzI16R2-ny0JUy1e_RKHklXgEei-uL-m98I2U2aTaI7CUfbPS9i-a_0_tbdPa9vMcMPOXDkaqsSdBO8WputwJBqk5p5RWQwOAFVNTRoi_BZsFA";
+    const MAUVAIS_ISS: &str = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InRlc3Qta2V5LTEifQ.eyJpc3MiOiJodHRwczovL2V2aWwuZXhhbXBsZS5jb20iLCJhdWQiOiJwaW5rcGhvbmUtY2xpZW50Iiwic3ViIjoidXNlci0xMjMiLCJub25jZSI6Im4wbmNlIiwiZXhwIjo0MTAyNDQ0ODAwLCJpYXQiOjE3MDAwMDAwMDAsImVtYWlsIjoiYWxpY2VAZXhhbXBsZS5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZX0.KoKTkWNc77alsw3PVdiKyrXuAwO_daHX3KxkKj_-_Ivq7O9wYD6H-B2tYT1V3QlfkcTL3G3Mj9PQPdYynKTjQRVviVqdnYvoA0iZg1LWJVXz_h3vu-onztlKtClxbG63MerVrZ7gpB6gh302yLf4y8opH66K-fz5sZI01-tceD3g4AHAR7jdcQIF-yTEta1sxMdvNLG4KXxlYoBIi6M2Kcc3VX7Z3PgfCRiToazZXzbqyFFl-xpO38FmEtDD0FWMo_UsOtUUoDwgJCTEJ-Xh1Ke2SxBkMWw5p7IecAAvy_oWvS7kDSMbWKg1oklByxkqidBa2hsAxmPz9K7z9Slc3w";
+    const EXPIRE: &str = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InRlc3Qta2V5LTEifQ.eyJpc3MiOiJodHRwczovL2lkcC5leGFtcGxlLmNvbSIsImF1ZCI6InBpbmtwaG9uZS1jbGllbnQiLCJzdWIiOiJ1c2VyLTEyMyIsIm5vbmNlIjoibjBuY2UiLCJleHAiOjEwMDAwMDAwMDAsImlhdCI6MTcwMDAwMDAwMCwiZW1haWwiOiJhbGljZUBleGFtcGxlLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlfQ.Ok0ceVkR-ibWlVi_l6H1Jg3lSyX03XhVn2U1F4BHMB0MXlyXMLRXJSd3T2SyZkLVn6rtfUeD0XGJpsuAR2p5cKNQxmAZY5EyF7IAuK-Yi3mTWZyv-4sJx_T3FIJ5zNoOgVqtmwxcsSOfXPxGSNp1tWbdTPcrQ3RrW64Sc0qInHAFEJ6oMq7-z0jPrwTE6wEFk-fcHu3SO0gT09FnEPK4ERT6YhPTg6QeOOnmeF9uyQFcsC-k1ja4-1z512Ut89NHAWOJBmaE-gUsXf4kWpOLGPqntfLKE6qgS_O67rqdUW4bEZvqmBb1M3-2l0njDsRJVLJvHReOCJZaUsCGR_n-ng";
+    const PAYLOAD_ALTERE: &str = "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InRlc3Qta2V5LTEifQ.eyJpc3MiOiJodHRwczovL2lkcC5leGFtcGxlLmNvbSIsImF1ZCI6InBpbmtwaG9uZS1jbGllbnQiLCJzdWIiOiJhdHRhcXVhbnQiLCJub25jZSI6Im4wbmNlIiwiZXhwIjo0MTAyNDQ0ODAwLCJpYXQiOjE3MDAwMDAwMDAsImVtYWlsIjoiYWxpY2VAZXhhbXBsZS5jb20iLCJlbWFpbF92ZXJpZmllZCI6dHJ1ZX0.J_XQIX5BwL9N2vCsE6B3fJ_QzugX0KkAlpNu1fn9q10sd0Jb_Qi46ez1xEjeeC4eQmBW-21DtXqOzR7spSDvEgjj1CnNHC8rzHKyFqOhaqFAJ83768lowo_Jan7cX6ULw1DirR5bTbZYNSqKR06n8B4YPVjv4Og2pQ-TZk4pdlglnaEj4cS7vKlLFsoCQjjOvBHUzSUWmiZZwgiqoii9gVGBRwJuUWbi1QrngIy5Zi64SnyMzZvckHYSw6kkZHYKdD7EhxRtbMcHxqwEv89JHM6LsXRsx59-ekb5RphQZTtAEa2N07W3eeCQEQxao70FOyjDt5cs5I5Se2e3ipcJmQ";
+    const HS256_CONFUSION: &str = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6InRlc3Qta2V5LTEifQ.eyJpc3MiOiJodHRwczovL2lkcC5leGFtcGxlLmNvbSIsImF1ZCI6InBpbmtwaG9uZS1jbGllbnQiLCJzdWIiOiJ1c2VyLTEyMyIsIm5vbmNlIjoibjBuY2UiLCJleHAiOjQxMDI0NDQ4MDAsImlhdCI6MTcwMDAwMDAwMCwiZW1haWwiOiJhbGljZUBleGFtcGxlLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlfQ.s6Nx7VYdiklrCwC8RJDwMmjV3oktrwXLOjbD2xjciVU";
+    const ALG_NONE: &str = "eyJhbGciOiJub25lIiwidHlwIjoiSldUIn0.eyJpc3MiOiJodHRwczovL2lkcC5leGFtcGxlLmNvbSIsImF1ZCI6InBpbmtwaG9uZS1jbGllbnQiLCJzdWIiOiJ1c2VyLTEyMyIsIm5vbmNlIjoibjBuY2UiLCJleHAiOjQxMDI0NDQ4MDAsImlhdCI6MTcwMDAwMDAwMCwiZW1haWwiOiJhbGljZUBleGFtcGxlLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlfQ.";
+    const ISS: &str = "https://idp.example.com";
+    const AUD: &str = "pinkphone-client";
+
+    fn cle() -> DecodingKey {
+        let jwk: jsonwebtoken::jwk::Jwk = serde_json::from_str(JWK).unwrap();
+        DecodingKey::from_jwk(&jwk).unwrap()
+    }
+
+    #[test]
+    fn id_token_rs256_valide_accepte() {
+        let c = validate_id_token(VALID, &cle(), AUD, ISS).expect("jeton valide");
+        assert_eq!(c.sub, "user-123");
+        assert_eq!(c.nonce.as_deref(), Some("n0nce"));
+        assert_eq!(c.email.as_deref(), Some("alice@example.com"));
+    }
+
+    #[test]
+    fn id_token_mauvaise_audience_refuse() {
+        assert!(validate_id_token(MAUVAISE_AUD, &cle(), AUD, ISS).is_err());
+    }
+
+    #[test]
+    fn id_token_mauvais_issuer_refuse() {
+        assert!(validate_id_token(MAUVAIS_ISS, &cle(), AUD, ISS).is_err());
+        // Et l issuer attendu est bien strict : le bon jeton échoue face à un autre issuer.
+        assert!(validate_id_token(VALID, &cle(), AUD, "https://evil.example.com").is_err());
+    }
+
+    #[test]
+    fn id_token_expire_refuse() {
+        assert!(validate_id_token(EXPIRE, &cle(), AUD, ISS).is_err());
+    }
+
+    #[test]
+    fn id_token_payload_altere_refuse() {
+        // Signature d origine, payload modifié (sub) : la vérification RSA doit échouer.
+        assert!(validate_id_token(PAYLOAD_ALTERE, &cle(), AUD, ISS).is_err());
+    }
+
+    #[test]
+    fn id_token_confusion_hs256_et_alg_none_refuses() {
+        // Algorithme épinglé à RS256 : ni HS256 (clé publique comme secret HMAC)
+        // ni alg=none ne passent.
+        assert!(validate_id_token(HS256_CONFUSION, &cle(), AUD, ISS).is_err());
+        assert!(validate_id_token(ALG_NONE, &cle(), AUD, ISS).is_err());
+    }
 
     #[test]
     fn email_verifie_utilise_tel_quel_normalise() {
