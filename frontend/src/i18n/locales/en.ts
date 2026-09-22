@@ -118,6 +118,7 @@ export const en: Resources = {
     eveningMenu: "It's a match tonight!",
     loveNote: "You received a love note.",
     memberJoined: "{{name}} joined the space.",
+    downloadEnabled: "{{name}} enabled media downloads.",
   },
   moods: {
     aria: "My mood right now",

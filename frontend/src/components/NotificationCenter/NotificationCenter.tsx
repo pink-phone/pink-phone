@@ -37,6 +37,7 @@ const KIND_META: Record<string, { icon: string; key: string }> = {
   eveningMenu: { icon: "🍽️", key: "notifCenter.eveningMenu" },
   loveNote: { icon: "💌", key: "notifCenter.loveNote" },
   memberJoined: { icon: "👋", key: "notifCenter.memberJoined" },
+  downloadEnabled: { icon: "⬇️", key: "notifCenter.downloadEnabled" },
 };
 
 /** Centre de notifications : historique des événements du salon qui me

@@ -177,6 +177,14 @@ async fn update_space(
             auth.user_id,
         )
         .await;
+        crate::notifications::notify_members(
+            &state,
+            space_id,
+            auth.user_id,
+            "downloadEnabled",
+            "Téléchargement des médias activé".into(),
+        )
+        .await;
     }
 
     state.emit(space_id, auth.user_id, EventKind::Space);
