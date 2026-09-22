@@ -156,6 +156,23 @@ pub struct Notice {
     pub created_at: DateTime<Utc>,
 }
 
+/// Entrée du centre de notifications : une ligne par destinataire, marquable
+/// lue individuellement (contrairement à `Notice`, qui n'a qu'un "vu" collectif
+/// par feature). Créée aux mêmes points que le Web Push.
+#[derive(Debug, Serialize, sqlx::FromRow)]
+#[serde(rename_all = "camelCase")]
+pub struct NotificationEntry {
+    pub id: Uuid,
+    /// 'post' | 'comment' | 'challenge' | 'mood' | 'desire' | 'eveningMenu' |
+    /// 'loveNote' | 'memberJoined'.
+    pub kind: String,
+    pub actor_id: Option<Uuid>,
+    /// Nom de l'auteur de l'action (null si système / compte supprimé).
+    pub actor_name: Option<String>,
+    pub read: bool,
+    pub created_at: DateTime<Utc>,
+}
+
 #[derive(Debug, Serialize, sqlx::FromRow)]
 #[serde(rename_all = "camelCase")]
 pub struct Comment {

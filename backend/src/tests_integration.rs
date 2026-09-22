@@ -1255,6 +1255,89 @@ async fn seen_refuse_un_non_membre(pool: PgPool) {
     assert_eq!(st, StatusCode::FORBIDDEN);
 }
 
+// --- Tests : centre de notifications ---------------------------------------
+
+#[sqlx::test]
+async fn notification_creee_listee_marquee_lue_et_isolee_par_destinataire(pool: PgPool) {
+    let (app, state) = build_app(pool.clone());
+    let alice = seed_user(&pool, "alice").await;
+    let bob = seed_user(&pool, "bob").await;
+    let space = seed_space(&pool, alice).await;
+    add_member(&pool, bob, space).await;
+    let ta = token_for(&state, alice);
+    let tb = token_for(&state, bob);
+    let notifs = format!("/api/spaces/{space}/notifications");
+
+    // Alice publie un post → une notification "post" pour Bob, aucune pour elle.
+    create_post(&app, space, &ta, "récit").await;
+
+    let (st, count) = req(&app, "GET", &format!("{notifs}/unread-count"), &tb, None).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(count["count"], 1);
+
+    let (st, list) = req(&app, "GET", &notifs, &tb, None).await;
+    assert_eq!(st, StatusCode::OK);
+    let items = list.as_array().unwrap();
+    assert_eq!(items.len(), 1, "une seule notification pour Bob");
+    assert_eq!(items[0]["kind"], "post");
+    assert_eq!(items[0]["actorName"], "alice");
+    assert_eq!(items[0]["read"], false);
+    let id = items[0]["id"].as_str().unwrap().to_string();
+
+    // Alice n'a rien reçu de sa propre publication.
+    let (_, mine) = req(&app, "GET", &notifs, &ta, None).await;
+    assert_eq!(mine.as_array().unwrap().len(), 0);
+
+    // Marquer lue → reflété dans la liste et le compteur.
+    let (st, _) = req(&app, "PUT", &format!("{notifs}/{id}/read"), &tb, None).await;
+    assert_eq!(st, StatusCode::NO_CONTENT);
+    let (_, count) = req(&app, "GET", &format!("{notifs}/unread-count"), &tb, None).await;
+    assert_eq!(count["count"], 0);
+    let (_, list) = req(&app, "GET", &notifs, &tb, None).await;
+    assert_eq!(list[0]["read"], true);
+
+    // Marquer une deuxième fois est idempotent (pas d'erreur).
+    let (st, _) = req(&app, "PUT", &format!("{notifs}/{id}/read"), &tb, None).await;
+    assert_eq!(st, StatusCode::NO_CONTENT);
+
+    // Un id inconnu → 404.
+    let (st, _) = req(&app, "PUT", &format!("{notifs}/{}/read", Uuid::new_v4()), &tb, None).await;
+    assert_eq!(st, StatusCode::NOT_FOUND);
+}
+
+#[sqlx::test]
+async fn notifications_read_all_marque_tout_lu(pool: PgPool) {
+    let (app, state) = build_app(pool.clone());
+    let alice = seed_user(&pool, "alice").await;
+    let bob = seed_user(&pool, "bob").await;
+    let space = seed_space(&pool, alice).await;
+    add_member(&pool, bob, space).await;
+    let ta = token_for(&state, alice);
+    let tb = token_for(&state, bob);
+    let notifs = format!("/api/spaces/{space}/notifications");
+
+    create_post(&app, space, &ta, "un").await;
+    create_post(&app, space, &ta, "deux").await;
+    let (_, count) = req(&app, "GET", &format!("{notifs}/unread-count"), &tb, None).await;
+    assert_eq!(count["count"], 2);
+
+    let (st, _) = req(&app, "PUT", &format!("{notifs}/read-all"), &tb, None).await;
+    assert_eq!(st, StatusCode::NO_CONTENT);
+    let (_, count) = req(&app, "GET", &format!("{notifs}/unread-count"), &tb, None).await;
+    assert_eq!(count["count"], 0);
+}
+
+#[sqlx::test]
+async fn notifications_refuse_un_non_membre(pool: PgPool) {
+    let (app, state) = build_app(pool.clone());
+    let alice = seed_user(&pool, "alice").await;
+    let intrus = seed_user(&pool, "intrus").await;
+    let space = seed_space(&pool, alice).await;
+    let t = token_for(&state, intrus);
+    let (st, _) = req(&app, "GET", &format!("/api/spaces/{space}/notifications"), &t, None).await;
+    assert_eq!(st, StatusCode::FORBIDDEN);
+}
+
 #[sqlx::test]
 async fn suggestions_crud_validation_et_autz(pool: PgPool) {
     let (app, state) = build_app(pool.clone());

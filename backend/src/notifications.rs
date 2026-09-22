@@ -9,7 +9,7 @@ use web_push::{
 };
 
 use crate::config::Config;
-use crate::state::AppState;
+use crate::state::{AppState, EventKind};
 
 #[derive(sqlx::FromRow)]
 struct SubRow {
@@ -96,11 +96,39 @@ pub(crate) async fn endpoint_is_safe(endpoint: &str) -> bool {
 /// invite à ouvrir l'app — le contenu se découvre dans l'app authentifiée.
 const GENERIC_BODY: &str = "Ouvre l'app pour voir 🌸";
 
-/// Notifie (best-effort, en tâche de fond) les autres membres du space dont le
-/// mode est 'push', via Web Push. Ne bloque jamais la requête appelante.
-/// Les abonnements morts (404/410) sont purgés. `title` = type d'événement
-/// (générique) ; le corps est invariant (cf. `GENERIC_BODY`).
-pub fn notify_members(state: &AppState, space_id: Uuid, actor_id: Uuid, title: String) {
+/// Notifie les autres membres du salon d'un événement : (a) persiste une
+/// entrée dans le centre de notifications pour CHAQUE membre (indépendamment
+/// de son `notif_mode`, qui ne pilote que le Web Push ci-dessous), lu au fil
+/// de l'eau via `GET /api/spaces/{id}/notifications` ; (b) envoie un Web Push
+/// best-effort, en tâche de fond, aux seuls membres en mode 'push'. `kind` =
+/// type d'événement stable (persisté + WS) ; `title` = libellé du push (les
+/// abonnements morts 404/410 sont purgés, cf. `GENERIC_BODY` pour le corps).
+pub async fn notify_members(
+    state: &AppState,
+    space_id: Uuid,
+    actor_id: Uuid,
+    kind: &str,
+    title: String,
+) {
+    match sqlx::query(
+        "INSERT INTO notifications (space_id, user_id, kind, actor_id)
+         SELECT $1, m.user_id, $3, $2
+         FROM space_memberships m
+         WHERE m.space_id = $1 AND m.user_id <> $2",
+    )
+    .bind(space_id)
+    .bind(actor_id)
+    .bind(kind)
+    .execute(&state.pool)
+    .await
+    {
+        Ok(res) if res.rows_affected() > 0 => {
+            state.emit(space_id, actor_id, EventKind::Notification);
+        }
+        Ok(_) => {}
+        Err(e) => tracing::error!(error = ?e, "enregistrement de la notification"),
+    }
+
     let pool = state.pool.clone();
     let config = state.config.clone();
     let push_client = state.push_client.clone();

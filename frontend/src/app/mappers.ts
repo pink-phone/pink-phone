@@ -1,8 +1,15 @@
 import type { TFunction } from "i18next";
 import * as api from "../api/client";
-import type { ApiChallenge, ApiComment, ApiPost, Notice } from "../api/types";
+import type {
+  ApiChallenge,
+  ApiComment,
+  ApiNotification,
+  ApiPost,
+  Notice,
+} from "../api/types";
 import type { ChallengeData, PostData } from "../types/view";
 import type { CommentView } from "../components/CommentsSheet/CommentsSheet";
+import type { NotificationItemView } from "../components/NotificationCenter/NotificationCenter";
 import { relativeTime } from "../lib/time";
 
 // Conversions pures réponses API → vue-modèles des écrans. Isolées de la couche
@@ -116,6 +123,18 @@ export function toDashboardNotices(
       kind: n.kind,
       actorName: n.actorName ?? undefined,
     }));
+}
+
+export function toNotificationItems(
+  notifications: ApiNotification[],
+): NotificationItemView[] {
+  return notifications.map((n) => ({
+    id: n.id,
+    kind: n.kind,
+    actorName: n.actorName,
+    read: n.read,
+    timeLabel: relativeTime(n.createdAt),
+  }));
 }
 
 export function toCommentViews(

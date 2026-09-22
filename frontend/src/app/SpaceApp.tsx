@@ -34,6 +34,7 @@ import { MoodSelector } from "../components/MoodSelector/MoodSelector";
 import { LoveNoteComposer } from "../components/LoveNoteComposer/LoveNoteComposer";
 import { Toast } from "../components/Toast/Toast";
 import { CommentsSheet } from "../components/CommentsSheet/CommentsSheet";
+import { NotificationCenter } from "../components/NotificationCenter/NotificationCenter";
 import { PostComposer, type PostDraft } from "../components/PostComposer/PostComposer";
 import {
   ChallengeComposer,
@@ -52,12 +53,14 @@ import { useSeen } from "./hooks/useSeen";
 import { useDesires } from "./hooks/useDesires";
 import { useEveningMenu } from "./hooks/useEveningMenu";
 import { useLoveNotes } from "./hooks/useLoveNotes";
+import { useNotifications } from "./hooks/useNotifications";
 import { useApiBuild } from "./hooks/useApiBuild";
 import { WEB_BUILD } from "../lib/buildInfo";
 import {
   toChallengeData,
   toCommentViews,
   toDashboardNotices,
+  toNotificationItems,
   toPostData,
 } from "./mappers";
 
@@ -176,6 +179,15 @@ export function SpaceApp({
     add: addLoveNote,
     remove: removeLoveNote,
   } = useLoveNotes(space.id);
+  // Centre de notifications : historique + compteur non lu (badge cloche).
+  const {
+    items: notifications,
+    unreadCount: unreadNotifications,
+    refetch: refetchNotifications,
+    markRead: markNotificationRead,
+    markAllRead: markAllNotificationsRead,
+  } = useNotifications(space.id);
+  const [showNotifications, setShowNotifications] = useState(false);
   const [openSheet, setOpenSheet] = useState<
     "post" | "challenge" | "mood" | "loveNote" | null
   >(null);
@@ -294,6 +306,7 @@ export function SpaceApp({
       refetchSeen(),
       refetchNotices(),
       refetchLoveNotes(),
+      refetchNotifications(),
       api
         .getSettings()
         .then((s) => {
@@ -314,6 +327,7 @@ export function SpaceApp({
     refetchSeen,
     refetchNotices,
     refetchLoveNotes,
+    refetchNotifications,
   ]);
 
   // Applique la préférence "effet braise" globalement (classe sur <html>) + persiste.
@@ -345,6 +359,8 @@ export function SpaceApp({
     } else if (kind === "loveNote") {
       // Nouveau mot doux (ou déverrouillage d'un mot différé) — #102.
       refetchLoveNotes();
+    } else if (kind === "notification") {
+      refetchNotifications();
     } else if (kind === "seen") {
       refetchSeen();
     } else if (kind === "space") {
@@ -373,6 +389,7 @@ export function SpaceApp({
       refetchDesires();
       refetchEveningMenu();
       refetchLoveNotes();
+      refetchNotifications();
     };
     document.addEventListener("visibilitychange", resync);
     window.addEventListener("focus", resync);
@@ -389,6 +406,7 @@ export function SpaceApp({
     refetchDesires,
     refetchEveningMenu,
     refetchLoveNotes,
+    refetchNotifications,
   ]);
 
   // Retour Android / swipe iOS ferment la surface ouverte (au lieu de quitter).
@@ -401,6 +419,7 @@ export function SpaceApp({
   });
   useBackClose(commentsFor !== null, closeComments);
   useBackClose(showEveningMenu, () => setShowEveningMenu(false));
+  useBackClose(showNotifications, () => setShowNotifications(false));
 
   // Match du soir (#97b) : nb d'items matchés + toast « ✨ Match ce soir ! » quand
   // ça augmente (le partenaire vient de compléter un match). On « arme » le toast
@@ -462,6 +481,10 @@ export function SpaceApp({
     // depuis mon dernier passage au blog est « non lu ».
     () => toCommentViews(comments, user.id, blogDividerAt),
     [comments, user.id, blogDividerAt],
+  );
+  const notificationItems = useMemo(
+    () => toNotificationItems(notifications),
+    [notifications],
   );
 
   if (!ready) return <Splash message={t("splash.loadingSpace")} />;
@@ -764,6 +787,8 @@ export function SpaceApp({
           myMood={myMood}
           onOpenMood={() => setOpenSheet("mood")}
           onOpenSettings={() => setShowSettings(true)}
+          onOpenNotifications={() => setShowNotifications(true)}
+          unreadNotifications={unreadNotifications}
           newPosts={newPosts}
           newComments={newComments}
           newChallenges={newChallenges}
@@ -980,6 +1005,14 @@ export function SpaceApp({
           if (confirmAction(t("comments.confirmDelete"))) removeComment(id);
         }}
         onClose={closeComments}
+      />
+
+      <NotificationCenter
+        open={showNotifications}
+        items={notificationItems}
+        onMarkRead={markNotificationRead}
+        onMarkAllRead={markAllNotificationsRead}
+        onClose={() => setShowNotifications(false)}
       />
     </AppShell>
   );

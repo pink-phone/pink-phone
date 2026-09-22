@@ -185,6 +185,19 @@ export interface Notice {
   createdAt: string;
 }
 
+/** Entrée du centre de notifications — une par destinataire, marquable lue
+ *  individuellement (contrairement à `Notice`, qui a un "vu" collectif). */
+export interface ApiNotification {
+  id: string;
+  /** 'post' | 'comment' | 'challenge' | 'mood' | 'desire' | 'eveningMenu' |
+   *  'loveNote' | 'memberJoined'. */
+  kind: string;
+  actorId: string | null;
+  actorName: string | null;
+  read: boolean;
+  createdAt: string;
+}
+
 export interface ChallengeSuggestion {
   id: string;
   /** null = suggestion globale (seed, non éditable) ; sinon propre au salon. */

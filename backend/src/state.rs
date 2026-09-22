@@ -60,6 +60,7 @@ pub enum EventKind {
     Desire,
     EveningMenu,
     LoveNote,
+    Notification,
 }
 
 /// Événement temps réel diffusé aux membres d'un espace (refresh instantané).
