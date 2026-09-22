@@ -8,7 +8,7 @@ const meta = {
   tags: ["autodocs"],
   args: {
     open: true,
-    onMarkRead: fn(),
+    onOpen: fn(),
     onMarkAllRead: fn(),
     onClose: fn(),
   },

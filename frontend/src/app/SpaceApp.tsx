@@ -660,6 +660,34 @@ export function SpaceApp({
     }
   };
 
+  // Tap sur une notification du centre : marque lue (si besoin) + navigue vers
+  // l'écran concerné, comme les pastilles "Du nouveau" du dashboard (même
+  // granularité : l'onglet, pas l'item précis — cf. dashboard.newPosts/newChallenges).
+  const openNotification = (id: string) => {
+    const notif = notifications.find((n) => n.id === id);
+    if (notif && !notif.read) markNotificationRead(id);
+    setShowNotifications(false);
+    switch (notif?.kind) {
+      case "post":
+      case "comment":
+        setTab("blog");
+        break;
+      case "challenge":
+        setTab("challenges");
+        break;
+      case "desire":
+        setTab("desires");
+        break;
+      case "eveningMenu":
+        setShowEveningMenu(true);
+        break;
+      default:
+        // loveNote / memberJoined / downloadEnabled : le mur de mots doux et
+        // les notices de salon vivent tous deux sur le dashboard.
+        setTab("dashboard");
+    }
+  };
+
   if (showSettings) {
     return (
       <div className="mx-auto h-dvh max-w-md overflow-y-auto overscroll-contain bg-charcoal-900 bg-felt-velvet px-4 pb-[calc(2.5rem+env(safe-area-inset-bottom))] pt-[calc(1rem+env(safe-area-inset-top))]">
@@ -1010,7 +1038,7 @@ export function SpaceApp({
       <NotificationCenter
         open={showNotifications}
         items={notificationItems}
-        onMarkRead={markNotificationRead}
+        onOpen={openNotification}
         onMarkAllRead={markAllNotificationsRead}
         onClose={() => setShowNotifications(false)}
       />

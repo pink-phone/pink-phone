@@ -109,7 +109,7 @@ export const en: Resources = {
     aria: "Open notifications",
     empty: "Nothing new for now.",
     markAllRead: "Mark all as read",
-    markReadAria: "Mark as read",
+    openAria: "Open",
     post: "{{name}} published a new post.",
     comment: "{{name}} commented on one of your posts.",
     challenge: "{{name}} proposed a new challenge.",

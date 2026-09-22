@@ -5,18 +5,13 @@ import { NotificationCenter } from "./NotificationCenter";
 describe("NotificationCenter", () => {
   it("affiche l'état vide sans notifications", () => {
     render(
-      <NotificationCenter
-        open
-        items={[]}
-        onMarkRead={vi.fn()}
-        onClose={vi.fn()}
-      />,
+      <NotificationCenter open items={[]} onOpen={vi.fn()} onClose={vi.fn()} />,
     );
     expect(screen.getByText(/rien de nouveau/i)).toBeTruthy();
   });
 
-  it("marque une notification lue au tap", () => {
-    const onMarkRead = vi.fn();
+  it("ouvre une notification non lue au tap", () => {
+    const onOpen = vi.fn();
     render(
       <NotificationCenter
         open
@@ -29,12 +24,34 @@ describe("NotificationCenter", () => {
             timeLabel: "il y a 2 min",
           },
         ]}
-        onMarkRead={onMarkRead}
+        onOpen={onOpen}
         onClose={vi.fn()}
       />,
     );
-    fireEvent.click(screen.getByRole("button", { name: /marquer comme lu/i }));
-    expect(onMarkRead).toHaveBeenCalledWith("n1");
+    fireEvent.click(screen.getByRole("button", { name: /ouvrir/i }));
+    expect(onOpen).toHaveBeenCalledWith("n1");
+  });
+
+  it("une notification déjà lue reste ouvrable (navigation, pas juste marquer lu)", () => {
+    const onOpen = vi.fn();
+    render(
+      <NotificationCenter
+        open
+        items={[
+          {
+            id: "n1",
+            kind: "challenge",
+            actorName: "Alex",
+            read: true,
+            timeLabel: "il y a 2 j",
+          },
+        ]}
+        onOpen={onOpen}
+        onClose={vi.fn()}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /ouvrir/i }));
+    expect(onOpen).toHaveBeenCalledWith("n1");
   });
 
   it("n'affiche le bouton \"tout marquer\" que s'il reste du non lu", () => {
@@ -50,7 +67,7 @@ describe("NotificationCenter", () => {
             timeLabel: "il y a 2 min",
           },
         ]}
-        onMarkRead={vi.fn()}
+        onOpen={vi.fn()}
         onMarkAllRead={vi.fn()}
         onClose={vi.fn()}
       />,
@@ -69,7 +86,7 @@ describe("NotificationCenter", () => {
             timeLabel: "il y a 2 min",
           },
         ]}
-        onMarkRead={vi.fn()}
+        onOpen={vi.fn()}
         onMarkAllRead={vi.fn()}
         onClose={vi.fn()}
       />,
@@ -90,7 +107,7 @@ describe("NotificationCenter", () => {
             timeLabel: "il y a 2 min",
           },
         ]}
-        onMarkRead={vi.fn()}
+        onOpen={vi.fn()}
         onClose={vi.fn()}
       />,
     );
