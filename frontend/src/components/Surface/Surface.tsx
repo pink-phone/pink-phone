@@ -25,6 +25,8 @@ export interface SurfaceProps {
   radius?: keyof typeof RADII;
   /** Élément HTML rendu (div par défaut). */
   as?: ElementType;
+  /** Ancre DOM (ex: scrollIntoView vers un item précis depuis une notification). */
+  id?: string;
   className?: string;
 }
 
@@ -37,10 +39,12 @@ export function Surface({
   tone = "velvet",
   radius = "3xl",
   as: Tag = "div",
+  id,
   className,
 }: SurfaceProps) {
   return (
     <Tag
+      id={id}
       className={cn(
         "border p-5 shadow-felt",
         RADII[radius],

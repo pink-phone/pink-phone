@@ -372,6 +372,7 @@ async fn create_post(
             space_id,
             auth.user_id,
             "post",
+            Some(&post.id.to_string()),
             "Nouveau message".into(),
         )
         .await;
@@ -547,6 +548,7 @@ async fn update_post(
             space_id,
             auth.user_id,
             "post",
+            Some(&post_id.to_string()),
             "Nouveau message".into(),
         )
         .await;

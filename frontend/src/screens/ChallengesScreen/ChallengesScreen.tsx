@@ -15,6 +15,8 @@ export interface ChallengesScreenProps {
   onComplete?: (id: string) => void;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
+  /** Défi à surligner brièvement (arrivée depuis une notification). */
+  highlightedChallengeId?: string;
   /** Reste-t-il des défis plus anciens à charger ? (pagination par curseur) */
   hasMore?: boolean;
   /** Chargement de la page suivante en cours. */
@@ -40,6 +42,7 @@ export function ChallengesScreen({
   onComplete,
   onEdit,
   onDelete,
+  highlightedChallengeId,
   hasMore,
   loadingMore,
   onLoadMore,
@@ -98,6 +101,8 @@ export function ChallengesScreen({
                     <UnreadDivider variant="unread" label={t("common.unread")} />
                   )}
                   <ChallengeCard
+                    id={`challenge-${c.id}`}
+                    highlighted={c.id === highlightedChallengeId}
                     title={c.title}
                     description={c.description}
                     intensity={c.intensity}

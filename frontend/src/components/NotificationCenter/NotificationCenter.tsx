@@ -10,6 +10,10 @@ export interface NotificationItemView {
    *  'loveNote' | 'memberJoined' — les types inconnus sont ignorés à l'affichage. */
   kind: string;
   actorName: string | null;
+  /** Référence vers l'entité concernée (id de post/défi ; code pour
+   *  desire/eveningMenu) — transmise telle quelle à `onOpen`'s consumer via
+   *  l'item complet, pas au clic lui-même (cf. `onOpen(id)`). */
+  entityId: string | null;
   read: boolean;
   timeLabel: string;
 }

@@ -331,6 +331,9 @@ async fn add_comment(
         space_id,
         auth.user_id,
         "comment",
+        // Référence le POST commenté (pas le commentaire) : le centre de
+        // notifications ouvre le fil de commentaires du bon post au clic.
+        Some(&post_id.to_string()),
         "Nouveau commentaire".into(),
     )
     .await;

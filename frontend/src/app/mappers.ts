@@ -132,6 +132,7 @@ export function toNotificationItems(
     id: n.id,
     kind: n.kind,
     actorName: n.actorName,
+    entityId: n.entityId,
     read: n.read,
     timeLabel: relativeTime(n.createdAt),
   }));

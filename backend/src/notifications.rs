@@ -101,24 +101,29 @@ const GENERIC_BODY: &str = "Ouvre l'app pour voir 🌸";
 /// de son `notif_mode`, qui ne pilote que le Web Push ci-dessous), lu au fil
 /// de l'eau via `GET /api/spaces/{id}/notifications` ; (b) envoie un Web Push
 /// best-effort, en tâche de fond, aux seuls membres en mode 'push'. `kind` =
-/// type d'événement stable (persisté + WS) ; `title` = libellé du push (les
-/// abonnements morts 404/410 sont purgés, cf. `GENERIC_BODY` pour le corps).
+/// type d'événement stable (persisté + WS) ; `entity_id` = référence vers
+/// l'item concerné (id de post/défi, ou code desire/eveningMenu), `None` si
+/// le kind n'a pas d'item précis à ouvrir (mood/loveNote/memberJoined/
+/// downloadEnabled) ; `title` = libellé du push (les abonnements morts
+/// 404/410 sont purgés, cf. `GENERIC_BODY` pour le corps).
 pub async fn notify_members(
     state: &AppState,
     space_id: Uuid,
     actor_id: Uuid,
     kind: &str,
+    entity_id: Option<&str>,
     title: String,
 ) {
     match sqlx::query(
-        "INSERT INTO notifications (space_id, user_id, kind, actor_id)
-         SELECT $1, m.user_id, $3, $2
+        "INSERT INTO notifications (space_id, user_id, kind, actor_id, entity_id)
+         SELECT $1, m.user_id, $3, $2, $4
          FROM space_memberships m
          WHERE m.space_id = $1 AND m.user_id <> $2",
     )
     .bind(space_id)
     .bind(actor_id)
     .bind(kind)
+    .bind(entity_id)
     .execute(&state.pool)
     .await
     {

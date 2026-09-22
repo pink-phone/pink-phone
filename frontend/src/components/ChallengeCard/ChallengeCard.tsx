@@ -37,6 +37,10 @@ export interface ChallengeCardProps {
   /** Modifier / supprimer le défi (réservés au proposeur via le menu « ⋯ »). */
   onEdit?: () => void;
   onDelete?: () => void;
+  /** Ancre DOM (ex: `challenge-<id>`) pour scroller dessus depuis une notification. */
+  id?: string;
+  /** Repère visuel bref après navigation depuis une notification. */
+  highlighted?: boolean;
   className?: string;
 }
 
@@ -53,6 +57,8 @@ export function ChallengeCard({
   onComplete,
   onEdit,
   onDelete,
+  id,
+  highlighted = false,
   className,
 }: ChallengeCardProps) {
   const { t } = useTranslation();
@@ -62,6 +68,7 @@ export function ChallengeCard({
   const done = status === "jobDone";
   return (
     <Surface
+      id={id}
       // « Mission accomplie » : carte calme et estompée (archivée), distincte des
       // états chauds en cours qui portaient le même bordeaux « deep » (UI-UX7).
       tone="velvet"
@@ -69,6 +76,7 @@ export function ChallengeCard({
         "relative w-full overflow-hidden",
         showEmber && "shadow-ember animate-ember-breathe motion-reduce:animate-none",
         done && "opacity-75",
+        highlighted && "animate-highlight-glow motion-reduce:animate-none",
         className,
       )}
     >
