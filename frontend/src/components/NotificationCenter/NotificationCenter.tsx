@@ -18,8 +18,9 @@ export interface NotificationCenterProps {
   open: boolean;
   items: NotificationItemView[];
   loading?: boolean;
-  /** Marque UNE notification comme lue (au tap sur une ligne non lue). */
-  onMarkRead: (id: string) => void;
+  /** Ouvre l'écran concerné par cette notification (marque aussi lue si besoin
+   *  — au tap sur n'importe quelle ligne, lue ou non). */
+  onOpen: (id: string) => void;
   /** Absent si aucune notification non lue (pas de bouton "tout marquer"). */
   onMarkAllRead?: () => void;
   onClose: () => void;
@@ -46,7 +47,7 @@ export function NotificationCenter({
   open,
   items,
   loading,
-  onMarkRead,
+  onOpen,
   onMarkAllRead,
   onClose,
   className,
@@ -84,41 +85,37 @@ export function NotificationCenter({
               const message = t(meta.key as "notifCenter.post", {
                 name: n.actorName ?? "?",
               });
-              const row = (
-                <Surface
-                  tone={n.read ? "velvet" : "deep"}
-                  radius="2xl"
-                  className="flex items-center gap-3 px-3 py-2.5 text-left"
-                >
-                  <span aria-hidden className="text-xl">
-                    {meta.icon}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <p className="text-sm text-blush-100">{message}</p>
-                    <p className="text-[11px] text-blush-200/70">{n.timeLabel}</p>
-                  </span>
-                  {!n.read && (
-                    <span
-                      aria-hidden
-                      className="h-2 w-2 shrink-0 rounded-full bg-spice-400"
-                    />
-                  )}
-                </Surface>
-              );
               return (
                 <li key={n.id}>
-                  {n.read ? (
-                    row
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => onMarkRead(n.id)}
-                      aria-label={t("notifCenter.markReadAria")}
-                      className="block w-full rounded-2xl transition-transform duration-300 ease-felt hover:-translate-y-0.5 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500"
+                  <button
+                    type="button"
+                    onClick={() => onOpen(n.id)}
+                    aria-label={t("notifCenter.openAria")}
+                    className="block w-full rounded-2xl transition-transform duration-300 ease-felt hover:-translate-y-0.5 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500"
+                  >
+                    <Surface
+                      tone={n.read ? "velvet" : "deep"}
+                      radius="2xl"
+                      className="flex items-center gap-3 px-3 py-2.5 text-left"
                     >
-                      {row}
-                    </button>
-                  )}
+                      <span aria-hidden className="text-xl">
+                        {meta.icon}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <p className="text-sm text-blush-100">{message}</p>
+                        <p className="text-[11px] text-blush-200/70">{n.timeLabel}</p>
+                      </span>
+                      {!n.read && (
+                        <span
+                          aria-hidden
+                          className="h-2 w-2 shrink-0 rounded-full bg-spice-400"
+                        />
+                      )}
+                      <span aria-hidden className="shrink-0 text-taupe-300">
+                        →
+                      </span>
+                    </Surface>
+                  </button>
                 </li>
               );
             })}

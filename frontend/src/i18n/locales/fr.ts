@@ -109,7 +109,7 @@ export const fr = {
     aria: "Ouvrir les notifications",
     empty: "Rien de nouveau pour l'instant.",
     markAllRead: "Tout marquer comme lu",
-    markReadAria: "Marquer comme lu",
+    openAria: "Ouvrir",
     post: "{{name}} a publié un nouveau message.",
     comment: "{{name}} a commenté un de tes messages.",
     challenge: "{{name}} a proposé un nouveau défi.",
