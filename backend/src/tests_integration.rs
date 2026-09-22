@@ -1352,6 +1352,159 @@ async fn notifications_refuse_un_non_membre(pool: PgPool) {
     assert_eq!(st, StatusCode::FORBIDDEN);
 }
 
+/// La migration 0034 backfille `notifications` depuis l'historique préexistant
+/// (posts/commentaires/défis/mots doux/notices/envies/menu du soir). Comme
+/// `#[sqlx::test]` applique les migrations AVANT le corps du test (donc sur une
+/// base encore vide), on seed d'abord des données « historiques » en SQL brut
+/// puis on réexécute cette migration explicitement pour valider son contenu —
+/// c'est exactement l'ordre réel sur `develop`/`prod`, où la migration tourne
+/// une fois sur une base déjà peuplée.
+#[sqlx::test]
+async fn backfill_0034_reconstitue_l_historique_marque_lu(pool: PgPool) {
+    let alice = seed_user(&pool, "alice").await;
+    let bob = seed_user(&pool, "bob").await;
+    let space = seed_space(&pool, alice).await;
+    add_member(&pool, bob, space).await;
+
+    let post: Uuid = sqlx::query_scalar(
+        "INSERT INTO posts (space_id, author_id, body, draft) VALUES ($1, $2, 'récit', false) RETURNING id",
+    )
+    .bind(space)
+    .bind(alice)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    sqlx::query("INSERT INTO post_comments (post_id, author_id, body) VALUES ($1, $2, 'joli')")
+        .bind(post)
+        .bind(bob)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query(
+        "INSERT INTO challenges (space_id, proposer_id, title, description, intensity)
+         VALUES ($1, $2, 'défi', 'desc', 'soft')",
+    )
+    .bind(space)
+    .bind(alice)
+    .execute(&pool)
+    .await
+    .unwrap();
+    // Mot doux immédiat (alice → bob) + un différé déjà notifié.
+    sqlx::query("INSERT INTO love_notes (space_id, author_id, body) VALUES ($1, $2, 'immédiat')")
+        .bind(space)
+        .bind(alice)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query(
+        "INSERT INTO love_notes (space_id, author_id, body, open_at, notified)
+         VALUES ($1, $2, 'différé', now() - interval '1 hour', true)",
+    )
+    .bind(space)
+    .bind(alice)
+    .execute(&pool)
+    .await
+    .unwrap();
+    // Notices de salon.
+    sqlx::query(
+        "INSERT INTO space_notices (space_id, kind, actor_id) VALUES ($1, 'member_joined', $2)",
+    )
+    .bind(space)
+    .bind(bob)
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO space_notices (space_id, kind, actor_id) VALUES ($1, 'download_enabled', $2)",
+    )
+    .bind(space)
+    .bind(alice)
+    .execute(&pool)
+    .await
+    .unwrap();
+    // Match d'envie : alice puis bob veulent le même code.
+    sqlx::query(
+        "INSERT INTO desire_interests (space_id, user_id, code, stance, created_at)
+         VALUES ($1, $2, 'code-x', 'want', now() - interval '2 hour')",
+    )
+    .bind(space)
+    .bind(alice)
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO desire_interests (space_id, user_id, code, stance, created_at)
+         VALUES ($1, $2, 'code-x', 'want', now() - interval '1 hour')",
+    )
+    .bind(space)
+    .bind(bob)
+    .execute(&pool)
+    .await
+    .unwrap();
+    // Match du menu du soir, même jour.
+    sqlx::query(
+        "INSERT INTO evening_menu_picks (space_id, user_id, code, day, created_at)
+         VALUES ($1, $2, 'menu-x', current_date, now() - interval '2 hour')",
+    )
+    .bind(space)
+    .bind(alice)
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO evening_menu_picks (space_id, user_id, code, day, created_at)
+         VALUES ($1, $2, 'menu-x', current_date, now() - interval '1 hour')",
+    )
+    .bind(space)
+    .bind(bob)
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    sqlx::raw_sql(include_str!(
+        "../migrations/0034_notifications_backfill.sql"
+    ))
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    let bob_kinds: Vec<String> = sqlx::query_scalar(
+        "SELECT kind FROM notifications WHERE space_id = $1 AND user_id = $2 ORDER BY kind",
+    )
+    .bind(space)
+    .bind(bob)
+    .fetch_all(&pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        bob_kinds,
+        vec!["challenge", "downloadEnabled", "loveNote", "loveNote", "post"],
+        "Bob reçoit ce dont Alice est l'actrice, jamais ses propres actions (son commentaire, son 2ᵉ 'want' qui complète le match desire, son 2ᵉ coche qui complète le match eveningMenu — c'est LUI l'acteur de ces deux transitions, donc c'est Alice qui doit les recevoir)",
+    );
+
+    let alice_kinds: Vec<String> = sqlx::query_scalar(
+        "SELECT kind FROM notifications WHERE space_id = $1 AND user_id = $2 ORDER BY kind",
+    )
+    .bind(space)
+    .bind(alice)
+    .fetch_all(&pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        alice_kinds,
+        vec!["comment", "desire", "eveningMenu", "memberJoined"],
+    );
+
+    let all_read: bool = sqlx::query_scalar(
+        "SELECT bool_and(read_at IS NOT NULL) FROM notifications WHERE space_id = $1",
+    )
+    .bind(space)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert!(all_read, "tout le backfill doit être marqué lu");
+}
+
 #[sqlx::test]
 async fn suggestions_crud_validation_et_autz(pool: PgPool) {
     let (app, state) = build_app(pool.clone());
