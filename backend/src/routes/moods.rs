@@ -93,8 +93,10 @@ async fn set_mood(
                 &state,
                 space_id,
                 auth.user_id,
+                "mood",
                 "Nouvelle humeur".into(),
-            );
+            )
+            .await;
         }
     }
 

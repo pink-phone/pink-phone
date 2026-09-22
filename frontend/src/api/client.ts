@@ -17,6 +17,7 @@ import type {
   Page,
   SeenEntry,
   Notice,
+  ApiNotification,
   ReactionSummary,
   Settings,
   Space,
@@ -534,6 +535,24 @@ export const markSeen = (
 
 export const listNotices = (spaceId: string) =>
   req<Notice[]>(`/api/spaces/${spaceId}/notices`);
+
+// ---------- Centre de notifications ----------
+
+export const listNotifications = (spaceId: string) =>
+  req<ApiNotification[]>(`/api/spaces/${spaceId}/notifications`);
+
+export const unreadNotificationCount = (spaceId: string) =>
+  req<{ count: number }>(`/api/spaces/${spaceId}/notifications/unread-count`);
+
+export const markNotificationRead = (spaceId: string, id: string) =>
+  req<void>(`/api/spaces/${spaceId}/notifications/${id}/read`, {
+    method: "PUT",
+  });
+
+export const markAllNotificationsRead = (spaceId: string) =>
+  req<void>(`/api/spaces/${spaceId}/notifications/read-all`, {
+    method: "PUT",
+  });
 
 // ---------- Médias ----------
 

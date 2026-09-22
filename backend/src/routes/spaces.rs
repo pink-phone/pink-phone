@@ -387,8 +387,10 @@ async fn join_by_invite(
         &state,
         space_id,
         auth.user_id,
+        "memberJoined",
         "Un membre a rejoint le salon".into(),
-    );
+    )
+    .await;
 
     Ok((StatusCode::CREATED, Json(space)))
 }

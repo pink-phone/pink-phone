@@ -36,6 +36,10 @@ export interface DashboardScreenProps {
   /** Ouvre la feuille de saisie d'humeur (au tap sur ma carte météo). */
   onOpenMood?: () => void;
   onOpenSettings?: () => void;
+  /** Ouvre le centre de notifications. */
+  onOpenNotifications?: () => void;
+  /** Notifications non lues (toutes catégories) — badge sur la cloche. */
+  unreadNotifications?: number;
   /** Nouveautés non vues (badges "Du nouveau"). */
   newPosts?: number;
   /** Posts ayant reçu un nouveau commentaire de l'autre. */
@@ -159,6 +163,8 @@ export function DashboardScreen({
   myMood,
   onOpenMood,
   onOpenSettings,
+  onOpenNotifications,
+  unreadNotifications = 0,
   newPosts = 0,
   newComments = 0,
   newChallenges = 0,
@@ -187,6 +193,21 @@ export function DashboardScreen({
           {t("dashboard.today")}
         </p>
         <h1 className="mt-1 font-serif text-3xl text-blush-100">{spaceName}</h1>
+        {onOpenNotifications && (
+          <button
+            type="button"
+            onClick={onOpenNotifications}
+            aria-label={t("notifCenter.aria")}
+            className="absolute left-0 top-0 inline-flex h-11 w-11 items-center justify-center rounded-full text-xl text-taupe-300 transition-colors duration-300 ease-felt hover:text-spice-300"
+          >
+            🔔
+            {unreadNotifications > 0 && (
+              <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-spice-500 px-1 text-[10px] font-semibold text-blush-50">
+                {unreadNotifications}
+              </span>
+            )}
+          </button>
+        )}
         {onOpenSettings && (
           <button
             type="button"

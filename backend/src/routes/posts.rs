@@ -371,8 +371,10 @@ async fn create_post(
             &state,
             space_id,
             auth.user_id,
+            "post",
             "Nouveau message".into(),
-        );
+        )
+        .await;
     }
     Ok((StatusCode::CREATED, Json(post)))
 }
@@ -544,8 +546,10 @@ async fn update_post(
             &state,
             space_id,
             auth.user_id,
+            "post",
             "Nouveau message".into(),
-        );
+        )
+        .await;
     }
     Ok(Json(post))
 }

@@ -330,8 +330,10 @@ async fn add_comment(
         &state,
         space_id,
         auth.user_id,
+        "comment",
         "Nouveau commentaire".into(),
-    );
+    )
+    .await;
 
     Ok((StatusCode::CREATED, Json(comment)))
 }

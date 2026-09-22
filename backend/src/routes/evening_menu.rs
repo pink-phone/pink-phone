@@ -151,8 +151,10 @@ async fn pick(
             &state,
             space_id,
             auth.user_id,
+            "eveningMenu",
             "C'est un match ce soir !".into(),
-        );
+        )
+        .await;
     }
 
     Ok(Json(EveningMenuItem {

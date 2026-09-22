@@ -43,6 +43,7 @@ const meta = {
     myMood: null,
     userId: "me",
     onOpenMood: fn(),
+    onOpenNotifications: fn(),
   },
 } satisfies Meta<typeof DashboardScreen>;
 
@@ -109,6 +110,11 @@ export const Notices: Story = {
       { id: "2", kind: "download_enabled", actorName: "Alex" },
     ],
   },
+};
+
+export const NotificationsNonLues: Story = {
+  name: "Cloche de notifications (badge)",
+  args: { unreadNotifications: 3 },
 };
 
 export const Solo: Story = {

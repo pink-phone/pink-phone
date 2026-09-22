@@ -133,8 +133,10 @@ async fn create_note(
             &state,
             space_id,
             auth.user_id,
+            "loveNote",
             "Un mot doux pour toi".into(),
-        );
+        )
+        .await;
     }
 
     let note = to_view(row, auth.user_id, now);
@@ -187,7 +189,9 @@ pub async fn deliver_due_notes(state: &AppState) {
             state,
             space_id,
             author_id,
+            "loveNote",
             "Un mot doux t'attend".into(),
-        );
+        )
+        .await;
     }
 }

@@ -160,8 +160,10 @@ async fn create_challenge(
         &state,
         space_id,
         auth.user_id,
+        "challenge",
         "Nouveau défi".into(),
-    );
+    )
+    .await;
 
     Ok((StatusCode::CREATED, Json(challenge)))
 }

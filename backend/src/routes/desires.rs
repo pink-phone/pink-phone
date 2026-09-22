@@ -234,8 +234,10 @@ async fn set_stance(
                 &state,
                 space_id,
                 auth.user_id,
+                "desire",
                 "C'est un match !".into(),
-            );
+            )
+            .await;
         }
     } else if changed {
         // « Contre » : la limite est SURFACÉE au couple → on rafraîchit l'autre
