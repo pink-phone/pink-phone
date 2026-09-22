@@ -314,6 +314,20 @@ async fn activation_download_emet_une_notice_une_seule_fois(pool: PgPool) {
     assert_eq!(arr.len(), 1);
     assert_eq!(arr[0]["kind"], "download_enabled");
 
+    // … et une entrée « downloadEnabled » dans le centre de notifications.
+    let (_, notifs) = req(
+        &app,
+        "GET",
+        &format!("/api/spaces/{space}/notifications"),
+        &tb,
+        None,
+    )
+    .await;
+    let notifs = notifs.as_array().unwrap();
+    assert_eq!(notifs.len(), 1);
+    assert_eq!(notifs[0]["kind"], "downloadEnabled");
+    assert_eq!(notifs[0]["read"], false);
+
     // Re-PATCH à true (pas de transition) → pas de nouvelle notice.
     let _ = req(
         &app,

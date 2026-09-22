@@ -118,6 +118,7 @@ export const fr = {
     eveningMenu: "C'est un match ce soir !",
     loveNote: "Tu as reçu un mot doux.",
     memberJoined: "{{name}} a rejoint le salon.",
+    downloadEnabled: "{{name}} a activé le téléchargement des médias.",
   },
   moods: {
     aria: "Mon humeur du moment",
