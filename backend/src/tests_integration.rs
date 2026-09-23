@@ -1505,6 +1505,115 @@ async fn backfill_0034_reconstitue_l_historique_marque_lu(pool: PgPool) {
     assert!(all_read, "tout le backfill doit être marqué lu");
 }
 
+/// La migration 0035 ajoute `entity_id` et relie l'historique déjà backfillé
+/// par 0034 (qui n'avait pas encore cette colonne) au post/défi exact — c'est
+/// ce qui permet au centre de notifications de scroller/ouvrir l'item précis
+/// même pour une notification ANCIENNE, déjà existante avant ce correctif.
+#[sqlx::test]
+async fn backfill_0035_relie_l_entite_pour_l_historique_deja_backfille(pool: PgPool) {
+    let alice = seed_user(&pool, "alice").await;
+    let bob = seed_user(&pool, "bob").await;
+    let space = seed_space(&pool, alice).await;
+    add_member(&pool, bob, space).await;
+
+    let post: Uuid = sqlx::query_scalar(
+        "INSERT INTO posts (space_id, author_id, body, draft) VALUES ($1, $2, 'récit', false) RETURNING id",
+    )
+    .bind(space)
+    .bind(alice)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    let challenge: Uuid = sqlx::query_scalar(
+        "INSERT INTO challenges (space_id, proposer_id, title, description, intensity)
+         VALUES ($1, $2, 'défi', 'desc', 'soft') RETURNING id",
+    )
+    .bind(space)
+    .bind(alice)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    sqlx::query("INSERT INTO post_comments (post_id, author_id, body) VALUES ($1, $2, 'joli')")
+        .bind(post)
+        .bind(bob)
+        .execute(&pool)
+        .await
+        .unwrap();
+    sqlx::query(
+        "INSERT INTO space_notices (space_id, kind, actor_id) VALUES ($1, 'member_joined', $2)",
+    )
+    .bind(space)
+    .bind(bob)
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    // Ordre réel de déploiement : 0034 backfille SANS entity_id (colonne pas
+    // encore créée à l'époque), puis 0035 ajoute la colonne et relie
+    // l'historique. Ici, `#[sqlx::test]` a déjà appliqué TOUTES les
+    // migrations (dont 0035) avant le corps du test — sur une base encore
+    // vide, donc sans effet — donc la colonne `entity_id` existe déjà : on ne
+    // rejoue que la partie `UPDATE` de 0035 (après son `ALTER TABLE`), pas le
+    // fichier entier, sous peine de recréer une colonne existante.
+    sqlx::raw_sql(include_str!(
+        "../migrations/0034_notifications_backfill.sql"
+    ))
+    .execute(&pool)
+    .await
+    .unwrap();
+    let migration_0035 = include_str!("../migrations/0035_notifications_entity_id.sql");
+    let (_alter, updates) = migration_0035
+        .split_once("ALTER TABLE notifications ADD COLUMN entity_id TEXT;")
+        .expect("0035 doit contenir son ALTER TABLE tel quel");
+    sqlx::raw_sql(updates).execute(&pool).await.unwrap();
+
+    // Bob a reçu la notif "post" d'Alice → doit pointer vers CE post.
+    let post_entity: Option<String> = sqlx::query_scalar(
+        "SELECT entity_id FROM notifications WHERE space_id = $1 AND user_id = $2 AND kind = 'post'",
+    )
+    .bind(space)
+    .bind(bob)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(post_entity, Some(post.to_string()));
+
+    // Alice a reçu la notif "comment" de Bob → doit pointer vers le POST
+    // commenté (pas l'id du commentaire), pour ouvrir le bon fil au clic.
+    let comment_entity: Option<String> = sqlx::query_scalar(
+        "SELECT entity_id FROM notifications WHERE space_id = $1 AND user_id = $2 AND kind = 'comment'",
+    )
+    .bind(space)
+    .bind(alice)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(comment_entity, Some(post.to_string()));
+
+    // Bob a reçu la notif "challenge" d'Alice → doit pointer vers CE défi.
+    let challenge_entity: Option<String> = sqlx::query_scalar(
+        "SELECT entity_id FROM notifications WHERE space_id = $1 AND user_id = $2 AND kind = 'challenge'",
+    )
+    .bind(space)
+    .bind(bob)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(challenge_entity, Some(challenge.to_string()));
+
+    // memberJoined n'a pas d'item précis à ouvrir → reste NULL (pas d'erreur,
+    // pas de lien fantôme).
+    let member_joined_entity: Option<String> = sqlx::query_scalar(
+        "SELECT entity_id FROM notifications WHERE space_id = $1 AND user_id = $2 AND kind = 'memberJoined'",
+    )
+    .bind(space)
+    .bind(alice)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(member_joined_entity, None);
+}
+
 #[sqlx::test]
 async fn suggestions_crud_validation_et_autz(pool: PgPool) {
     let (app, state) = build_app(pool.clone());
