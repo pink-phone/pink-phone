@@ -229,7 +229,7 @@ async fn enrich(
 
     // Galerie de médias par post (#87), ordonnée par `position`.
     let media_rows: Vec<PostMediaRow> = sqlx::query_as(
-        "SELECT pm.post_id, m.id, m.mime, m.view_once, m.consumed
+        "SELECT pm.post_id, m.id, m.mime, m.view_once, m.consumed, m.width, m.height
          FROM post_media pm JOIN media m ON m.id = pm.media_id
          WHERE pm.post_id = ANY($1)
          ORDER BY pm.post_id, pm.position, m.created_at",
@@ -244,6 +244,8 @@ async fn enrich(
             mime: r.mime,
             view_once: r.view_once,
             consumed: r.consumed,
+            width: r.width,
+            height: r.height,
         });
     }
 

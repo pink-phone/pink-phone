@@ -92,7 +92,14 @@ describe("toPostData", () => {
       [
         post({
           media: [
-            { id: "m1", mime: "video/mp4", viewOnce: true, consumed: false },
+            {
+              id: "m1",
+              mime: "video/mp4",
+              viewOnce: true,
+              consumed: false,
+              width: null,
+              height: null,
+            },
           ],
         }),
       ],
