@@ -66,6 +66,10 @@ export function SafeMedia({
   const [failed, setFailed] = useState(false);
   // Vidéo muette par défaut (#88) : discret + autoplay-friendly. Bouton pour le son.
   const [muted, setMuted] = useState(true);
+  // Ratio naturel (largeur/hauteur) du média, connu seulement après chargement
+  // (l'API ne renvoie pas les dimensions) : tant qu'il est `null`, on retombe sur
+  // un cadre 4:5 (état flouté/verrouillé) pour garder une taille prévisible.
+  const [ratio, setRatio] = useState<number | null>(null);
   const hasRevealedOnce = useRef(false);
   const objectUrl = useRef<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -186,13 +190,17 @@ export function SafeMedia({
       }
       aria-pressed={isRevealed}
       className={cn(
-        "relative mx-auto aspect-[4/5] w-full max-w-sm select-none overflow-hidden rounded-3xl shadow-felt outline-hidden",
+        "relative mx-auto aspect-[4/5] max-h-[70dvh] w-full max-w-sm select-none overflow-hidden rounded-3xl shadow-felt outline-hidden",
         // iOS : neutralise le menu contextuel natif (Copier/Enregistrer) du press-and-hold.
         "[-webkit-touch-callout:none] [-webkit-user-select:none]",
         "ring-1 ring-charcoal-600/60 focus-visible:ring-2 focus-visible:ring-spice-500",
         !isConsumed && "cursor-pointer",
         className,
       )}
+      // Une fois le ratio naturel connu, il prime sur le `aspect-[4/5]` de secours
+      // (style inline > classe) : le cadre épouse la photo/vidéo au lieu de la
+      // recadrer, `max-h-[70dvh]` bornant juste les formats très hauts.
+      style={ratio ? { aspectRatio: ratio } : undefined}
       onPointerDown={reveal}
       onPointerUp={hide}
       onPointerLeave={hide}
@@ -219,6 +227,10 @@ export function SafeMedia({
             loop
             muted={muted}
             draggable={false}
+            onLoadedMetadata={(e) => {
+              const v = e.currentTarget;
+              if (v.videoWidth && v.videoHeight) setRatio(v.videoWidth / v.videoHeight);
+            }}
             className={cn(
               "h-full w-full object-cover transition-all duration-500 ease-felt",
               "pointer-events-none [-webkit-touch-callout:none] [-webkit-user-select:none]",
@@ -230,6 +242,12 @@ export function SafeMedia({
             src={resolvedSrc}
             alt={alt}
             draggable={false}
+            onLoad={(e) => {
+              const img = e.currentTarget;
+              if (img.naturalWidth && img.naturalHeight) {
+                setRatio(img.naturalWidth / img.naturalHeight);
+              }
+            }}
             className={cn(
               "h-full w-full object-cover transition-all duration-500 ease-felt",
               "pointer-events-none [-webkit-touch-callout:none] [-webkit-user-select:none]",
