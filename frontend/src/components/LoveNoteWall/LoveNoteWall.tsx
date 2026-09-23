@@ -11,6 +11,8 @@ export interface LoveNoteWallProps {
   /** Ouvre le composer (feuille) — bouton « ＋ Glisser un mot doux ». */
   onCompose?: () => void;
   onDelete?: (id: string) => void;
+  /** Mot doux à surligner brièvement (arrivée depuis une notification). */
+  highlightedNoteId?: string;
   className?: string;
 }
 
@@ -24,6 +26,7 @@ export function LoveNoteWall({
   userId,
   onCompose,
   onDelete,
+  highlightedNoteId,
   className,
 }: LoveNoteWallProps) {
   const { t } = useTranslation();
@@ -50,6 +53,8 @@ export function LoveNoteWall({
           {notes.map((n) => (
             <LoveNote
               key={n.id}
+              id={`loveNote-${n.id}`}
+              highlighted={n.id === highlightedNoteId}
               authorName={n.authorName}
               body={n.body}
               sealed={n.sealed}

@@ -169,10 +169,10 @@ pub struct NotificationEntry {
     pub actor_id: Option<Uuid>,
     /// Nom de l'auteur de l'action (null si système / compte supprimé).
     pub actor_name: Option<String>,
-    /// Référence vers l'entité concernée (id de post/défi ; code pour
+    /// Référence vers l'entité concernée (id de post/défi/mot doux ; code pour
     /// desire/eveningMenu), pour naviguer dessus au clic. TEXT (pas UUID) car
     /// desire/eveningMenu sont identifiés par un code, pas un id. `None` pour
-    /// les kinds sans item précis (mood/loveNote/memberJoined/downloadEnabled).
+    /// les kinds sans item précis (mood/memberJoined/downloadEnabled).
     pub entity_id: Option<String>,
     pub read: bool,
     pub created_at: DateTime<Utc>,

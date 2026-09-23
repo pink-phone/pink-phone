@@ -189,9 +189,10 @@ export function SpaceApp({
   } = useNotifications(space.id);
   const [showNotifications, setShowNotifications] = useState(false);
   // Cible à surligner/scroller après navigation depuis le centre de
-  // notifications (#post-<id> / #challenge-<id>, cf. openNotification).
+  // notifications (#post-<id> / #challenge-<id> / #lovenote-<id>, cf.
+  // openNotification).
   const [highlight, setHighlight] = useState<
-    { kind: "post" | "challenge"; id: string } | null
+    { kind: "post" | "challenge" | "loveNote"; id: string } | null
   >(null);
   const [openSheet, setOpenSheet] = useState<
     "post" | "challenge" | "mood" | "loveNote" | null
@@ -426,15 +427,17 @@ export function SpaceApp({
   useBackClose(showEveningMenu, () => setShowEveningMenu(false));
   useBackClose(showNotifications, () => setShowNotifications(false));
 
-  // Scroll + surlignage temporaire d'un post/défi précis après un tap sur une
-  // notification (openNotification ci-dessous) : l'onglet vient de changer,
-  // l'item cible est donc déjà dans le DOM au moment où cet effet tourne.
-  // S'efface tout seul après l'animation (`animate-highlight-glow`, ~1.8 s).
+  // Scroll + surlignage temporaire d'un post/défi/mot doux précis après un
+  // tap sur une notification (openNotification ci-dessous) : l'onglet vient
+  // de changer, l'item cible est donc déjà dans le DOM au moment où cet effet
+  // tourne. S'efface tout seul après l'animation (`animate-highlight-glow`,
+  // ~1.8 s).
   useEffect(() => {
     if (!highlight) return;
     if (
       (highlight.kind === "post" && tab !== "blog") ||
-      (highlight.kind === "challenge" && tab !== "challenges")
+      (highlight.kind === "challenge" && tab !== "challenges") ||
+      (highlight.kind === "loveNote" && tab !== "dashboard")
     ) {
       return;
     }
@@ -685,12 +688,14 @@ export function SpaceApp({
   };
 
   // Tap sur une notification du centre : marque lue (si besoin) + navigue vers
-  // l'écran concerné. Quand `entityId` désigne un item précis (post/défi), on
-  // scroll dessus et le surligne brièvement (cf. effet `highlight` ci-dessus) ;
-  // pour un commentaire, on ouvre directement son fil (comme ailleurs dans
-  // l'app, via `openComments` de `usePosts`). `desire`/loveNote/memberJoined/
-  // downloadEnabled restent à la granularité de l'onglet (item déjà bien
-  // visible en haut de liste / mur de mots doux et notices sur le dashboard).
+  // l'écran concerné. Quand `entityId` désigne un item précis (post/défi/mot
+  // doux), on scroll dessus et le surligne brièvement (cf. effet `highlight`
+  // ci-dessus) ; pour un commentaire, on scroll ET surligne le post commenté
+  // ET ouvre directement son fil (comme ailleurs dans l'app, via
+  // `openComments` de `usePosts`) — les deux gestes ensemble, pas l'un ou
+  // l'autre. `desire`/memberJoined/downloadEnabled restent à la granularité
+  // de l'onglet (item déjà bien visible en haut de liste / notices sur le
+  // dashboard, pas de scroll précis pour ces kinds).
   const openNotification = (id: string) => {
     const notif = notifications.find((n) => n.id === id);
     if (notif && !notif.read) markNotificationRead(id);
@@ -702,12 +707,19 @@ export function SpaceApp({
         break;
       case "comment":
         setTab("blog");
+        setHighlight(notif.entityId ? { kind: "post", id: notif.entityId } : null);
         if (notif.entityId) openComments(notif.entityId);
         break;
       case "challenge":
         setTab("challenges");
         setHighlight(
           notif.entityId ? { kind: "challenge", id: notif.entityId } : null,
+        );
+        break;
+      case "loveNote":
+        setTab("dashboard");
+        setHighlight(
+          notif.entityId ? { kind: "loveNote", id: notif.entityId } : null,
         );
         break;
       case "desire":
@@ -717,8 +729,8 @@ export function SpaceApp({
         setShowEveningMenu(true);
         break;
       default:
-        // loveNote / memberJoined / downloadEnabled : le mur de mots doux et
-        // les notices de salon vivent tous deux sur le dashboard.
+        // memberJoined / downloadEnabled : les notices de salon vivent sur le
+        // dashboard, sans item précis à surligner.
         setTab("dashboard");
     }
   };
@@ -864,6 +876,9 @@ export function SpaceApp({
           loveNotes={loveNotes}
           onComposeLoveNote={() => setOpenSheet("loveNote")}
           onDeleteLoveNote={removeLoveNote}
+          highlightedLoveNoteId={
+            highlight?.kind === "loveNote" ? highlight.id : undefined
+          }
         />
       )}
 

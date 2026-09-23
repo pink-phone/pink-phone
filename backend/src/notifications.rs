@@ -102,8 +102,8 @@ const GENERIC_BODY: &str = "Ouvre l'app pour voir 🌸";
 /// de l'eau via `GET /api/spaces/{id}/notifications` ; (b) envoie un Web Push
 /// best-effort, en tâche de fond, aux seuls membres en mode 'push'. `kind` =
 /// type d'événement stable (persisté + WS) ; `entity_id` = référence vers
-/// l'item concerné (id de post/défi, ou code desire/eveningMenu), `None` si
-/// le kind n'a pas d'item précis à ouvrir (mood/loveNote/memberJoined/
+/// l'item concerné (id de post/défi/mot doux, ou code desire/eveningMenu),
+/// `None` si le kind n'a pas d'item précis à ouvrir (mood/memberJoined/
 /// downloadEnabled) ; `title` = libellé du push (les abonnements morts
 /// 404/410 sont purgés, cf. `GENERIC_BODY` pour le corps).
 pub async fn notify_members(
