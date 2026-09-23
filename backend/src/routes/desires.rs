@@ -236,6 +236,7 @@ async fn set_stance(
                 auth.user_id,
                 "desire",
                 Some(&code),
+                None,
                 "C'est un match !".into(),
             )
             .await;

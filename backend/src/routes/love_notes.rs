@@ -135,6 +135,7 @@ async fn create_note(
             auth.user_id,
             "loveNote",
             Some(&row.id.to_string()),
+            None,
             "Un mot doux pour toi".into(),
         )
         .await;
@@ -192,6 +193,7 @@ pub async fn deliver_due_notes(state: &AppState) {
             author_id,
             "loveNote",
             Some(&note_id.to_string()),
+            None,
             "Un mot doux t'attend".into(),
         )
         .await;
