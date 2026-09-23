@@ -16,6 +16,8 @@ export interface BlogScreenProps {
   onDeletePost?: (postId: string) => void;
   onPublishPost?: (postId: string) => void;
   onEditPost?: (postId: string) => void;
+  /** Post à surligner brièvement (arrivée depuis une notification), cf. `id={`post-${id}`}`. */
+  highlightedPostId?: string;
   /** Config des réactions du salon (ordre + réactions libres). */
   reactionOrder?: ReactionId[];
   allowCustomReactions?: boolean;
@@ -38,6 +40,7 @@ export function BlogScreen({
   onDeletePost,
   onPublishPost,
   onEditPost,
+  highlightedPostId,
   reactionOrder,
   allowCustomReactions,
   hasMore,
@@ -88,6 +91,8 @@ export function BlogScreen({
 
   const renderPost = (post: PostData) => (
     <BlogPost
+      id={`post-${post.id}`}
+      highlighted={post.id === highlightedPostId}
       author={post.author}
       timeLabel={post.timeLabel}
       title={post.title}

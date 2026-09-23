@@ -188,6 +188,11 @@ export function SpaceApp({
     markAllRead: markAllNotificationsRead,
   } = useNotifications(space.id);
   const [showNotifications, setShowNotifications] = useState(false);
+  // Cible à surligner/scroller après navigation depuis le centre de
+  // notifications (#post-<id> / #challenge-<id>, cf. openNotification).
+  const [highlight, setHighlight] = useState<
+    { kind: "post" | "challenge"; id: string } | null
+  >(null);
   const [openSheet, setOpenSheet] = useState<
     "post" | "challenge" | "mood" | "loveNote" | null
   >(null);
@@ -420,6 +425,25 @@ export function SpaceApp({
   useBackClose(commentsFor !== null, closeComments);
   useBackClose(showEveningMenu, () => setShowEveningMenu(false));
   useBackClose(showNotifications, () => setShowNotifications(false));
+
+  // Scroll + surlignage temporaire d'un post/défi précis après un tap sur une
+  // notification (openNotification ci-dessous) : l'onglet vient de changer,
+  // l'item cible est donc déjà dans le DOM au moment où cet effet tourne.
+  // S'efface tout seul après l'animation (`animate-highlight-glow`, ~1.8 s).
+  useEffect(() => {
+    if (!highlight) return;
+    if (
+      (highlight.kind === "post" && tab !== "blog") ||
+      (highlight.kind === "challenge" && tab !== "challenges")
+    ) {
+      return;
+    }
+    document
+      .getElementById(`${highlight.kind}-${highlight.id}`)
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const timer = setTimeout(() => setHighlight(null), 2200);
+    return () => clearTimeout(timer);
+  }, [tab, highlight]);
 
   // Match du soir (#97b) : nb d'items matchés + toast « ✨ Match ce soir ! » quand
   // ça augmente (le partenaire vient de compléter un match). On « arme » le toast
@@ -661,19 +685,30 @@ export function SpaceApp({
   };
 
   // Tap sur une notification du centre : marque lue (si besoin) + navigue vers
-  // l'écran concerné, comme les pastilles "Du nouveau" du dashboard (même
-  // granularité : l'onglet, pas l'item précis — cf. dashboard.newPosts/newChallenges).
+  // l'écran concerné. Quand `entityId` désigne un item précis (post/défi), on
+  // scroll dessus et le surligne brièvement (cf. effet `highlight` ci-dessus) ;
+  // pour un commentaire, on ouvre directement son fil (comme ailleurs dans
+  // l'app, via `openComments` de `usePosts`). `desire`/loveNote/memberJoined/
+  // downloadEnabled restent à la granularité de l'onglet (item déjà bien
+  // visible en haut de liste / mur de mots doux et notices sur le dashboard).
   const openNotification = (id: string) => {
     const notif = notifications.find((n) => n.id === id);
     if (notif && !notif.read) markNotificationRead(id);
     setShowNotifications(false);
     switch (notif?.kind) {
       case "post":
+        setTab("blog");
+        setHighlight(notif.entityId ? { kind: "post", id: notif.entityId } : null);
+        break;
       case "comment":
         setTab("blog");
+        if (notif.entityId) openComments(notif.entityId);
         break;
       case "challenge":
         setTab("challenges");
+        setHighlight(
+          notif.entityId ? { kind: "challenge", id: notif.entityId } : null,
+        );
         break;
       case "desire":
         setTab("desires");
@@ -856,6 +891,7 @@ export function SpaceApp({
           allowCustomReactions={space.allowCustomReactions}
           onDeletePost={deletePost}
           onPublishPost={publishPost}
+          highlightedPostId={highlight?.kind === "post" ? highlight.id : undefined}
           onEditPost={(id) => {
             const p = posts.find((x) => x.id === id);
             if (p) {
@@ -885,6 +921,9 @@ export function SpaceApp({
             }
           }}
           onDelete={deleteChallenge}
+          highlightedChallengeId={
+            highlight?.kind === "challenge" ? highlight.id : undefined
+          }
         />
       )}
 

@@ -60,6 +60,12 @@ export const VueProposeur: Story = {
   args: { perspective: "proposer", status: "proposed" },
 };
 
+/** Repère bref après un tap sur une notification (centre de notifications) :
+ *  halo spice qui pulse deux fois puis s'efface tout seul (~1,8 s). */
+export const Surligné: Story = {
+  args: { highlighted: true },
+};
+
 export const CycleDeVie: Story = {
   name: "Cycle de vie (interactif)",
   render: (args) => {

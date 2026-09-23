@@ -80,6 +80,9 @@
   /* Braise (états "hot"). */
   --animate-ember-breathe: ember-breathe 3.6s ease-in-out infinite;
   --animate-ember-rise: ember-rise 2.6s ease-out infinite;
+  /* Repère bref (arrivée depuis une notification) : un halo qui pulse deux
+     fois puis s'efface tout seul — pas une boucle infinie comme la braise. */
+  --animate-highlight-glow: highlight-glow 1.8s ease-in-out 1 both;
 
   @keyframes fade-in {
     from {
@@ -123,6 +126,18 @@
     100% {
       transform: translateY(-42px) scale(0.3);
       opacity: 0;
+    }
+  }
+  /* Repère bref d'arrivée depuis une notification : halo spice qui pulse
+     puis s'efface (contrairement à ember-breathe, ne boucle pas). */
+  @keyframes highlight-glow {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 rgb(var(--spice-500) / 0);
+    }
+    25%,
+    70% {
+      box-shadow: 0 0 0 3px rgb(var(--spice-500) / 0.6);
     }
   }
 }

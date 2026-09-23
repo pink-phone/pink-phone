@@ -161,6 +161,7 @@ async fn create_challenge(
         space_id,
         auth.user_id,
         "challenge",
+        Some(&challenge.id.to_string()),
         "Nouveau défi".into(),
     )
     .await;

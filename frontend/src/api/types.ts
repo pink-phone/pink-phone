@@ -194,6 +194,10 @@ export interface ApiNotification {
   kind: string;
   actorId: string | null;
   actorName: string | null;
+  /** Référence vers l'entité concernée (id de post/défi ; code pour
+   *  desire/eveningMenu), pour naviguer dessus au clic. `null` pour les kinds
+   *  sans item précis (mood/loveNote/memberJoined/downloadEnabled). */
+  entityId: string | null;
   read: boolean;
   createdAt: string;
 }
