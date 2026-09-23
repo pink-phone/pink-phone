@@ -1614,6 +1614,135 @@ async fn backfill_0035_relie_l_entite_pour_l_historique_deja_backfille(pool: PgP
     assert_eq!(member_joined_entity, None);
 }
 
+/// 0035 relie `entity_id` par égalité STRICTE de `created_at`, ce qui rate les
+/// notifications créées EN DIRECT (pas par le backfill 0034) entre le
+/// déploiement de la table `notifications` et celui d'`entity_id` :
+/// `notify_members` insérait alors la notification avec son PROPRE `now()`,
+/// décalé de quelques millisecondes du `now()` du post/commentaire/défi
+/// source (confirmé en prod : écarts réels de 3 à 8 ms). 0036 corrige ça avec
+/// une fenêtre de tolérance + "plus proche match" (pas de faux positif).
+#[sqlx::test]
+async fn backfill_0036_relie_les_notifications_au_timestamp_legerement_decale(pool: PgPool) {
+    let alice = seed_user(&pool, "alice").await;
+    let bob = seed_user(&pool, "bob").await;
+    let space = seed_space(&pool, alice).await;
+    add_member(&pool, bob, space).await;
+    // Salon distinct, sans aucun défi : sert de contrôle négatif (rien à
+    // relier, même dans la fenêtre de tolérance temporelle).
+    let empty_space = seed_space(&pool, alice).await;
+    add_member(&pool, bob, empty_space).await;
+
+    let post: Uuid = sqlx::query_scalar(
+        "INSERT INTO posts (space_id, author_id, body, draft) VALUES ($1, $2, 'récit', false) RETURNING id",
+    )
+    .bind(space)
+    .bind(alice)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    let challenge: Uuid = sqlx::query_scalar(
+        "INSERT INTO challenges (space_id, proposer_id, title, description, intensity)
+         VALUES ($1, $2, 'défi', 'desc', 'soft') RETURNING id",
+    )
+    .bind(space)
+    .bind(alice)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    let comment_post: Uuid = sqlx::query_scalar(
+        "INSERT INTO posts (space_id, author_id, body, draft) VALUES ($1, $2, 'autre récit', false) RETURNING id",
+    )
+    .bind(space)
+    .bind(alice)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    sqlx::query("INSERT INTO post_comments (post_id, author_id, body) VALUES ($1, $2, 'joli')")
+        .bind(comment_post)
+        .bind(bob)
+        .execute(&pool)
+        .await
+        .unwrap();
+
+    // Simule EXACTEMENT le bug observé en prod : `created_at` de la
+    // notification = celui de la source + un petit décalage (son propre
+    // `now()`, évalué dans un `INSERT` séparé quelques ms plus tard).
+    async fn insert_gapped(
+        pool: &PgPool,
+        space: Uuid,
+        recipient: Uuid,
+        kind: &str,
+        actor: Uuid,
+        source_created_at: chrono::DateTime<chrono::Utc>,
+    ) {
+        sqlx::query(
+            "INSERT INTO notifications (space_id, user_id, kind, actor_id, read_at, created_at)
+             VALUES ($1, $2, $3, $4, now(), $5 + interval '5 milliseconds')",
+        )
+        .bind(space)
+        .bind(recipient)
+        .bind(kind)
+        .bind(actor)
+        .bind(source_created_at)
+        .execute(pool)
+        .await
+        .unwrap();
+    }
+    let now = chrono::Utc::now();
+    insert_gapped(&pool, space, bob, "post", alice, now).await;
+    insert_gapped(&pool, space, bob, "challenge", alice, now).await;
+    insert_gapped(&pool, space, alice, "comment", bob, now).await;
+    // Contrôle négatif : même motif, mais dans un salon sans aucun défi — ne
+    // doit RIEN relier (pas de faux positif par simple proximité temporelle).
+    insert_gapped(&pool, empty_space, bob, "challenge", alice, now).await;
+
+    sqlx::raw_sql(include_str!(
+        "../migrations/0036_notifications_entity_id_gap.sql"
+    ))
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    let post_entity: Option<String> = sqlx::query_scalar(
+        "SELECT entity_id FROM notifications WHERE space_id = $1 AND kind = 'post'",
+    )
+    .bind(space)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(post_entity, Some(post.to_string()));
+
+    let challenge_entity: Option<String> = sqlx::query_scalar(
+        "SELECT entity_id FROM notifications WHERE space_id = $1 AND kind = 'challenge'",
+    )
+    .bind(space)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(challenge_entity, Some(challenge.to_string()));
+
+    let comment_entity: Option<String> = sqlx::query_scalar(
+        "SELECT entity_id FROM notifications WHERE space_id = $1 AND kind = 'comment'",
+    )
+    .bind(space)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(comment_entity, Some(comment_post.to_string()));
+
+    let empty_space_entity: Option<String> = sqlx::query_scalar(
+        "SELECT entity_id FROM notifications WHERE space_id = $1 AND kind = 'challenge'",
+    )
+    .bind(empty_space)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        empty_space_entity, None,
+        "sans défi correspondant dans ce salon, entity_id doit rester NULL (pas de faux positif)",
+    );
+}
+
 #[sqlx::test]
 async fn suggestions_crud_validation_et_autz(pool: PgPool) {
     let (app, state) = build_app(pool.clone());
