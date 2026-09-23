@@ -138,3 +138,22 @@ export const AuthentifiéLazy: Story = {
     },
   },
 };
+
+export const AuthentifiéRatioConnuAvance: Story = {
+  name: "Authentifié — ratio connu avant le clic",
+  args: {
+    src: undefined,
+    loader: () =>
+      new Promise<string>((resolve) => setTimeout(() => resolve(DEMO_SRC), 700)),
+    width: 1200,
+    height: 630,
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Le backend renvoie les dimensions calculées à l'upload (`width`/`height`) : même pour un média authentifié jamais encore téléchargé, le cadre paysage est déjà correct avant tout clic — comparer avec « Authentifié (chargement paresseux) » ci-dessus, qui part en 4:5 le temps du premier press-and-hold.",
+      },
+    },
+  },
+};
