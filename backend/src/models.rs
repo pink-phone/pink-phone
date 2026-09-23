@@ -174,6 +174,9 @@ pub struct NotificationEntry {
     /// desire/eveningMenu sont identifiés par un code, pas un id. `None` pour
     /// les kinds sans item précis (mood/memberJoined/downloadEnabled).
     pub entity_id: Option<String>,
+    /// UNIQUEMENT pour `kind = "comment"` : id du commentaire précis, à
+    /// surligner dans le fil ouvert via `entity_id` (le post). `None` sinon.
+    pub comment_id: Option<String>,
     pub read: bool,
     pub created_at: DateTime<Utc>,
 }

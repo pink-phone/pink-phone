@@ -104,19 +104,23 @@ const GENERIC_BODY: &str = "Ouvre l'app pour voir 🌸";
 /// type d'événement stable (persisté + WS) ; `entity_id` = référence vers
 /// l'item concerné (id de post/défi/mot doux, ou code desire/eveningMenu),
 /// `None` si le kind n'a pas d'item précis à ouvrir (mood/memberJoined/
-/// downloadEnabled) ; `title` = libellé du push (les abonnements morts
-/// 404/410 sont purgés, cf. `GENERIC_BODY` pour le corps).
+/// downloadEnabled) ; `comment_id` = UNIQUEMENT pour `kind = "comment"`, id du
+/// commentaire précis (distinct d'`entity_id` qui référence alors le POST
+/// commenté — il faut les deux : le post pour ouvrir le bon fil, le
+/// commentaire pour le surligner dedans) ; `title` = libellé du push (les
+/// abonnements morts 404/410 sont purgés, cf. `GENERIC_BODY` pour le corps).
 pub async fn notify_members(
     state: &AppState,
     space_id: Uuid,
     actor_id: Uuid,
     kind: &str,
     entity_id: Option<&str>,
+    comment_id: Option<&str>,
     title: String,
 ) {
     match sqlx::query(
-        "INSERT INTO notifications (space_id, user_id, kind, actor_id, entity_id)
-         SELECT $1, m.user_id, $3, $2, $4
+        "INSERT INTO notifications (space_id, user_id, kind, actor_id, entity_id, comment_id)
+         SELECT $1, m.user_id, $3, $2, $4, $5
          FROM space_memberships m
          WHERE m.space_id = $1 AND m.user_id <> $2",
     )
@@ -124,6 +128,7 @@ pub async fn notify_members(
     .bind(actor_id)
     .bind(kind)
     .bind(entity_id)
+    .bind(comment_id)
     .execute(&state.pool)
     .await
     {

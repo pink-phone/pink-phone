@@ -1825,6 +1825,85 @@ async fn backfill_0037_relie_l_entite_des_mots_doux(pool: PgPool) {
     );
 }
 
+/// 0038 relie `comment_id` (le commentaire précis à surligner) en plus
+/// d'`entity_id` (le post, qui reste inchangé — sert à ouvrir le bon fil).
+#[sqlx::test]
+async fn backfill_0038_relie_le_commentaire_precis(pool: PgPool) {
+    let alice = seed_user(&pool, "alice").await;
+    let bob = seed_user(&pool, "bob").await;
+    let space = seed_space(&pool, alice).await;
+    add_member(&pool, bob, space).await;
+
+    let post: Uuid = sqlx::query_scalar(
+        "INSERT INTO posts (space_id, author_id, body, draft) VALUES ($1, $2, 'récit', false) RETURNING id",
+    )
+    .bind(space)
+    .bind(alice)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    // Deux commentaires de Bob sur ce post : le matching doit choisir celui
+    // dont l'horodatage est le plus proche de la notification, pas le premier.
+    let comment1: Uuid = sqlx::query_scalar(
+        "INSERT INTO post_comments (post_id, author_id, body, created_at)
+         VALUES ($1, $2, 'premier', now() - interval '2 hour') RETURNING id",
+    )
+    .bind(post)
+    .bind(bob)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    let comment2: Uuid = sqlx::query_scalar(
+        "INSERT INTO post_comments (post_id, author_id, body, created_at)
+         VALUES ($1, $2, 'second', now() - interval '1 hour') RETURNING id",
+    )
+    .bind(post)
+    .bind(bob)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+
+    // Notification pour le second commentaire (entity_id déjà posé, comme le
+    // ferait 0035/0036), avec le même écart de quelques ms que le bug réel.
+    sqlx::query(
+        "INSERT INTO notifications (space_id, user_id, kind, actor_id, entity_id, read_at, created_at)
+         VALUES ($1, $2, 'comment', $3, $4, now(),
+                 (SELECT created_at FROM post_comments WHERE id = $5) + interval '5 milliseconds')",
+    )
+    .bind(space)
+    .bind(alice)
+    .bind(bob)
+    .bind(post.to_string())
+    .bind(comment2)
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    // `#[sqlx::test]` a déjà appliqué 0038 (dont son `ALTER TABLE`) avant le
+    // corps du test, sur une base encore vide → la colonne existe déjà : on
+    // ne rejoue que la partie `UPDATE` (cf. même piège que le test 0035).
+    let migration_0038 = include_str!("../migrations/0038_notifications_comment_id.sql");
+    let (_alter, updates) = migration_0038
+        .split_once("ALTER TABLE notifications ADD COLUMN comment_id TEXT;")
+        .expect("0038 doit contenir son ALTER TABLE tel quel");
+    sqlx::raw_sql(updates).execute(&pool).await.unwrap();
+
+    let (entity_id, comment_id): (Option<String>, Option<String>) = sqlx::query_as(
+        "SELECT entity_id, comment_id FROM notifications WHERE space_id = $1 AND kind = 'comment'",
+    )
+    .bind(space)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    assert_eq!(entity_id, Some(post.to_string()), "entity_id (le post) inchangé");
+    assert_eq!(
+        comment_id,
+        Some(comment2.to_string()),
+        "doit choisir le commentaire le plus proche dans le temps, pas comment1",
+    );
+    assert_ne!(comment_id, Some(comment1.to_string()));
+}
+
 #[sqlx::test]
 async fn suggestions_crud_validation_et_autz(pool: PgPool) {
     let (app, state) = build_app(pool.clone());
