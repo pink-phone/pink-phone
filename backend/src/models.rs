@@ -89,6 +89,12 @@ pub struct PostMediaItem {
     pub view_once: bool,
     /// Média éphémère déjà consommé.
     pub consumed: bool,
+    /// Dimensions d'origine, best-effort (calculées à l'upload, cf. media.rs
+    /// `image_dimensions`) : `None` pour une vidéo, un HEIC/HEIF (non couvert)
+    /// ou un média antérieur à cette colonne — le frontend retombe alors sur son
+    /// ratio par défaut en attendant le premier chargement.
+    pub width: Option<i32>,
+    pub height: Option<i32>,
 }
 
 /// Ligne de la requête groupée `post_media JOIN media` (porte le `post_id`).
@@ -99,6 +105,8 @@ pub struct PostMediaRow {
     pub mime: String,
     pub view_once: bool,
     pub consumed: bool,
+    pub width: Option<i32>,
+    pub height: Option<i32>,
 }
 
 /// Post enrichi renvoyé au frontend (médias, réactions, verdict, nb de commentaires).

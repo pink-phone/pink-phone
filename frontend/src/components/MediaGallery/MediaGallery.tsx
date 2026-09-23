@@ -19,6 +19,8 @@ function Item({ m }: { m: BlogPostMedia }) {
       viewOnce={m.viewOnce}
       consumed={m.consumed}
       downloadable={m.downloadable}
+      width={m.width}
+      height={m.height}
     />
   );
 }

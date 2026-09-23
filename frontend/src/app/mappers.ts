@@ -43,6 +43,8 @@ export function toPostData(
       kind: m.mime.startsWith("video/") ? ("video" as const) : ("image" as const),
       viewOnce: m.viewOnce,
       consumed: m.consumed,
+      width: m.width ?? undefined,
+      height: m.height ?? undefined,
       // Téléchargeable seulement si le post l'autorise ET média non éphémère.
       downloadable: p.allowDownload && !m.viewOnce,
       loader: () => api.fetchMediaObjectUrl(spaceId, m.id),
