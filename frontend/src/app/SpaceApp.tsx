@@ -727,22 +727,24 @@ export function SpaceApp({
       case "comment": {
         setTab("blog");
         setHighlight(notif.entityId ? { kind: "post", id: notif.entityId } : null);
-        // `setShowNotifications(false)` ci-dessus programme un
-        // `history.back()` DIFFÉRÉ (cleanup de useBackClose, cf. lib/
-        // useBackClose.ts) pour dépiler l'entrée d'historique du centre de
-        // notifications. Si on ouvrait CommentsSheet tout de suite, son
-        // propre useBackClose empilerait une NOUVELLE entrée par-dessus AVANT
-        // que ce back() différé ne se déclenche — celui-ci dépilerait alors
-        // la mauvaise entrée (celle de CommentsSheet, pas celle des
-        // notifications), refermant la feuille aussitôt ouverte. On laisse le
-        // tick suivant s'écouler pour que le back() du centre de
-        // notifications se termine avant de pousser une nouvelle entrée.
+        // Ouverture différée de CommentsSheet, pour deux raisons :
+        // 1. `setShowNotifications(false)` ci-dessus programme un
+        //    `history.back()` DIFFÉRÉ (cleanup de useBackClose, cf. lib/
+        //    useBackClose.ts) pour dépiler l'entrée d'historique du centre de
+        //    notifications. Ouvrir CommentsSheet tout de suite empilerait une
+        //    NOUVELLE entrée par-dessus AVANT que ce back() différé ne se
+        //    déclenche — celui-ci dépilerait alors la mauvaise entrée (celle
+        //    de CommentsSheet), refermant la feuille aussitôt ouverte.
+        // 2. Confort (retour utilisateur) : laisser le temps de voir le post
+        //    scrollé/surligné et lire son titre avant que la feuille ne le
+        //    recouvre, plutôt qu'un enchaînement instantané.
+        const COMMENT_SHEET_OPEN_DELAY_MS = 2500;
         const entityId = notif.entityId;
         const commentId = notif.commentId;
         setTimeout(() => {
           if (entityId) openComments(entityId);
           setHighlightedCommentId(commentId ?? null);
-        }, 0);
+        }, COMMENT_SHEET_OPEN_DELAY_MS);
         break;
       }
       case "challenge":
