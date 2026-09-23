@@ -34,6 +34,14 @@ export interface SafeMediaProps {
   downloadable?: boolean;
   /** Nom de fichier proposé au téléchargement. */
   downloadName?: string;
+  /**
+   * Dimensions d'origine connues à l'avance (best-effort, calculées à l'upload
+   * côté backend) : pose le bon ratio dès le montage, avant même le premier
+   * chargement du fichier (média authentifié révélé au press-and-hold).
+   * Absentes ⇒ ratio 4:5 par défaut jusqu'au chargement (cf. `ratio`).
+   */
+  width?: number;
+  height?: number;
   /** Appelé la première fois que le média est révélé. */
   onReveal?: () => void;
   className?: string;
@@ -53,6 +61,8 @@ export function SafeMedia({
   consumed = false,
   downloadable = false,
   downloadName = "pink-phone",
+  width,
+  height,
   onReveal,
   className,
 }: SafeMediaProps) {
@@ -66,10 +76,13 @@ export function SafeMedia({
   const [failed, setFailed] = useState(false);
   // Vidéo muette par défaut (#88) : discret + autoplay-friendly. Bouton pour le son.
   const [muted, setMuted] = useState(true);
-  // Ratio naturel (largeur/hauteur) du média, connu seulement après chargement
-  // (l'API ne renvoie pas les dimensions) : tant qu'il est `null`, on retombe sur
-  // un cadre 4:5 (état flouté/verrouillé) pour garder une taille prévisible.
-  const [ratio, setRatio] = useState<number | null>(null);
+  // Ratio naturel (largeur/hauteur) du média. Connu dès le montage si l'appelant
+  // fournit `width`/`height` (dimensions best-effort calculées à l'upload côté
+  // backend) ; sinon `null` jusqu'au premier chargement (`onLoad`/`onLoadedMetadata`
+  // ci-dessous) et on retombe entre-temps sur un cadre 4:5 (état flouté/verrouillé).
+  const [ratio, setRatio] = useState<number | null>(
+    width && height ? width / height : null,
+  );
   const hasRevealedOnce = useRef(false);
   const objectUrl = useRef<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);

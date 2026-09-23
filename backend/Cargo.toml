@@ -64,6 +64,10 @@ rand = "0.10"
 aes-gcm = "0.11"
 url = "2"
 little_exif = "0.6.23"
+# Dimensions d'une image à l'upload (lecture d'en-tête seule, pas de décodage pixel
+# complet) : formats couvrant l'essentiel d'ALLOWED_MIMES (media.rs) — HEIC/HEIF
+# n'est pas supporté par ce crate, best-effort (cf. `image_dimensions`).
+image = { version = "0.25.10", default-features = false, features = ["jpeg", "png", "gif", "webp"] }
 
 [features]
 # Tests d'intégration (routes/SQL) qui exigent une vraie Postgres jetable
@@ -76,7 +80,6 @@ integration = []
 http-body-util = "0.1"
 tower = { version = "0.5", features = ["util"] }
 serde_json = "1"
-image = { version = "0.25.10", default-features = false, features = ["jpeg", "png"] }
 
 # Build de prod : LTO léger (binaire plus compact/rapide) + strip des symboles
 # de debug (image Docker plus petite). Coût de compilation négligeable (RUST-14).
