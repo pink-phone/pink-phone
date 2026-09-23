@@ -43,12 +43,12 @@ const UPLOAD_WINDOW: Duration = Duration::from_secs(60);
 /// `pub` (pas `pub(crate)`) : réutilisée par `bin/pinkctl.rs` (`media verify`),
 /// un binaire séparé du même package.
 pub fn encrypt(key: &[u8; 32], plaintext: &[u8]) -> Option<Vec<u8>> {
-    let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key));
+    let cipher = Aes256Gcm::new(&Key::<Aes256Gcm>::from(*key));
     let mut nonce = [0u8; 12];
     // Source OS ; en cas d'échec du RNG système on refuse de chiffrer plutôt que
     // d'utiliser un nonce nul/répété (catastrophique pour AES-GCM).
     SysRng.try_fill_bytes(&mut nonce).ok()?;
-    let ct = cipher.encrypt(Nonce::from_slice(&nonce), plaintext).ok()?;
+    let ct = cipher.encrypt(&Nonce::from(nonce), plaintext).ok()?;
     let mut out = Vec::with_capacity(12 + ct.len());
     out.extend_from_slice(&nonce);
     out.extend_from_slice(&ct);
@@ -62,8 +62,9 @@ pub fn decrypt(key: &[u8; 32], blob: &[u8]) -> Option<Vec<u8>> {
         return None;
     }
     let (nonce, ct) = blob.split_at(12);
-    let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(key));
-    cipher.decrypt(Nonce::from_slice(nonce), ct).ok()
+    let cipher = Aes256Gcm::new(&Key::<Aes256Gcm>::from(*key));
+    let nonce = Nonce::try_from(nonce).ok()?;
+    cipher.decrypt(&nonce, ct).ok()
 }
 
 pub fn router() -> Router<AppState> {
