@@ -134,7 +134,7 @@ async fn create_note(
             space_id,
             auth.user_id,
             "loveNote",
-            None,
+            Some(&row.id.to_string()),
             "Un mot doux pour toi".into(),
         )
         .await;
@@ -171,10 +171,10 @@ async fn delete_note(
 /// la tâche horaire — granularité ~1 h, acceptable pour des mots doux (#102).
 pub async fn deliver_due_notes(state: &AppState) {
     // Réclame les mots échus non encore notifiés (atomique : marque puis pousse).
-    let due: Vec<(Uuid, Uuid)> = match sqlx::query_as(
+    let due: Vec<(Uuid, Uuid, Uuid)> = match sqlx::query_as(
         "UPDATE love_notes SET notified = true
          WHERE open_at IS NOT NULL AND open_at <= now() AND notified = false
-         RETURNING space_id, author_id",
+         RETURNING space_id, author_id, id",
     )
     .fetch_all(&state.pool)
     .await
@@ -185,13 +185,13 @@ pub async fn deliver_due_notes(state: &AppState) {
             return;
         }
     };
-    for (space_id, author_id) in due {
+    for (space_id, author_id, note_id) in due {
         crate::notifications::notify_members(
             state,
             space_id,
             author_id,
             "loveNote",
-            None,
+            Some(&note_id.to_string()),
             "Un mot doux t'attend".into(),
         )
         .await;

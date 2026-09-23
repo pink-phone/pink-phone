@@ -62,6 +62,8 @@ export interface DashboardScreenProps {
   /** Ouvre le composer de mot doux (feuille). */
   onComposeLoveNote?: () => void;
   onDeleteLoveNote?: (id: string) => void;
+  /** Mot doux à surligner brièvement (arrivée depuis une notification). */
+  highlightedLoveNoteId?: string;
 }
 
 /** Une "vignette météo" pour l'humeur d'une personne (ou son absence). Ma propre
@@ -177,6 +179,7 @@ export function DashboardScreen({
   loveNotes = [],
   onComposeLoveNote,
   onDeleteLoveNote,
+  highlightedLoveNoteId,
 }: DashboardScreenProps) {
   const { t } = useTranslation();
   // Notices connues (kind → message + icône) ; les inconnues sont ignorées.
@@ -368,6 +371,7 @@ export function DashboardScreen({
           userId={userId}
           onCompose={onComposeLoveNote}
           onDelete={onDeleteLoveNote}
+          highlightedNoteId={highlightedLoveNoteId}
         />
       )}
     </div>

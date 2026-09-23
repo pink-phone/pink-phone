@@ -13,6 +13,10 @@ export interface LoveNoteProps {
   /** Le mot est de moi → bouton de suppression. */
   isMine?: boolean;
   onDelete?: () => void;
+  /** Ancre DOM (ex: `loveNote-<id>`) pour scroller dessus depuis une notification. */
+  id?: string;
+  /** Repère visuel bref après navigation depuis une notification. */
+  highlighted?: boolean;
   className?: string;
 }
 
@@ -31,6 +35,8 @@ export function LoveNote({
   openAt,
   isMine = false,
   onDelete,
+  id,
+  highlighted = false,
   className,
 }: LoveNoteProps) {
   const { t, i18n } = useTranslation();
@@ -38,10 +44,12 @@ export function LoveNote({
   if (sealed) {
     return (
       <Surface
+        id={id}
         tone="velvet"
         radius="2xl"
         className={cn(
           "flex flex-col items-center gap-1 border-dashed text-center",
+          highlighted && "animate-highlight-glow motion-reduce:animate-none",
           className,
         )}
       >
@@ -70,10 +78,12 @@ export function LoveNote({
     // DA sombre : plus de carte blanche (blush) — surface velours + un « dos »
     // spice chaleureux pour garder l'esprit « petit mot ».
     <Surface
+      id={id}
       tone="velvet"
       radius="2xl"
       className={cn(
         "relative space-y-v3-2 border-l-4 border-l-spice-500/60",
+        highlighted && "animate-highlight-glow motion-reduce:animate-none",
         className,
       )}
     >

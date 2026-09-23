@@ -1743,6 +1743,88 @@ async fn backfill_0036_relie_les_notifications_au_timestamp_legerement_decale(po
     );
 }
 
+/// 0037 relie `entity_id` pour `loveNote`, absent jusqu'ici (0033-0036 le
+/// jugeaient sans item précis). Correspondance temporelle la plus proche
+/// (comme 0036) : un mot immédiat est notifié quelques ms après son propre
+/// `now()` ; un mot différé référence `open_at` (délivrance), pas
+/// `created_at` (rédaction, potentiellement bien antérieure).
+#[sqlx::test]
+async fn backfill_0037_relie_l_entite_des_mots_doux(pool: PgPool) {
+    let alice = seed_user(&pool, "alice").await;
+    let bob = seed_user(&pool, "bob").await;
+    let space = seed_space(&pool, alice).await;
+    add_member(&pool, bob, space).await;
+
+    let immediate: Uuid = sqlx::query_scalar(
+        "INSERT INTO love_notes (space_id, author_id, body) VALUES ($1, $2, 'immédiat') RETURNING id",
+    )
+    .bind(space)
+    .bind(alice)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+    // Mot différé : rédigé il y a longtemps, délivré (notified) il y a peu —
+    // le matching doit se faire sur `open_at`, pas `created_at`.
+    let deferred: Uuid = sqlx::query_scalar(
+        "INSERT INTO love_notes (space_id, author_id, body, open_at, notified, created_at)
+         VALUES ($1, $2, 'différé', now() - interval '1 hour', true, now() - interval '30 days')
+         RETURNING id",
+    )
+    .bind(space)
+    .bind(alice)
+    .fetch_one(&pool)
+    .await
+    .unwrap();
+
+    // Simule l'écart de quelques ms entre le `now()` du mot et celui de la
+    // notification (même bug de fond que 0034→0036 pour post/comment/challenge).
+    sqlx::query(
+        "INSERT INTO notifications (space_id, user_id, kind, actor_id, read_at, created_at)
+         VALUES ($1, $2, 'loveNote', $3, now(),
+                 (SELECT created_at FROM love_notes WHERE id = $4) + interval '5 milliseconds')",
+    )
+    .bind(space)
+    .bind(bob)
+    .bind(alice)
+    .bind(immediate)
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO notifications (space_id, user_id, kind, actor_id, read_at, created_at)
+         VALUES ($1, $2, 'loveNote', $3, now(),
+                 (SELECT open_at FROM love_notes WHERE id = $4) + interval '5 milliseconds')",
+    )
+    .bind(space)
+    .bind(bob)
+    .bind(alice)
+    .bind(deferred)
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    sqlx::raw_sql(include_str!(
+        "../migrations/0037_notifications_lovenote_entity_id.sql"
+    ))
+    .execute(&pool)
+    .await
+    .unwrap();
+
+    let entities: Vec<Option<String>> = sqlx::query_scalar(
+        "SELECT entity_id FROM notifications
+         WHERE space_id = $1 AND kind = 'loveNote'
+         ORDER BY created_at",
+    )
+    .bind(space)
+    .fetch_all(&pool)
+    .await
+    .unwrap();
+    assert_eq!(
+        entities,
+        vec![Some(deferred.to_string()), Some(immediate.to_string())],
+    );
+}
+
 #[sqlx::test]
 async fn suggestions_crud_validation_et_autz(pool: PgPool) {
     let (app, state) = build_app(pool.clone());
