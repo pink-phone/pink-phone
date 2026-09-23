@@ -1825,10 +1825,10 @@ async fn backfill_0037_relie_l_entite_des_mots_doux(pool: PgPool) {
     );
 }
 
-/// 0038 relie `comment_id` (le commentaire précis à surligner) en plus
+/// 0039 relie `comment_id` (le commentaire précis à surligner) en plus
 /// d'`entity_id` (le post, qui reste inchangé — sert à ouvrir le bon fil).
 #[sqlx::test]
-async fn backfill_0038_relie_le_commentaire_precis(pool: PgPool) {
+async fn backfill_0039_relie_le_commentaire_precis(pool: PgPool) {
     let alice = seed_user(&pool, "alice").await;
     let bob = seed_user(&pool, "bob").await;
     let space = seed_space(&pool, alice).await;
@@ -1879,13 +1879,13 @@ async fn backfill_0038_relie_le_commentaire_precis(pool: PgPool) {
     .await
     .unwrap();
 
-    // `#[sqlx::test]` a déjà appliqué 0038 (dont son `ALTER TABLE`) avant le
+    // `#[sqlx::test]` a déjà appliqué 0039 (dont son `ALTER TABLE`) avant le
     // corps du test, sur une base encore vide → la colonne existe déjà : on
     // ne rejoue que la partie `UPDATE` (cf. même piège que le test 0035).
-    let migration_0038 = include_str!("../migrations/0038_notifications_comment_id.sql");
-    let (_alter, updates) = migration_0038
+    let migration_0039 = include_str!("../migrations/0039_notifications_comment_id.sql");
+    let (_alter, updates) = migration_0039
         .split_once("ALTER TABLE notifications ADD COLUMN comment_id TEXT;")
-        .expect("0038 doit contenir son ALTER TABLE tel quel");
+        .expect("0039 doit contenir son ALTER TABLE tel quel");
     sqlx::raw_sql(updates).execute(&pool).await.unwrap();
 
     let (entity_id, comment_id): (Option<String>, Option<String>) = sqlx::query_as(
