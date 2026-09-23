@@ -183,6 +183,7 @@ async fn update_space(
             auth.user_id,
             "downloadEnabled",
             None,
+            None,
             "Téléchargement des médias activé".into(),
         )
         .await;
@@ -397,6 +398,7 @@ async fn join_by_invite(
         space_id,
         auth.user_id,
         "memberJoined",
+        None,
         None,
         "Un membre a rejoint le salon".into(),
     )

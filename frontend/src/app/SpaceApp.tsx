@@ -194,6 +194,12 @@ export function SpaceApp({
   const [highlight, setHighlight] = useState<
     { kind: "post" | "challenge" | "loveNote"; id: string } | null
   >(null);
+  // Commentaire précis à surligner dans la feuille de commentaires (distinct
+  // de `highlight` ci-dessus : ce n'est pas un scroll de tab, mais un item à
+  // l'intérieur d'une feuille déjà ouverte par `openComments`).
+  const [highlightedCommentId, setHighlightedCommentId] = useState<
+    string | null
+  >(null);
   const [openSheet, setOpenSheet] = useState<
     "post" | "challenge" | "mood" | "loveNote" | null
   >(null);
@@ -509,6 +515,19 @@ export function SpaceApp({
     () => toCommentViews(comments, user.id, blogDividerAt),
     [comments, user.id, blogDividerAt],
   );
+  // Scroll + surlignage bref du commentaire visé par une notification, une
+  // fois que `openComments` (déclenché dans `openNotification`) a chargé le
+  // fil et qu'il y apparaît. Contrairement à l'effet `highlight` (tab), ici
+  // on attend le contenu de la feuille, pas juste le changement d'onglet.
+  useEffect(() => {
+    if (!highlightedCommentId) return;
+    if (!commentViews.some((c) => c.id === highlightedCommentId)) return;
+    document
+      .getElementById(`comment-${highlightedCommentId}`)
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const timer = setTimeout(() => setHighlightedCommentId(null), 2200);
+    return () => clearTimeout(timer);
+  }, [commentViews, highlightedCommentId]);
   const notificationItems = useMemo(
     () => toNotificationItems(notifications),
     [notifications],
@@ -709,6 +728,7 @@ export function SpaceApp({
         setTab("blog");
         setHighlight(notif.entityId ? { kind: "post", id: notif.entityId } : null);
         if (notif.entityId) openComments(notif.entityId);
+        setHighlightedCommentId(notif.commentId ?? null);
         break;
       case "challenge":
         setTab("challenges");
@@ -1087,6 +1107,7 @@ export function SpaceApp({
           if (confirmAction(t("comments.confirmDelete"))) removeComment(id);
         }}
         onClose={closeComments}
+        highlightedCommentId={highlightedCommentId}
       />
 
       <NotificationCenter

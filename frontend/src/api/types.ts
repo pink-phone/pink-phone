@@ -204,6 +204,9 @@ export interface ApiNotification {
    *  desire/eveningMenu), pour naviguer dessus au clic. `null` pour les kinds
    *  sans item précis (mood/memberJoined/downloadEnabled). */
   entityId: string | null;
+  /** UNIQUEMENT pour `kind === "comment"` : id du commentaire précis, à
+   *  surligner dans le fil ouvert via `entityId` (le post). `null` sinon. */
+  commentId: string | null;
   read: boolean;
   createdAt: string;
 }

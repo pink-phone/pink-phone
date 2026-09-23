@@ -5,6 +5,7 @@ import { TextArea } from "../form/TextArea";
 import { Button } from "../Button/Button";
 import { ContextMenu } from "../ContextMenu/ContextMenu";
 import { UnreadDivider } from "../UnreadDivider/UnreadDivider";
+import { cn } from "../../lib/cn";
 
 export interface CommentView {
   id: string;
@@ -38,6 +39,8 @@ export interface CommentsSheetProps {
   /** Chargement des commentaires plus anciens en cours. */
   loadingMore?: boolean;
   onLoadMore?: () => void;
+  /** Commentaire à surligner brièvement (arrivée depuis une notification). */
+  highlightedCommentId?: string | null;
 }
 
 /** Fil de commentaires d'un post, dans une feuille modale. */
@@ -53,6 +56,7 @@ export function CommentsSheet({
   hasMore,
   loadingMore,
   onLoadMore,
+  highlightedCommentId,
 }: CommentsSheetProps) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState("");
@@ -138,7 +142,12 @@ export function CommentsSheet({
                   </li>
                 )}
               <li
-                className="rounded-2xl bg-charcoal-900/40 px-3 py-2"
+                id={`comment-${c.id}`}
+                className={cn(
+                  "rounded-2xl bg-charcoal-900/40 px-3 py-2",
+                  c.id === highlightedCommentId &&
+                    "animate-highlight-glow motion-reduce:animate-none",
+                )}
               >
                 <div className="flex items-baseline justify-between gap-2">
                   <span className="font-serif text-sm text-blush-100">

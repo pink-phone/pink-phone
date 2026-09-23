@@ -153,6 +153,7 @@ async fn pick(
             auth.user_id,
             "eveningMenu",
             Some(&code),
+            None,
             "C'est un match ce soir !".into(),
         )
         .await;

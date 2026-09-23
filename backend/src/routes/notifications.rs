@@ -170,7 +170,7 @@ async fn list_notifications(
 ) -> ApiResult<Json<Vec<NotificationEntry>>> {
     ensure_member(&state.pool, auth.user_id, space_id).await?;
     let rows: Vec<NotificationEntry> = sqlx::query_as(
-        "SELECT n.id, n.kind, n.actor_id, u.display_name AS actor_name, n.entity_id,
+        "SELECT n.id, n.kind, n.actor_id, u.display_name AS actor_name, n.entity_id, n.comment_id,
                 (n.read_at IS NOT NULL) AS read, n.created_at
          FROM notifications n
          LEFT JOIN users u ON u.id = n.actor_id
