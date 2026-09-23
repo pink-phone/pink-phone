@@ -82,6 +82,12 @@ export interface ApiPostMedia {
   viewOnce: boolean;
   /** Média éphémère déjà consommé. */
   consumed: boolean;
+  /**
+   * Dimensions d'origine, best-effort (calculées à l'upload côté backend) :
+   * `null` pour une vidéo, un HEIC/HEIF ou un média antérieur à cette colonne.
+   */
+  width: number | null;
+  height: number | null;
 }
 
 export interface ApiPost {

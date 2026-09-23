@@ -49,3 +49,32 @@ describe("SafeMedia — mute vidéo (#88)", () => {
     ).toBeInTheDocument();
   });
 });
+
+describe("SafeMedia — ratio connu avant chargement", () => {
+  it("pose le bon ratio dès le montage si width/height sont fournis, avant tout clic ni chargement", () => {
+    // `loader` ne se résout jamais dans ce test : le fichier n'est jamais
+    // téléchargé, seules les dimensions passées en props doivent déterminer le
+    // ratio (le cas réel des médias authentifiés — cf. width/height renvoyés
+    // par l'API, calculés à l'upload côté backend).
+    render(
+      <SafeMedia
+        alt="x"
+        loader={() => new Promise(() => {})}
+        width={1200}
+        height={630}
+      />,
+    );
+    const container = screen.getByRole("button", {
+      name: /maintenir pour révéler/i,
+    });
+    expect(container.style.aspectRatio).toBe(`${1200 / 630} / 1`);
+  });
+
+  it("sans width/height, pas de ratio inline (retombe sur le cadre 4:5 par défaut)", () => {
+    render(<SafeMedia alt="x" loader={() => new Promise(() => {})} />);
+    const container = screen.getByRole("button", {
+      name: /maintenir pour révéler/i,
+    });
+    expect(container.style.aspectRatio).toBe("");
+  });
+});
