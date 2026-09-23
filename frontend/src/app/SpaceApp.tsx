@@ -724,12 +724,27 @@ export function SpaceApp({
         setTab("blog");
         setHighlight(notif.entityId ? { kind: "post", id: notif.entityId } : null);
         break;
-      case "comment":
+      case "comment": {
         setTab("blog");
         setHighlight(notif.entityId ? { kind: "post", id: notif.entityId } : null);
-        if (notif.entityId) openComments(notif.entityId);
-        setHighlightedCommentId(notif.commentId ?? null);
+        // `setShowNotifications(false)` ci-dessus programme un
+        // `history.back()` DIFFÉRÉ (cleanup de useBackClose, cf. lib/
+        // useBackClose.ts) pour dépiler l'entrée d'historique du centre de
+        // notifications. Si on ouvrait CommentsSheet tout de suite, son
+        // propre useBackClose empilerait une NOUVELLE entrée par-dessus AVANT
+        // que ce back() différé ne se déclenche — celui-ci dépilerait alors
+        // la mauvaise entrée (celle de CommentsSheet, pas celle des
+        // notifications), refermant la feuille aussitôt ouverte. On laisse le
+        // tick suivant s'écouler pour que le back() du centre de
+        // notifications se termine avant de pousser une nouvelle entrée.
+        const entityId = notif.entityId;
+        const commentId = notif.commentId;
+        setTimeout(() => {
+          if (entityId) openComments(entityId);
+          setHighlightedCommentId(commentId ?? null);
+        }, 0);
         break;
+      }
       case "challenge":
         setTab("challenges");
         setHighlight(
