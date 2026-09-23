@@ -15,7 +15,7 @@ use little_exif::metadata::Metadata as ExifMetadata;
 use rand::rngs::SysRng;
 use rand::TryRng;
 use serde::Serialize;
-use std::io::SeekFrom;
+use std::io::{Cursor, SeekFrom};
 use std::path::PathBuf;
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncSeekExt};
@@ -161,9 +161,7 @@ fn strip_metadata(bytes: &[u8], mime: &str) -> Option<Vec<u8>> {
     let file_type = exif_file_type(mime)?;
     let mut buffer = bytes.to_vec();
 
-    let orientation = ExifMetadata::new_from_vec(&buffer, file_type)
-        .ok()
-        .and_then(|m| m.get_tag(&ExifTag::Orientation(Vec::new())).next().cloned());
+    let orientation = read_orientation(&buffer, file_type);
 
     ExifMetadata::clear_metadata(&mut buffer, file_type).ok()?;
 
@@ -174,6 +172,48 @@ fn strip_metadata(bytes: &[u8], mime: &str) -> Option<Vec<u8>> {
     }
 
     Some(buffer)
+}
+
+/// Lit le tag EXIF `Orientation`, si présent (best-effort : `None` aussi bien en
+/// son absence qu'en cas d'échec de lecture). Partagé par `strip_metadata` (le
+/// préserver) et `image_dimensions` (corriger le sens largeur/hauteur ci-dessous).
+fn read_orientation(bytes: &[u8], file_type: FileExtension) -> Option<ExifTag> {
+    ExifMetadata::new_from_vec(&bytes.to_vec(), file_type)
+        .ok()
+        .and_then(|m| m.get_tag(&ExifTag::Orientation(Vec::new())).next().cloned())
+}
+
+/// Dimensions (largeur, hauteur) d'une image à l'upload, calculées une seule fois
+/// pour éviter au frontend d'attendre le premier chargement du fichier avant de
+/// poser le bon cadre (médias authentifiés chargés paresseusement, cf. SafeMedia
+/// côté frontend). Le format est deviné depuis les octets (magic bytes), pas
+/// depuis le Content-Type déclaré. Lecture d'EN-TÊTE seule pour les formats
+/// couverts (pas de décodage pixel complet) ; best-effort et jamais bloquant :
+/// `None` pour une vidéo, un HEIC/HEIF (non supporté par ce crate) ou tout échec
+/// de lecture — la carte retombe alors sur un ratio par défaut côté frontend.
+///
+/// L'EXIF `Orientation` 5/6/7/8 (rotation 90°/270°) inverse largeur et hauteur :
+/// ces valeurs, telles que codées dans l'en-tête du fichier, ne correspondent
+/// PAS à ce que `naturalWidth`/`naturalHeight` renverront dans le navigateur
+/// (qui applique cette rotation à l'affichage) — sans ce correctif, une photo
+/// portrait d'iPhone recevrait un placeholder au ratio paysage, exactement le
+/// bug qu'on cherche à éviter.
+fn image_dimensions(bytes: &[u8], mime: &str) -> Option<(i32, i32)> {
+    let (w, h) = image::ImageReader::new(Cursor::new(bytes))
+        .with_guessed_format()
+        .ok()?
+        .into_dimensions()
+        .ok()?;
+    let (mut w, mut h) = (w as i32, h as i32);
+
+    if let Some(file_type) = exif_file_type(mime) {
+        if let Some(ExifTag::Orientation(values)) = read_orientation(bytes, file_type) {
+            if matches!(values.first(), Some(5..=8)) {
+                std::mem::swap(&mut w, &mut h);
+            }
+        }
+    }
+    Some((w, h))
 }
 
 /// Plage `Range` demandée, bornes inclusives.
@@ -335,6 +375,11 @@ async fn upload(
         }
     };
 
+    // Dimensions best-effort (cf. `image_dimensions`) : calculées sur les octets EN
+    // CLAIR, avant un éventuel chiffrement ci-dessous qui les rendrait illisibles
+    // comme image. Lecture d'en-tête, négligeable en coût → pas de spawn_blocking.
+    let (width, height) = image_dimensions(&bytes, &mime).unzip();
+
     // Chiffrement au repos si une clé est configurée (sinon stockage en clair).
     // AES-GCM sur un fichier (jusqu'à 100 Mo) est CPU-bound → `spawn_blocking`
     // pour ne pas bloquer un thread du runtime async (RUST-02).
@@ -358,8 +403,8 @@ async fn upload(
         .map_err(|_| ApiError::Internal)?;
 
     let id: Uuid = sqlx::query_scalar(
-        "INSERT INTO media (space_id, owner_id, storage_key, mime, view_once, encrypted)
-         VALUES ($1, $2, $3, $4, $5, $6) RETURNING id",
+        "INSERT INTO media (space_id, owner_id, storage_key, mime, view_once, encrypted, width, height)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id",
     )
     .bind(space_id)
     .bind(auth.user_id)
@@ -367,6 +412,8 @@ async fn upload(
     .bind(&mime)
     .bind(view_once)
     .bind(encrypted)
+    .bind(width)
+    .bind(height)
     .fetch_one(&state.pool)
     .await?;
 
@@ -875,6 +922,59 @@ mod tests {
             .ok()
             .is_some_and(|m| m.get_tag(&ExifTag::Orientation(vec![])).next().is_some());
         assert!(!has_orientation);
+    }
+
+    /// Fixture JPEG rectangulaire (largeur ≠ hauteur) : une image carrée ne
+    /// révélerait pas un bug d'inversion largeur/hauteur.
+    fn fixture_jpeg_rectangulaire(orientation: Option<u16>) -> Vec<u8> {
+        let img = image::RgbImage::from_pixel(6, 3, image::Rgb([10, 20, 30]));
+        let mut bytes = Vec::new();
+        image::DynamicImage::ImageRgb8(img)
+            .write_to(&mut std::io::Cursor::new(&mut bytes), image::ImageFormat::Jpeg)
+            .expect("encodage JPEG de test");
+        if let Some(o) = orientation {
+            let mut metadata = ExifMetadata::new();
+            metadata.set_tag(ExifTag::Orientation(vec![o]));
+            metadata
+                .write_to_vec(&mut bytes, FileExtension::JPEG)
+                .expect("écriture EXIF de test");
+        }
+        bytes
+    }
+
+    #[test]
+    fn image_dimensions_sans_orientation() {
+        let bytes = fixture_jpeg_rectangulaire(None);
+        assert_eq!(image_dimensions(&bytes, "image/jpeg"), Some((6, 3)));
+    }
+
+    #[test]
+    fn image_dimensions_normale_non_inversee() {
+        // Orientation 1 = normale : pas de rotation, pas d'inversion.
+        let bytes = fixture_jpeg_rectangulaire(Some(1));
+        assert_eq!(image_dimensions(&bytes, "image/jpeg"), Some((6, 3)));
+    }
+
+    #[test]
+    fn image_dimensions_inversees_si_rotation_90_ou_270() {
+        // 6 = rotation 90° CW, 8 = rotation 90° CCW : toutes deux inversent
+        // largeur/hauteur pour correspondre à naturalWidth/naturalHeight côté
+        // navigateur (qui applique la rotation EXIF à l'affichage) — sinon une
+        // photo portrait d'iPhone recevrait un placeholder au ratio paysage.
+        for orientation in [6, 8] {
+            let bytes = fixture_jpeg_rectangulaire(Some(orientation));
+            assert_eq!(
+                image_dimensions(&bytes, "image/jpeg"),
+                Some((3, 6)),
+                "orientation {orientation}"
+            );
+        }
+    }
+
+    #[test]
+    fn image_dimensions_video_ou_format_illisible_renvoie_none() {
+        assert_eq!(image_dimensions(b"pas une image", "video/mp4"), None);
+        assert_eq!(image_dimensions(b"pas une image non plus", "image/heic"), None);
     }
 
     #[test]

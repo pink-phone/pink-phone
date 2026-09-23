@@ -26,6 +26,13 @@ export interface BlogPostMedia {
   consumed?: boolean;
   /** Le média est téléchargeable (#78) — affiche un bouton de téléchargement. */
   downloadable?: boolean;
+  /**
+   * Dimensions d'origine connues à l'avance (best-effort, API) : permet à
+   * SafeMedia de poser le bon ratio avant même le premier chargement du
+   * fichier. Absent si non calculées côté backend (vidéo, HEIC/HEIF…).
+   */
+  width?: number;
+  height?: number;
 }
 
 export interface BlogPostProps {
