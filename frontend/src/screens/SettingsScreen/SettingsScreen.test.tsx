@@ -50,7 +50,7 @@ describe("SettingsScreen — Notes de version (#90)", () => {
       screen.getByRole("button", { name: /Notes de version/i }),
     );
     // La feuille affiche la version la plus récente (donnée bundlée).
-    expect(screen.getByText("Galeries & partage")).toBeInTheDocument();
+    expect(screen.getByText("Centre de notifications")).toBeInTheDocument();
     // La pastille a disparu (snapshot localStorage marqué vu).
     expect(screen.queryByText("Nouveautés")).toBeNull();
   });
