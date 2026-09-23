@@ -1649,8 +1649,14 @@ async fn backfill_0036_relie_les_notifications_au_timestamp_legerement_decale(po
     .fetch_one(&pool)
     .await
     .unwrap();
+    // Horodatage nettement plus ancien que `post` (défini juste au-dessus) :
+    // sans cet écart, les deux posts d'Alice tomberaient tous deux "proches"
+    // de now() et le "plus proche match" deviendrait ambigu entre les deux —
+    // ce n'est pas ce que ce test veut vérifier (voir plus bas, la notif
+    // "post" doit se relier à `post`, pas à `comment_post`).
     let comment_post: Uuid = sqlx::query_scalar(
-        "INSERT INTO posts (space_id, author_id, body, draft) VALUES ($1, $2, 'autre récit', false) RETURNING id",
+        "INSERT INTO posts (space_id, author_id, body, draft, created_at)
+         VALUES ($1, $2, 'autre récit', false, now() - interval '1 hour') RETURNING id",
     )
     .bind(space)
     .bind(alice)
