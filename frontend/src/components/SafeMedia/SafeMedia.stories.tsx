@@ -90,6 +90,38 @@ export const Vidéo: Story = {
   },
 };
 
+export const RatioPaysage: Story = {
+  name: "Ratio naturel — paysage",
+  args: {
+    src: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=1200&q=70",
+    alt: "Photo paysage",
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Le cadre épouse le ratio d'origine (large ici) au lieu du 4:5 fixe — plus de recadrage qui donnait une impression de zoom.",
+      },
+    },
+  },
+};
+
+export const RatioPortraitTrèsHaut: Story = {
+  name: "Ratio naturel — portrait très haut (borné)",
+  args: {
+    src: "https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=500&h=1400&q=70&fit=crop",
+    alt: "Photo portrait très haute",
+  },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Un format très haut (ex. photo iPhone recadrée serrée) reste borné par `max-h-[70dvh]` pour ne pas envahir tout l'écran.",
+      },
+    },
+  },
+};
+
 export const AuthentifiéLazy: Story = {
   name: "Authentifié (chargement paresseux)",
   args: {
