@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeAll } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PostComposer } from "./PostComposer";
 
@@ -142,6 +142,32 @@ describe("PostComposer", () => {
     await userEvent.click(screen.getByRole("button", { name: /^publier$/i }));
     expect(onSubmit.mock.calls[0][0].media).toEqual([
       { kind: "existing", id: "m2" },
+    ]);
+  });
+
+  it("sélecteur de fichiers : les fichiers choisis sont joints (la FileList vivante est vidée après onChange)", async () => {
+    const onSubmit = vi.fn();
+    const { container } = render(<PostComposer onSubmit={onSubmit} />);
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+    const a = new File(["a"], "a.jpg", { type: "image/jpeg" });
+    const b = new File(["b"], "b.mp4", { type: "video/mp4" });
+    // Comme un vrai navigateur : `input.files` est une liste VIVANTE, vidée dès
+    // qu'on remet `value = ""` (userEvent.upload la fige, donc ne reproduit pas).
+    await userEvent.type(screen.getAllByRole("textbox")[0], "abc");
+    const live: File[] = [a, b];
+    Object.defineProperty(input, "files", { get: () => live, configurable: true });
+    Object.defineProperty(input, "value", {
+      get: () => "",
+      set: () => live.splice(0, live.length),
+      configurable: true,
+    });
+    fireEvent.change(input);
+    expect(screen.getByText("a.jpg")).toBeInTheDocument();
+    expect(screen.getByText("b.mp4")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /^publier$/i }));
+    expect(onSubmit.mock.calls[0][0].media).toEqual([
+      { kind: "new", file: a },
+      { kind: "new", file: b },
     ]);
   });
 
