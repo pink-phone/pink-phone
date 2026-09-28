@@ -109,9 +109,13 @@ export function PostComposer({
 
   const addFiles = (files: FileList | null) => {
     if (!files || files.length === 0) return;
+    // `FileList` est VIVANTE : l'input est vidé juste après (`value = ""`), alors que
+    // l'updater ci-dessous s'exécute plus tard (React ne l'évalue pas toujours
+    // immédiatement) → on la copie tout de suite, sinon la sélection est perdue.
+    const picked = Array.from(files);
     setItems((prev) => {
       const room = MAX_MEDIA - prev.length;
-      const next = Array.from(files)
+      const next = picked
         .slice(0, Math.max(0, room))
         .map<Item>((file) => ({
           kind: "new",
