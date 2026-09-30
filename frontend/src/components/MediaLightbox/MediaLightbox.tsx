@@ -3,6 +3,7 @@ import {
   useRef,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
+import { createPortal } from "react-dom";
 import { useTranslation } from "react-i18next";
 import { SafeMedia } from "../SafeMedia/SafeMedia";
 import type { BlogPostMedia } from "../BlogPost/BlogPost";
@@ -87,7 +88,11 @@ export function MediaLightbox({
   const current = media[index];
   if (!current) return null;
 
-  return (
+  // Portail vers document.body (même pattern que ContextMenu) : un `fixed`
+  // rendu au fil de l'arbre peut se retrouver contenu par un ancêtre
+  // transformé (animations de page/écran) et ne plus couvrir tout le
+  // viewport — le portail garantit un plein écran réel.
+  return createPortal(
     <div
       ref={panelRef}
       tabIndex={-1}
@@ -166,6 +171,7 @@ export function MediaLightbox({
           ))}
         </div>
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }
