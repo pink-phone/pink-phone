@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, act } from "@testing-library/react";
 import type { Space, UserPublic, Notice } from "../api/types";
 
@@ -48,19 +48,28 @@ import * as api from "../api/client";
 import { SpaceApp } from "./SpaceApp";
 
 // localStorage est indisponible sous Node dans cet env de test → stub mémoire
-// (SpaceApp lit `pp_hot_anim` à l'init).
-const lsStore: Record<string, string> = {};
-vi.stubGlobal("localStorage", {
-  getItem: (k: string) => lsStore[k] ?? null,
-  setItem: (k: string, v: string) => {
-    lsStore[k] = String(v);
-  },
-  removeItem: (k: string) => {
-    delete lsStore[k];
-  },
-  clear: () => {
-    for (const k of Object.keys(lsStore)) delete lsStore[k];
-  },
+// (SpaceApp lit `pp_hot_anim` à l'init). beforeEach/afterEach (pas top-level) :
+// avec `isolate: false` (vitest.config.ts), un stub non restauré fuit vers les
+// fichiers suivants du même worker.
+let lsStore: Record<string, string>;
+beforeEach(() => {
+  lsStore = {};
+  vi.stubGlobal("localStorage", {
+    getItem: (k: string) => lsStore[k] ?? null,
+    setItem: (k: string, v: string) => {
+      lsStore[k] = String(v);
+    },
+    removeItem: (k: string) => {
+      delete lsStore[k];
+    },
+    clear: () => {
+      for (const k of Object.keys(lsStore)) delete lsStore[k];
+    },
+  });
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 const space: Space = {
