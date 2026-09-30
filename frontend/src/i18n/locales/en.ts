@@ -395,5 +395,12 @@ export const en: Resources = {
     download: "Download media",
     mute: "Mute",
     unmute: "Unmute",
+    expand: "View fullscreen",
+  },
+  mediaLightbox: {
+    title: "Fullscreen media",
+    counter: "{{current}} / {{total}}",
+    previous: "Previous media",
+    next: "Next media",
   },
 };
