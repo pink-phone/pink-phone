@@ -7,6 +7,15 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: "jsdom",
+    // jsdom recréé par fichier représente ~55-60% du temps de la suite
+    // (mesuré, cf. sortie de vitest). `pool: 'vmThreads'` évite ça mais casse
+    // `crypto.subtle` sous jsdom (contexte vm incomplet — cf. src/lib/pin.ts,
+    // testé et écarté) ; `isolate: false` réutilise le jsdom du worker sans
+    // ce problème, au prix d'un état (modules/mocks) partagé entre fichiers
+    // d'un même worker — les tests sont écrits avec des mocks locaux au
+    // fichier (vi.mock au niveau module + reset via setup.ts), donc sans
+    // risque connu de fuite.
+    isolate: false,
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
     css: false,

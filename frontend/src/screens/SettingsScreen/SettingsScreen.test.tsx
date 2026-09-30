@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SettingsScreen } from "./SettingsScreen";
@@ -27,11 +27,21 @@ vi.mock("../../lib/biometric", () => ({
 }));
 
 // Les notes de version (#90) lisent localStorage directement (indispo sous Node 26+).
-const store = new Map<string, string>();
-vi.stubGlobal("localStorage", {
-  getItem: (k: string) => store.get(k) ?? null,
-  setItem: (k: string, v: string) => void store.set(k, v),
-  removeItem: (k: string) => void store.delete(k),
+// beforeEach/afterEach (pas top-level) : avec `isolate: false`
+// (vitest.config.ts), un stub non restauré fuit vers les fichiers suivants du
+// même worker.
+let store: Map<string, string>;
+beforeEach(() => {
+  store = new Map<string, string>();
+  vi.stubGlobal("localStorage", {
+    getItem: (k: string) => store.get(k) ?? null,
+    setItem: (k: string, v: string) => void store.set(k, v),
+    removeItem: (k: string) => void store.delete(k),
+  });
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 const base = {
@@ -41,7 +51,6 @@ const base = {
 
 describe("SettingsScreen — Notes de version (#90)", () => {
   it("pastille « Nouveautés » visible, puis ouverture des notes + pastille disparue", async () => {
-    store.clear();
     render(<SettingsScreen {...base} />);
     // Pastille « Nouveautés » présente tant que la version courante n'est pas vue.
     expect(screen.getByText("Nouveautés")).toBeInTheDocument();

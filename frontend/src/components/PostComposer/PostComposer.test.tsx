@@ -1,15 +1,23 @@
-import { describe, it, expect, vi, beforeAll } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PostComposer } from "./PostComposer";
 
 // jsdom n'implémente pas createObjectURL (aperçu d'un fichier joint).
-beforeAll(() => {
+// beforeEach/afterEach (pas beforeAll) : avec `isolate: false`
+// (vitest.config.ts), le global est partagé entre fichiers d'un même worker —
+// sans restauration explicite, ce stub fuyait vers les fichiers suivants
+// ("URL is not a constructor").
+beforeEach(() => {
   vi.stubGlobal("URL", {
     ...URL,
     createObjectURL: () => "blob:preview",
     revokeObjectURL: () => {},
   });
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe("PostComposer", () => {
