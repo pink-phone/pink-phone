@@ -58,19 +58,12 @@ export function MediaLightbox({
   navRef.current = { index, length: media.length, onIndexChange };
   const panelRef = useRef<HTMLDivElement>(null);
   const restoreRef = useRef<HTMLElement | null>(null);
-  const stageRef = useRef<HTMLDivElement>(null);
 
   const [ratio, setRatio] = useState<number | null>(null);
   const [rotated, setRotated] = useState(false);
   // Repli (onglet navigateur, pas PWA installée) : le viewport peut être
   // réellement en paysage — dans ce cas pas de rotation manuelle superposée.
   const [viewportLandscape, setViewportLandscape] = useState(false);
-  // Zone centrale mesurée (entre la barre du haut et les points du bas) :
-  // sert à dimensionner le cadre pivoté pour qu'il remplisse l'espace réel
-  // plutôt que de deviner via 100dvh/100dvw (qui inclut header/footer/insets).
-  const [stageSize, setStageSize] = useState<{ width: number; height: number } | null>(
-    null,
-  );
 
   // Changement de média : l'ancien ratio ne s'applique plus (`SafeMedia`
   // signale le nouveau via `onRatioChange` dès son montage), et la rotation
@@ -86,18 +79,6 @@ export function MediaLightbox({
     update();
     mq.addEventListener("change", update);
     return () => mq.removeEventListener("change", update);
-  }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    const el = stageRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver((entries) => {
-      const { width, height } = entries[0].contentRect;
-      setStageSize({ width, height });
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
   }, [open]);
 
   useEffect(() => {
@@ -159,53 +140,21 @@ export function MediaLightbox({
       aria-modal="true"
       aria-label={t("mediaLightbox.title")}
       className={cn(
-        "fixed inset-0 z-[70] flex flex-col bg-charcoal-900/95 outline-hidden",
+        "fixed inset-0 z-[70] overflow-hidden bg-charcoal-900/95 outline-hidden",
         "animate-fade-in motion-reduce:animate-none",
         className,
       )}
     >
-      <div className="grid grid-cols-[44px_1fr_44px] items-center gap-3 px-4 pt-[calc(0.75rem+env(safe-area-inset-top))] pb-2">
-        <button
-          type="button"
-          onClick={() => setRotated((r) => !r)}
-          aria-label={t("mediaLightbox.rotate")}
-          aria-pressed={rotated}
-          className={cn(
-            "inline-flex h-11 w-11 items-center justify-center rounded-full text-taupe-200 transition-opacity duration-200 ease-felt hover:text-blush-100",
-            rotateAvailable ? "opacity-100" : "pointer-events-none opacity-0",
-          )}
-        >
-          <span aria-hidden>⟲</span>
-        </button>
-        <span className="text-center text-xs text-taupe-300">
-          {media.length > 1
-            ? t("mediaLightbox.counter", { current: index + 1, total: media.length })
-            : null}
-        </span>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label={t("common.close")}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-full text-taupe-200 transition-colors duration-300 ease-felt hover:text-blush-100"
-        >
-          ✕
-        </button>
-      </div>
-
-      <div
-        ref={stageRef}
-        className="relative flex flex-1 items-center justify-center overflow-hidden px-2 pb-[calc(1rem+env(safe-area-inset-bottom))]"
-      >
+      {/* Couche média plein écran (dimensions viewport pures — pas de mesure
+          JS d'une sous-zone flex : `dvh`/`dvw` s'ajustent nativement à la
+          barre d'adresse mobile, contrairement à une mesure figée trop tôt). */}
+      <div className="absolute inset-0 flex items-center justify-center">
         <div
           className={cn(
             "transition-transform duration-300 ease-felt",
             applyRotation && "-rotate-90",
           )}
-          style={
-            applyRotation && stageSize
-              ? { width: stageSize.height, height: stageSize.width }
-              : { width: "100%", height: "100%" }
-          }
+          style={applyRotation ? { width: "100dvh", height: "100dvw" } : { width: "100%", height: "100%" }}
         >
           <SafeMedia
             // Nouvelle instance à chaque média : repart flouté, chargement propre.
@@ -244,8 +193,43 @@ export function MediaLightbox({
         )}
       </div>
 
+      {/* Barres en overlay (au-dessus du média plein écran) — dégradé pour
+          rester lisibles sur un média clair sous les boutons. */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-charcoal-900/80 to-transparent pb-8">
+        <div className="pointer-events-auto grid grid-cols-[44px_1fr_44px] items-center gap-3 px-4 pt-[calc(0.75rem+env(safe-area-inset-top))] pb-2">
+          <button
+            type="button"
+            onClick={() => setRotated((r) => !r)}
+            aria-label={t("mediaLightbox.rotate")}
+            aria-pressed={rotated}
+            className={cn(
+              "inline-flex h-11 w-11 items-center justify-center rounded-full text-taupe-200 transition-opacity duration-200 ease-felt hover:text-blush-100",
+              rotateAvailable ? "opacity-100" : "pointer-events-none opacity-0",
+            )}
+          >
+            <span aria-hidden>⟲</span>
+          </button>
+          <span className="text-center text-xs text-taupe-300">
+            {media.length > 1
+              ? t("mediaLightbox.counter", { current: index + 1, total: media.length })
+              : null}
+          </span>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t("common.close")}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full text-taupe-200 transition-colors duration-300 ease-felt hover:text-blush-100"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+
       {media.length > 1 && (
-        <div className="flex items-center justify-center gap-1.5 pb-3" aria-hidden>
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-center gap-1.5 bg-gradient-to-t from-charcoal-900/80 to-transparent pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-8"
+          aria-hidden
+        >
           {media.map((_, i) => (
             <span
               key={i}
