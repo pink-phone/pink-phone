@@ -102,7 +102,12 @@ describe("SpaceApp — wiring des notices (#84/#85)", () => {
       await screen.findByText(/Camille a rejoint le salon/i),
     ).toBeInTheDocument();
     // Snapshot figé null à l'arrivée → la notice s'affiche, ET on marque vu.
-    expect(api.markSeen).toHaveBeenCalledWith("s1", "notices");
+    // markSeen("notices") est gated sur `ready` (chargement groupé complet),
+    // une condition distincte de "le texte des notices est affiché" → attendre
+    // au lieu d'asserter en synchrone évite la course entre les deux.
+    await waitFor(() =>
+      expect(api.markSeen).toHaveBeenCalledWith("s1", "notices"),
+    );
   });
 
   it("un événement WS 'space' refetch les notices", async () => {
