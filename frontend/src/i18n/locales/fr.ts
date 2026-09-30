@@ -395,6 +395,13 @@ export const fr = {
     download: "Télécharger le média",
     mute: "Couper le son",
     unmute: "Activer le son",
+    expand: "Voir en plein écran",
+  },
+  mediaLightbox: {
+    title: "Média en plein écran",
+    counter: "{{current}} / {{total}}",
+    previous: "Média précédent",
+    next: "Média suivant",
   },
 };
 

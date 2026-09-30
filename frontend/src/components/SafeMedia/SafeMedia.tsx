@@ -44,6 +44,22 @@ export interface SafeMediaProps {
   height?: number;
   /** Appelé la première fois que le média est révélé. */
   onReveal?: () => void;
+  /**
+   * Agrandissement plein écran (#xx) : affiche un bouton dédié qui ouvre une
+   * vue plein écran (voir `MediaLightbox`), indépendant du geste de révélation
+   * (pas de hold requis pour l'ouvrir — un seul pointeur ne peut pas tenir la
+   * carte ET taper un bouton en même temps). Jamais affiché sur un média
+   * éphémère (`viewOnce`) pour ne pas dupliquer sa logique de consommation
+   * entre deux instances de `SafeMedia`, ni en mode `fullscreen` lui-même.
+   */
+  onExpand?: () => void;
+  /**
+   * Rendu à l'intérieur d'une `MediaLightbox` : remplit son conteneur au lieu
+   * du cadre carte (4:5, ombre, anneau), et cadre le média entier (`object-contain`)
+   * plutôt que de le recadrer (`object-cover`). Le geste de révélation reste
+   * identique — seule la présentation change.
+   */
+  fullscreen?: boolean;
   className?: string;
 }
 
@@ -64,6 +80,8 @@ export function SafeMedia({
   width,
   height,
   onReveal,
+  onExpand,
+  fullscreen = false,
   className,
 }: SafeMediaProps) {
   const { t } = useTranslation();
@@ -203,17 +221,21 @@ export function SafeMedia({
       }
       aria-pressed={isRevealed}
       className={cn(
-        "relative mx-auto aspect-[4/5] max-h-[70dvh] w-full max-w-sm select-none overflow-hidden rounded-3xl shadow-felt outline-hidden",
+        "relative select-none overflow-hidden outline-hidden",
         // iOS : neutralise le menu contextuel natif (Copier/Enregistrer) du press-and-hold.
         "[-webkit-touch-callout:none] [-webkit-user-select:none]",
-        "ring-1 ring-charcoal-600/60 focus-visible:ring-2 focus-visible:ring-spice-500",
+        fullscreen
+          ? "h-full w-full max-h-full max-w-full"
+          : "mx-auto aspect-[4/5] max-h-[70dvh] w-full max-w-sm rounded-3xl shadow-felt ring-1 ring-charcoal-600/60 focus-visible:ring-2 focus-visible:ring-spice-500",
         !isConsumed && "cursor-pointer",
         className,
       )}
       // Une fois le ratio naturel connu, il prime sur le `aspect-[4/5]` de secours
       // (style inline > classe) : le cadre épouse la photo/vidéo au lieu de la
-      // recadrer, `max-h-[70dvh]` bornant juste les formats très hauts.
-      style={ratio ? { aspectRatio: ratio } : undefined}
+      // recadrer, `max-h-[70dvh]` bornant juste les formats très hauts. En
+      // `fullscreen`, le conteneur remplit la lightbox et `object-contain`
+      // fait le letterboxing — forcer l'aspect-ratio ici le rétrécirait plutôt.
+      style={!fullscreen && ratio ? { aspectRatio: ratio } : undefined}
       onPointerDown={reveal}
       onPointerUp={hide}
       onPointerLeave={hide}
@@ -245,7 +267,8 @@ export function SafeMedia({
               if (v.videoWidth && v.videoHeight) setRatio(v.videoWidth / v.videoHeight);
             }}
             className={cn(
-              "h-full w-full object-cover transition-all duration-500 ease-felt",
+              "h-full w-full transition-all duration-500 ease-felt",
+              fullscreen ? "object-contain" : "object-cover",
               "pointer-events-none [-webkit-touch-callout:none] [-webkit-user-select:none]",
               isRevealed ? "scale-100 blur-0" : "scale-110 blur-2xl",
             )}
@@ -262,7 +285,8 @@ export function SafeMedia({
               }
             }}
             className={cn(
-              "h-full w-full object-cover transition-all duration-500 ease-felt",
+              "h-full w-full transition-all duration-500 ease-felt",
+              fullscreen ? "object-contain" : "object-cover",
               "pointer-events-none [-webkit-touch-callout:none] [-webkit-user-select:none]",
               isRevealed ? "scale-100 blur-0" : "scale-110 blur-2xl",
             )}
@@ -301,6 +325,27 @@ export function SafeMedia({
         <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-charcoal-900/60 p-4 text-center text-sm text-blush-200">
           {t("safeMedia.unavailable")}
         </div>
+      )}
+
+      {/* Bouton « agrandir » (#xx) — ouvre la lightbox plein écran. Indépendant
+          du hold (pas de reveal ici, juste une navigation) : jamais sur un
+          média éphémère (éviterait de dupliquer la consommation entre deux
+          SafeMedia), jamais à l'intérieur d'une lightbox déjà ouverte. */}
+      {onExpand && !fullscreen && !viewOnce && !isConsumed && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onExpand();
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          aria-label={t("safeMedia.expand")}
+          className="absolute top-1.5 right-1.5 z-10 flex h-11 w-11 items-center justify-center rounded-full bg-charcoal-900/70 text-lg leading-none text-blush-100 shadow-felt-sm backdrop-blur-xs transition-colors duration-200 ease-felt hover:bg-charcoal-900/90 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500"
+        >
+          <span aria-hidden className="block leading-none">
+            ⛶
+          </span>
+        </button>
       )}
 
       {/* Bouton mute/unmute des vidéos (#88) — muet par défaut. stopPropagation
