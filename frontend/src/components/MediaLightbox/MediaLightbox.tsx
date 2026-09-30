@@ -1,6 +1,7 @@
 import {
   useEffect,
   useRef,
+  useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { createPortal } from "react-dom";
@@ -30,6 +31,13 @@ export interface MediaLightboxProps {
  * toggle. Navigation entre médias via des boutons prev/next distincts du
  * média (pas de swipe superposé dessus : un geste de navigation démarré sur
  * `SafeMedia` armerait sa révélation dès `onPointerDown`).
+ *
+ * Médias au format paysage : jamais de rotation automatique (letterbox par
+ * défaut, cf. le verrou `orientation: "portrait"` du manifest PWA — tourner
+ * une tête automatiquement serait désorientant). Un bouton de rotation
+ * manuel, toujours monté (visibilité en opacité, jamais montage/démontage,
+ * pour ne pas faire sauter la barre du haut en changeant de média), permet
+ * de pivoter -90° dans un sens fixe.
  */
 export function MediaLightbox({
   open,
@@ -40,6 +48,8 @@ export function MediaLightbox({
   className,
 }: MediaLightboxProps) {
   const { t } = useTranslation();
+  const current = media[index];
+
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   // Lu par le handler Échap/flèches (abonné une seule fois par ouverture,
@@ -48,6 +58,47 @@ export function MediaLightbox({
   navRef.current = { index, length: media.length, onIndexChange };
   const panelRef = useRef<HTMLDivElement>(null);
   const restoreRef = useRef<HTMLElement | null>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
+
+  const [ratio, setRatio] = useState<number | null>(null);
+  const [rotated, setRotated] = useState(false);
+  // Repli (onglet navigateur, pas PWA installée) : le viewport peut être
+  // réellement en paysage — dans ce cas pas de rotation manuelle superposée.
+  const [viewportLandscape, setViewportLandscape] = useState(false);
+  // Zone centrale mesurée (entre la barre du haut et les points du bas) :
+  // sert à dimensionner le cadre pivoté pour qu'il remplisse l'espace réel
+  // plutôt que de deviner via 100dvh/100dvw (qui inclut header/footer/insets).
+  const [stageSize, setStageSize] = useState<{ width: number; height: number } | null>(
+    null,
+  );
+
+  // Changement de média : l'ancien ratio ne s'applique plus (`SafeMedia`
+  // signale le nouveau via `onRatioChange` dès son montage), et la rotation
+  // manuelle ne doit jamais survivre d'un média à l'autre.
+  useEffect(() => {
+    setRotated(false);
+  }, [index]);
+
+  useEffect(() => {
+    if (!open) return;
+    const mq = window.matchMedia("(orientation: landscape)");
+    const update = () => setViewportLandscape(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const el = stageRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver((entries) => {
+      const { width, height } = entries[0].contentRect;
+      setStageSize({ width, height });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -85,8 +136,15 @@ export function MediaLightbox({
   };
 
   if (!open) return null;
-  const current = media[index];
   if (!current) return null;
+
+  const isLandscape = ratio !== null && ratio > 1;
+  // Bouton dispo seulement si le média est paysage ET que le viewport réel
+  // ne l'est pas déjà (repli onglet navigateur) — mais toujours MONTÉ (juste
+  // invisible) pour ne jamais faire sauter la barre du haut en changeant de
+  // média (cf. avis ui-designer).
+  const rotateAvailable = isLandscape && !viewportLandscape;
+  const applyRotation = rotated && rotateAvailable;
 
   // Portail vers document.body (même pattern que ContextMenu) : un `fixed`
   // rendu au fil de l'arbre peut se retrouver contenu par un ancêtre
@@ -106,8 +164,20 @@ export function MediaLightbox({
         className,
       )}
     >
-      <div className="flex items-center justify-between gap-3 px-4 pt-[calc(0.75rem+env(safe-area-inset-top))] pb-2">
-        <span className="text-xs text-taupe-300">
+      <div className="grid grid-cols-[44px_1fr_44px] items-center gap-3 px-4 pt-[calc(0.75rem+env(safe-area-inset-top))] pb-2">
+        <button
+          type="button"
+          onClick={() => setRotated((r) => !r)}
+          aria-label={t("mediaLightbox.rotate")}
+          aria-pressed={rotated}
+          className={cn(
+            "inline-flex h-11 w-11 items-center justify-center rounded-full text-taupe-200 transition-opacity duration-200 ease-felt hover:text-blush-100",
+            rotateAvailable ? "opacity-100" : "pointer-events-none opacity-0",
+          )}
+        >
+          <span aria-hidden>⟲</span>
+        </button>
+        <span className="text-center text-xs text-taupe-300">
           {media.length > 1
             ? t("mediaLightbox.counter", { current: index + 1, total: media.length })
             : null}
@@ -122,19 +192,35 @@ export function MediaLightbox({
         </button>
       </div>
 
-      <div className="relative flex flex-1 items-center justify-center overflow-hidden px-2 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-        <SafeMedia
-          // Nouvelle instance à chaque média : repart flouté, chargement propre.
-          key={index}
-          src={current.src}
-          loader={current.loader}
-          kind={current.kind}
-          alt={current.alt}
-          downloadable={current.downloadable}
-          width={current.width}
-          height={current.height}
-          fullscreen
-        />
+      <div
+        ref={stageRef}
+        className="relative flex flex-1 items-center justify-center overflow-hidden px-2 pb-[calc(1rem+env(safe-area-inset-bottom))]"
+      >
+        <div
+          className={cn(
+            "transition-transform duration-300 ease-felt",
+            applyRotation && "-rotate-90",
+          )}
+          style={
+            applyRotation && stageSize
+              ? { width: stageSize.height, height: stageSize.width }
+              : { width: "100%", height: "100%" }
+          }
+        >
+          <SafeMedia
+            // Nouvelle instance à chaque média : repart flouté, chargement propre.
+            key={index}
+            src={current.src}
+            loader={current.loader}
+            kind={current.kind}
+            alt={current.alt}
+            downloadable={current.downloadable}
+            width={current.width}
+            height={current.height}
+            fullscreen
+            onRatioChange={setRatio}
+          />
+        </div>
 
         {index > 0 && (
           <button

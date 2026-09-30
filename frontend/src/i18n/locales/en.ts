@@ -547,5 +547,6 @@ export const en: Resources = {
     counter: "{{current}} / {{total}}",
     previous: "Previous media",
     next: "Next media",
+    rotate: "Rotate media",
   },
 };

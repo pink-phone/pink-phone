@@ -60,6 +60,13 @@ export interface SafeMediaProps {
    * identique — seule la présentation change.
    */
   fullscreen?: boolean;
+  /**
+   * Ratio naturel (largeur/hauteur) du média, dès qu'il est connu (props
+   * `width`/`height`, ou chargement réel du fichier) — permet à l'appelant
+   * (ex. `MediaLightbox`) de savoir si le média est au format paysage sans
+   * dupliquer cet état.
+   */
+  onRatioChange?: (ratio: number | null) => void;
   className?: string;
 }
 
@@ -82,6 +89,7 @@ export function SafeMedia({
   onReveal,
   onExpand,
   fullscreen = false,
+  onRatioChange,
   className,
 }: SafeMediaProps) {
   const { t } = useTranslation();
@@ -117,6 +125,16 @@ export function SafeMedia({
     },
     [],
   );
+
+  // Signale le ratio à l'appelant (ex. `MediaLightbox` pour le bouton de
+  // rotation) dès qu'il est connu ou change — y compris la valeur initiale.
+  // `onRatioChange` est souvent une lambda inline recréée à chaque rendu du
+  // parent : on ne réagit qu'aux changements de `ratio` (REACT-02).
+  const onRatioChangeRef = useRef(onRatioChange);
+  onRatioChangeRef.current = onRatioChange;
+  useEffect(() => {
+    onRatioChangeRef.current?.(ratio);
+  }, [ratio]);
 
   // Vidéo : lecture pendant la révélation, pause sinon (le geste pilote la lecture).
   // On force aussi `muted` via la ref : React ne reflète pas toujours l'attribut
