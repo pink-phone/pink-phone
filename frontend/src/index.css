@@ -67,6 +67,10 @@
   --shadow-felt-sm: 0 1px 4px -1px rgba(0, 0, 0, 0.3);
   /* Soft glow (Mood actif). */
   --shadow-glow: 0 0 16px -2px rgb(var(--spice-500) / 0.55);
+  /* Même halo, en `filter: drop-shadow()` — pour un média `object-contain`
+     (MediaLightbox) : suit le rendu réel du média, pas la boîte pleine
+     écran, contrairement à `box-shadow`/`shadow-glow`. */
+  --drop-shadow-glow: 0 0 14px rgb(var(--spice-500) / 55%);
   /* Braise : halo chaud (états "hot") — spice + bordeaux profond. */
   --shadow-ember:
     0 0 18px -2px rgb(var(--spice-400) / 0.55), 0 0 36px -6px rgb(var(--bordeaux-600) / 0.5);
