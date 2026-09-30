@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1
 # API Rust/Axum — build multi-stage. Les requêtes sqlx sont en runtime (pas de
 # macro nécessitant une base à la compilation) → l'image se build hors-ligne.
 # Les migrations sont embarquées dans le binaire via sqlx::migrate!.
@@ -5,9 +6,18 @@
 FROM rust:1-bookworm AS builder
 WORKDIR /app
 
-# Cache des dépendances : on compile d'abord un crate vide.
+# Cache des dépendances : on compile d'abord un crate vide. `--mount=type=cache`
+# (registre cargo + target/) survit indépendamment du cache de calques Docker —
+# ce dernier est tout-ou-rien (la moindre ligne changée dans Cargo.lock invalide
+# tout le calque et recompile les ~120 crates depuis zéro) ; le cache mount, lui,
+# persiste par crate et survit même quand le calque est invalidé. `target/` étant
+# un mount (invisible hors du RUN qui le monte), le binaire est copié vers un
+# chemin normal avant la fin du RUN de build réel, sinon l'étage final ne le
+# retrouve pas.
 COPY Cargo.toml Cargo.lock ./
-RUN mkdir src && echo "fn main() {}" > src/main.rs \
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/app/target \
+    mkdir src && echo "fn main() {}" > src/main.rs \
     && cargo build --release \
     && rm -rf src
 
@@ -20,21 +30,24 @@ ARG APP_COMMIT=
 ENV APP_VERSION=$APP_VERSION \
     APP_COMMIT=$APP_COMMIT
 
-# Build réel.
+# Build réel + tests (#65 : un test cassé fait échouer le build d'image, donc
+# rien de cassé ne part en prod ; sans DB, le test de codegen `domain_codegen`
+# se saute ici car `../frontend` est absent du contexte). Même RUN que la copie
+# du binaire : `target/` (mount) doit encore être monté à ce moment-là.
 COPY src ./src
 COPY migrations ./migrations
-RUN touch src/main.rs && cargo build --release
-
-# Tests = porte de la CI (#65) : un test cassé fait échouer le build d'image,
-# donc rien de cassé ne part en prod. Sans DB (tests = logique pure) ; le test de
-# codegen `domain_codegen` se saute ici car `../frontend` est absent du contexte.
-RUN cargo test --release
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/app/target \
+    touch src/main.rs \
+    && cargo build --release \
+    && cargo test --release \
+    && cp target/release/pinkphone-api /app/pinkphone-api
 
 FROM debian:bookworm-slim
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates libssl3 \
     && rm -rf /var/lib/apt/lists/*
-COPY --from=builder /app/target/release/pinkphone-api /usr/local/bin/pinkphone-api
+COPY --from=builder /app/pinkphone-api /usr/local/bin/pinkphone-api
 ENV MEDIA_DIR=/data/media \
     BIND_ADDR=0.0.0.0:8080
 RUN mkdir -p /data/media
