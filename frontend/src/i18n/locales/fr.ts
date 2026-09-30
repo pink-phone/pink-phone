@@ -548,6 +548,7 @@ export const fr = {
     counter: "{{current}} / {{total}}",
     previous: "Média précédent",
     next: "Média suivant",
+    rotate: "Pivoter le média",
   },
 };
 

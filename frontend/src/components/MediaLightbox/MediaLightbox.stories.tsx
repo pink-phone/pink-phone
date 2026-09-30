@@ -37,13 +37,13 @@ export const UnSeulMedia: Story = {
 };
 
 export const RatioPaysage: Story = {
-  name: "Média paysage (letterbox)",
+  name: "Média paysage (letterbox + rotation manuelle)",
   args: { media: [{ src: LANDSCAPE, alt: "Photo paysage" }] },
   parameters: {
     docs: {
       description: {
         story:
-          "`object-contain` : le média entier reste visible, letterboxé, jamais recadré ni pivoté automatiquement.",
+          "`object-contain` : le média entier reste visible, letterboxé, jamais recadré ni pivoté automatiquement. Le bouton ⟲ (haut-gauche) permet de pivoter -90° manuellement pour remplir l'écran — jamais automatique (le manifest PWA verrouille `orientation: \"portrait\"`, et pivoter le visage de quelqu'un sans y être invité serait désorientant).",
       },
     },
   },
