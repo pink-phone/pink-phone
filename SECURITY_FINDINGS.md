@@ -782,28 +782,27 @@ exposure before touching anything.
 
 **Finding**: the mirror workflow rewrites history with `git filter-branch --tree-filter` to strip
 `.forgejo/` and scrub private strings (hostname, internal proxy/registry names, personal email)
-before force-pushing to `github.com/pink-phone/pink-phone`. `--tree-filter` only rewrites file
-*content* — it never touches a commit's author/committer metadata or its message. Two things slipped
-through on every push, confirmed live on the public mirror:
+before force-pushing to the public mirror. `--tree-filter` only rewrites file *content* — it never
+touches a commit's author/committer metadata or its message. Two things slipped through on every
+push, confirmed live on the public mirror before this fix:
 
-1. **Real personal identities as commit authors**: every commit made under the Forgejo-side
-   personal git identities ("pink-phone" / "pink-phone", real Gmail address in the raw git data) was
-   pushed to GitHub with that identity intact instead of the intended anonymous `pink-phone` bot
-   account. The `git config user.name/email "pink-phone"` at the top of the script only sets the
+1. **Real personal identities as commit authors**: every commit made under the maintainer's
+   personal Forgejo git identities (real nicknames, real personal email address, in the raw git
+   data) was pushed to the public mirror with that identity intact instead of the intended
+   anonymous bot account. The `git config user.name/email` at the top of the script only sets the
    identity for commits the script itself would create — it does not retroactively rewrite the
    author of the thousands of pre-existing commits being mirrored.
 2. **Private internal URL in commit messages**: Forgejo automatically appends a
-   `Reviewed-on: https://docker.io/Kaz/pinkphone/pulls/N` trailer to every merge
-   commit's message. The `scrub.pl` substitutions target this exact hostname, but only run inside
-   the `--tree-filter` (file content) — commit messages are never passed through it — so the
-   trailer, including the private hostname and internal org path, reached GitHub verbatim on
-   every merge commit (confirmed: [github.com/pink-phone/pink-phone/commit/8e9397e](https://github.com/pink-phone/pink-phone/commit/8e9397e)).
+   `Reviewed-on: <private Forgejo URL>` trailer to every merge commit's message, containing the
+   self-hosted instance's internal hostname and org path. The `scrub.pl` substitutions target that
+   exact hostname, but only run inside the `--tree-filter` (file content) — commit messages are
+   never passed through it — so the trailer reached the public mirror verbatim on every merge
+   commit.
 
-**Impact**: exposure of the maintainer's real nicknames/email on a public, search-indexed repo,
-and confirmation of a private self-hosted hostname (`docker.io`) and internal
-org/path naming (`Kaz`) — useful recon for anyone targeting the self-hosted instance, though not
-itself a working exploit (the instance's exposure depends on its own auth/network posture,
-reviewed separately in findings #1–#15).
+**Impact**: exposure of the maintainer's real nicknames/personal email on a public, search-indexed
+repo, and confirmation of a private self-hosted hostname and internal org naming — useful recon
+for anyone targeting the self-hosted instance, though not itself a working exploit (the instance's
+exposure depends on its own auth/network posture, reviewed separately in findings #1–#15).
 
 **Remediation**: add a `--env-filter` to `git filter-branch` forcing `GIT_AUTHOR_NAME/EMAIL` and
 `GIT_COMMITTER_NAME/EMAIL` to the `pink-phone` bot identity for every rewritten commit, and a
@@ -811,16 +810,16 @@ reviewed separately in findings #1–#15).
 substitutions to whatever remains of the message.
 
 **Fix applied**: added both filters to `mirror-github.yml`. `--env-filter` unconditionally
-overwrites author and committer name/email to `pink-phone <294211896+pink-phone@users.noreply.github.com>`
-for every commit. `--msg-filter` pipes the message through `grep -v "^Reviewed-on:"` (drops the
-Forgejo trailer entirely — it's meaningless off-Forge anyway) then `perl -p /tmp/scrub.pl` (same
-substitutions already used on file content, as defense in depth for any other private term that
-might land in a message). Also hardened the existing `--tree-filter`'s `grep` to `-i`
-(case-insensitive) so a differently-cased org name (`Kaz` vs. `kaz`) can't slip past the file-content
-scrub the same way. Verified end-to-end on a disposable local clone before merging: ran the full
-corrected `filter-branch` over the real history and confirmed (a) every commit's author/committer
-is `pink-phone`, (b) zero `Reviewed-on:`/`docker.io`/`pink-phone`/`pink-phone` matches remain in any
-commit message, (c) zero matches remain in tracked file content, (d) `.forgejo/` is still removed.
+overwrites author and committer name/email to the anonymous bot identity for every commit.
+`--msg-filter` pipes the message through `grep -v "^Reviewed-on:"` (drops the Forgejo trailer
+entirely — it's meaningless off-mirror anyway) then `perl -p /tmp/scrub.pl` (same substitutions
+already used on file content, as defense in depth for any other private term that might land in a
+message). Also hardened the existing `--tree-filter`'s `grep` to `-i` (case-insensitive) so a
+differently-cased org name can't slip past the file-content scrub the same way. Verified
+end-to-end on a disposable local clone before merging, then re-verified live on the public mirror
+after merge: every commit's author/committer is the anonymous bot identity, zero matches for the
+private trailer or either personal identity remain in any commit message or tracked file content,
+and `.forgejo/` is still removed.
 **Residual/follow-up**: this fix only takes effect for history rewritten *after* it's merged —
 merging it to `main` re-runs the (now-corrected) mirror, which force-pushes the fully re-scrubbed
 history over the currently-exposed one on GitHub (the workflow's force-push is deterministic and
