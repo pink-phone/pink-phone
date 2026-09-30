@@ -268,7 +268,7 @@ export function SafeMedia({
             }}
             className={cn(
               "h-full w-full transition-all duration-500 ease-felt",
-              fullscreen ? "object-contain" : "object-cover",
+              fullscreen ? "object-contain drop-shadow-glow" : "object-cover",
               "pointer-events-none [-webkit-touch-callout:none] [-webkit-user-select:none]",
               isRevealed ? "scale-100 blur-0" : "scale-110 blur-2xl",
             )}
@@ -286,7 +286,7 @@ export function SafeMedia({
             }}
             className={cn(
               "h-full w-full transition-all duration-500 ease-felt",
-              fullscreen ? "object-contain" : "object-cover",
+              fullscreen ? "object-contain drop-shadow-glow" : "object-cover",
               "pointer-events-none [-webkit-touch-callout:none] [-webkit-user-select:none]",
               isRevealed ? "scale-100 blur-0" : "scale-110 blur-2xl",
             )}
