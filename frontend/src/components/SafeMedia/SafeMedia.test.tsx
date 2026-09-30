@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { SafeMedia } from "./SafeMedia";
 
@@ -47,6 +47,45 @@ describe("SafeMedia — mute vidéo (#88)", () => {
     expect(
       screen.getByRole("button", { name: /couper le son/i }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("SafeMedia — bouton « agrandir » (#xx)", () => {
+  it("affiche le bouton quand onExpand est fourni", () => {
+    render(<SafeMedia src="data:," alt="x" onExpand={() => {}} />);
+    expect(
+      screen.getByRole("button", { name: /plein écran/i }),
+    ).toBeInTheDocument();
+  });
+
+  it("pas de bouton sans onExpand", () => {
+    render(<SafeMedia src="data:," alt="x" />);
+    expect(screen.queryByRole("button", { name: /plein écran/i })).toBeNull();
+  });
+
+  it("pas de bouton sur un média éphémère, même avec onExpand", () => {
+    render(<SafeMedia src="data:," alt="x" viewOnce onExpand={() => {}} />);
+    expect(screen.queryByRole("button", { name: /plein écran/i })).toBeNull();
+  });
+
+  it("pas de bouton en mode fullscreen (déjà dans la lightbox)", () => {
+    render(
+      <SafeMedia src="data:," alt="x" fullscreen onExpand={() => {}} />,
+    );
+    expect(screen.queryByRole("button", { name: /plein écran/i })).toBeNull();
+  });
+
+  it("clic sur « agrandir » appelle onExpand sans armer la révélation", async () => {
+    const { default: userEvent } = await import("@testing-library/user-event");
+    const onExpand = vi.fn();
+    render(<SafeMedia src="data:," alt="x" onExpand={onExpand} />);
+    await userEvent.click(
+      screen.getByRole("button", { name: /plein écran/i }),
+    );
+    expect(onExpand).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByRole("button", { name: /maintenir pour révéler/i }),
+    ).toHaveAttribute("aria-pressed", "false");
   });
 });
 
