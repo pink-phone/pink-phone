@@ -28,6 +28,7 @@ const meta = {
   },
   argTypes: {
     onReveal: { action: "revealed" },
+    onExpand: { action: "expand" },
   },
 } satisfies Meta<typeof SafeMedia>;
 
@@ -35,6 +36,38 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const FloutéParDéfaut: Story = {};
+
+export const Agrandissable: Story = {
+  name: "Agrandissable (bouton plein écran)",
+  args: { onExpand: () => {} },
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Bouton « ⛶ » en haut à droite, indépendant du hold (pas besoin de maintenir la carte pour l'atteindre) — ouvre la `MediaLightbox`. Jamais affiché sur un média éphémère.",
+      },
+    },
+  },
+};
+
+export const FullscreenDansLaLightbox: Story = {
+  name: "Rendu fullscreen (à l'intérieur d'une MediaLightbox)",
+  args: { fullscreen: true },
+  parameters: {
+    layout: "fullscreen",
+    docs: {
+      description: {
+        story:
+          "Remplit son conteneur (`object-contain` au lieu de `object-cover`, pas de cadre carte) — c'est ce mode que `MediaLightbox` utilise. Pas de bouton « agrandir » ici (on est déjà en plein écran).",
+      },
+    },
+  },
+  render: (args) => (
+    <div className="h-dvh w-full bg-charcoal-900">
+      <SafeMedia {...args} />
+    </div>
+  ),
+};
 
 export const Éphémère: Story = {
   name: "Éphémère (View once)",
