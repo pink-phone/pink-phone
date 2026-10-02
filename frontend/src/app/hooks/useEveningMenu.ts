@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import * as api from "../../api/client";
-import type { ApiEveningMenuItem } from "../../api/types";
+import type { ApiEveningMenuItem, ApiEveningMenuStatus } from "../../api/types";
 
 type Course = "starter" | "main" | "dessert";
 
@@ -12,14 +12,22 @@ type Course = "starter" | "main" | "dessert";
  */
 export function useEveningMenu(spaceId: string, enabled: boolean) {
   const [items, setItems] = useState<ApiEveningMenuItem[]>([]);
+  // Validation « J'ai fini » de ce soir (mode aveugle) ; null tant qu'inconnue.
+  const [status, setStatus] = useState<ApiEveningMenuStatus | null>(null);
 
   const refetch = useCallback(async () => {
     if (!enabled) {
       setItems([]);
+      setStatus(null);
       return;
     }
     try {
-      setItems(await api.listEveningMenu(spaceId));
+      const [list, st] = await Promise.all([
+        api.listEveningMenu(spaceId),
+        api.getEveningMenuStatus(spaceId),
+      ]);
+      setItems(list);
+      setStatus(st ?? null);
     } catch {
       /* best-effort (403 si désactivé entre-temps) */
     }
@@ -86,5 +94,16 @@ export function useEveningMenu(spaceId: string, enabled: boolean) {
     }
   };
 
-  return { items, refetch, toggle, refuse };
+  // « J'ai fini » / « Modifier » (mode aveugle) : valide ou rouvre mon menu. Une
+  // fois tout le monde validé, les choix de chacun sont dévoilés → on recharge.
+  const setDone = async (done: boolean) => {
+    try {
+      setStatus(await api.setEveningMenuDone(spaceId, done));
+      await refetch();
+    } catch (e) {
+      console.error("validation du menu du soir échouée", e);
+    }
+  };
+
+  return { items, status, refetch, toggle, refuse, setDone };
 }

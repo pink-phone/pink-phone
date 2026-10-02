@@ -22,6 +22,11 @@ export interface EveningMenuProps {
   /** Mode ouvert (#0040) : refuse une proposition (par code). Présent ⇒
    *  affiche le bouton refuser sur les propositions en attente. */
   onRefuse?: (code: string) => void;
+  /** Mode ouvert : affiche « En attente de X » sur mes choix (sinon, en aveugle,
+   *  pas d'attente dans le rituel). Par défaut : présence de `onRefuse`. */
+  openMode?: boolean;
+  /** Menu validé (« J'ai fini ») : lecture seule — ni retrait, ni ajout, ni réponse. */
+  locked?: boolean;
   /** Ouvre l'écran de recherche/sélection du service. */
   onAdd?: () => void;
   className?: string;
@@ -46,6 +51,8 @@ export function EveningMenu({
   partnerName,
   onRefuse,
   onAdd,
+  openMode,
+  locked = false,
   className,
 }: EveningMenuProps) {
   const { t, i18n } = useTranslation();
@@ -96,19 +103,21 @@ export function EveningMenu({
               matched={i.matched}
               partnerWants={i.partnerWants}
               refused={i.refused}
-              openMode={Boolean(onRefuse)}
+              openMode={openMode ?? Boolean(onRefuse)}
               partnerName={partnerName}
-              onAccept={() => onToggle?.(i.code)}
-              onRemove={() =>
-                onRemove ? onRemove(i, labelFor(i)) : onToggle?.(i.code)
+              onAccept={locked ? undefined : () => onToggle?.(i.code)}
+              onRemove={
+                locked
+                  ? undefined
+                  : () => (onRemove ? onRemove(i, labelFor(i)) : onToggle?.(i.code))
               }
-              onRefuse={onRefuse ? () => onRefuse(i.code) : undefined}
+              onRefuse={onRefuse && !locked ? () => onRefuse(i.code) : undefined}
             />
           ))}
         </div>
       )}
 
-      {onAdd && (
+      {onAdd && !locked && (
         <Button variant="secondary" onClick={onAdd} className="w-full">
           {t("eveningMenu.add")}
         </Button>

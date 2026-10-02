@@ -5,6 +5,7 @@ import type {
   ApiComment,
   ApiDesire,
   ApiEveningMenuItem,
+  ApiEveningMenuStatus,
   ApiLoveNote,
   ApiPost,
   AuthConfig,
@@ -258,6 +259,16 @@ export const pickEveningMenu = (
   req<ApiEveningMenuItem>(`/api/spaces/${spaceId}/evening-menu/${code}`, {
     method: "PUT",
     json: course ? { stance, course } : { stance },
+  });
+
+/** État de la validation « J'ai fini » du menu du soir (mode aveugle). */
+export const getEveningMenuStatus = (spaceId: string) =>
+  req<ApiEveningMenuStatus>(`/api/spaces/${spaceId}/evening-menu-status`);
+
+/** « J'ai fini » (`done`) ou « Modifier » : valide / rouvre mon menu de ce soir. */
+export const setEveningMenuDone = (spaceId: string, done: boolean) =>
+  req<ApiEveningMenuStatus>(`/api/spaces/${spaceId}/evening-menu-done`, {
+    method: done ? "PUT" : "DELETE",
   });
 
 export const unpickEveningMenu = (spaceId: string, code: string) =>
