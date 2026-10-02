@@ -15,6 +15,9 @@ export interface EveningMenuEntryProps {
   matched: boolean;
   /** Mode ouvert (#0040) : le/la partenaire a proposé cet item aujourd'hui. */
   partnerWants?: boolean;
+  /** Match « validé ensemble » (réponse après le dévoilement des menus) — le glow
+   *  reste celui d'un match, seule la ligne de statut le distingue. */
+  agreed?: boolean;
   /** Mode ouvert : refusé (par moi ou le/la partenaire). */
   refused?: boolean;
   /** Mode ouvert : affiche « En attente de … » sur mes choix pas encore validés
@@ -62,6 +65,7 @@ export function EveningMenuEntry({
   matched,
   partnerWants = false,
   refused = false,
+  agreed = false,
   openMode = false,
   partnerName,
   onAccept,
@@ -77,7 +81,9 @@ export function EveningMenuEntry({
     state === "proposed"
       ? t("eveningMenu.partnerWants", { name })
       : state === "match"
-        ? t("eveningMenu.matchStatus")
+        ? agreed
+          ? t("eveningMenu.agreedStatus")
+          : t("eveningMenu.matchStatus")
         : state === "mine" && openMode
           ? t("eveningMenu.waitingFor", { name })
           : state === "refused"

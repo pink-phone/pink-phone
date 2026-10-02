@@ -112,6 +112,11 @@ export interface ApiEveningMenuItem {
   /** Service où l'item s'affiche (#0039, #0041) ; vide = dans aucun service
    *  (choisissable quand même hors catégorie). */
   course: "starter" | "main" | "dessert" | "";
+  /** Match « validé ensemble » : l'un a répondu « Partant·e » APRÈS le dévoilement
+   *  des menus (mode aveugle), par opposition à un match par coïncidence. */
+  agreed?: boolean;
+  /** J'ai répondu après le dévoilement : réponse que je peux encore retirer. */
+  responded?: boolean;
   /** Service par défaut du catalogue, avant surcharge du salon. */
   defaultCourse?: "starter" | "main" | "dessert" | "";
   /** Tous les services où l'item est proposé (classement du salon). */

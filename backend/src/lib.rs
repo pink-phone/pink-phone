@@ -16,3 +16,12 @@ pub mod state;
 // feature `integration` (cf. Cargo.toml) → exclus du `cargo test` no-DB.
 #[cfg(all(test, feature = "integration"))]
 mod tests_integration;
+// Zones « externes » difficiles à tester : OIDC (faux IdP), Web Push, WebSocket.
+#[cfg(all(test, feature = "integration"))]
+mod tests_external;
+// Routes DB-bound : interactions, défis, salons, posts, suggestions…
+#[cfg(all(test, feature = "integration"))]
+mod tests_routes;
+// Pipeline média : upload, Range, view_once, purge, backfill, rotation de clé.
+#[cfg(all(test, feature = "integration"))]
+mod tests_media;

@@ -159,4 +159,12 @@ mod tests {
             "RowNotFound doit devenir NotFound"
         );
     }
+
+    /// Toute autre erreur SQL devient un 500 opaque (le détail reste dans les logs).
+    #[test]
+    fn autre_erreur_sql_devient_internal_sans_fuite() {
+        let api_err = ApiError::from(sqlx::Error::PoolTimedOut);
+        assert!(matches!(api_err, ApiError::Internal));
+        assert_eq!(api_err.to_string(), "erreur interne");
+    }
 }

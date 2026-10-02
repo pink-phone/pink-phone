@@ -23,7 +23,7 @@ use crate::state::AppState;
 
 // --- Harnais ---------------------------------------------------------------
 
-fn test_config() -> Config {
+pub(crate) fn test_config() -> Config {
     Config {
         database_url: String::new(),
         db_host: String::new(),
@@ -50,10 +50,14 @@ fn test_config() -> Config {
 }
 
 fn build_app(pool: PgPool) -> (Router, AppState) {
+    build_app_with(pool, test_config())
+}
+
+pub(crate) fn build_app_with(pool: PgPool, config: Config) -> (Router, AppState) {
     let (events, _) = tokio::sync::broadcast::channel(256);
     let state = AppState {
         pool,
-        config: Arc::new(test_config()),
+        config: Arc::new(config),
         http: reqwest::Client::new(),
         push_client: Arc::new(web_push::HyperWebPushClient::new()),
         oidc_states: Arc::new(Mutex::new(Default::default())),
@@ -67,7 +71,7 @@ fn build_app(pool: PgPool) -> (Router, AppState) {
     (app, state)
 }
 
-async fn seed_user(pool: &PgPool, name: &str) -> Uuid {
+pub(crate) async fn seed_user(pool: &PgPool, name: &str) -> Uuid {
     sqlx::query_scalar(
         "INSERT INTO users (email, display_name, password_hash)
          VALUES ($1, $2, 'x') RETURNING id",
@@ -79,7 +83,7 @@ async fn seed_user(pool: &PgPool, name: &str) -> Uuid {
     .unwrap()
 }
 
-async fn seed_space(pool: &PgPool, owner: Uuid) -> Uuid {
+pub(crate) async fn seed_space(pool: &PgPool, owner: Uuid) -> Uuid {
     let id: Uuid =
         sqlx::query_scalar("INSERT INTO spaces (name) VALUES ('Salon') RETURNING id")
             .fetch_one(pool)
@@ -89,7 +93,7 @@ async fn seed_space(pool: &PgPool, owner: Uuid) -> Uuid {
     id
 }
 
-async fn add_member(pool: &PgPool, user: Uuid, space: Uuid) {
+pub(crate) async fn add_member(pool: &PgPool, user: Uuid, space: Uuid) {
     sqlx::query("INSERT INTO space_memberships (user_id, space_id) VALUES ($1, $2)")
         .bind(user)
         .bind(space)
@@ -98,7 +102,7 @@ async fn add_member(pool: &PgPool, user: Uuid, space: Uuid) {
         .unwrap();
 }
 
-fn token_for(state: &AppState, user: Uuid) -> String {
+pub(crate) fn token_for(state: &AppState, user: Uuid) -> String {
     issue_token(&state.config.jwt_secret, user).unwrap()
 }
 
@@ -117,7 +121,7 @@ async fn seed_media(pool: &PgPool, space: Uuid, owner: Uuid, mime: &str) -> Uuid
 }
 
 /// Envoie une requête authentifiée et renvoie (statut, corps JSON).
-async fn req(
+pub(crate) async fn req(
     app: &Router,
     method: &str,
     path: &str,
@@ -425,7 +429,7 @@ async fn notices_refuse_un_non_membre(pool: PgPool) {
 // --- Tests : autz & validation des routes (RR-02/03, machine à états, SEC-015) -
 
 /// Crée un post via HTTP et renvoie son id.
-async fn create_post(app: &Router, space: Uuid, token: &str, body: &str) -> Uuid {
+pub(crate) async fn create_post(app: &Router, space: Uuid, token: &str, body: &str) -> Uuid {
     let (st, p) = req(
         app,
         "POST",
@@ -518,7 +522,7 @@ async fn commentaire_vide_ou_trop_long_refuse_et_autz_suppression(pool: PgPool) 
 }
 
 /// Crée un défi via HTTP (auteur = proposeur) et renvoie son id.
-async fn create_challenge(app: &Router, space: Uuid, token: &str) -> Uuid {
+pub(crate) async fn create_challenge(app: &Router, space: Uuid, token: &str) -> Uuid {
     let (st, ch) = req(
         app,
         "POST",
@@ -2366,7 +2370,8 @@ async fn menu_du_soir_aveugle_j_ai_fini_devoile_les_non_matchs(pool: PgPool) {
     // Définitif : plus de retrait de validation, plus de choix.
     let (st, _) = req(&app, "DELETE", &done, &tb, None).await;
     assert_eq!(st, StatusCode::CONFLICT);
-    let (st, _) = req(&app, "PUT", &format!("{list}/evening-bath"), &tb, None).await;
+    // Dévoilé : seules les idées de l'autre se valident (rien d'autre à choisir).
+    let (st, _) = req(&app, "PUT", &format!("{list}/evening-passionate"), &tb, None).await;
     assert_eq!(st, StatusCode::CONFLICT);
 
     // Mode ouvert : pas de « J'ai fini » (tout est déjà visible).
@@ -2374,4 +2379,133 @@ async fn menu_du_soir_aveugle_j_ai_fini_devoile_les_non_matchs(pool: PgPool) {
     assert_eq!(st, StatusCode::OK);
     let (st, _) = req(&app, "PUT", &done, &ta, None).await;
     assert_eq!(st, StatusCode::BAD_REQUEST);
+}
+
+/// Menus dévoilés (mode aveugle) : on valide ou refuse les idées de l'autre ;
+/// un match « validé ensemble » se distingue d'un match par coïncidence.
+#[sqlx::test]
+async fn menu_du_soir_apres_devoilement_valider_ou_refuser(pool: PgPool) {
+    let (app, state) = build_app(pool.clone());
+    let alice = seed_user(&pool, "alice").await;
+    let bob = seed_user(&pool, "bob").await;
+    let space = seed_space(&pool, alice).await;
+    add_member(&pool, bob, space).await;
+    let ta = token_for(&state, alice);
+    let tb = token_for(&state, bob);
+    let list = format!("/api/spaces/{space}/evening-menu");
+    let done = format!("/api/spaces/{space}/evening-menu-done");
+    let (st, _) = req(&app, "PATCH", &format!("/api/spaces/{space}"), &ta, Some(json!({ "eveningMenuEnabled": true }))).await;
+    assert_eq!(st, StatusCode::OK);
+    let find = |items: &serde_json::Value, code: &str| -> serde_json::Value {
+        items.as_array().unwrap().iter().find(|i| i["code"] == code).unwrap().clone()
+    };
+
+    // Alice : massage (commun), film, câlins. Bob : massage (commun), jeu.
+    let (common, a_film, a_cuddle, b_game) =
+        ("evening-massage", "evening-movie", "evening-cuddle", "evening-game");
+    for code in [common, a_film, a_cuddle] {
+        req(&app, "PUT", &format!("{list}/{code}"), &ta, None).await;
+    }
+    for code in [common, b_game] {
+        req(&app, "PUT", &format!("{list}/{code}"), &tb, None).await;
+    }
+    // Avant dévoilement : le refus reste indisponible en aveugle.
+    let (st, _) = req(&app, "PUT", &format!("{list}/{a_film}"), &tb, Some(json!({ "stance": "refused" }))).await;
+    assert_eq!(st, StatusCode::BAD_REQUEST);
+    req(&app, "PUT", &done, &ta, None).await;
+    req(&app, "PUT", &done, &tb, None).await;
+
+    // Le match d'origine est « par coïncidence », pas « validé ensemble ».
+    let (_, items_b) = req(&app, "GET", &list, &tb, None).await;
+    let m = find(&items_b, common);
+    assert_eq!((m["matched"].clone(), m["agreed"].clone()), (json!(true), json!(false)));
+
+    // Bob valide le film d'Alice → match « validé ensemble », des deux côtés.
+    let (st, r) = req(&app, "PUT", &format!("{list}/{a_film}"), &tb, None).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!((r["matched"].clone(), r["agreed"].clone(), r["responded"].clone()), (json!(true), json!(true), json!(true)));
+    let (_, items_a) = req(&app, "GET", &list, &ta, None).await;
+    let f = find(&items_a, a_film);
+    assert_eq!((f["matched"].clone(), f["agreed"].clone()), (json!(true), json!(true)));
+
+    // Bob se ravise : sa réponse tardive se retire (l'idée d'Alice reste proposée).
+    let (st, r) = req(&app, "DELETE", &format!("{list}/{a_film}"), &tb, None).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!((r["matched"].clone(), r["partnerWants"].clone()), (json!(false), json!(true)));
+
+    // Bob refuse les câlins d'Alice : refusé pour les deux.
+    let (st, r) = req(&app, "PUT", &format!("{list}/{a_cuddle}"), &tb, Some(json!({ "stance": "refused" }))).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(r["refused"], true);
+    let (_, items_a) = req(&app, "GET", &list, &ta, None).await;
+    assert_eq!(find(&items_a, a_cuddle)["refused"], true);
+
+    // Alice répond au jeu de Bob.
+    let (st, r) = req(&app, "PUT", &format!("{list}/{b_game}"), &ta, None).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(r["matched"], true);
+
+    // Verrous : un item que l'autre n'a pas proposé, ou son menu d'origine → 409.
+    let (st, _) = req(&app, "PUT", &format!("{list}/evening-newThing"), &tb, None).await;
+    assert_eq!(st, StatusCode::CONFLICT);
+    let (st, _) = req(&app, "PUT", &format!("{list}/evening-passionate"), &tb, None).await;
+    assert_eq!(st, StatusCode::CONFLICT);
+    let (st, _) = req(&app, "DELETE", &format!("{list}/{b_game}"), &tb, None).await;
+    assert_eq!(st, StatusCode::CONFLICT, "le menu d'origine reste figé");
+}
+
+/// Validations résiduelles du menu du soir : stance inconnu, trop d'entrées de
+/// service, et purge des coches / validations périmées (> 2 jours).
+#[sqlx::test]
+async fn menu_du_soir_validations_et_purge(pool: PgPool) {
+    let (app, state) = build_app(pool.clone());
+    let alice = seed_user(&pool, "alice").await;
+    let space = seed_space(&pool, alice).await;
+    let ta = token_for(&state, alice);
+    let patch = format!("/api/spaces/{space}");
+    let list = format!("/api/spaces/{space}/evening-menu");
+    let (st, _) = req(&app, "PATCH", &patch, &ta, Some(json!({ "eveningMenuEnabled": true }))).await;
+    assert_eq!(st, StatusCode::OK);
+
+    // Stance inconnu → 400.
+    let (st, _) = req(&app, "PUT", &format!("{list}/evening-massage"), &ta, Some(json!({ "stance": "peut-etre" }))).await;
+    assert_eq!(st, StatusCode::BAD_REQUEST);
+
+    // Plus de 64 entrées de classement → 400 (borne anti-abus).
+    let many: Vec<String> = (0..65).map(|i| format!("main:cat{i}")).collect();
+    let (st, _) = req(&app, "PATCH", &patch, &ta, Some(json!({ "eveningCourseCategories": many }))).await;
+    assert_eq!(st, StatusCode::BAD_REQUEST);
+
+    // Purge : une coche et une validation vieilles de 3 jours disparaissent,
+    // celles du jour restent.
+    sqlx::query(
+        "INSERT INTO evening_menu_picks (space_id, user_id, code, day, created_at)
+         VALUES ($1, $2, 'evening-massage', current_date - 3, now() - interval '3 days'),
+                ($1, $2, 'evening-movie',   current_date,     now())",
+    )
+    .bind(space)
+    .bind(alice)
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO evening_menu_done (space_id, user_id, day, created_at)
+         VALUES ($1, $2, current_date - 3, now() - interval '3 days')",
+    )
+    .bind(space)
+    .bind(alice)
+    .execute(&pool)
+    .await
+    .unwrap();
+    crate::routes::evening_menu::purge_old_picks(&pool).await;
+    let picks: Vec<String> = sqlx::query_scalar("SELECT code FROM evening_menu_picks ORDER BY code")
+        .fetch_all(&pool)
+        .await
+        .unwrap();
+    assert_eq!(picks, vec!["evening-movie".to_string()]);
+    let dones: i64 = sqlx::query_scalar("SELECT count(*) FROM evening_menu_done")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(dones, 0);
 }

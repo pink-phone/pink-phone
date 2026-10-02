@@ -27,6 +27,10 @@ export interface EveningMenuProps {
   openMode?: boolean;
   /** Menu validé (« J'ai fini ») : lecture seule — ni retrait, ni ajout, ni réponse. */
   locked?: boolean;
+  /** Menus dévoilés (aveugle) : on peut encore répondre aux idées de l'autre
+   *  (« Partant·e » / refus) et retirer ses réponses tardives — pas ajouter ni
+   *  toucher à son menu d'origine. Lève le verrou pour ces seuls gestes. */
+  respond?: boolean;
   /** Ouvre l'écran de recherche/sélection du service. */
   onAdd?: () => void;
   className?: string;
@@ -53,6 +57,7 @@ export function EveningMenu({
   onAdd,
   openMode,
   locked = false,
+  respond = false,
   className,
 }: EveningMenuProps) {
   const { t, i18n } = useTranslation();
@@ -103,15 +108,18 @@ export function EveningMenu({
               matched={i.matched}
               partnerWants={i.partnerWants}
               refused={i.refused}
+              agreed={i.agreed}
               openMode={openMode ?? Boolean(onRefuse)}
               partnerName={partnerName}
-              onAccept={locked ? undefined : () => onToggle?.(i.code)}
+              onAccept={locked && !respond ? undefined : () => onToggle?.(i.code)}
               onRemove={
-                locked
+                locked && !(respond && i.responded)
                   ? undefined
                   : () => (onRemove ? onRemove(i, labelFor(i)) : onToggle?.(i.code))
               }
-              onRefuse={onRefuse && !locked ? () => onRefuse(i.code) : undefined}
+              onRefuse={
+                onRefuse && (!locked || respond) ? () => onRefuse(i.code) : undefined
+              }
             />
           ))}
         </div>
