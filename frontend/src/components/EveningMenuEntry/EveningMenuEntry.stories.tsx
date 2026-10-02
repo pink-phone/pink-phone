@@ -72,6 +72,18 @@ export const Matché: Story = {
 };
 
 /** Mode ouvert : l'autre a proposé — deux réponses de même poids. */
+/** Menus dévoilés (aveugle) : « Partant·e » posé après coup → « Validé ensemble », distinct d'un match par coïncidence. */
+export const ValidéEnsemble: Story = {
+  args: {
+    label: "Le lotus",
+    subcategoryLabel: "Kamasutra",
+    picked: true,
+    matched: true,
+    agreed: true,
+    onRemove: () => {},
+  },
+};
+
 export const Proposition: Story = {
   args: {
     label: "Le lotus",

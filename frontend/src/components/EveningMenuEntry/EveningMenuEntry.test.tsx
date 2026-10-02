@@ -51,6 +51,13 @@ describe("EveningMenuEntry", () => {
     expect(screen.queryByText(/en attente/i)).toBeNull();
   });
 
+  it("match validé ensemble : statut distinct d'un match par coïncidence", () => {
+    const { rerender } = render(<EveningMenuEntry {...base} picked matched />);
+    expect(screen.getByText(/^match/i)).toBeInTheDocument();
+    rerender(<EveningMenuEntry {...base} picked matched agreed />);
+    expect(screen.getByText(/validé ensemble/i)).toBeInTheDocument();
+  });
+
   it("proposition : « X est partant·e » + Partant·e / Pas ce soir", async () => {
     const onAccept = vi.fn();
     const onRefuse = vi.fn();

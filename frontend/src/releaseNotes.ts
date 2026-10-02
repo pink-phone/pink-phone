@@ -27,7 +27,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         "L'accueil montre le menu de ce soir d'un coup d'œil, service par service.",
         "Réglages › Menu du soir : sa propre section, avec le choix des catégories qui alimentent chaque service (une catégorie peut nourrir plusieurs services).",
         "Le catalogue partagé s'enrichit (positions du Kamasutra et modernes, pratiques), et les envies existantes sont conservées.",
-        "En mode aveugle : « J'ai fini » valide votre menu ; quand tout le monde a fini, les choix de chacun sont dévoilés, même sans match — et vous êtes prévenu·e.",
+        "En mode aveugle : « J'ai fini » valide votre menu ; quand tout le monde a fini, les choix de chacun sont dévoilés, même sans match — et vous êtes prévenu·e. Vous pouvez ensuite valider ou refuser les idées de l'autre.",
         "Valider le sélecteur ne vous renvoie plus à l'accueil, et le mode aveugle ne laisse plus rien filtrer d'un choix non matché.",
       ],
       en: [
@@ -38,7 +38,7 @@ export const RELEASE_NOTES: ReleaseNote[] = [
         "The home screen shows tonight's menu at a glance, course by course.",
         "Settings › Tonight's menu: its own section, with the categories feeding each course (a category can feed several courses).",
         "The shared catalog grows (Kamasutra and modern positions, practices), and your existing wishes are kept.",
-        "In blind mode: “I'm done” confirms your menu; once everyone is done, everyone's picks are revealed, even without a match — and you get notified.",
+        "In blind mode: “I'm done” confirms your menu; once everyone is done, everyone's picks are revealed, even without a match — and you get notified. You can then accept or decline each other's ideas.",
         "Confirming the picker no longer sends you back to the home screen, and blind mode no longer leaks anything about an unmatched pick.",
       ],
     },

@@ -62,6 +62,7 @@ export function EveningMenuScreen({
   const [active, setActive] = useState<Course>("starter");
   const isOpen = blind === undefined ? Boolean(onRefuse) : !blind;
   // Menu validé (aveugle) : lecture seule, jusqu'à « Modifier » (ou dévoilement).
+  const revealed = !isOpen && Boolean(status?.revealed);
   const locked = !isOpen && Boolean(status?.meDone);
   const showDone = !isOpen && Boolean(status) && Boolean(onDone);
   const [picking, setPicking] = useState(false);
@@ -141,9 +142,10 @@ export function EveningMenuScreen({
         partnerName={partnerName}
         onToggle={onToggle}
         onRemove={removeMine}
-        onRefuse={isOpen ? onRefuse : undefined}
+        onRefuse={isOpen || revealed ? onRefuse : undefined}
         openMode={isOpen}
         locked={locked}
+        respond={revealed}
         onAdd={() => setPicking(true)}
       />
       {showDone && status && (

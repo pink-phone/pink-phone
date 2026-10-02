@@ -373,6 +373,12 @@ pub struct EveningMenuItem {
     /// Mode ouvert uniquement : l'un des deux a explicitement refusé.
     /// Toujours `false` en mode aveugle (concept qui n'existe pas là-bas).
     pub refused: bool,
+    /// Match « validé ensemble » : l'un des deux a répondu « Partant·e » APRÈS le
+    /// dévoilement des menus (mode aveugle), par opposition à un match par
+    /// coïncidence (les deux l'avaient coché en aveugle).
+    pub agreed: bool,
+    /// J'ai répondu après le dévoilement (réponse que je peux encore retirer).
+    pub responded: bool,
 }
 
 impl EveningMenuItem {
@@ -397,6 +403,8 @@ impl EveningMenuItem {
             matched: false,
             partner_wants: false,
             refused: false,
+            agreed: false,
+            responded: false,
         }
     }
 }

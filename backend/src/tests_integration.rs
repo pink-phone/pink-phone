@@ -2366,7 +2366,8 @@ async fn menu_du_soir_aveugle_j_ai_fini_devoile_les_non_matchs(pool: PgPool) {
     // Définitif : plus de retrait de validation, plus de choix.
     let (st, _) = req(&app, "DELETE", &done, &tb, None).await;
     assert_eq!(st, StatusCode::CONFLICT);
-    let (st, _) = req(&app, "PUT", &format!("{list}/evening-bath"), &tb, None).await;
+    // Dévoilé : seules les idées de l'autre se valident (rien d'autre à choisir).
+    let (st, _) = req(&app, "PUT", &format!("{list}/evening-passionate"), &tb, None).await;
     assert_eq!(st, StatusCode::CONFLICT);
 
     // Mode ouvert : pas de « J'ai fini » (tout est déjà visible).
@@ -2374,4 +2375,77 @@ async fn menu_du_soir_aveugle_j_ai_fini_devoile_les_non_matchs(pool: PgPool) {
     assert_eq!(st, StatusCode::OK);
     let (st, _) = req(&app, "PUT", &done, &ta, None).await;
     assert_eq!(st, StatusCode::BAD_REQUEST);
+}
+
+/// Menus dévoilés (mode aveugle) : on valide ou refuse les idées de l'autre ;
+/// un match « validé ensemble » se distingue d'un match par coïncidence.
+#[sqlx::test]
+async fn menu_du_soir_apres_devoilement_valider_ou_refuser(pool: PgPool) {
+    let (app, state) = build_app(pool.clone());
+    let alice = seed_user(&pool, "alice").await;
+    let bob = seed_user(&pool, "bob").await;
+    let space = seed_space(&pool, alice).await;
+    add_member(&pool, bob, space).await;
+    let ta = token_for(&state, alice);
+    let tb = token_for(&state, bob);
+    let list = format!("/api/spaces/{space}/evening-menu");
+    let done = format!("/api/spaces/{space}/evening-menu-done");
+    let (st, _) = req(&app, "PATCH", &format!("/api/spaces/{space}"), &ta, Some(json!({ "eveningMenuEnabled": true }))).await;
+    assert_eq!(st, StatusCode::OK);
+    let find = |items: &serde_json::Value, code: &str| -> serde_json::Value {
+        items.as_array().unwrap().iter().find(|i| i["code"] == code).unwrap().clone()
+    };
+
+    // Alice : massage (commun), film, câlins. Bob : massage (commun), jeu.
+    let (common, a_film, a_cuddle, b_game) =
+        ("evening-massage", "evening-movie", "evening-cuddle", "evening-game");
+    for code in [common, a_film, a_cuddle] {
+        req(&app, "PUT", &format!("{list}/{code}"), &ta, None).await;
+    }
+    for code in [common, b_game] {
+        req(&app, "PUT", &format!("{list}/{code}"), &tb, None).await;
+    }
+    // Avant dévoilement : le refus reste indisponible en aveugle.
+    let (st, _) = req(&app, "PUT", &format!("{list}/{a_film}"), &tb, Some(json!({ "stance": "refused" }))).await;
+    assert_eq!(st, StatusCode::BAD_REQUEST);
+    req(&app, "PUT", &done, &ta, None).await;
+    req(&app, "PUT", &done, &tb, None).await;
+
+    // Le match d'origine est « par coïncidence », pas « validé ensemble ».
+    let (_, items_b) = req(&app, "GET", &list, &tb, None).await;
+    let m = find(&items_b, common);
+    assert_eq!((m["matched"].clone(), m["agreed"].clone()), (json!(true), json!(false)));
+
+    // Bob valide le film d'Alice → match « validé ensemble », des deux côtés.
+    let (st, r) = req(&app, "PUT", &format!("{list}/{a_film}"), &tb, None).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!((r["matched"].clone(), r["agreed"].clone(), r["responded"].clone()), (json!(true), json!(true), json!(true)));
+    let (_, items_a) = req(&app, "GET", &list, &ta, None).await;
+    let f = find(&items_a, a_film);
+    assert_eq!((f["matched"].clone(), f["agreed"].clone()), (json!(true), json!(true)));
+
+    // Bob se ravise : sa réponse tardive se retire (l'idée d'Alice reste proposée).
+    let (st, r) = req(&app, "DELETE", &format!("{list}/{a_film}"), &tb, None).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!((r["matched"].clone(), r["partnerWants"].clone()), (json!(false), json!(true)));
+
+    // Bob refuse les câlins d'Alice : refusé pour les deux.
+    let (st, r) = req(&app, "PUT", &format!("{list}/{a_cuddle}"), &tb, Some(json!({ "stance": "refused" }))).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(r["refused"], true);
+    let (_, items_a) = req(&app, "GET", &list, &ta, None).await;
+    assert_eq!(find(&items_a, a_cuddle)["refused"], true);
+
+    // Alice répond au jeu de Bob.
+    let (st, r) = req(&app, "PUT", &format!("{list}/{b_game}"), &ta, None).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(r["matched"], true);
+
+    // Verrous : un item que l'autre n'a pas proposé, ou son menu d'origine → 409.
+    let (st, _) = req(&app, "PUT", &format!("{list}/evening-newThing"), &tb, None).await;
+    assert_eq!(st, StatusCode::CONFLICT);
+    let (st, _) = req(&app, "PUT", &format!("{list}/evening-passionate"), &tb, None).await;
+    assert_eq!(st, StatusCode::CONFLICT);
+    let (st, _) = req(&app, "DELETE", &format!("{list}/{b_game}"), &tb, None).await;
+    assert_eq!(st, StatusCode::CONFLICT, "le menu d'origine reste figé");
 }

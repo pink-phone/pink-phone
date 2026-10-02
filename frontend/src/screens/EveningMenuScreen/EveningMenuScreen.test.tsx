@@ -269,20 +269,56 @@ describe("EveningMenuScreen", () => {
       expect(onUndoDone).toHaveBeenCalledTimes(1);
     });
 
-    it("dévoilé : les choix non matchés de l'autre apparaissent, sans réponse possible", () => {
+    it("dévoilé : les idées de l'autre apparaissent et se valident ou se refusent", async () => {
+      const onToggle = vi.fn();
+      const onRefuse = vi.fn();
       render(
         <EveningMenuScreen
           blind
           partnerName="Alex"
           status={status({ meDone: true, doneCount: 2, revealed: true })}
           onDone={vi.fn()}
-          items={[d("evening-cuddle", "starter", { partnerWants: true })]}
+          onToggle={onToggle}
+          onRefuse={onRefuse}
+          items={[
+            d("evening-cuddle", "starter", { partnerWants: true }),
+            d("evening-massage", "starter", { picked: true }),
+          ]}
         />,
       );
-      expect(screen.getByText("Câlins sous la couette")).toBeInTheDocument();
       expect(screen.getByText(/alex est partant/i)).toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: /partant·e pour/i })).toBeNull();
-      expect(screen.getByRole("status")).toHaveTextContent(/dévoilés/i);
+      await userEvent.click(screen.getByRole("button", { name: /partant·e pour « câlins/i }));
+      expect(onToggle).toHaveBeenCalledWith("evening-cuddle");
+      await userEvent.click(screen.getByRole("button", { name: /pas ce soir pour « câlins/i }));
+      expect(onRefuse).toHaveBeenCalledWith("evening-cuddle");
+      // Mon menu d'origine reste figé : ni Ajouter, ni ✕ sur mon choix d'avant.
+      expect(screen.queryByRole("button", { name: /ajouter/i })).toBeNull();
+      expect(screen.queryByRole("button", { name: /retirer « un massage/i })).toBeNull();
+    });
+
+    it("dévoilé : ma réponse tardive (« validé ensemble ») se retire", async () => {
+      const onToggle = vi.fn();
+      render(
+        <EveningMenuScreen
+          blind
+          status={status({ meDone: true, doneCount: 2, revealed: true })}
+          onDone={vi.fn()}
+          onToggle={onToggle}
+          items={[
+            d("evening-cuddle", "starter", {
+              picked: true,
+              matched: true,
+              partnerWants: true,
+              agreed: true,
+              responded: true,
+            }),
+          ]}
+        />,
+      );
+      expect(screen.getByText(/validé ensemble/i)).toBeInTheDocument();
+      vi.spyOn(window, "confirm").mockReturnValue(true);
+      await userEvent.click(screen.getByRole("button", { name: /retirer « câlins/i }));
+      expect(onToggle).toHaveBeenCalledWith("evening-cuddle");
     });
 
     it("mode ouvert : pas de « J'ai fini »", () => {
