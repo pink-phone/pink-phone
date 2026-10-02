@@ -14,10 +14,16 @@ import { isBiometricEnabled, verifyBiometric } from "../lib/biometric";
  * Verrou local : si un code PIN est configuré, l'app démarre verrouillée (donc
  * verrouillée à chaque réouverture / rechargement) et se re-verrouille dès qu'elle
  * passe en arrière-plan. Tant qu'aucun code n'est défini, c'est transparent.
+ *
+ * Une fois déverrouillée, l'app reste MONTÉE derrière l'écran de verrouillage
+ * (opaque, `inert`) : un re-verrouillage ne doit pas détruire son état (onglet,
+ * feuilles ouvertes, brouillon en cours de rédaction).
  */
 export function LockGate({ children }: { children: ReactNode }) {
   const { t } = useTranslation();
   const [locked, setLocked] = useState(() => isPinSet());
+  // Au démarrage verrouillé, rien n'est monté (ni chargé) avant le 1er déverrouillage.
+  const [everUnlocked, setEverUnlocked] = useState(() => !isPinSet());
   const [error, setError] = useState<string | null>(null);
   const [bioEnabled] = useState(() => isBiometricEnabled());
   // Garde contre les déclenchements multiples de la biométrie pour un même verrou.
@@ -39,6 +45,7 @@ export function LockGate({ children }: { children: ReactNode }) {
   const tryBiometric = useCallback(async () => {
     if (await verifyBiometric()) {
       setError(null);
+      setEverUnlocked(true);
       setLocked(false);
     }
     // Échec/refus/annulation : on reste verrouillé, le PIN prend le relais.
@@ -57,6 +64,7 @@ export function LockGate({ children }: { children: ReactNode }) {
     async (pin: string) => {
       if (await verifyPin(pin)) {
         setError(null);
+        setEverUnlocked(true);
         setLocked(false);
       } else {
         setError(t("lock.wrong"));
@@ -65,18 +73,46 @@ export function LockGate({ children }: { children: ReactNode }) {
     [t],
   );
 
-  if (!locked) return <>{children}</>;
-
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-charcoal-900 bg-felt-velvet px-6 pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]">
-      <LockScreen
-        title={t("lock.title")}
-        subtitle={t("lock.subtitle")}
-        error={error}
-        pinLength={PIN_LENGTH}
-        onSubmit={submit}
-        onBiometric={bioEnabled ? () => void tryBiometric() : undefined}
-      />
+    <>
+      {everUnlocked && <AppSlot hidden={locked}>{children}</AppSlot>}
+      {locked && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-charcoal-900 bg-felt-velvet px-6 pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)]">
+          <LockScreen
+            title={t("lock.title")}
+            subtitle={t("lock.subtitle")}
+            error={error}
+            pinLength={PIN_LENGTH}
+            onSubmit={submit}
+            onBiometric={bioEnabled ? () => void tryBiometric() : undefined}
+          />
+        </div>
+      )}
+    </>
+  );
+}
+
+/**
+ * Enveloppe stable de l'app (même position dans l'arbre, verrouillée ou non → pas
+ * de remontage). Verrouillée : hors d'atteinte du focus clavier et des lecteurs d'écran.
+ */
+function AppSlot({
+  hidden,
+  children,
+}: {
+  hidden: boolean;
+  children: ReactNode;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (hidden) el.setAttribute("inert", "");
+    else el.removeAttribute("inert");
+  }, [hidden]);
+  return (
+    <div ref={ref} aria-hidden={hidden || undefined} className="contents">
+      {children}
     </div>
   );
 }
