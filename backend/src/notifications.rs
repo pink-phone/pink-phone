@@ -12,10 +12,10 @@ use crate::config::Config;
 use crate::state::{AppState, EventKind};
 
 #[derive(sqlx::FromRow)]
-struct SubRow {
-    endpoint: String,
-    p256dh: String,
-    auth: String,
+pub(crate) struct SubRow {
+    pub(crate) endpoint: String,
+    pub(crate) p256dh: String,
+    pub(crate) auth: String,
 }
 
 /// `true` si `ip` désigne une adresse interne/privée/réservée qu'un endpoint de
@@ -96,6 +96,29 @@ pub(crate) async fn endpoint_is_safe(endpoint: &str) -> bool {
 /// invite à ouvrir l'app — le contenu se découvre dans l'app authentifiée.
 const GENERIC_BODY: &str = "Ouvre l'app pour voir 🌸";
 
+/// Abonnements push à notifier pour un événement : ceux des AUTRES membres du
+/// space (jamais l'acteur) dont le mode est `push` — le défaut sans réglage
+/// explicite est `ghost` (pas de push). Isolé de l'envoi réseau pour être testé
+/// sur une vraie base sans toucher `web-push`.
+pub(crate) async fn push_recipients(
+    pool: &sqlx::PgPool,
+    space_id: Uuid,
+    actor_id: Uuid,
+) -> Result<Vec<SubRow>, sqlx::Error> {
+    sqlx::query_as(
+        "SELECT ps.endpoint, ps.p256dh, ps.auth
+         FROM push_subscriptions ps
+         JOIN space_memberships m ON m.user_id = ps.user_id
+         LEFT JOIN user_settings s ON s.user_id = ps.user_id
+         WHERE m.space_id = $1 AND ps.user_id <> $2
+           AND coalesce(s.notif_mode, 'ghost') = 'push'",
+    )
+    .bind(space_id)
+    .bind(actor_id)
+    .fetch_all(pool)
+    .await
+}
+
 /// Notifie les autres membres du salon d'un événement : (a) persiste une
 /// entrée dans le centre de notifications pour CHAQUE membre (indépendamment
 /// de son `notif_mode`, qui ne pilote que le Web Push ci-dessous), lu au fil
@@ -149,19 +172,7 @@ pub async fn notify_members(
             return;
         }
 
-        let subs: Vec<SubRow> = match sqlx::query_as(
-            "SELECT ps.endpoint, ps.p256dh, ps.auth
-             FROM push_subscriptions ps
-             JOIN space_memberships m ON m.user_id = ps.user_id
-             LEFT JOIN user_settings s ON s.user_id = ps.user_id
-             WHERE m.space_id = $1 AND ps.user_id <> $2
-               AND coalesce(s.notif_mode, 'ghost') = 'push'",
-        )
-        .bind(space_id)
-        .bind(actor_id)
-        .fetch_all(&pool)
-        .await
-        {
+        let subs = match push_recipients(&pool, space_id, actor_id).await {
             Ok(s) => s,
             Err(e) => {
                 tracing::error!(error = ?e, "lecture des abonnements push");
@@ -376,5 +387,13 @@ mod tests {
     async fn endpoint_url_invalide_refusee() {
         assert!(!endpoint_is_safe("pas-une-url").await);
         assert!(!endpoint_is_safe("").await);
+    }
+
+    #[tokio::test]
+    async fn endpoint_nom_resolvant_vers_loopback_ou_injoignable_refuse() {
+        // `localhost` se résout en 127.0.0.1/::1 : refusé (toutes les IP résolues
+        // sont contrôlées). `.invalid` (RFC 6761) ne se résout jamais : refusé aussi.
+        assert!(!endpoint_is_safe("https://localhost/push").await);
+        assert!(!endpoint_is_safe("https://pas-de-dns.invalid/push").await);
     }
 }
