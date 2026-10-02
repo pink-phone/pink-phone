@@ -2197,3 +2197,83 @@ async fn menu_du_soir_services_parametrables_et_choix_hors_categorie(pool: PgPoo
     let (_, back) = req(&app, "GET", &list, &ta, None).await;
     assert_eq!(find(&back, &tender_code)["courses"], json!(["starter"]));
 }
+
+/// Double-aveugle (mode par défaut) : ni le service qu'un membre a donné à son
+/// choix, ni un évènement temps réel ne doivent trahir un choix non matché.
+#[sqlx::test]
+async fn menu_du_soir_aveugle_ne_fuite_ni_le_service_ni_un_evenement(pool: PgPool) {
+    let (app, state) = build_app(pool.clone());
+    let alice = seed_user(&pool, "alice").await;
+    let bob = seed_user(&pool, "bob").await;
+    let space = seed_space(&pool, alice).await;
+    add_member(&pool, bob, space).await;
+    let ta = token_for(&state, alice);
+    let tb = token_for(&state, bob);
+    let patch = format!("/api/spaces/{space}");
+    let list = format!("/api/spaces/{space}/evening-menu");
+    let (st, _) = req(&app, "PATCH", &patch, &ta, Some(json!({ "eveningMenuEnabled": true }))).await;
+    assert_eq!(st, StatusCode::OK);
+
+    // Un item hors de tout service par défaut (« places ») : course = "".
+    let (_, items_b) = req(&app, "GET", &list, &tb, None).await;
+    let code = items_b
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|i| i["category"] == "places")
+        .unwrap()["code"]
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    let mut rx = state.events.subscribe();
+
+    // Alice le coche DANS « dessert » (choix secret).
+    let (st, _) = req(
+        &app,
+        "PUT",
+        &format!("{list}/{code}"),
+        &ta,
+        Some(json!({ "course": "dessert" })),
+    )
+    .await;
+    assert_eq!(st, StatusCode::OK);
+
+    // Bob ne doit rien déduire : service inchangé, pas coché, pas matché.
+    let (_, items_b) = req(&app, "GET", &list, &tb, None).await;
+    let it = items_b.as_array().unwrap().iter().find(|i| i["code"] == code).unwrap();
+    assert_eq!(it["course"], "", "le service du choix d'Alice ne doit pas fuiter");
+    assert_eq!(it["picked"], false);
+    assert_eq!(it["partnerWants"], false);
+
+    // Et la réponse à Bob qui coche à son tour (match) révèle alors le service.
+    let (_, bobs) = req(&app, "PUT", &format!("{list}/{code}"), &tb, None).await;
+    assert_eq!(bobs["matched"], true);
+    assert_eq!(bobs["course"], "dessert", "révélé seulement une fois le match fait");
+    // (le match émet un évènement ; on le consomme avant la suite)
+    while rx.try_recv().is_ok() {}
+
+    // Retrait d'Alice puis nouveau choix : aucun évènement tant qu'il n'y a pas de match.
+    let (st, _) = req(&app, "DELETE", &format!("{list}/{code}"), &tb, None).await;
+    assert_eq!(st, StatusCode::OK);
+    while rx.try_recv().is_ok() {}
+    let (st, _) = req(
+        &app,
+        "PUT",
+        &format!("{list}/{code}"),
+        &ta,
+        Some(json!({ "course": "dessert" })),
+    )
+    .await;
+    assert_eq!(st, StatusCode::OK);
+    assert!(
+        rx.try_recv().is_err(),
+        "pas d'évènement temps réel pour un choix non matché en mode aveugle"
+    );
+    let (st, _) = req(&app, "DELETE", &format!("{list}/{code}"), &ta, None).await;
+    assert_eq!(st, StatusCode::OK);
+    assert!(
+        rx.try_recv().is_err(),
+        "ni au retrait d'un choix non matché en mode aveugle"
+    );
+}

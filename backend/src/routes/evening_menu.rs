@@ -249,17 +249,23 @@ async fn list_menu(
         .into_iter()
         .map(|row| {
             let my_stance = my.get(&row.id).map(|(s, _)| s.as_str());
-            let (course, courses) = resolve_course(
-                &row,
-                &map,
-                my.get(&row.id).and_then(|(_, c)| c.as_deref()),
-                other_course.get(&row.id).map(String::as_str),
-            );
             let (picked, matched, partner_wants, refused) = compute_flags(
                 blind,
                 my_stance,
                 other_want.contains(&row.id),
                 other_refused.contains(&row.id),
+            );
+            let (course, courses) = resolve_course(
+                &row,
+                &map,
+                my.get(&row.id).and_then(|(_, c)| c.as_deref()),
+                // Le service donné par l'autre à son choix n'est révélé qu'avec le
+                // choix lui-même (mode ouvert) ou le match (aveugle) — sinon il
+                // trahirait un choix secret.
+                other_course
+                    .get(&row.id)
+                    .map(String::as_str)
+                    .filter(|_| partner_wants || matched),
             );
             let mut item = EveningMenuItem::from_catalog(row);
             item.course = course;
@@ -371,12 +377,15 @@ async fn pick(
             "C'est un match ce soir !".into(),
         )
         .await;
-    } else if changed {
+    } else if changed && !blind {
         // Mode ouvert : ma proposition/mon refus change ce que l'autre voit
         // → on rafraîchit (pas de push : silencieux, ça apparaît à l'écran).
+        // En mode aveugle, JAMAIS : un évènement trahirait qu'un choix a bougé.
         state.emit(space_id, auth.user_id, EventKind::EveningMenu);
     }
 
+    // Service de l'autre : seulement s'il est révélé (cf. list_menu).
+    let other_course = other_course.filter(|_| partner_wants || matched);
     let (course, courses) =
         resolve_course(&row, &map, my_course.as_deref(), other_course.as_deref());
     let mut item = EveningMenuItem::from_catalog(row);
@@ -412,10 +421,13 @@ async fn unpick(
         partner_flags(&state.pool, space_id, auth.user_id, &code, today).await?;
     let (picked, matched, partner_wants, refused) =
         compute_flags(blind, None, other_wants, other_refused);
-    if res.rows_affected() > 0 {
+    // Aveugle : seul un match défait change ce que l'autre voit (il voulait aussi
+    // cet item) ; sinon un évènement trahirait le retrait d'un choix secret.
+    if res.rows_affected() > 0 && (!blind || other_wants) {
         state.emit(space_id, auth.user_id, EventKind::EveningMenu);
     }
 
+    let other_course = other_course.filter(|_| partner_wants || matched);
     let (course, courses) = resolve_course(&row, &map, None, other_course.as_deref());
     let mut item = EveningMenuItem::from_catalog(row);
     item.course = course;
