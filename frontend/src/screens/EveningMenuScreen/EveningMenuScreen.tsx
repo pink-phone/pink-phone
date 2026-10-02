@@ -6,7 +6,8 @@ import { CourseTabs, type Course, type CourseStatus } from "../../components/Cou
 import { UndoToast } from "../../components/UndoToast/UndoToast";
 import { useBackClose } from "../../lib/useBackClose";
 import { confirmAction } from "../../lib/confirm";
-import type { ApiEveningMenuItem } from "../../api/types";
+import { EveningMenuDone } from "../../components/EveningMenuDone/EveningMenuDone";
+import type { ApiEveningMenuItem, ApiEveningMenuStatus } from "../../api/types";
 
 export interface EveningMenuScreenProps {
   items: ApiEveningMenuItem[];
@@ -20,6 +21,12 @@ export interface EveningMenuScreenProps {
   partnerName?: string;
   /** Mode ouvert (#0040) : refuse une proposition (par code). */
   onRefuse?: (code: string) => void;
+  /** Mode aveugle du salon (défaut : déduit de l'absence de `onRefuse`). */
+  blind?: boolean;
+  /** Validation « J'ai fini » de ce soir (mode aveugle). */
+  status?: ApiEveningMenuStatus | null;
+  onDone?: () => void;
+  onUndoDone?: () => void;
   onBack?: () => void;
 }
 
@@ -45,10 +52,18 @@ export function EveningMenuScreen({
   partnerName,
   onToggle,
   onRefuse,
+  blind,
+  status,
+  onDone,
+  onUndoDone,
   onBack,
 }: EveningMenuScreenProps) {
   const { t } = useTranslation();
   const [active, setActive] = useState<Course>("starter");
+  const isOpen = blind === undefined ? Boolean(onRefuse) : !blind;
+  // Menu validé (aveugle) : lecture seule, jusqu'à « Modifier » (ou dévoilement).
+  const locked = !isOpen && Boolean(status?.meDone);
+  const showDone = !isOpen && Boolean(status) && Boolean(onDone);
   const [picking, setPicking] = useState(false);
   useBackClose(picking, () => setPicking(false));
   // Dernier retrait, annulable quelques secondes (toast « Annuler »).
@@ -126,9 +141,20 @@ export function EveningMenuScreen({
         partnerName={partnerName}
         onToggle={onToggle}
         onRemove={removeMine}
-        onRefuse={onRefuse}
+        onRefuse={isOpen ? onRefuse : undefined}
+        openMode={isOpen}
+        locked={locked}
         onAdd={() => setPicking(true)}
       />
+      {showDone && status && (
+        <EveningMenuDone
+          meDone={status.meDone}
+          revealed={status.revealed}
+          partnerName={partnerName}
+          onDone={onDone}
+          onUndo={status.revealed ? undefined : onUndoDone}
+        />
+      )}
       {undo && (
         <UndoToast
           key={undo.code}

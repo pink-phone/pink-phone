@@ -175,6 +175,8 @@ export function SpaceApp({
   // Menu du soir (#97b) : rituel quotidien, gated par le flag du salon.
   const {
     items: eveningMenuItems,
+    status: eveningMenuStatus,
+    setDone: setEveningMenuDone,
     refetch: refetchEveningMenu,
     toggle: toggleEveningMenu,
     refuse: refuseEveningMenu,
@@ -848,6 +850,7 @@ export function SpaceApp({
         setTab("desires");
         break;
       case "eveningMenu":
+      case "eveningMenuRevealed":
         setShowEveningMenu(true);
         break;
       default:
@@ -960,6 +963,10 @@ export function SpaceApp({
           items={eveningMenuItems}
           explicit={space.desiresExplicitLabels}
           partnerName={partners.length === 1 ? partners[0].displayName : undefined}
+          blind={space.eveningMenuBlind}
+          status={eveningMenuStatus}
+          onDone={() => setEveningMenuDone(true)}
+          onUndoDone={() => setEveningMenuDone(false)}
           onToggle={toggleEveningMenu}
           onRefuse={refuseEveningMenu}
           onBack={() => setShowEveningMenu(false)}

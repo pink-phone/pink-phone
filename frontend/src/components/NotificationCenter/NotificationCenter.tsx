@@ -40,6 +40,7 @@ const KIND_META: Record<string, { icon: string; key: string }> = {
   mood: { icon: "🌦️", key: "notifCenter.mood" },
   desire: { icon: "🔥", key: "notifCenter.desire" },
   eveningMenu: { icon: "🍽️", key: "notifCenter.eveningMenu" },
+  eveningMenuRevealed: { icon: "✨", key: "notifCenter.eveningMenuRevealed" },
   loveNote: { icon: "💌", key: "notifCenter.loveNote" },
   memberJoined: { icon: "👋", key: "notifCenter.memberJoined" },
   downloadEnabled: { icon: "⬇️", key: "notifCenter.downloadEnabled" },

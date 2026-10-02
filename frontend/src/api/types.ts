@@ -295,3 +295,13 @@ export interface AuthConfig {
   passwordEnabled: boolean;
   oidcEnabled: boolean;
 }
+
+/** Validation « J'ai fini » du menu du soir (mode aveugle), pour CE soir. */
+export interface ApiEveningMenuStatus {
+  /** J'ai validé mon menu : mes choix sont verrouillés. */
+  meDone: boolean;
+  doneCount: number;
+  memberCount: number;
+  /** Tous ont validé : les choix de chacun sont dévoilés, matchés ou non. */
+  revealed: boolean;
+}

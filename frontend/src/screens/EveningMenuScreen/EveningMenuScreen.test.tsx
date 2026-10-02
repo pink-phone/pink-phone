@@ -227,4 +227,74 @@ describe("EveningMenuScreen", () => {
     expect(onToggle).not.toHaveBeenCalled();
     expect(screen.getByRole("tab", { name: /entrée/i })).toBeInTheDocument();
   });
+
+  describe("mode aveugle : « J'ai fini »", () => {
+    const status = (over = {}) => ({
+      meDone: false,
+      doneCount: 0,
+      memberCount: 2,
+      revealed: false,
+      ...over,
+    });
+
+    it("bouton « J'ai fini » → onDone ; pas d'« en attente » sur mes choix", async () => {
+      const onDone = vi.fn();
+      render(
+        <EveningMenuScreen
+          blind
+          status={status()}
+          onDone={onDone}
+          items={[d("evening-massage", "starter", { picked: true })]}
+        />,
+      );
+      expect(screen.queryByText(/en attente/i)).toBeNull();
+      await userEvent.click(screen.getByRole("button", { name: /j'ai fini/i }));
+      expect(onDone).toHaveBeenCalledTimes(1);
+    });
+
+    it("validé : lecture seule (ni Ajouter ni ✕), « Modifier » rouvre", async () => {
+      const onUndoDone = vi.fn();
+      render(
+        <EveningMenuScreen
+          blind
+          status={status({ meDone: true, doneCount: 1 })}
+          onDone={vi.fn()}
+          onUndoDone={onUndoDone}
+          items={[d("evening-massage", "starter", { picked: true })]}
+        />,
+      );
+      expect(screen.queryByRole("button", { name: /ajouter/i })).toBeNull();
+      expect(screen.queryByRole("button", { name: /retirer/i })).toBeNull();
+      await userEvent.click(screen.getByRole("button", { name: /modifier/i }));
+      expect(onUndoDone).toHaveBeenCalledTimes(1);
+    });
+
+    it("dévoilé : les choix non matchés de l'autre apparaissent, sans réponse possible", () => {
+      render(
+        <EveningMenuScreen
+          blind
+          partnerName="Alex"
+          status={status({ meDone: true, doneCount: 2, revealed: true })}
+          onDone={vi.fn()}
+          items={[d("evening-cuddle", "starter", { partnerWants: true })]}
+        />,
+      );
+      expect(screen.getByText("Câlins sous la couette")).toBeInTheDocument();
+      expect(screen.getByText(/alex est partant/i)).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: /partant·e pour/i })).toBeNull();
+      expect(screen.getByRole("status")).toHaveTextContent(/dévoilés/i);
+    });
+
+    it("mode ouvert : pas de « J'ai fini »", () => {
+      render(
+        <EveningMenuScreen
+          blind={false}
+          status={status()}
+          onDone={vi.fn()}
+          items={[d("evening-massage", "starter", { picked: true })]}
+        />,
+      );
+      expect(screen.queryByRole("button", { name: /j'ai fini/i })).toBeNull();
+    });
+  });
 });

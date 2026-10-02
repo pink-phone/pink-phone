@@ -2277,3 +2277,101 @@ async fn menu_du_soir_aveugle_ne_fuite_ni_le_service_ni_un_evenement(pool: PgPoo
         "ni au retrait d'un choix non matché en mode aveugle"
     );
 }
+
+/// Mode aveugle : « J'ai fini ». Les choix non matchés ne sont dévoilés que
+/// quand TOUS les membres ont validé ; validé = verrouillé.
+#[sqlx::test]
+async fn menu_du_soir_aveugle_j_ai_fini_devoile_les_non_matchs(pool: PgPool) {
+    let (app, state) = build_app(pool.clone());
+    let alice = seed_user(&pool, "alice").await;
+    let bob = seed_user(&pool, "bob").await;
+    let space = seed_space(&pool, alice).await;
+    add_member(&pool, bob, space).await;
+    let ta = token_for(&state, alice);
+    let tb = token_for(&state, bob);
+    let patch = format!("/api/spaces/{space}");
+    let list = format!("/api/spaces/{space}/evening-menu");
+    let status = format!("/api/spaces/{space}/evening-menu-status");
+    let done = format!("/api/spaces/{space}/evening-menu-done");
+    let (st, _) = req(&app, "PATCH", &patch, &ta, Some(json!({ "eveningMenuEnabled": true }))).await;
+    assert_eq!(st, StatusCode::OK);
+
+    let find = |items: &serde_json::Value, code: &str| -> serde_json::Value {
+        items.as_array().unwrap().iter().find(|i| i["code"] == code).unwrap().clone()
+    };
+    // Alice : massage + film ; Bob : massage + bain (« evening-bath » est désactivé : cuddle).
+    let (a1, a2, b2) = ("evening-massage", "evening-movie", "evening-cuddle");
+    for code in [a1, a2] {
+        let (st, _) = req(&app, "PUT", &format!("{list}/{code}"), &ta, None).await;
+        assert_eq!(st, StatusCode::OK);
+    }
+    for code in [a1, b2] {
+        let (st, _) = req(&app, "PUT", &format!("{list}/{code}"), &tb, None).await;
+        assert_eq!(st, StatusCode::OK);
+    }
+
+    let (_, s) = req(&app, "GET", &status, &ta, None).await;
+    assert_eq!((s["meDone"].clone(), s["doneCount"].clone(), s["memberCount"].clone()), (json!(false), json!(0), json!(2)));
+
+    // Alice valide : verrouillée, rien n'est dévoilé à Bob.
+    let (st, s) = req(&app, "PUT", &done, &ta, None).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(s["meDone"], true);
+    assert_eq!(s["revealed"], false);
+    let (st, _) = req(&app, "PUT", &format!("{list}/evening-bath"), &ta, None).await;
+    assert_eq!(st, StatusCode::CONFLICT, "choix verrouillés après validation");
+    let (_, items_b) = req(&app, "GET", &list, &tb, None).await;
+    assert_eq!(find(&items_b, a2)["partnerWants"], false, "rien de dévoilé tant que Bob n'a pas fini");
+
+    // Alice se ravise (Bob n'a pas fini) : déverrouillée, puis revalide.
+    let (st, s) = req(&app, "DELETE", &done, &ta, None).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(s["meDone"], false);
+    let (st, _) = req(&app, "DELETE", &format!("{list}/{a2}"), &ta, None).await;
+    assert_eq!(st, StatusCode::OK);
+    let (st, _) = req(&app, "PUT", &format!("{list}/{a2}"), &ta, None).await;
+    assert_eq!(st, StatusCode::OK);
+    let (_, s) = req(&app, "PUT", &done, &ta, None).await;
+    assert_eq!(s["meDone"], true);
+
+    // Bob valide à son tour : tout est dévoilé, matché ou non.
+    let (_, s) = req(&app, "PUT", &done, &tb, None).await;
+    assert_eq!(s["revealed"], true);
+    // Alice (qui avait fini avant) est prévenue ; Bob (le dernier) non.
+    let kinds = |u: Uuid| {
+        let pool = pool.clone();
+        async move {
+            sqlx::query_scalar::<_, String>(
+                "SELECT kind FROM notifications WHERE space_id = $1 AND user_id = $2
+                   AND kind = 'eveningMenuRevealed'",
+            )
+            .bind(space)
+            .bind(u)
+            .fetch_all(&pool)
+            .await
+            .unwrap()
+        }
+    };
+    assert_eq!(kinds(alice).await.len(), 1, "notification de dévoilement pour Alice");
+    assert!(kinds(bob).await.is_empty());
+    let (_, items_b) = req(&app, "GET", &list, &tb, None).await;
+    assert_eq!(find(&items_b, a1)["matched"], true);
+    let film = find(&items_b, a2);
+    assert_eq!(film["picked"], false);
+    assert_eq!(film["matched"], false);
+    assert_eq!(film["partnerWants"], true, "le choix non matché d'Alice est dévoilé");
+    let (_, items_a) = req(&app, "GET", &list, &ta, None).await;
+    assert_eq!(find(&items_a, b2)["partnerWants"], true, "et réciproquement");
+
+    // Définitif : plus de retrait de validation, plus de choix.
+    let (st, _) = req(&app, "DELETE", &done, &tb, None).await;
+    assert_eq!(st, StatusCode::CONFLICT);
+    let (st, _) = req(&app, "PUT", &format!("{list}/evening-bath"), &tb, None).await;
+    assert_eq!(st, StatusCode::CONFLICT);
+
+    // Mode ouvert : pas de « J'ai fini » (tout est déjà visible).
+    let (st, _) = req(&app, "PATCH", &patch, &ta, Some(json!({ "eveningMenuBlind": false }))).await;
+    assert_eq!(st, StatusCode::OK);
+    let (st, _) = req(&app, "PUT", &done, &ta, None).await;
+    assert_eq!(st, StatusCode::BAD_REQUEST);
+}

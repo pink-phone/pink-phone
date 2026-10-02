@@ -39,6 +39,25 @@ pub fn router() -> Router<AppState> {
             "/api/spaces/{id}/evening-menu/{code}",
             put(pick).delete(unpick),
         )
+        .route("/api/spaces/{id}/evening-menu-status", get(menu_status))
+        .route(
+            "/api/spaces/{id}/evening-menu-done",
+            put(mark_done).delete(unmark_done),
+        )
+}
+
+/// Contexte d'une requête du menu du soir (garde + état du jour).
+struct MenuCtx {
+    blind: bool,
+    today: NaiveDate,
+    map: CourseMap,
+    /// Mode aveugle ET tous les membres ont validé ce soir → les choix de
+    /// chacun sont dévoilés, matchés ou non.
+    revealed: bool,
+    /// J'ai validé mon menu de ce soir (mode aveugle : mes choix sont verrouillés).
+    me_done: bool,
+    done_count: i64,
+    member_count: i64,
 }
 
 /// Classement du salon : catégorie → services qu'elle alimente, dans l'ordre du
@@ -71,7 +90,7 @@ async fn ensure_enabled_today(
     pool: &sqlx::PgPool,
     user_id: Uuid,
     space_id: Uuid,
-) -> ApiResult<(bool, NaiveDate, CourseMap)> {
+) -> ApiResult<MenuCtx> {
     ensure_member(pool, user_id, space_id).await?;
     let row: Option<(bool, bool, NaiveDate, bool, Vec<String>)> = sqlx::query_as(
         "SELECT evening_menu_enabled, evening_menu_blind, (now() AT TIME ZONE timezone)::date,
@@ -85,7 +104,26 @@ async fn ensure_enabled_today(
     if !enabled {
         return Err(ApiError::Forbidden);
     }
-    Ok((blind, today, course_map(custom, &entries)))
+    let (member_count, done_count, me_done): (i64, i64, bool) = sqlx::query_as(
+        "SELECT (SELECT count(*) FROM space_memberships WHERE space_id = $1),
+                (SELECT count(*) FROM evening_menu_done WHERE space_id = $1 AND day = $2),
+                EXISTS (SELECT 1 FROM evening_menu_done
+                        WHERE space_id = $1 AND day = $2 AND user_id = $3)",
+    )
+    .bind(space_id)
+    .bind(today)
+    .bind(user_id)
+    .fetch_one(pool)
+    .await?;
+    Ok(MenuCtx {
+        blind,
+        today,
+        map: course_map(custom, &entries),
+        revealed: blind && member_count > 0 && done_count >= member_count,
+        me_done,
+        done_count,
+        member_count,
+    })
 }
 
 const CATALOG_ITEM_COLUMNS: &str = "
@@ -114,17 +152,20 @@ async fn catalog_item(pool: &sqlx::PgPool, code: &str) -> ApiResult<CatalogItemR
 
 /// Dérive (picked, matched, partnerWants, refused) selon le mode du salon.
 /// Aveugle : le choix de l'autre n'entre jamais dans `partner_wants`/`refused`
-/// (toujours faux) — `matched` exige les deux `want`. Ouvert : `matched` =
+/// (toujours faux) — `matched` exige les deux `want` — SAUF une fois les menus
+/// dévoilés (`revealed`, tous les membres ont validé) : `partner_wants` montre
+/// alors aussi les choix non matchés. Ouvert : `matched` =
 /// (moi OU l'autre) `want`, ET personne n'a `refused` ; silence = inclus.
 fn compute_flags(
     blind: bool,
     my_stance: Option<&str>,
     other_wants: bool,
     other_refused: bool,
+    revealed: bool,
 ) -> (bool, bool, bool, bool) {
     let picked = my_stance == Some("want");
     if blind {
-        (picked, picked && other_wants, false, false)
+        (picked, picked && other_wants, revealed && other_wants, false)
     } else {
         let my_refused = my_stance == Some("refused");
         let refused = my_refused || other_refused;
@@ -192,7 +233,7 @@ async fn list_menu(
     auth: AuthUser,
     Path(space_id): Path<Uuid>,
 ) -> ApiResult<Json<Vec<EveningMenuItem>>> {
-    let (blind, today, map) =
+    let MenuCtx { blind, today, map, revealed, .. } =
         ensure_enabled_today(&state.pool, auth.user_id, space_id).await?;
 
     // Tout le catalogue actif : c'est le client qui filtre par service (le
@@ -254,6 +295,7 @@ async fn list_menu(
                 my_stance,
                 other_want.contains(&row.id),
                 other_refused.contains(&row.id),
+                revealed,
             );
             let (course, courses) = resolve_course(
                 &row,
@@ -296,8 +338,11 @@ async fn pick(
     Path((space_id, code)): Path<(Uuid, String)>,
     body: Option<Json<PickBody>>,
 ) -> ApiResult<Json<EveningMenuItem>> {
-    let (blind, today, map) =
+    let MenuCtx { blind, today, map, revealed, me_done, .. } =
         ensure_enabled_today(&state.pool, auth.user_id, space_id).await?;
+    if blind && me_done {
+        return Err(ApiError::Conflict("menu du soir déjà validé".into()));
+    }
     let row = catalog_item(&state.pool, &code).await?;
     let body = body.map(|Json(b)| b).unwrap_or_default();
     let course = match body.course.as_deref() {
@@ -358,7 +403,7 @@ async fn pick(
     let (other_wants, other_refused, other_course) =
         partner_flags(&state.pool, space_id, auth.user_id, &code, today).await?;
     let (picked, matched, partner_wants, refused) =
-        compute_flags(blind, Some(stance), other_wants, other_refused);
+        compute_flags(blind, Some(stance), other_wants, other_refused, revealed);
     let changed = prev.as_deref() != Some(stance);
 
     // Nouveau match (aveugle : réciprocité ; ouvert : je valide une
@@ -403,8 +448,11 @@ async fn unpick(
     auth: AuthUser,
     Path((space_id, code)): Path<(Uuid, String)>,
 ) -> ApiResult<Json<EveningMenuItem>> {
-    let (blind, today, map) =
+    let MenuCtx { blind, today, map, revealed, me_done, .. } =
         ensure_enabled_today(&state.pool, auth.user_id, space_id).await?;
+    if blind && me_done {
+        return Err(ApiError::Conflict("menu du soir déjà validé".into()));
+    }
     let row = catalog_item(&state.pool, &code).await?;
     let res = sqlx::query(
         "DELETE FROM evening_menu_picks
@@ -420,7 +468,7 @@ async fn unpick(
     let (other_wants, other_refused, other_course) =
         partner_flags(&state.pool, space_id, auth.user_id, &code, today).await?;
     let (picked, matched, partner_wants, refused) =
-        compute_flags(blind, None, other_wants, other_refused);
+        compute_flags(blind, None, other_wants, other_refused, revealed);
     // Aveugle : seul un match défait change ce que l'autre voit (il voulait aussi
     // cet item) ; sinon un évènement trahirait le retrait d'un choix secret.
     if res.rows_affected() > 0 && (!blind || other_wants) {
@@ -439,9 +487,116 @@ async fn unpick(
     Ok(Json(item))
 }
 
+/// État de la validation du menu du soir (mode aveugle) pour CE soir.
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+struct MenuStatus {
+    /// J'ai validé mon menu (mes choix sont verrouillés).
+    me_done: bool,
+    /// Combien de membres ont validé / combien il y en a.
+    done_count: i64,
+    member_count: i64,
+    /// Tous ont validé : les choix de chacun sont dévoilés, matchés ou non.
+    revealed: bool,
+}
+
+impl From<&MenuCtx> for MenuStatus {
+    fn from(c: &MenuCtx) -> Self {
+        Self {
+            me_done: c.me_done,
+            done_count: c.done_count,
+            member_count: c.member_count,
+            revealed: c.revealed,
+        }
+    }
+}
+
+async fn menu_status(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Path(space_id): Path<Uuid>,
+) -> ApiResult<Json<MenuStatus>> {
+    let ctx = ensure_enabled_today(&state.pool, auth.user_id, space_id).await?;
+    Ok(Json(MenuStatus::from(&ctx)))
+}
+
+/// « J'ai fini » : valide mon menu de ce soir (mode aveugle). Idempotent. Quand
+/// tout le monde a validé, les choix de chacun sont dévoilés.
+async fn mark_done(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Path(space_id): Path<Uuid>,
+) -> ApiResult<Json<MenuStatus>> {
+    let ctx = ensure_enabled_today(&state.pool, auth.user_id, space_id).await?;
+    if !ctx.blind {
+        return Err(ApiError::BadRequest(
+            "validation indisponible en mode ouvert".into(),
+        ));
+    }
+    let res = sqlx::query(
+        "INSERT INTO evening_menu_done (space_id, user_id, day) VALUES ($1, $2, $3)
+         ON CONFLICT DO NOTHING",
+    )
+    .bind(space_id)
+    .bind(auth.user_id)
+    .bind(ctx.today)
+    .execute(&state.pool)
+    .await?;
+    if res.rows_affected() > 0 {
+        state.emit(space_id, auth.user_id, EventKind::EveningMenu);
+    }
+    let ctx = ensure_enabled_today(&state.pool, auth.user_id, space_id).await?;
+    // Dernier à valider : les menus sont dévoilés → on prévient les autres (qui
+    // avaient fini avant). Corps générique côté push : aucun choix ne fuit.
+    if res.rows_affected() > 0 && ctx.revealed {
+        crate::notifications::notify_members(
+            &state,
+            space_id,
+            auth.user_id,
+            "eveningMenuRevealed",
+            None,
+            None,
+            "Les menus du soir sont dévoilés !".into(),
+        )
+        .await;
+    }
+    Ok(Json(MenuStatus::from(&ctx)))
+}
+
+/// Retire ma validation (je veux encore modifier) — impossible une fois que
+/// tout le monde a validé (les menus sont alors dévoilés, définitivement).
+async fn unmark_done(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Path(space_id): Path<Uuid>,
+) -> ApiResult<Json<MenuStatus>> {
+    let ctx = ensure_enabled_today(&state.pool, auth.user_id, space_id).await?;
+    if ctx.revealed {
+        return Err(ApiError::Conflict(
+            "menus déjà dévoilés pour ce soir".into(),
+        ));
+    }
+    let res = sqlx::query(
+        "DELETE FROM evening_menu_done WHERE space_id = $1 AND user_id = $2 AND day = $3",
+    )
+    .bind(space_id)
+    .bind(auth.user_id)
+    .bind(ctx.today)
+    .execute(&state.pool)
+    .await?;
+    if res.rows_affected() > 0 {
+        state.emit(space_id, auth.user_id, EventKind::EveningMenu);
+    }
+    let ctx = ensure_enabled_today(&state.pool, auth.user_id, space_id).await?;
+    Ok(Json(MenuStatus::from(&ctx)))
+}
+
 /// Purge des coches de plus de 2 jours (le menu n'est pertinent que pour son jour
 /// local ; 2 jours couvrent les écarts de fuseau). Best-effort.
 pub async fn purge_old_picks(pool: &sqlx::PgPool) {
+    let _ = sqlx::query("DELETE FROM evening_menu_done WHERE created_at < now() - interval '2 days'")
+        .execute(pool)
+        .await;
     match sqlx::query(
         "DELETE FROM evening_menu_picks WHERE created_at < now() - interval '2 days'",
     )
