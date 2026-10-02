@@ -18,98 +18,10 @@ export interface DesiresScreenProps {
   onBack?: () => void;
 }
 
-// Code stable → clé i18n typée. Mêmes 50 codes que la const Rust
-// `DESIRE_CATEGORIES` (source de vérité ; #99). Code inconnu → ignoré.
-const LABEL_KEYS = {
-  morningCuddle: "desires.items.morningCuddle",
-  oilMassage: "desires.items.oilMassage",
-  bathTogether: "desires.items.bathTogether",
-  slowDance: "desires.items.slowDance",
-  lingerie: "desires.items.lingerie",
-  rediscover: "desires.items.rediscover",
-  roleplay: "desires.items.roleplay",
-  truthOrDare: "desires.items.truthOrDare",
-  striptease: "desires.items.striptease",
-  photoSession: "desires.items.photoSession",
-  writeFantasy: "desires.items.writeFantasy",
-  daySexting: "desires.items.daySexting",
-  missionary: "desires.items.missionary",
-  doggy: "desires.items.doggy",
-  cowgirl: "desires.items.cowgirl",
-  reverseCowgirl: "desires.items.reverseCowgirl",
-  spooning: "desires.items.spooning",
-  lotus: "desires.items.lotus",
-  wheelbarrow: "desires.items.wheelbarrow",
-  standing: "desires.items.standing",
-  edgeOfBed: "desires.items.edgeOfBed",
-  mirror: "desires.items.mirror",
-  newPositionMonthly: "desires.items.newPositionMonthly",
-  blindfold: "desires.items.blindfold",
-  lightBondage: "desires.items.lightBondage",
-  spanking: "desires.items.spanking",
-  temperature: "desires.items.temperature",
-  edging: "desires.items.edging",
-  toy: "desires.items.toy",
-  gentleDomination: "desires.items.gentleDomination",
-  submission: "desires.items.submission",
-  commands: "desires.items.commands",
-  softCollar: "desires.items.softCollar",
-  eveningRules: "desires.items.eveningRules",
-  outdoors: "desires.items.outdoors",
-  car: "desires.items.car",
-  hotel: "desires.items.hotel",
-  anotherRoom: "desires.items.anotherRoom",
-  semiPublic: "desires.items.semiPublic",
-  voyeur: "desires.items.voyeur",
-  fellatio: "desires.items.fellatio",
-  cunnilingus: "desires.items.cunnilingus",
-  sixtyNine: "desires.items.sixtyNine",
-  mutualMasturbation: "desires.items.mutualMasturbation",
-  fingering: "desires.items.fingering",
-  rimming: "desires.items.rimming",
-  anal: "desires.items.anal",
-  facial: "desires.items.facial",
-  swallow: "desires.items.swallow",
-  squirting: "desires.items.squirting",
-} as const;
-
-// Variante suggestive (uniquement pour les items crus) — utilisée quand le salon
-// désactive les libellés explicites.
-const SOFT_LABEL_KEYS: Partial<Record<keyof typeof LABEL_KEYS, string>> = {
-  fellatio: "desires.itemsSoft.fellatio",
-  cunnilingus: "desires.itemsSoft.cunnilingus",
-  sixtyNine: "desires.itemsSoft.sixtyNine",
-  mutualMasturbation: "desires.itemsSoft.mutualMasturbation",
-  fingering: "desires.itemsSoft.fingering",
-  rimming: "desires.itemsSoft.rimming",
-  anal: "desires.itemsSoft.anal",
-  facial: "desires.itemsSoft.facial",
-  swallow: "desires.itemsSoft.swallow",
-  squirting: "desires.itemsSoft.squirting",
-};
-
-const CATEGORY_KEYS = {
-  tender: "desires.categories.tender",
-  games: "desires.categories.games",
-  positions: "desires.categories.positions",
-  sensations: "desires.categories.sensations",
-  power: "desires.categories.power",
-  places: "desires.categories.places",
-  practices: "desires.categories.practices",
-} as const;
-
-const CATEGORY_ORDER = [
-  "tender",
-  "games",
-  "positions",
-  "sensations",
-  "power",
-  "places",
-  "practices",
-] as const;
-
 /** Bucket list (#99) : envies par catégorie (sections repliables). Trois états
- *  (envie/neutre/contre) + « ✓ Réalisé ». Registre de libellés explicite/suggestif. */
+ *  (envie/neutre/contre) + « ✓ Réalisé ». Registre de libellés explicite/suggestif.
+ *  Contenu (catégories/items) fourni par l'API depuis le catalogue partagé (#0033) —
+ *  plus de catalogue codé en dur côté front. */
 export function DesiresScreen({
   items,
   explicit = true,
@@ -118,21 +30,38 @@ export function DesiresScreen({
   onToggleDone,
   onBack,
 }: DesiresScreenProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [open, setOpen] = useState<Record<string, boolean>>({});
+  const isEn = i18n.language.startsWith("en");
 
-  const known = items.filter(
-    (d): d is ApiDesire & { code: keyof typeof LABEL_KEYS } =>
-      d.code in LABEL_KEYS,
-  );
-
-  const labelFor = (code: keyof typeof LABEL_KEYS): string => {
+  const labelFor = (item: ApiDesire): string => {
     if (!explicit) {
-      const soft = SOFT_LABEL_KEYS[code];
-      if (soft) return t(soft as "desires.itemsSoft.fellatio");
+      const soft = isEn ? item.labelEnSoft : item.labelFrSoft;
+      if (soft) return soft;
     }
-    return t(LABEL_KEYS[code]);
+    return isEn ? item.labelEn : item.labelFr;
   };
+
+  const descriptionFor = (item: ApiDesire): string | undefined =>
+    (isEn ? item.descriptionEn : item.descriptionFr) ?? undefined;
+
+  // Repère de regroupement libre à l'intérieur d'une catégorie (ex.
+  // 'kamasutra' → « Kamasutra »). Donnée, pas i18n : capitalisation suffit.
+  const subcategoryLabelFor = (item: ApiDesire): string | undefined =>
+    item.subcategory
+      ? item.subcategory.charAt(0).toUpperCase() + item.subcategory.slice(1)
+      : undefined;
+
+  // Catégories dans l'ordre où l'API les renvoie (déjà trié par sort_order).
+  const categoryOrder: string[] = [];
+  const byCategory = new Map<string, ApiDesire[]>();
+  for (const item of items) {
+    if (!byCategory.has(item.category)) {
+      byCategory.set(item.category, []);
+      categoryOrder.push(item.category);
+    }
+    byCategory.get(item.category)!.push(item);
+  }
 
   return (
     <div className="space-y-v3-5">
@@ -155,13 +84,15 @@ export function DesiresScreen({
       <p className="text-sm text-taupe-300">{t("desires.intro")}</p>
 
       <div className="space-y-v3-3">
-        {CATEGORY_ORDER.map((cat) => {
-          const inCat = known.filter((d) => d.category === cat);
-          if (inCat.length === 0) return null;
+        {categoryOrder.map((cat) => {
+          const inCat = byCategory.get(cat)!;
           const matches = inCat.filter((d) => d.matched).length;
           const limits = inCat.filter((d) => d.limit).length;
           const dones = inCat.filter((d) => d.done).length;
           const isOpen = open[cat] ?? false;
+          const categoryLabel = isEn
+            ? inCat[0].categoryLabelEn
+            : inCat[0].categoryLabelFr;
           return (
             <section key={cat} className="space-y-v3-3">
               <button
@@ -171,7 +102,7 @@ export function DesiresScreen({
                 className="flex w-full items-center justify-between gap-2 rounded-2xl border border-charcoal-600/60 bg-charcoal-800/60 px-4 py-3 text-left transition-colors duration-300 ease-felt hover:border-spice-400/40 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500"
               >
                 <span className="font-serif text-base text-blush-100">
-                  {t(CATEGORY_KEYS[cat])}
+                  {categoryLabel}
                 </span>
                 <span className="flex items-center gap-2">
                   {matches > 0 && (
@@ -199,7 +130,9 @@ export function DesiresScreen({
                   {inCat.map((d) => (
                     <Fragment key={d.code}>
                       <DesireCard
-                        label={labelFor(d.code)}
+                        label={labelFor(d)}
+                        description={descriptionFor(d)}
+                        subcategoryLabel={subcategoryLabelFor(d)}
                         interested={d.interested}
                         against={d.against}
                         matched={d.matched}

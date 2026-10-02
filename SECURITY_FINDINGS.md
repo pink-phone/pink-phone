@@ -820,3 +820,51 @@ server-generated UUID key never taken from user input), and all `space_id`-scope
 (`ensure_member` consistently applied; author-scoped mutations use `WHERE ... AND author_id =
 $n` rather than a separate ownership check) were reviewed and found sound. All SQL uses bound
 parameters — no injection surface found.
+
+---
+
+## 2026-10-02 — Static review of the evening-menu changes (services, hors-catégorie, classement par salon)
+
+Reviewer: Claude (white-hat static review, Mode A). Scope: `backend/src/routes/evening_menu.rs`,
+`spaces.rs` (`PATCH /api/spaces/{id}` — `eveningCourseCustom`/`eveningCourseCategories`),
+migrations 0040–0050, and the matching frontend. No dynamic testing.
+
+### 2. Blind-mode evening menu leaked the partner's secret pick through the item's service (`course`)
+
+- **Status**: fixed (2026-10-02) — [backend/src/routes/evening_menu.rs](backend/src/routes/evening_menu.rs) (`list_menu`, `pick`, `unpick`)
+- **Location**: `GET /api/spaces/{id}/evening-menu` → `course` field; `PUT/DELETE …/evening-menu/{code}`
+- **Class**: CWE-200 (Exposure of Sensitive Information) — breaks the double-blind guarantee of #97b
+- **Severity**: Medium — intimate preference disclosure to the other member, only in the default (blind) mode
+- **Confidence**: confirmed (failing integration test, then fixed)
+
+**Finding**: the service in which a member adds a pick (`evening_menu_picks.course`) was folded into the
+item's displayed `course` for *every* member, including the other one, regardless of the blind mode. For an
+item whose default service differs (or that has none, e.g. category `places`), the other member's list
+showed a changed `course` the moment the first member picked it — before any match — revealing the secret pick.
+
+**PoC** (test `menu_du_soir_aveugle_ne_fuite_ni_le_service_ni_un_evenement`): Alice `PUT`s a `places` item with
+`{"course":"dessert"}`; Bob's `GET` returned that item with `course:"dessert"` instead of `""`.
+
+**Fix**: the other member's service is only used when it is revealed — `partnerWants` (open mode) or `matched`.
+
+### 3. Blind-mode evening menu emitted a real-time event on every unmatched pick/unpick
+
+- **Status**: fixed (2026-10-02) — same file
+- **Class**: CWE-203 / CWE-200 (observable discrepancy / activity side channel)
+- **Severity**: Low — reveals *that* the other member changed their (secret) menu, not what
+- **Confidence**: confirmed (same test)
+
+**Finding**: `pick` emitted `EventKind::EveningMenu` whenever the stance changed (not only on a match) and
+`unpick` on every delete, in blind mode too. The partner's WebSocket client therefore learned, in real time,
+that a secret pick had been added or removed.
+
+**Fix**: in blind mode events are only emitted when a match is created, or when removing a pick undoes an
+existing one (the partner also wanted it). Open mode keeps its refresh events.
+
+### Reviewed, no finding
+- Authorisation: every evening-menu route goes through `ensure_member` + the enabled guard before any read/write.
+- Input validation: `course` ∈ {starter, main, dessert}; `eveningCourseCategories` entries validated against the
+  known categories, ≤ 64 entries, no duplicates; dynamic SQL uses only a compile-time constant column list
+  (`AssertSqlSafe` on constants, no user input).
+- Migrations 0049/0050 exercised against seeded data in a scratch database (overrides → per-service lists).
+- Frontend: no `dangerouslySetInnerHTML`; labels come from the API and are rendered as text.

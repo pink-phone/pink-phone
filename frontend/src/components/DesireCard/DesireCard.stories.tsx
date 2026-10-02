@@ -58,3 +58,13 @@ export const Match: Story = {
 export const Realise: Story = {
   args: { interested: true, matched: true, done: true },
 };
+
+/** Item du catalogue (#0033) avec description et repère de sous-catégorie. */
+export const AvecDescriptionEtSousCategorie: Story = {
+  args: {
+    label: "Le lotus",
+    subcategoryLabel: "Kamasutra",
+    description:
+      "Assis sur les cuisses de l'autre, jambes nouées dans le dos, front contre front.",
+  },
+};

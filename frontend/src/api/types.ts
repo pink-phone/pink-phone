@@ -48,16 +48,39 @@ export interface Space {
   desiresExplicitLabels: boolean;
   /** « Menu du soir » : rituel quotidien à double consentement (#97b). */
   eveningMenuEnabled: boolean;
+  /** Mode aveugle strict (défaut) vs mode ouvert — propositions visibles
+   *  tout de suite, à valider/refuser (#0040). */
+  eveningMenuBlind: boolean;
+  /** Services du menu du soir paramétrés par le salon ? Faux = classement du
+   *  catalogue. */
+  eveningCourseCustom: boolean;
+  /** Entrées « <service>:<categorie> » (service = starter|main|dessert) : les
+   *  catégories qui alimentent chaque service, si `eveningCourseCustom`. */
+  eveningCourseCategories: string[];
   createdAt: string;
 }
 
-/** Une envie du catalogue (#99) côté membre courant : mon intérêt + état « matché ».
- *  L'intérêt brut des autres n'est jamais exposé (matched = réciprocité). */
+/** Une envie du catalogue partagé (#99, #0033) côté membre courant : son contenu
+ *  (bilingue) + mon intérêt + état « matché ». L'intérêt brut des autres n'est
+ *  jamais exposé (matched = réciprocité). */
 export interface ApiDesire {
-  /** Code stable du catalogue (libellé via i18n côté front). */
+  /** Id stable du catalogue. */
   code: string;
   /** Catégorie du catalogue (bucket list #99) — regroupement à l'écran. */
   category: string;
+  categoryLabelFr: string;
+  categoryLabelEn: string;
+  /** Regroupement libre à l'intérieur de la catégorie (ex. 'kamasutra'). */
+  subcategory: string | null;
+  labelFr: string;
+  labelEn: string;
+  /** Variante suggestive (registre #99), si le catalogue en fournit une. */
+  labelFrSoft: string | null;
+  labelEnSoft: string | null;
+  descriptionFr: string | null;
+  descriptionEn: string | null;
+  /** Classement soft/hot de l'item (#0033). */
+  intensity: "soft" | "hot";
   /** J'ai marqué « envie » (privé, révélé seulement en cas de match). */
   interested: boolean;
   /** J'ai marqué « contre » (ma limite). */
@@ -70,11 +93,37 @@ export interface ApiDesire {
   done: boolean;
 }
 
-/** Un item du « Menu du soir » (#97b) pour ce soir : mon choix du jour + match. */
+/** Un item du « Menu du soir » (#97b, #0033, #0039) pour ce soir : même
+ *  contenu catalogue qu'`ApiDesire` (regroupement, registre explicite/
+ *  suggestif) + son service (entrée/plat/dessert) + mon choix du jour + match. */
 export interface ApiEveningMenuItem {
   code: string;
+  category: string;
+  categoryLabelFr: string;
+  categoryLabelEn: string;
+  subcategory: string | null;
+  labelFr: string;
+  labelEn: string;
+  labelFrSoft: string | null;
+  labelEnSoft: string | null;
+  descriptionFr: string | null;
+  descriptionEn: string | null;
+  intensity: "soft" | "hot";
+  /** Service où l'item s'affiche (#0039, #0041) ; vide = dans aucun service
+   *  (choisissable quand même hors catégorie). */
+  course: "starter" | "main" | "dessert" | "";
+  /** Service par défaut du catalogue, avant surcharge du salon. */
+  defaultCourse?: "starter" | "main" | "dessert" | "";
+  /** Tous les services où l'item est proposé (classement du salon). */
+  courses?: ("starter" | "main" | "dessert")[];
   picked: boolean;
   matched: boolean;
+  /** Mode ouvert (#0040) uniquement : le/la partenaire a coché « want »
+   *  aujourd'hui, visible tout de suite (à valider ou refuser). Toujours
+   *  `false` en mode aveugle. */
+  partnerWants: boolean;
+  /** Mode ouvert uniquement : l'un des deux a explicitement refusé. */
+  refused: boolean;
 }
 
 /** Un « mot doux » (#102). `body` est null quand le mot m'est scellé (ouverture

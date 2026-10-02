@@ -9,6 +9,27 @@ describe("DesireCard", () => {
     expect(screen.getByText("Massage")).toBeInTheDocument();
   });
 
+  it("affiche la description et le repère de sous-catégorie quand fournis", () => {
+    render(
+      <DesireCard
+        label="Le lotus"
+        description="Assis sur les cuisses de l'autre, front contre front."
+        subcategoryLabel="Kamasutra"
+        interested={false}
+        matched={false}
+      />,
+    );
+    expect(
+      screen.getByText("Assis sur les cuisses de l'autre, front contre front."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Kamasutra")).toBeInTheDocument();
+  });
+
+  it("n'affiche ni description ni repère quand absents", () => {
+    render(<DesireCard label="Massage" interested={false} matched={false} />);
+    expect(screen.queryByText("Kamasutra")).toBeNull();
+  });
+
   it("bouton envie : aria-pressed + onToggleWant", async () => {
     const onToggleWant = vi.fn();
     const { rerender } = render(

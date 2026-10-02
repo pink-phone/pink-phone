@@ -200,6 +200,9 @@ export const updateSpace = (
     desiresEnabled?: boolean;
     desiresExplicitLabels?: boolean;
     eveningMenuEnabled?: boolean;
+    eveningMenuBlind?: boolean;
+    eveningCourseCustom?: boolean;
+    eveningCourseCategories?: string[];
   },
 ) => req<Space>(`/api/spaces/${spaceId}`, { method: "PATCH", json: body });
 
@@ -243,9 +246,18 @@ export const unsetDesireDone = (spaceId: string, code: string) =>
 export const listEveningMenu = (spaceId: string) =>
   req<ApiEveningMenuItem[]>(`/api/spaces/${spaceId}/evening-menu`);
 
-export const pickEveningMenu = (spaceId: string, code: string) =>
+/** Pose mon stance pour ce soir : `want` (défaut) ou `refused` (mode ouvert
+ *  uniquement, #0040 — 400 en mode aveugle). */
+export const pickEveningMenu = (
+  spaceId: string,
+  code: string,
+  stance: "want" | "refused" = "want",
+  /** Service où le choix est ajouté (permet de piocher hors catégorie). */
+  course?: "starter" | "main" | "dessert",
+) =>
   req<ApiEveningMenuItem>(`/api/spaces/${spaceId}/evening-menu/${code}`, {
     method: "PUT",
+    json: course ? { stance, course } : { stance },
   });
 
 export const unpickEveningMenu = (spaceId: string, code: string) =>

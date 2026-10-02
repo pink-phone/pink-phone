@@ -83,6 +83,9 @@ const space: Space = {
   desiresEnabled: false,
   desiresExplicitLabels: true,
   eveningMenuEnabled: false,
+  eveningMenuBlind: true,
+  eveningCourseCustom: false,
+  eveningCourseCategories: [],
   createdAt: "2026-06-24T10:00:00.000Z",
 };
 const user: UserPublic = {

@@ -45,6 +45,17 @@ pub struct Space {
     pub desires_explicit_labels: bool,
     /// « Menu du soir » : rituel quotidien à double consentement (#97b).
     pub evening_menu_enabled: bool,
+    /// Mode aveugle strict (défaut) : le choix du/de la partenaire n'est
+    /// jamais visible avant un match mutuel. Si faux (mode « ouvert »,
+    /// #0040), une proposition est visible immédiatement et peut être
+    /// validée ou refusée.
+    pub evening_menu_blind: bool,
+    /// Services du menu du soir paramétrés par le salon ? Faux = classement du
+    /// catalogue (par item) ; vrai = seules comptent `evening_course_categories`.
+    pub evening_course_custom: bool,
+    /// Entrées « <service>:<categorie> » (service = starter|main|dessert) : les
+    /// catégories qui alimentent chaque service — plusieurs services possibles.
+    pub evening_course_categories: Vec<String>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -237,16 +248,54 @@ pub struct ChallengeSuggestion {
     pub hidden: bool,
 }
 
-/// Une envie du catalogue (#99) telle que renvoyée au membre courant : son code
-/// stable + MON intérêt + l'état « matché ». L'intérêt brut des AUTRES n'est jamais
-/// exposé (double-aveugle) : `matched` n'est vrai que si moi ET un autre membre
-/// avons coché ce code.
+/// Un item du catalogue (#0033) tel que joint depuis `catalog_items` +
+/// `catalog_categories` — utilisé par la Bucket List ET le Menu du soir pour
+/// construire leurs réponses respectives (ils ajoutent chacun leur propre état
+/// de coche par-dessus).
+#[derive(Debug, sqlx::FromRow)]
+pub struct CatalogItemRow {
+    pub id: String,
+    pub category_id: String,
+    pub category_label_fr: String,
+    pub category_label_en: String,
+    pub subcategory: Option<String>,
+    pub label_fr: String,
+    pub label_en: String,
+    pub label_fr_soft: Option<String>,
+    pub label_en_soft: Option<String>,
+    pub description_fr: Option<String>,
+    pub description_en: Option<String>,
+    pub intensity: String,
+    /// Service du menu du soir (#97b, #0033) — `NULL` si l'item n'y est pas
+    /// éligible (ex. catégorie `places`). `#[sqlx(default)]` : la requête de
+    /// `desires.rs` ne sélectionne pas cette colonne.
+    #[sqlx(default)]
+    pub evening_course: Option<String>,
+}
+
+/// Une envie du catalogue (#99, #0033) telle que renvoyée au membre courant :
+/// son contenu (bilingue) + MON intérêt + l'état « matché ». L'intérêt brut des
+/// AUTRES n'est jamais exposé (double-aveugle) : `matched` n'est vrai que si moi
+/// ET un autre membre avons coché ce code.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DesireItem {
     pub code: String,
     /// Catégorie du catalogue (#99 bucket list) — pour le regroupement à l'écran.
     pub category: String,
+    pub category_label_fr: String,
+    pub category_label_en: String,
+    /// Regroupement libre à l'intérieur de la catégorie (ex. 'kamasutra').
+    pub subcategory: Option<String>,
+    pub label_fr: String,
+    pub label_en: String,
+    /// Variante suggestive (registre #99), si le catalogue en fournit une.
+    pub label_fr_soft: Option<String>,
+    pub label_en_soft: Option<String>,
+    pub description_fr: Option<String>,
+    pub description_en: Option<String>,
+    /// Classement soft/hot de l'item (#0033).
+    pub intensity: String,
     /// J'ai marqué « envie » (privé, révélé seulement en cas de match).
     pub interested: bool,
     /// J'ai marqué « contre » (limite). Mon état, toujours visible de moi.
@@ -260,15 +309,96 @@ pub struct DesireItem {
     pub done: bool,
 }
 
-/// Un item du « Menu du soir » (#97b) pour ce soir, côté membre courant : mon
-/// choix du jour + l'état « matché » (les deux l'ont coché aujourd'hui). Double
-/// consentement/double-aveugle : `matched` n'est vrai qu'en cas de réciprocité.
+impl DesireItem {
+    pub fn from_catalog(row: CatalogItemRow) -> Self {
+        Self {
+            code: row.id,
+            category: row.category_id,
+            category_label_fr: row.category_label_fr,
+            category_label_en: row.category_label_en,
+            subcategory: row.subcategory,
+            label_fr: row.label_fr,
+            label_en: row.label_en,
+            label_fr_soft: row.label_fr_soft,
+            label_en_soft: row.label_en_soft,
+            description_fr: row.description_fr,
+            description_en: row.description_en,
+            intensity: row.intensity,
+            interested: false,
+            against: false,
+            matched: false,
+            limit: false,
+            done: false,
+        }
+    }
+}
+
+/// Un item du « Menu du soir » (#97b, #0033) pour ce soir, côté membre courant :
+/// son contenu (bilingue) + mon choix du jour + l'état « matché » (les deux
+/// l'ont coché aujourd'hui). Double consentement/double-aveugle : `matched`
+/// n'est vrai qu'en cas de réciprocité.
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EveningMenuItem {
     pub code: String,
+    /// Catégorie du catalogue — pour le regroupement à l'écran (#0039).
+    pub category: String,
+    pub category_label_fr: String,
+    pub category_label_en: String,
+    pub subcategory: Option<String>,
+    pub label_fr: String,
+    pub label_en: String,
+    /// Variante suggestive (registre #99) — le menu du soir hérite des items
+    /// `practices` (dessert), qui en portent une.
+    pub label_fr_soft: Option<String>,
+    pub label_en_soft: Option<String>,
+    pub description_fr: Option<String>,
+    pub description_en: Option<String>,
+    pub intensity: String,
+    /// Service où l'item s'affiche : 'starter' | 'main' | 'dessert', ou vide s'il
+    /// n'est dans aucun service (choisissable quand même hors catégorie).
+    pub course: String,
+    /// Service par défaut du catalogue (#0039), avant surcharge du salon —
+    /// vide si aucun. Sert à l'écran de réglage des services.
+    pub default_course: String,
+    /// Tous les services où l'item est proposé par défaut (classement du salon) —
+    /// plusieurs si sa catégorie alimente plusieurs services.
+    pub courses: Vec<String>,
     pub picked: bool,
     pub matched: bool,
+    /// Mode ouvert (#0040) uniquement : le/la partenaire a « want » ce soir,
+    /// exposé immédiatement (proposition à valider/refuser). Toujours `false`
+    /// en mode aveugle — jamais de fuite du choix de l'autre avant un match.
+    pub partner_wants: bool,
+    /// Mode ouvert uniquement : l'un des deux a explicitement refusé.
+    /// Toujours `false` en mode aveugle (concept qui n'existe pas là-bas).
+    pub refused: bool,
+}
+
+impl EveningMenuItem {
+    pub fn from_catalog(row: CatalogItemRow) -> Self {
+        Self {
+            code: row.id,
+            category: row.category_id,
+            category_label_fr: row.category_label_fr,
+            category_label_en: row.category_label_en,
+            subcategory: row.subcategory,
+            label_fr: row.label_fr,
+            label_en: row.label_en,
+            label_fr_soft: row.label_fr_soft,
+            label_en_soft: row.label_en_soft,
+            description_fr: row.description_fr,
+            description_en: row.description_en,
+            intensity: row.intensity,
+            default_course: row.evening_course.clone().unwrap_or_default(),
+            courses: row.evening_course.iter().cloned().collect(),
+            course: row.evening_course.unwrap_or_default(),
+            picked: false,
+            matched: false,
+            partner_wants: false,
+            refused: false,
+        }
+    }
 }
 
 /// Un « mot doux » (#102) tel que renvoyé au membre courant. Si `open_at` est dans
@@ -316,116 +446,6 @@ pub const INTENSITIES: [&str; 2] = ["soft", "hot"];
 pub const MOODS: [&str; 5] = ["calm", "flirty", "veryHot", "tired", "cuddleNeeded"];
 pub const REACTIONS: [&str; 5] = ["heart", "fire", "smirk", "breath", "hush"];
 pub const VERDICTS: [&str; 3] = ["hot", "curious", "notForMe"];
-/// Catalogue curaté des « envies » (#99, bucket list), groupé par CATÉGORIE et
-/// dans l'ordre d'affichage. Codes stables (insensibles à la langue) ; les libellés
-/// (items ET catégories) vivent dans l'i18n du frontend. Source de vérité du
-/// catalogue ET de la validation. Ajouter une envie = l'ajouter ici + sa clé i18n
-/// FR/EN. Chaque entrée = (catégorie, [codes]).
-pub const DESIRE_CATEGORIES: &[(&str, &[&str])] = &[
-    (
-        "tender",
-        &[
-            "morningCuddle",
-            "oilMassage",
-            "bathTogether",
-            "slowDance",
-            "lingerie",
-            "rediscover",
-        ],
-    ),
-    (
-        "games",
-        &[
-            "roleplay",
-            "truthOrDare",
-            "striptease",
-            "photoSession",
-            "writeFantasy",
-            "daySexting",
-        ],
-    ),
-    (
-        "positions",
-        &[
-            "missionary",
-            "doggy",
-            "cowgirl",
-            "reverseCowgirl",
-            "spooning",
-            "lotus",
-            "wheelbarrow",
-            "standing",
-            "edgeOfBed",
-            "mirror",
-            "newPositionMonthly",
-        ],
-    ),
-    (
-        "sensations",
-        &[
-            "blindfold",
-            "lightBondage",
-            "spanking",
-            "temperature",
-            "edging",
-            "toy",
-        ],
-    ),
-    (
-        "power",
-        &[
-            "gentleDomination",
-            "submission",
-            "commands",
-            "softCollar",
-            "eveningRules",
-        ],
-    ),
-    (
-        "places",
-        &["outdoors", "car", "hotel", "anotherRoom", "semiPublic", "voyeur"],
-    ),
-    (
-        // Catégorie « hot » : les actes eux-mêmes (#99, registre assumé).
-        "practices",
-        &[
-            "fellatio",
-            "cunnilingus",
-            "sixtyNine",
-            "mutualMasturbation",
-            "fingering",
-            "rimming",
-            "anal",
-            "facial",
-            "swallow",
-            "squirting",
-        ],
-    ),
-];
-
-/// Catégorie d'un code du catalogue d'envies (#99), ou `None` si inconnu (sert à
-/// la validation des coches/réalisations).
-pub fn desire_category(code: &str) -> Option<&'static str> {
-    DESIRE_CATEGORIES
-        .iter()
-        .find(|(_, codes)| codes.contains(&code))
-        .map(|(cat, _)| *cat)
-}
-/// Catalogue du « Menu du soir » (#97b), du plus tendre au plus épicé. Codes
-/// stables (libellés via i18n front) ; source de vérité du menu + validation des
-/// coches (« programme de la soirée »).
-pub const EVENING_MENU_CODES: [&str; 10] = [
-    "cuddle",
-    "movie",
-    "candlelight",
-    "bath",
-    "massage",
-    "slowDance",
-    "game",
-    "roleplay",
-    "newThing",
-    "passionate",
-];
 /// États de la machine à états des défis, dans l'ordre d'affichage. Source de
 /// vérité du type TS `ChallengeStatus` (généré — API-13) ; seul le codegen le
 /// consomme aujourd'hui côté Rust (la machine à états vit dans les `match`).

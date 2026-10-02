@@ -761,11 +761,13 @@ async fn desires_double_consentement_et_gating(pool: PgPool) {
     .await;
     assert_eq!(st, StatusCode::OK);
 
-    // Catalogue catégorisé (50 codes ; 7 catégories dont « practices »).
+    // Catalogue catégorisé (136 codes ; 7 catégories dont « practices » et
+    // « positions » qui cumule les 64 Kamasutra + 22 modernes + 1 prompt
+    // rotatif, #0033/#0037/#0038 ; +7 items venus de l'ancienne catégorie « Menu du soir », #0042).
     let (st, items) = req(&app, "GET", &list, &ta, None).await;
     assert_eq!(st, StatusCode::OK);
     let arr = items.as_array().unwrap();
-    assert_eq!(arr.len(), 50, "catalogue complet v3");
+    assert_eq!(arr.len(), 136, "catalogue complet v5 (catalogue partagé)");
     assert!(arr
         .iter()
         .all(|i| i["matched"] == false && i["done"] == false && i["limit"] == false));
@@ -858,7 +860,7 @@ async fn menu_du_soir_match_du_jour_et_gating(pool: PgPool) {
     let tb = token_for(&state, bob);
 
     let list = format!("/api/spaces/{space}/evening-menu");
-    let massage = format!("/api/spaces/{space}/evening-menu/massage");
+    let massage = format!("/api/spaces/{space}/evening-menu/evening-massage");
 
     // Désactivé par défaut → 403.
     let (st, _) = req(&app, "GET", &list, &ta, None).await;
@@ -875,10 +877,12 @@ async fn menu_du_soir_match_du_jour_et_gating(pool: PgPool) {
     .await;
     assert_eq!(st, StatusCode::OK);
 
-    // Catalogue (10 items), rien de coché.
+    // Catalogue connecté à la banque (#0039) : tout le catalogue actif (hors prompt
+    // rotatif) est listé — 135 items (3 doublons désactivés par 0042), dont ceux répartis
+    // en 3 services (entrée/plat/dessert), rien de coché.
     let (st, items) = req(&app, "GET", &list, &ta, None).await;
     assert_eq!(st, StatusCode::OK);
-    assert_eq!(items.as_array().unwrap().len(), 10);
+    assert_eq!(items.as_array().unwrap().len(), 135);
 
     // Item inconnu → 404.
     let (st, _) = req(
@@ -903,7 +907,7 @@ async fn menu_du_soir_match_du_jour_et_gating(pool: PgPool) {
         .as_array()
         .unwrap()
         .iter()
-        .find(|i| i["code"] == "massage")
+        .find(|i| i["code"] == "evening-massage")
         .unwrap();
     assert_eq!(m_b["picked"], false);
     assert_eq!(m_b["matched"], false);
@@ -917,14 +921,14 @@ async fn menu_du_soir_match_du_jour_et_gating(pool: PgPool) {
         .as_array()
         .unwrap()
         .iter()
-        .find(|i| i["code"] == "massage")
+        .find(|i| i["code"] == "evening-massage")
         .unwrap();
     assert_eq!(m_a["matched"], true);
 
     // « Hier » : une coche datée de la veille ne compte pas pour ce soir.
     sqlx::query(
         "INSERT INTO evening_menu_picks (space_id, user_id, code, day)
-         VALUES ($1, $2, 'movie', ((now() AT TIME ZONE
+         VALUES ($1, $2, 'evening-movie', ((now() AT TIME ZONE
             (SELECT timezone FROM spaces WHERE id = $1))::date - 1))",
     )
     .bind(space)
@@ -932,7 +936,7 @@ async fn menu_du_soir_match_du_jour_et_gating(pool: PgPool) {
     .execute(&pool)
     .await
     .unwrap();
-    let (_, again) = req(&app, "PUT", &format!("{list}/movie"), &ta, None).await;
+    let (_, again) = req(&app, "PUT", &format!("{list}/evening-movie"), &ta, None).await;
     assert_eq!(again["matched"], false, "la coche d'hier ne matche pas ce soir");
 
     // Alice retire « massage » → plus de match.
@@ -940,6 +944,98 @@ async fn menu_du_soir_match_du_jour_et_gating(pool: PgPool) {
     assert_eq!(st, StatusCode::OK);
     assert_eq!(a["picked"], false);
     assert_eq!(a["matched"], false);
+}
+
+#[sqlx::test]
+async fn menu_du_soir_mode_ouvert_valider_refuser(pool: PgPool) {
+    let (app, state) = build_app(pool.clone());
+    let alice = seed_user(&pool, "alice").await;
+    let bob = seed_user(&pool, "bob").await;
+    let space = seed_space(&pool, alice).await;
+    add_member(&pool, bob, space).await;
+    let ta = token_for(&state, alice);
+    let tb = token_for(&state, bob);
+
+    // Active le menu + bascule en mode ouvert (#0040).
+    let (st, _) = req(
+        &app,
+        "PATCH",
+        &format!("/api/spaces/{space}"),
+        &ta,
+        Some(json!({ "eveningMenuEnabled": true, "eveningMenuBlind": false })),
+    )
+    .await;
+    assert_eq!(st, StatusCode::OK);
+
+    let list = format!("/api/spaces/{space}/evening-menu");
+    let massage = format!("/api/spaces/{space}/evening-menu/evening-massage");
+
+    // Alice propose « massage » : visible tout de suite chez Bob (pas besoin
+    // d'une coche identique en aveugle), et déjà « matched » (silence = inclus
+    // par défaut, un seul statut).
+    let (st, a) = req(&app, "PUT", &massage, &ta, None).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(a["picked"], true);
+    assert_eq!(a["matched"], true, "silence de l'autre côté = inclus par défaut");
+
+    let (_, ib) = req(&app, "GET", &list, &tb, None).await;
+    let m_b = ib
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|i| i["code"] == "evening-massage")
+        .unwrap();
+    assert_eq!(m_b["partnerWants"], true, "proposition visible tout de suite");
+    assert_eq!(m_b["matched"], true);
+    assert_eq!(m_b["picked"], false, "Bob n'a rien coché lui-même");
+
+    // Bob valide (= coche à son tour) → toujours matché, un seul statut visuel.
+    let (st, b) = req(&app, "PUT", &massage, &tb, None).await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(b["matched"], true);
+
+    // Bob change d'avis et refuse → exclu du menu pour les deux, badge visible.
+    let (st, b) = req(
+        &app,
+        "PUT",
+        &massage,
+        &tb,
+        Some(json!({ "stance": "refused" })),
+    )
+    .await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(b["refused"], true);
+    assert_eq!(b["matched"], false, "un refus exclut, même si Alice veut toujours");
+    let (_, ia) = req(&app, "GET", &list, &ta, None).await;
+    let m_a = ia
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|i| i["code"] == "evening-massage")
+        .unwrap();
+    assert_eq!(m_a["refused"], true, "le refus est visible côté proposeur·se aussi");
+    assert_eq!(m_a["matched"], false);
+    assert_eq!(m_a["picked"], true, "Alice veut toujours, juste exclu par le refus");
+
+    // Le refus est indisponible en mode aveugle.
+    let (st, _) = req(
+        &app,
+        "PATCH",
+        &format!("/api/spaces/{space}"),
+        &ta,
+        Some(json!({ "eveningMenuBlind": true })),
+    )
+    .await;
+    assert_eq!(st, StatusCode::OK);
+    let (st, _) = req(
+        &app,
+        "PUT",
+        &massage,
+        &ta,
+        Some(json!({ "stance": "refused" })),
+    )
+    .await;
+    assert_eq!(st, StatusCode::BAD_REQUEST);
 }
 
 #[sqlx::test]
@@ -1425,7 +1521,7 @@ async fn backfill_0034_reconstitue_l_historique_marque_lu(pool: PgPool) {
     // Match d'envie : alice puis bob veulent le même code.
     sqlx::query(
         "INSERT INTO desire_interests (space_id, user_id, code, stance, created_at)
-         VALUES ($1, $2, 'code-x', 'want', now() - interval '2 hour')",
+         VALUES ($1, $2, 'morningCuddle', 'want', now() - interval '2 hour')",
     )
     .bind(space)
     .bind(alice)
@@ -1434,7 +1530,7 @@ async fn backfill_0034_reconstitue_l_historique_marque_lu(pool: PgPool) {
     .unwrap();
     sqlx::query(
         "INSERT INTO desire_interests (space_id, user_id, code, stance, created_at)
-         VALUES ($1, $2, 'code-x', 'want', now() - interval '1 hour')",
+         VALUES ($1, $2, 'morningCuddle', 'want', now() - interval '1 hour')",
     )
     .bind(space)
     .bind(bob)
@@ -1444,7 +1540,7 @@ async fn backfill_0034_reconstitue_l_historique_marque_lu(pool: PgPool) {
     // Match du menu du soir, même jour.
     sqlx::query(
         "INSERT INTO evening_menu_picks (space_id, user_id, code, day, created_at)
-         VALUES ($1, $2, 'menu-x', current_date, now() - interval '2 hour')",
+         VALUES ($1, $2, 'evening-cuddle', current_date, now() - interval '2 hour')",
     )
     .bind(space)
     .bind(alice)
@@ -1453,7 +1549,7 @@ async fn backfill_0034_reconstitue_l_historique_marque_lu(pool: PgPool) {
     .unwrap();
     sqlx::query(
         "INSERT INTO evening_menu_picks (space_id, user_id, code, day, created_at)
-         VALUES ($1, $2, 'menu-x', current_date, now() - interval '1 hour')",
+         VALUES ($1, $2, 'evening-cuddle', current_date, now() - interval '1 hour')",
     )
     .bind(space)
     .bind(bob)
@@ -1963,4 +2059,221 @@ async fn version_publique_sans_authentification(pool: PgPool) {
     assert_eq!(st, StatusCode::OK);
     assert_eq!(body["version"], crate::routes::version::VERSION);
     assert_eq!(body["commit"], crate::routes::version::COMMIT);
+}
+
+#[sqlx::test]
+async fn menu_du_soir_services_parametrables_et_choix_hors_categorie(pool: PgPool) {
+    let (app, state) = build_app(pool.clone());
+    let alice = seed_user(&pool, "alice").await;
+    let space = seed_space(&pool, alice).await;
+    let ta = token_for(&state, alice);
+    let patch = format!("/api/spaces/{space}");
+    let list = format!("/api/spaces/{space}/evening-menu");
+
+    let (st, _) = req(&app, "PATCH", &patch, &ta, Some(json!({ "eveningMenuEnabled": true }))).await;
+    assert_eq!(st, StatusCode::OK);
+
+    let find = |items: &serde_json::Value, code: &str| -> serde_json::Value {
+        items
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|i| i["code"] == code)
+            .unwrap()
+            .clone()
+    };
+
+    // La catégorie transverse « evening » a disparu (#0042).
+    let (_, all) = req(&app, "GET", &list, &ta, None).await;
+    assert!(all.as_array().unwrap().iter().all(|i| i["category"] != "evening"));
+
+    // Défaut du catalogue : un item de « places » n'est dans aucun service,
+    // mais reste listé (choisissable hors catégorie).
+    let (_, items) = req(&app, "GET", &list, &ta, None).await;
+    let places: Vec<_> = items
+        .as_array()
+        .unwrap()
+        .iter()
+        .filter(|i| i["category"] == "places")
+        .collect();
+    assert!(!places.is_empty(), "les items hors services sont listés");
+    assert_eq!(places[0]["course"], "");
+    let place_code = places[0]["code"].as_str().unwrap().to_string();
+    // Le prompt rotatif n'est pas un choix du soir.
+    assert!(items.as_array().unwrap().iter().all(|i| i["code"] != "positions-new-monthly"));
+
+    // Choisir cet item DEPUIS « dessert » : le service est mémorisé.
+    let (st, picked) = req(
+        &app,
+        "PUT",
+        &format!("{list}/{place_code}"),
+        &ta,
+        Some(json!({ "course": "dessert" })),
+    )
+    .await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(picked["course"], "dessert");
+    let (_, items) = req(&app, "GET", &list, &ta, None).await;
+    assert_eq!(find(&items, &place_code)["course"], "dessert");
+
+    // Service invalide → 400.
+    let (st, _) = req(
+        &app,
+        "PUT",
+        &format!("{list}/{place_code}"),
+        &ta,
+        Some(json!({ "course": "brunch" })),
+    )
+    .await;
+    assert_eq!(st, StatusCode::BAD_REQUEST);
+
+    // Classement du salon, en sélection multiple : « tender » alimente Plat ET
+    // Dessert ; « practices » l'Entrée ; plus rien d'autre.
+    let (_, before) = req(&app, "GET", &list, &ta, None).await;
+    let tender_code = before
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|i| i["category"] == "tender")
+        .unwrap()["code"]
+        .as_str()
+        .unwrap()
+        .to_string();
+    assert_eq!(find(&before, &tender_code)["courses"], json!(["starter"]));
+    let (st, space_json) = req(
+        &app,
+        "PATCH",
+        &patch,
+        &ta,
+        Some(json!({
+            "eveningCourseCustom": true,
+            "eveningCourseCategories": ["main:tender", "dessert:tender", "starter:practices"]
+        })),
+    )
+    .await;
+    assert_eq!(st, StatusCode::OK);
+    assert_eq!(space_json["eveningCourseCustom"], true);
+    assert_eq!(
+        space_json["eveningCourseCategories"],
+        json!(["main:tender", "dessert:tender", "starter:practices"])
+    );
+    let (_, after) = req(&app, "GET", &list, &ta, None).await;
+    let t = find(&after, &tender_code);
+    assert_eq!(t["courses"], json!(["main", "dessert"]), "une catégorie nourrit plusieurs services");
+    assert_eq!(t["course"], "main", "service affiché = le premier proposé");
+    let games = after.as_array().unwrap().iter().find(|i| i["category"] == "games").unwrap();
+    assert_eq!(games["courses"], json!([]), "catégorie décochée partout : aucun service");
+    assert_eq!(games["course"], "");
+
+    // Validation : service inconnu, catégorie inconnue, doublon, mal formé → 400.
+    for bad in [
+        json!(["brunch:tender"]),
+        json!(["main:zzz"]),
+        json!(["main:tender", "main:tender"]),
+        json!(["sans-deux-points"]),
+        json!(["none:places"]),
+    ] {
+        let (st, _) = req(
+            &app,
+            "PATCH",
+            &patch,
+            &ta,
+            Some(json!({ "eveningCourseCategories": bad })),
+        )
+        .await;
+        assert_eq!(st, StatusCode::BAD_REQUEST, "{bad}");
+    }
+
+    // Rétablir le classement du catalogue.
+    let (st, _) = req(
+        &app,
+        "PATCH",
+        &patch,
+        &ta,
+        Some(json!({ "eveningCourseCustom": false, "eveningCourseCategories": [] })),
+    )
+    .await;
+    assert_eq!(st, StatusCode::OK);
+    let (_, back) = req(&app, "GET", &list, &ta, None).await;
+    assert_eq!(find(&back, &tender_code)["courses"], json!(["starter"]));
+}
+
+/// Double-aveugle (mode par défaut) : ni le service qu'un membre a donné à son
+/// choix, ni un évènement temps réel ne doivent trahir un choix non matché.
+#[sqlx::test]
+async fn menu_du_soir_aveugle_ne_fuite_ni_le_service_ni_un_evenement(pool: PgPool) {
+    let (app, state) = build_app(pool.clone());
+    let alice = seed_user(&pool, "alice").await;
+    let bob = seed_user(&pool, "bob").await;
+    let space = seed_space(&pool, alice).await;
+    add_member(&pool, bob, space).await;
+    let ta = token_for(&state, alice);
+    let tb = token_for(&state, bob);
+    let patch = format!("/api/spaces/{space}");
+    let list = format!("/api/spaces/{space}/evening-menu");
+    let (st, _) = req(&app, "PATCH", &patch, &ta, Some(json!({ "eveningMenuEnabled": true }))).await;
+    assert_eq!(st, StatusCode::OK);
+
+    // Un item hors de tout service par défaut (« places ») : course = "".
+    let (_, items_b) = req(&app, "GET", &list, &tb, None).await;
+    let code = items_b
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|i| i["category"] == "places")
+        .unwrap()["code"]
+        .as_str()
+        .unwrap()
+        .to_string();
+
+    let mut rx = state.events.subscribe();
+
+    // Alice le coche DANS « dessert » (choix secret).
+    let (st, _) = req(
+        &app,
+        "PUT",
+        &format!("{list}/{code}"),
+        &ta,
+        Some(json!({ "course": "dessert" })),
+    )
+    .await;
+    assert_eq!(st, StatusCode::OK);
+
+    // Bob ne doit rien déduire : service inchangé, pas coché, pas matché.
+    let (_, items_b) = req(&app, "GET", &list, &tb, None).await;
+    let it = items_b.as_array().unwrap().iter().find(|i| i["code"] == code).unwrap();
+    assert_eq!(it["course"], "", "le service du choix d'Alice ne doit pas fuiter");
+    assert_eq!(it["picked"], false);
+    assert_eq!(it["partnerWants"], false);
+
+    // Et la réponse à Bob qui coche à son tour (match) révèle alors le service.
+    let (_, bobs) = req(&app, "PUT", &format!("{list}/{code}"), &tb, None).await;
+    assert_eq!(bobs["matched"], true);
+    assert_eq!(bobs["course"], "dessert", "révélé seulement une fois le match fait");
+    // (le match émet un évènement ; on le consomme avant la suite)
+    while rx.try_recv().is_ok() {}
+
+    // Retrait d'Alice puis nouveau choix : aucun évènement tant qu'il n'y a pas de match.
+    let (st, _) = req(&app, "DELETE", &format!("{list}/{code}"), &tb, None).await;
+    assert_eq!(st, StatusCode::OK);
+    while rx.try_recv().is_ok() {}
+    let (st, _) = req(
+        &app,
+        "PUT",
+        &format!("{list}/{code}"),
+        &ta,
+        Some(json!({ "course": "dessert" })),
+    )
+    .await;
+    assert_eq!(st, StatusCode::OK);
+    assert!(
+        rx.try_recv().is_err(),
+        "pas d'évènement temps réel pour un choix non matché en mode aveugle"
+    );
+    let (st, _) = req(&app, "DELETE", &format!("{list}/{code}"), &ta, None).await;
+    assert_eq!(st, StatusCode::OK);
+    assert!(
+        rx.try_recv().is_err(),
+        "ni au retrait d'un choix non matché en mode aveugle"
+    );
 }

@@ -4,6 +4,19 @@ import { userEvent } from "@testing-library/user-event";
 import { DesiresScreen } from "./DesiresScreen";
 import type { ApiDesire } from "../../api/types";
 
+const CATEGORY_LABELS: Record<string, string> = {
+  tender: "Tendre & complice",
+  practices: "Pratiques",
+};
+const LABELS: Record<string, string> = {
+  oilMassage: "Un massage aux huiles",
+  bathTogether: "Un bain à deux",
+  fellatio: "Fellation",
+};
+const SOFT_LABELS: Record<string, string> = {
+  fellatio: "Une gâterie",
+};
+
 const d = (
   code: string,
   category: string,
@@ -11,6 +24,16 @@ const d = (
 ): ApiDesire => ({
   code,
   category,
+  categoryLabelFr: CATEGORY_LABELS[category],
+  categoryLabelEn: CATEGORY_LABELS[category],
+  subcategory: null,
+  labelFr: LABELS[code],
+  labelEn: LABELS[code],
+  labelFrSoft: SOFT_LABELS[code] ?? null,
+  labelEnSoft: SOFT_LABELS[code] ?? null,
+  descriptionFr: null,
+  descriptionEn: null,
+  intensity: "soft",
   interested: false,
   against: false,
   matched: false,
@@ -78,5 +101,23 @@ describe("DesiresScreen", () => {
     expect(onToggleAgainst).toHaveBeenCalledWith("oilMassage");
     await userEvent.click(screen.getByRole("button", { name: /réalisé/i }));
     expect(onToggleDone).toHaveBeenCalledWith("oilMassage");
+  });
+
+  it("description et repère de sous-catégorie transmis à la carte", async () => {
+    render(
+      <DesiresScreen
+        items={[
+          d("oilMassage", "tender", {
+            descriptionFr: "Un massage lent, aux huiles chaudes.",
+            subcategory: "kamasutra",
+          }),
+        ]}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /Tendre/i }));
+    expect(
+      screen.getByText("Un massage lent, aux huiles chaudes."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Kamasutra")).toBeInTheDocument();
   });
 });

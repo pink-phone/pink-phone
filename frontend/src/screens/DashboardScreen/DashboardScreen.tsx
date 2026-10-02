@@ -7,7 +7,10 @@ import { FireEmbers } from "../../components/FireEmbers/FireEmbers";
 import { MOODS } from "../../components/MoodSelector/moods";
 import { parseCustomMood } from "../../components/MoodSelector/MoodSelector";
 import { cn } from "../../lib/cn";
-import type { Person } from "../../types/view";
+
+/** Au-delà de ce nombre d'items par service, la tuile en montre PREVIEW_MAX-1 puis « +N ». */
+const PREVIEW_MAX = 6;
+import type { EveningMenuPreviewRow, Person } from "../../types/view";
 import type { ApiLoveNote } from "../../api/types";
 
 /** Une autre personne du salon + son humeur du jour (multi-partenaires #52). */
@@ -53,6 +56,8 @@ export interface DashboardScreenProps {
   eveningMenuEnabled?: boolean;
   /** Nombre de matchs du soir (réciproques) → badge + braise sur l'entrée. */
   eveningMenuMatches?: number;
+  /** Aperçu du menu de ce soir (114a), visible sans ouvrir l'écran dédié. */
+  eveningMenuPreview?: EveningMenuPreviewRow[];
   /** Ouvre l'écran dédié « Menu du soir » (#97b). */
   onOpenEveningMenu?: () => void;
   /** Id de l'utilisateur courant (pour distinguer mes mots doux). */
@@ -174,6 +179,7 @@ export function DashboardScreen({
   notices = [],
   eveningMenuEnabled = false,
   eveningMenuMatches = 0,
+  eveningMenuPreview = [],
   onOpenEveningMenu,
   userId = "",
   loveNotes = [],
@@ -339,25 +345,73 @@ export function DashboardScreen({
           <span aria-hidden className="relative z-10 text-2xl">
             {eveningMenuMatches > 0 ? "✨" : "🍽️"}
           </span>
-          <div className="relative z-10 min-w-0 flex-1">
-            <p className="font-serif text-base text-blush-100">
-              {t("eveningMenu.dashboardEntry")}
-            </p>
-            <p
-              className={cn(
-                "text-xs",
-                eveningMenuMatches > 0 ? "text-blush-200/80" : "text-taupe-300",
+          <span className="relative z-10 block min-w-0 flex-1">
+            <span className="flex items-start justify-between gap-2">
+              <span className="block font-serif text-base text-blush-100">
+                {t("eveningMenu.dashboardEntry")}
+              </span>
+              {eveningMenuMatches > 0 && (
+                <span className="shrink-0 rounded-full border border-spice-400/70 bg-charcoal-900/40 px-2.5 py-1 text-xs text-blush-100">
+                  {t("eveningMenu.matchCount", { count: eveningMenuMatches })}
+                </span>
               )}
-            >
-              {t("eveningMenu.dashboardHint")}
-            </p>
-          </div>
-          {eveningMenuMatches > 0 && (
-            <span className="relative z-10 shrink-0 rounded-full border border-spice-400/70 bg-charcoal-900/40 px-2.5 py-1 text-xs text-blush-100">
-              {t("eveningMenu.matchCount", { count: eveningMenuMatches })}
             </span>
-          )}
-          <span aria-hidden className="relative z-10 text-taupe-400">
+            {eveningMenuPreview.every((row) => row.labels.length === 0) ? (
+              <span
+                className={cn(
+                  "block text-xs",
+                  eveningMenuMatches > 0 ? "text-blush-200/80" : "text-taupe-300",
+                )}
+              >
+                {t("eveningMenu.dashboardHint")}
+              </span>
+            ) : (
+              <span
+                role="list"
+                aria-label={t("eveningMenu.previewAria")}
+                className={cn(
+                  "mt-1.5 block space-y-v3-1.5 text-xs",
+                  eveningMenuMatches > 0 ? "text-blush-200/80" : "text-taupe-300",
+                )}
+              >
+                {eveningMenuPreview.map((row) => {
+                  const shown =
+                    row.labels.length > PREVIEW_MAX
+                      ? row.labels.slice(0, PREVIEW_MAX - 1)
+                      : row.labels;
+                  const more = row.labels.length - shown.length;
+                  return (
+                    <span
+                      key={row.course}
+                      role="listitem"
+                      className="grid grid-cols-[5rem_1fr] gap-x-2"
+                    >
+                      <span className="font-medium text-taupe-100">
+                        {row.matched && <span aria-hidden>✨ </span>}
+                        {t(`eveningMenu.course.${row.course}`)}
+                      </span>
+                      <span className="min-w-0 leading-snug">
+                        {row.labels.length === 0 ? (
+                          <span
+                            className="text-taupe-400"
+                            aria-label={t("eveningMenu.previewEmptyAria")}
+                          >
+                            —
+                          </span>
+                        ) : (
+                          <>
+                            {shown.join(", ")}
+                            {more > 0 && ` ${t("eveningMenu.previewMore", { count: more })}`}
+                          </>
+                        )}
+                      </span>
+                    </span>
+                  );
+                })}
+              </span>
+            )}
+          </span>
+          <span aria-hidden className="relative z-10 self-center text-taupe-400">
             →
           </span>
         </button>

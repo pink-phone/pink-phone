@@ -177,4 +177,51 @@ describe("SettingsScreen — Mes salons (#67)", () => {
     expect(active).toHaveAttribute("aria-checked", "true");
     expect(inactive).toHaveAttribute("aria-checked", "false");
   });
+
+  it("services du menu du soir : affichés si le menu est activé, cocher enregistre le classement", async () => {
+    const onCategories = vi.fn();
+    const onReset = vi.fn();
+    render(
+      <SettingsScreen
+        {...base}
+        space={{ name: "S", timezone: "UTC", eveningMenuEnabled: true }}
+        onEveningMenuEnabledChange={vi.fn()}
+        eveningCategories={[{ id: "tender", label: "Tendre", defaultCourses: ["starter"] }]}
+        onEveningCourseCategoriesChange={onCategories}
+        onEveningCourseReset={onReset}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /dessert/i }));
+    await userEvent.click(screen.getByRole("checkbox", { name: /tendre/i }));
+    expect(onCategories).toHaveBeenCalledWith(["starter:tender", "dessert:tender"]);
+  });
+
+  it("services du menu du soir : masqués si le menu est désactivé", () => {
+    render(
+      <SettingsScreen
+        {...base}
+        space={{ name: "S", timezone: "UTC", eveningMenuEnabled: false }}
+        eveningCategories={[{ id: "tender", label: "Tendre", defaultCourses: ["starter"] }]}
+        onEveningCourseCategoriesChange={vi.fn()}
+        onEveningCourseReset={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: /dessert/i })).toBeNull();
+  });
+
+  it("le menu du soir a sa propre section, distincte de « Notre salon »", () => {
+    render(
+      <SettingsScreen
+        {...base}
+        space={{ name: "S", timezone: "UTC", eveningMenuEnabled: true }}
+        onEveningMenuEnabledChange={vi.fn()}
+        onEveningMenuBlindChange={vi.fn()}
+      />,
+    );
+    const heading = screen.getByRole("heading", { name: /^menu du soir$/i });
+    const section = heading.closest("section")!;
+    expect(within(section).getByText(/mode aveugle/i)).toBeInTheDocument();
+    const salon = screen.getByRole("heading", { name: /notre salon/i }).closest("section")!;
+    expect(within(salon).queryByText(/mode aveugle/i)).toBeNull();
+  });
 });

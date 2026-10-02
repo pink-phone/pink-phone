@@ -60,6 +60,47 @@ pub struct UpdateSpaceBody {
     pub desires_explicit_labels: Option<bool>,
     /// Active le « Menu du soir » (rituel quotidien, #97b).
     pub evening_menu_enabled: Option<bool>,
+    /// Mode aveugle strict (défaut) vs mode ouvert (#0040).
+    pub evening_menu_blind: Option<bool>,
+    /// Services du menu du soir : classement du salon activé (vrai) ou retour au
+    /// classement du catalogue (faux).
+    pub evening_course_custom: Option<bool>,
+    /// Entrées « <service>:<categorie> » du menu du soir (remplacement complet).
+    pub evening_course_categories: Option<Vec<String>>,
+}
+
+/// Valide le classement du menu du soir : « <service>:<categorie> », service ∈
+/// starter|main|dessert, catégorie existante, pas de doublon.
+async fn validate_course_categories(
+    pool: &sqlx::PgPool,
+    entries: &[String],
+) -> ApiResult<()> {
+    if entries.len() > 64 {
+        return Err(ApiError::BadRequest("trop d'entrées".into()));
+    }
+    let known: Vec<String> = sqlx::query_scalar("SELECT id FROM catalog_categories")
+        .fetch_all(pool)
+        .await?;
+    let mut seen = std::collections::HashSet::new();
+    for entry in entries {
+        let (_, category) = parse_course_category(entry)
+            .ok_or_else(|| ApiError::BadRequest("entrée de service invalide".into()))?;
+        if !known.iter().any(|k| k == category) {
+            return Err(ApiError::BadRequest("catégorie inconnue".into()));
+        }
+        if !seen.insert(entry.as_str()) {
+            return Err(ApiError::BadRequest("entrée en double".into()));
+        }
+    }
+    Ok(())
+}
+
+/// « main:positions » → ("main", "positions") ; None si mal formé ou service inconnu.
+pub fn parse_course_category(entry: &str) -> Option<(&str, &str)> {
+    let (service, category) = entry.split_once(':')?;
+    matches!(service, "starter" | "main" | "dessert")
+        .then_some((service, category))
+        .filter(|(_, c)| !c.is_empty())
 }
 
 async fn create_space(
@@ -75,7 +116,7 @@ async fn create_space(
     let mut tx = state.pool.begin().await?;
     let space: Space = sqlx::query_as(
         "INSERT INTO spaces (name) VALUES ($1)
-         RETURNING id, name, timezone, reactions, allow_custom_reactions, blind_mood, allow_media_download, desires_enabled, desires_explicit_labels, evening_menu_enabled, created_at",
+         RETURNING id, name, timezone, reactions, allow_custom_reactions, blind_mood, allow_media_download, desires_enabled, desires_explicit_labels, evening_menu_enabled, evening_menu_blind, evening_course_custom, evening_course_categories, created_at",
     )
     .bind(name)
     .fetch_one(&mut *tx)
@@ -130,6 +171,10 @@ async fn update_space(
         }
     }
 
+    if let Some(entries) = &body.evening_course_categories {
+        validate_course_categories(&state.pool, entries).await?;
+    }
+
     // Activation du téléchargement des médias (#84) : on note la transition
     // false→true pour émettre une notice « X a activé le téléchargement ».
     let mut download_enabled = false;
@@ -152,9 +197,12 @@ async fn update_space(
             allow_media_download = COALESCE($7, allow_media_download),
             desires_enabled = COALESCE($8, desires_enabled),
             desires_explicit_labels = COALESCE($9, desires_explicit_labels),
-            evening_menu_enabled = COALESCE($10, evening_menu_enabled)
+            evening_menu_enabled = COALESCE($10, evening_menu_enabled),
+            evening_menu_blind = COALESCE($11, evening_menu_blind),
+            evening_course_custom = COALESCE($12, evening_course_custom),
+            evening_course_categories = COALESCE($13, evening_course_categories)
          WHERE id = $1
-         RETURNING id, name, timezone, reactions, allow_custom_reactions, blind_mood, allow_media_download, desires_enabled, desires_explicit_labels, evening_menu_enabled, created_at",
+         RETURNING id, name, timezone, reactions, allow_custom_reactions, blind_mood, allow_media_download, desires_enabled, desires_explicit_labels, evening_menu_enabled, evening_menu_blind, evening_course_custom, evening_course_categories, created_at",
     )
     .bind(space_id)
     .bind(name)
@@ -166,6 +214,9 @@ async fn update_space(
     .bind(body.desires_enabled)
     .bind(body.desires_explicit_labels)
     .bind(body.evening_menu_enabled)
+    .bind(body.evening_menu_blind)
+    .bind(body.evening_course_custom)
+    .bind(body.evening_course_categories.as_deref())
     .fetch_one(&state.pool)
     .await?;
 
@@ -198,7 +249,7 @@ async fn my_spaces(
     auth: AuthUser,
 ) -> ApiResult<Json<Vec<Space>>> {
     let spaces: Vec<Space> = sqlx::query_as(
-        "SELECT s.id, s.name, s.timezone, s.reactions, s.allow_custom_reactions, s.blind_mood, s.allow_media_download, s.desires_enabled, s.desires_explicit_labels, s.evening_menu_enabled, s.created_at
+        "SELECT s.id, s.name, s.timezone, s.reactions, s.allow_custom_reactions, s.blind_mood, s.allow_media_download, s.desires_enabled, s.desires_explicit_labels, s.evening_menu_enabled, s.evening_menu_blind, s.evening_course_custom, s.evening_course_categories, s.created_at
          FROM spaces s
          JOIN space_memberships m ON m.space_id = s.id
          WHERE m.user_id = $1
@@ -342,7 +393,7 @@ async fn join_by_invite(
     }
 
     let space: Space = sqlx::query_as(
-        "SELECT id, name, timezone, reactions, allow_custom_reactions, blind_mood, allow_media_download, desires_enabled, desires_explicit_labels, evening_menu_enabled, created_at
+        "SELECT id, name, timezone, reactions, allow_custom_reactions, blind_mood, allow_media_download, desires_enabled, desires_explicit_labels, evening_menu_enabled, evening_menu_blind, evening_course_custom, evening_course_categories, created_at
          FROM spaces WHERE id = $1 FOR UPDATE",
     )
     .bind(space_id)
@@ -441,5 +492,24 @@ pub async fn purge_stale_invites(pool: &sqlx::PgPool) {
         }
         Ok(_) => {}
         Err(e) => tracing::warn!(error = ?e, "purge des invitations échouée"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_course_category;
+
+    #[test]
+    fn entree_de_service_bien_formee() {
+        assert_eq!(parse_course_category("main:positions"), Some(("main", "positions")));
+        assert_eq!(parse_course_category("starter:tender"), Some(("starter", "tender")));
+    }
+
+    #[test]
+    fn entree_de_service_invalide() {
+        assert_eq!(parse_course_category("positions"), None);
+        assert_eq!(parse_course_category("brunch:positions"), None);
+        assert_eq!(parse_course_category("main:"), None);
+        assert_eq!(parse_course_category("none:places"), None);
     }
 }

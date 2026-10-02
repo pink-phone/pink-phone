@@ -13,6 +13,9 @@ const space = (id: string): Space => ({
   desiresEnabled: false,
   desiresExplicitLabels: true,
   eveningMenuEnabled: false,
+  eveningMenuBlind: true,
+  eveningCourseCustom: false,
+  eveningCourseCategories: [],
   createdAt: "2026-06-20T10:00:00.000Z",
 });
 

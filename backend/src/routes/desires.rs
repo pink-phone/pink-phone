@@ -8,14 +8,16 @@ use uuid::Uuid;
 
 use crate::auth::AuthUser;
 use crate::error::{ApiError, ApiResult};
-use crate::models::{desire_category, DesireItem, DESIRE_CATEGORIES};
+use crate::models::{CatalogItemRow, DesireItem};
 use crate::routes::ensure_member;
 use crate::state::{AppState, EventKind};
 
 // Bucket list (#99), optionnelle par salon. Chacun pose un « stance » par item :
 // 'want' (envie, DOUBLE-AVEUGLE : révélé seulement en cas de réciprocité) ou
 // 'against' (contre = LIMITE, SURFACÉE au couple, bloque le match). Neutre =
-// absence de ligne. « ✓ Réalisé » est un suivi niveau salon (couple).
+// absence de ligne. « ✓ Réalisé » est un suivi niveau salon (couple). Le
+// contenu (catégories/items) vient du catalogue partagé (#0033), filtré aux
+// catégories `used_in_bucket_list`.
 
 pub fn router() -> Router<AppState> {
     Router::new()
@@ -48,9 +50,24 @@ async fn ensure_enabled(
     Ok(())
 }
 
-/// Catégorie d'un code du catalogue, ou NotFound si inconnu (validation).
-fn category_of(code: &str) -> ApiResult<&'static str> {
-    desire_category(code).ok_or(ApiError::NotFound)
+const CATALOG_ITEM_COLUMNS: &str = "
+    ci.id, ci.category_id,
+    cc.label_fr AS category_label_fr, cc.label_en AS category_label_en,
+    ci.subcategory, ci.label_fr, ci.label_en, ci.label_fr_soft, ci.label_en_soft,
+    ci.description_fr, ci.description_en, ci.intensity";
+
+/// Item actif du catalogue, dans une catégorie utilisée par la bucket list —
+/// NotFound sinon (catalogue épuisé/désactivé = validation).
+async fn catalog_item(pool: &sqlx::PgPool, code: &str) -> ApiResult<CatalogItemRow> {
+    sqlx::query_as::<_, CatalogItemRow>(sqlx::AssertSqlSafe(format!(
+        "SELECT {CATALOG_ITEM_COLUMNS}
+         FROM catalog_items ci JOIN catalog_categories cc ON cc.id = ci.category_id
+         WHERE ci.id = $1 AND ci.active AND cc.used_in_bucket_list"
+    )))
+    .bind(code)
+    .fetch_optional(pool)
+    .await?
+    .ok_or(ApiError::NotFound)
 }
 
 async fn list_desires(
@@ -59,6 +76,15 @@ async fn list_desires(
     Path(space_id): Path<Uuid>,
 ) -> ApiResult<Json<Vec<DesireItem>>> {
     ensure_enabled(&state.pool, auth.user_id, space_id).await?;
+
+    let rows: Vec<CatalogItemRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
+        "SELECT {CATALOG_ITEM_COLUMNS}
+         FROM catalog_items ci JOIN catalog_categories cc ON cc.id = ci.category_id
+         WHERE ci.active AND cc.used_in_bucket_list
+         ORDER BY cc.sort_order, ci.sort_order"
+    )))
+    .fetch_all(&state.pool)
+    .await?;
 
     // Mon stance par code.
     let my_rows: Vec<(String, String)> = sqlx::query_as(
@@ -109,24 +135,23 @@ async fn list_desires(
             .into_iter()
             .collect();
 
-    let mut items = Vec::new();
-    for (category, codes) in DESIRE_CATEGORIES {
-        for &code in *codes {
-            let interested = my_want.contains(code);
-            let against = my_against.contains(code);
-            items.push(DesireItem {
-                code: code.to_string(),
-                category: category.to_string(),
-                interested,
-                against,
-                // Double-aveugle : match seulement si JE veux aussi.
-                matched: interested && other_want.contains(code),
-                // Surfacé : n'importe quel « contre » = limite du couple.
-                limit: against || other_against.contains(code),
-                done: done.contains(code),
-            });
-        }
-    }
+    let items = rows
+        .into_iter()
+        .map(|row| {
+            let code = row.id.clone();
+            let interested = my_want.contains(code.as_str());
+            let against = my_against.contains(code.as_str());
+            let mut item = DesireItem::from_catalog(row);
+            item.interested = interested;
+            item.against = against;
+            // Double-aveugle : match seulement si JE veux aussi.
+            item.matched = interested && other_want.contains(&code);
+            // Surfacé : n'importe quel « contre » = limite du couple.
+            item.limit = against || other_against.contains(&code);
+            item.done = done.contains(&code);
+            item
+        })
+        .collect();
     Ok(Json(items))
 }
 
@@ -135,15 +160,15 @@ async fn build_item(
     pool: &sqlx::PgPool,
     space_id: Uuid,
     me: Uuid,
-    code: &str,
-    category: &str,
+    row: CatalogItemRow,
 ) -> ApiResult<DesireItem> {
+    let code = row.id.clone();
     let my_stance: Option<String> = sqlx::query_scalar(
         "SELECT stance FROM desire_interests WHERE space_id = $1 AND user_id = $2 AND code = $3",
     )
     .bind(space_id)
     .bind(me)
-    .bind(code)
+    .bind(&code)
     .fetch_optional(pool)
     .await?;
     let interested = my_stance.as_deref() == Some("want");
@@ -153,7 +178,7 @@ async fn build_item(
          WHERE space_id = $1 AND code = $2 AND user_id <> $3 AND stance = 'want')",
     )
     .bind(space_id)
-    .bind(code)
+    .bind(&code)
     .bind(me)
     .fetch_one(pool)
     .await?;
@@ -162,7 +187,7 @@ async fn build_item(
          WHERE space_id = $1 AND code = $2 AND user_id <> $3 AND stance = 'against')",
     )
     .bind(space_id)
-    .bind(code)
+    .bind(&code)
     .bind(me)
     .fetch_one(pool)
     .await?;
@@ -170,18 +195,16 @@ async fn build_item(
         "SELECT EXISTS(SELECT 1 FROM desire_done WHERE space_id = $1 AND code = $2)",
     )
     .bind(space_id)
-    .bind(code)
+    .bind(&code)
     .fetch_one(pool)
     .await?;
-    Ok(DesireItem {
-        code: code.to_string(),
-        category: category.to_string(),
-        interested,
-        against,
-        matched: interested && other_want,
-        limit: against || other_against,
-        done,
-    })
+    let mut item = DesireItem::from_catalog(row);
+    item.interested = interested;
+    item.against = against;
+    item.matched = interested && other_want;
+    item.limit = against || other_against;
+    item.done = done;
+    Ok(item)
 }
 
 #[derive(Deserialize)]
@@ -197,7 +220,7 @@ async fn set_stance(
     Json(body): Json<StanceBody>,
 ) -> ApiResult<Json<DesireItem>> {
     ensure_enabled(&state.pool, auth.user_id, space_id).await?;
-    let category = category_of(&code)?;
+    let row = catalog_item(&state.pool, &code).await?;
     if body.stance != "want" && body.stance != "against" {
         return Err(ApiError::BadRequest("stance invalide".into()));
     }
@@ -222,7 +245,7 @@ async fn set_stance(
     .execute(&state.pool)
     .await?;
 
-    let item = build_item(&state.pool, space_id, auth.user_id, &code, category).await?;
+    let item = build_item(&state.pool, space_id, auth.user_id, row).await?;
     let changed = prev.as_deref() != Some(body.stance.as_str());
 
     if body.stance == "want" {
@@ -256,7 +279,7 @@ async fn clear_stance(
     Path((space_id, code)): Path<(Uuid, String)>,
 ) -> ApiResult<Json<DesireItem>> {
     ensure_enabled(&state.pool, auth.user_id, space_id).await?;
-    let category = category_of(&code)?;
+    let row = catalog_item(&state.pool, &code).await?;
     let res = sqlx::query(
         "DELETE FROM desire_interests WHERE space_id = $1 AND user_id = $2 AND code = $3",
     )
@@ -271,7 +294,7 @@ async fn clear_stance(
         state.emit(space_id, auth.user_id, EventKind::Desire);
     }
     Ok(Json(
-        build_item(&state.pool, space_id, auth.user_id, &code, category).await?,
+        build_item(&state.pool, space_id, auth.user_id, row).await?,
     ))
 }
 
@@ -283,7 +306,7 @@ async fn set_done(
     Path((space_id, code)): Path<(Uuid, String)>,
 ) -> ApiResult<Json<DesireItem>> {
     ensure_enabled(&state.pool, auth.user_id, space_id).await?;
-    let category = category_of(&code)?;
+    let row = catalog_item(&state.pool, &code).await?;
     sqlx::query(
         "INSERT INTO desire_done (space_id, code, done_by) VALUES ($1, $2, $3)
          ON CONFLICT (space_id, code) DO NOTHING",
@@ -295,7 +318,7 @@ async fn set_done(
     .await?;
     state.emit(space_id, auth.user_id, EventKind::Desire);
     Ok(Json(
-        build_item(&state.pool, space_id, auth.user_id, &code, category).await?,
+        build_item(&state.pool, space_id, auth.user_id, row).await?,
     ))
 }
 
@@ -305,7 +328,7 @@ async fn clear_done(
     Path((space_id, code)): Path<(Uuid, String)>,
 ) -> ApiResult<Json<DesireItem>> {
     ensure_enabled(&state.pool, auth.user_id, space_id).await?;
-    let category = category_of(&code)?;
+    let row = catalog_item(&state.pool, &code).await?;
     sqlx::query("DELETE FROM desire_done WHERE space_id = $1 AND code = $2")
         .bind(space_id)
         .bind(&code)
@@ -313,6 +336,6 @@ async fn clear_done(
         .await?;
     state.emit(space_id, auth.user_id, EventKind::Desire);
     Ok(Json(
-        build_item(&state.pool, space_id, auth.user_id, &code, category).await?,
+        build_item(&state.pool, space_id, auth.user_id, row).await?,
     ))
 }

@@ -1,21 +1,36 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use axum::extract::{Path, State};
 use axum::routing::{get, put};
 use axum::{Json, Router};
 use chrono::NaiveDate;
+use serde::Deserialize;
 use uuid::Uuid;
 
 use crate::auth::AuthUser;
 use crate::error::{ApiError, ApiResult};
-use crate::models::{EveningMenuItem, EVENING_MENU_CODES};
+use crate::models::{CatalogItemRow, EveningMenuItem};
 use crate::routes::ensure_member;
+use crate::routes::spaces::parse_course_category;
 use crate::state::{AppState, EventKind};
 
-// « Menu du soir » (#97b) : rituel QUOTIDIEN à double consentement, optionnel par
-// salon. Chacun coche en privé des envies « pour ce soir » ; un item n'est révélé
-// (« Match ! ») que si les deux l'ont coché LE MÊME JOUR. Le « jour » est le jour
-// calendaire local du salon (fuseau), comme le mood → le menu se vide à minuit.
+// « Menu du soir » (#97b) : rituel QUOTIDIEN, optionnel par salon. Le contenu
+// vient du catalogue partagé (#0033). Chaque service (Entrée/Plat/Dessert) est
+// alimenté par des CATÉGORIES : défaut = `catalog_items.evening_course` (#0039),
+// paramétrable par salon en sélection multiple (`spaces.evening_course_categories`,
+// #0043 : pour chaque service, les catégories qui l'alimentent). On peut
+// aussi choisir un item HORS des catégories d'un service : le service est alors
+// mémorisé avec le choix (`evening_menu_picks.course`). Tout item actif est
+// éligible, sauf le prompt rotatif « nouvelle position du mois ».
+//
+// Deux modes, au choix du salon (`spaces.evening_menu_blind`, #0040) :
+// - AVEUGLE (défaut, INCHANGÉ) : mon choix reste privé ; un item n'est révélé
+//   que si l'autre a AUSSI coché « want » le même jour (match mutuel).
+// - OUVERT : dès que l'un coche « want », l'autre le voit tout de suite et
+//   peut valider (poser son propre « want ») ou refuser. Un seul statut
+//   visuel (`matched`, même glow) : sur le menu ce soir si l'un des deux veut
+//   ET qu'aucun des deux n'a refusé — silence de l'autre côté = inclus par
+//   défaut (pas de refus = pas d'exclusion).
 
 pub fn router() -> Router<AppState> {
     Router::new()
@@ -26,34 +41,150 @@ pub fn router() -> Router<AppState> {
         )
 }
 
-/// Garde commune : membre du salon ET menu activé. Renvoie le JOUR local du salon
-/// (fuseau) — la fenêtre « ce soir ». 403 si désactivé (défense en profondeur).
+/// Classement du salon : catégorie → services qu'elle alimente, dans l'ordre du
+/// repas. `None` = classement du catalogue (par item), tant que le salon n'a pas
+/// paramétré.
+type CourseMap = Option<HashMap<String, Vec<String>>>;
+
+const COURSE_ORDER: [&str; 3] = ["starter", "main", "dessert"];
+
+fn course_map(custom: bool, entries: &[String]) -> CourseMap {
+    if !custom {
+        return None;
+    }
+    let mut map: HashMap<String, Vec<String>> = HashMap::new();
+    for (service, category) in entries.iter().filter_map(|e| parse_course_category(e)) {
+        map.entry(category.to_string()).or_default().push(service.to_string());
+    }
+    for services in map.values_mut() {
+        services.sort_by_key(|s| COURSE_ORDER.iter().position(|c| c == s));
+        services.dedup();
+    }
+    Some(map)
+}
+
+/// Garde commune : membre du salon ET menu activé. Renvoie le mode aveugle du
+/// salon, le JOUR local (fuseau) — la fenêtre « ce soir » — et les surcharges
+/// catégorie → service du salon. 403 si désactivé
+/// (défense en profondeur).
 async fn ensure_enabled_today(
     pool: &sqlx::PgPool,
     user_id: Uuid,
     space_id: Uuid,
-) -> ApiResult<NaiveDate> {
+) -> ApiResult<(bool, NaiveDate, CourseMap)> {
     ensure_member(pool, user_id, space_id).await?;
-    let row: Option<(bool, NaiveDate)> = sqlx::query_as(
-        "SELECT evening_menu_enabled, (now() AT TIME ZONE timezone)::date
+    let row: Option<(bool, bool, NaiveDate, bool, Vec<String>)> = sqlx::query_as(
+        "SELECT evening_menu_enabled, evening_menu_blind, (now() AT TIME ZONE timezone)::date,
+                evening_course_custom, evening_course_categories
          FROM spaces WHERE id = $1",
     )
     .bind(space_id)
     .fetch_optional(pool)
     .await?;
-    let (enabled, today) = row.ok_or(ApiError::NotFound)?;
+    let (enabled, blind, today, custom, entries) = row.ok_or(ApiError::NotFound)?;
     if !enabled {
         return Err(ApiError::Forbidden);
     }
-    Ok(today)
+    Ok((blind, today, course_map(custom, &entries)))
 }
 
-fn check_code(code: &str) -> ApiResult<()> {
-    if EVENING_MENU_CODES.contains(&code) {
-        Ok(())
+const CATALOG_ITEM_COLUMNS: &str = "
+    ci.id, ci.category_id,
+    cc.label_fr AS category_label_fr, cc.label_en AS category_label_en,
+    ci.subcategory, ci.label_fr, ci.label_en, ci.label_fr_soft, ci.label_en_soft,
+    ci.description_fr, ci.description_en, ci.intensity, ci.evening_course";
+
+/// Le prompt rotatif n'est pas un choix pour CE soir.
+const EXCLUDED_ITEM: &str = "positions-new-monthly";
+
+/// Item actif du catalogue, éligible au menu du soir — NotFound sinon
+/// (désactivé / prompt rotatif = validation).
+async fn catalog_item(pool: &sqlx::PgPool, code: &str) -> ApiResult<CatalogItemRow> {
+    sqlx::query_as::<_, CatalogItemRow>(sqlx::AssertSqlSafe(format!(
+        "SELECT {CATALOG_ITEM_COLUMNS}
+         FROM catalog_items ci JOIN catalog_categories cc ON cc.id = ci.category_id
+         WHERE ci.id = $1 AND ci.active AND ci.id <> $2"
+    )))
+    .bind(code)
+    .bind(EXCLUDED_ITEM)
+    .fetch_optional(pool)
+    .await?
+    .ok_or(ApiError::NotFound)
+}
+
+/// Dérive (picked, matched, partnerWants, refused) selon le mode du salon.
+/// Aveugle : le choix de l'autre n'entre jamais dans `partner_wants`/`refused`
+/// (toujours faux) — `matched` exige les deux `want`. Ouvert : `matched` =
+/// (moi OU l'autre) `want`, ET personne n'a `refused` ; silence = inclus.
+fn compute_flags(
+    blind: bool,
+    my_stance: Option<&str>,
+    other_wants: bool,
+    other_refused: bool,
+) -> (bool, bool, bool, bool) {
+    let picked = my_stance == Some("want");
+    if blind {
+        (picked, picked && other_wants, false, false)
     } else {
-        Err(ApiError::NotFound)
+        let my_refused = my_stance == Some("refused");
+        let refused = my_refused || other_refused;
+        let matched = (picked || other_wants) && !refused;
+        (picked, matched, other_wants, refused)
     }
+}
+
+/// Services où un item est proposé : ceux de sa catégorie dans le classement du
+/// salon, sinon son service par défaut du catalogue (aucun = vide).
+fn eligible_courses(row: &CatalogItemRow, map: &CourseMap) -> Vec<String> {
+    match map {
+        Some(m) => m.get(&row.category_id).cloned().unwrap_or_default(),
+        None => row.evening_course.iter().cloned().collect(),
+    }
+}
+
+/// (service affiché, services proposés) : le service affiché est celui où un
+/// choix a été ajouté (le mien d'abord, puis celui d'un autre membre), sinon le
+/// premier service proposé, sinon vide (aucun service — reste choisissable via
+/// « Tout le catalogue »).
+fn resolve_course(
+    row: &CatalogItemRow,
+    map: &CourseMap,
+    my_course: Option<&str>,
+    other_course: Option<&str>,
+) -> (String, Vec<String>) {
+    let courses = eligible_courses(row, map);
+    let shown = my_course
+        .or(other_course)
+        .map(str::to_string)
+        .or_else(|| courses.first().cloned())
+        .unwrap_or_default();
+    (shown, courses)
+}
+
+/// Choix (want/refused) des AUTRES membres du salon pour ce code, ce jour —
+/// agrégés (un « refused » de n'importe qui bloque, comme la limite #99) — et
+/// le service qu'ils lui ont donné, le cas échéant.
+async fn partner_flags(
+    pool: &sqlx::PgPool,
+    space_id: Uuid,
+    me: Uuid,
+    code: &str,
+    today: NaiveDate,
+) -> ApiResult<(bool, bool, Option<String>)> {
+    let rows: Vec<(String, Option<String>)> = sqlx::query_as(
+        "SELECT stance, course FROM evening_menu_picks
+         WHERE space_id = $1 AND code = $2 AND user_id <> $3 AND day = $4",
+    )
+    .bind(space_id)
+    .bind(code)
+    .bind(me)
+    .bind(today)
+    .fetch_all(pool)
+    .await?;
+    let other_wants = rows.iter().any(|(s, _)| s == "want");
+    let other_refused = rows.iter().any(|(s, _)| s == "refused");
+    let other_course = rows.into_iter().find_map(|(_, c)| c);
+    Ok((other_wants, other_refused, other_course))
 }
 
 async fn list_menu(
@@ -61,91 +192,180 @@ async fn list_menu(
     auth: AuthUser,
     Path(space_id): Path<Uuid>,
 ) -> ApiResult<Json<Vec<EveningMenuItem>>> {
-    let today = ensure_enabled_today(&state.pool, auth.user_id, space_id).await?;
+    let (blind, today, map) =
+        ensure_enabled_today(&state.pool, auth.user_id, space_id).await?;
 
-    let mine: HashSet<String> = sqlx::query_scalar(
-        "SELECT code FROM evening_menu_picks
+    // Tout le catalogue actif : c'est le client qui filtre par service (le
+    // sélecteur peut piocher hors catégorie). Les items déjà du menu par défaut
+    // d'abord, puis l'ordre du catalogue.
+    let rows: Vec<CatalogItemRow> = sqlx::query_as(sqlx::AssertSqlSafe(format!(
+        "SELECT {CATALOG_ITEM_COLUMNS}
+         FROM catalog_items ci JOIN catalog_categories cc ON cc.id = ci.category_id
+         WHERE ci.active AND ci.id <> $1
+         ORDER BY cc.sort_order, ci.sort_order"
+    )))
+    .bind(EXCLUDED_ITEM)
+    .fetch_all(&state.pool)
+    .await?;
+
+    let my_rows: Vec<(String, String, Option<String>)> = sqlx::query_as(
+        "SELECT code, stance, course FROM evening_menu_picks
          WHERE space_id = $1 AND user_id = $2 AND day = $3",
     )
     .bind(space_id)
     .bind(auth.user_id)
     .bind(today)
     .fetch_all(&state.pool)
-    .await?
-    .into_iter()
-    .collect();
-    let others: HashSet<String> = sqlx::query_scalar(
-        "SELECT DISTINCT code FROM evening_menu_picks
+    .await?;
+    let my: HashMap<String, (String, Option<String>)> = my_rows
+        .into_iter()
+        .map(|(code, stance, course)| (code, (stance, course)))
+        .collect();
+
+    let other_rows: Vec<(String, String, Option<String>)> = sqlx::query_as(
+        "SELECT code, stance, course FROM evening_menu_picks
          WHERE space_id = $1 AND user_id <> $2 AND day = $3",
     )
     .bind(space_id)
     .bind(auth.user_id)
     .bind(today)
     .fetch_all(&state.pool)
-    .await?
-    .into_iter()
-    .collect();
+    .await?;
+    let mut other_want: HashSet<String> = HashSet::new();
+    let mut other_refused: HashSet<String> = HashSet::new();
+    let mut other_course: HashMap<String, String> = HashMap::new();
+    for (code, stance, course) in other_rows {
+        if let Some(c) = course {
+            other_course.entry(code.clone()).or_insert(c);
+        }
+        if stance == "want" {
+            other_want.insert(code);
+        } else {
+            other_refused.insert(code);
+        }
+    }
 
-    let items = EVENING_MENU_CODES
-        .iter()
-        .map(|&code| {
-            let picked = mine.contains(code);
-            EveningMenuItem {
-                code: code.to_string(),
-                picked,
-                // Double-aveugle : match seulement si JE l'ai coché aussi.
-                matched: picked && others.contains(code),
-            }
+    let items = rows
+        .into_iter()
+        .map(|row| {
+            let my_stance = my.get(&row.id).map(|(s, _)| s.as_str());
+            let (picked, matched, partner_wants, refused) = compute_flags(
+                blind,
+                my_stance,
+                other_want.contains(&row.id),
+                other_refused.contains(&row.id),
+            );
+            let (course, courses) = resolve_course(
+                &row,
+                &map,
+                my.get(&row.id).and_then(|(_, c)| c.as_deref()),
+                // Le service donné par l'autre à son choix n'est révélé qu'avec le
+                // choix lui-même (mode ouvert) ou le match (aveugle) — sinon il
+                // trahirait un choix secret.
+                other_course
+                    .get(&row.id)
+                    .map(String::as_str)
+                    .filter(|_| partner_wants || matched),
+            );
+            let mut item = EveningMenuItem::from_catalog(row);
+            item.course = course;
+            item.courses = courses;
+            item.picked = picked;
+            item.matched = matched;
+            item.partner_wants = partner_wants;
+            item.refused = refused;
+            item
         })
         .collect();
     Ok(Json(items))
 }
 
-/// Vrai si un AUTRE membre a coché ce code aujourd'hui (→ match si je le coche).
-async fn other_picked(
-    pool: &sqlx::PgPool,
-    space_id: Uuid,
-    me: Uuid,
-    code: &str,
-    today: NaiveDate,
-) -> ApiResult<bool> {
-    let exists: bool = sqlx::query_scalar(
-        "SELECT EXISTS(SELECT 1 FROM evening_menu_picks
-         WHERE space_id = $1 AND code = $2 AND user_id <> $3 AND day = $4)",
-    )
-    .bind(space_id)
-    .bind(code)
-    .bind(me)
-    .bind(today)
-    .fetch_one(pool)
-    .await?;
-    Ok(exists)
+#[derive(Deserialize, Default)]
+pub struct PickBody {
+    /// 'want' (défaut) ou 'refused' — 'refused' uniquement disponible en
+    /// mode ouvert (#0040).
+    pub stance: Option<String>,
+    /// Service où le choix est ajouté (starter|main|dessert) — permet de
+    /// piocher hors des catégories du service. Absent = service par défaut.
+    pub course: Option<String>,
 }
 
 async fn pick(
     State(state): State<AppState>,
     auth: AuthUser,
     Path((space_id, code)): Path<(Uuid, String)>,
+    body: Option<Json<PickBody>>,
 ) -> ApiResult<Json<EveningMenuItem>> {
-    let today = ensure_enabled_today(&state.pool, auth.user_id, space_id).await?;
-    check_code(&code)?;
+    let (blind, today, map) =
+        ensure_enabled_today(&state.pool, auth.user_id, space_id).await?;
+    let row = catalog_item(&state.pool, &code).await?;
+    let body = body.map(|Json(b)| b).unwrap_or_default();
+    let course = match body.course.as_deref() {
+        Some(c @ ("starter" | "main" | "dessert")) => Some(c),
+        None => None,
+        Some(_) => return Err(ApiError::BadRequest("service invalide".into())),
+    };
 
-    let res = sqlx::query(
-        "INSERT INTO evening_menu_picks (space_id, user_id, code, day)
-         VALUES ($1, $2, $3, $4) ON CONFLICT DO NOTHING",
+    let stance = match body.stance.as_deref() {
+        Some("refused") => "refused",
+        Some("want") | None => "want",
+        Some(_) => return Err(ApiError::BadRequest("stance invalide".into())),
+    };
+    if blind && stance == "refused" {
+        return Err(ApiError::BadRequest(
+            "refus indisponible en mode aveugle".into(),
+        ));
+    }
+
+    let prev: Option<String> = sqlx::query_scalar(
+        "SELECT stance FROM evening_menu_picks
+         WHERE space_id = $1 AND user_id = $2 AND code = $3 AND day = $4",
     )
     .bind(space_id)
     .bind(auth.user_id)
     .bind(&code)
     .bind(today)
+    .fetch_optional(&state.pool)
+    .await?;
+
+    sqlx::query(
+        "INSERT INTO evening_menu_picks (space_id, user_id, code, day, stance, course)
+         VALUES ($1, $2, $3, $4, $5, $6)
+         ON CONFLICT (space_id, user_id, code, day) DO UPDATE
+             SET stance = EXCLUDED.stance,
+                 course = COALESCE(EXCLUDED.course, evening_menu_picks.course)",
+    )
+    .bind(space_id)
+    .bind(auth.user_id)
+    .bind(&code)
+    .bind(today)
+    .bind(stance)
+    .bind(course)
     .execute(&state.pool)
     .await?;
 
-    let matched = other_picked(&state.pool, space_id, auth.user_id, &code, today).await?;
+    let my_course: Option<String> = sqlx::query_scalar(
+        "SELECT course FROM evening_menu_picks
+         WHERE space_id = $1 AND user_id = $2 AND code = $3 AND day = $4",
+    )
+    .bind(space_id)
+    .bind(auth.user_id)
+    .bind(&code)
+    .bind(today)
+    .fetch_one(&state.pool)
+    .await?;
 
-    // Nouveau match du soir → on révèle de l'autre côté (WS) + push « C'est un
-    // match ce soir ! ». Pas d'émission sinon (double-aveugle / re-PUT idempotent).
-    if res.rows_affected() > 0 && matched {
+    let (other_wants, other_refused, other_course) =
+        partner_flags(&state.pool, space_id, auth.user_id, &code, today).await?;
+    let (picked, matched, partner_wants, refused) =
+        compute_flags(blind, Some(stance), other_wants, other_refused);
+    let changed = prev.as_deref() != Some(stance);
+
+    // Nouveau match (aveugle : réciprocité ; ouvert : je valide une
+    // proposition, ou l'autre en pose une nouvelle sur un item que je
+    // voulais déjà) → révèle + push. Uniquement si le stance a changé (pas de
+    // re-push idempotent).
+    if changed && matched {
         state.emit(space_id, auth.user_id, EventKind::EveningMenu);
         crate::notifications::notify_members(
             &state,
@@ -157,13 +377,25 @@ async fn pick(
             "C'est un match ce soir !".into(),
         )
         .await;
+    } else if changed && !blind {
+        // Mode ouvert : ma proposition/mon refus change ce que l'autre voit
+        // → on rafraîchit (pas de push : silencieux, ça apparaît à l'écran).
+        // En mode aveugle, JAMAIS : un évènement trahirait qu'un choix a bougé.
+        state.emit(space_id, auth.user_id, EventKind::EveningMenu);
     }
 
-    Ok(Json(EveningMenuItem {
-        code,
-        picked: true,
-        matched,
-    }))
+    // Service de l'autre : seulement s'il est révélé (cf. list_menu).
+    let other_course = other_course.filter(|_| partner_wants || matched);
+    let (course, courses) =
+        resolve_course(&row, &map, my_course.as_deref(), other_course.as_deref());
+    let mut item = EveningMenuItem::from_catalog(row);
+    item.course = course;
+    item.courses = courses;
+    item.picked = picked;
+    item.matched = matched;
+    item.partner_wants = partner_wants;
+    item.refused = refused;
+    Ok(Json(item))
 }
 
 async fn unpick(
@@ -171,9 +403,10 @@ async fn unpick(
     auth: AuthUser,
     Path((space_id, code)): Path<(Uuid, String)>,
 ) -> ApiResult<Json<EveningMenuItem>> {
-    let today = ensure_enabled_today(&state.pool, auth.user_id, space_id).await?;
-    check_code(&code)?;
-    sqlx::query(
+    let (blind, today, map) =
+        ensure_enabled_today(&state.pool, auth.user_id, space_id).await?;
+    let row = catalog_item(&state.pool, &code).await?;
+    let res = sqlx::query(
         "DELETE FROM evening_menu_picks
          WHERE space_id = $1 AND user_id = $2 AND code = $3 AND day = $4",
     )
@@ -183,11 +416,27 @@ async fn unpick(
     .bind(today)
     .execute(&state.pool)
     .await?;
-    Ok(Json(EveningMenuItem {
-        code,
-        picked: false,
-        matched: false,
-    }))
+
+    let (other_wants, other_refused, other_course) =
+        partner_flags(&state.pool, space_id, auth.user_id, &code, today).await?;
+    let (picked, matched, partner_wants, refused) =
+        compute_flags(blind, None, other_wants, other_refused);
+    // Aveugle : seul un match défait change ce que l'autre voit (il voulait aussi
+    // cet item) ; sinon un évènement trahirait le retrait d'un choix secret.
+    if res.rows_affected() > 0 && (!blind || other_wants) {
+        state.emit(space_id, auth.user_id, EventKind::EveningMenu);
+    }
+
+    let other_course = other_course.filter(|_| partner_wants || matched);
+    let (course, courses) = resolve_course(&row, &map, None, other_course.as_deref());
+    let mut item = EveningMenuItem::from_catalog(row);
+    item.course = course;
+    item.courses = courses;
+    item.picked = picked;
+    item.matched = matched;
+    item.partner_wants = partner_wants;
+    item.refused = refused;
+    Ok(Json(item))
 }
 
 /// Purge des coches de plus de 2 jours (le menu n'est pertinent que pour son jour

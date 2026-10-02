@@ -5,6 +5,10 @@ import { cn } from "../../lib/cn";
 export interface DesireCardProps {
   /** Libellé de l'envie (résolu par l'appelant via i18n). */
   label: string;
+  /** Description courte du catalogue (#0033), le cas échéant. */
+  description?: string;
+  /** Repère de sous-catégorie du catalogue (ex. « Kamasutra »), le cas échéant. */
+  subcategoryLabel?: string;
   /** J'ai marqué « envie » (privé, double-aveugle). */
   interested: boolean;
   /** J'ai marqué « contre » (ma limite). */
@@ -32,6 +36,8 @@ export interface DesireCardProps {
  */
 export function DesireCard({
   label,
+  description,
+  subcategoryLabel,
   interested,
   against = false,
   matched,
@@ -94,6 +100,16 @@ export function DesireCard({
           {wantIcon}
         </span>
         <span className="min-w-0 flex-1">
+          {subcategoryLabel && (
+            <span
+              className={cn(
+                "block text-[10px] uppercase tracking-wide",
+                matched ? "text-blush-100/60" : "text-taupe-400",
+              )}
+            >
+              {subcategoryLabel}
+            </span>
+          )}
           <span
             className={cn(
               "block font-serif text-base",
@@ -102,6 +118,16 @@ export function DesireCard({
           >
             {label}
           </span>
+          {description && (
+            <span
+              className={cn(
+                "mt-0.5 block text-xs",
+                matched ? "text-blush-100/70" : "text-taupe-400",
+              )}
+            >
+              {description}
+            </span>
+          )}
           <span className="mt-0.5 flex flex-wrap gap-1">
             {limit && !matched && (
               <span className="inline-block rounded-full border border-taupe-300/40 px-2 py-0.5 text-[11px] text-taupe-300">
