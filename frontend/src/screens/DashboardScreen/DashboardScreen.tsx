@@ -393,6 +393,7 @@ export function DashboardScreen({
                       <span className="min-w-0 leading-snug">
                         {row.labels.length === 0 ? (
                           <span
+                            role="img"
                             className="text-taupe-400"
                             aria-label={t("eveningMenu.previewEmptyAria")}
                           >

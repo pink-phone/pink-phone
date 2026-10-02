@@ -32,7 +32,7 @@ fn mood_allowed(s: &str) -> bool {
     }
     let t = s.trim();
     let n = t.chars().count();
-    n >= 1 && n <= 40 && t.len() <= 120
+    (1..=40).contains(&n) && t.len() <= 120
 }
 
 async fn set_mood(

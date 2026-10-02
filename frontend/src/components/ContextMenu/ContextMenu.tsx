@@ -73,6 +73,7 @@ export function ContextMenu({ items, ariaLabel, className }: ContextMenuProps) {
 
   // Échap referme (cohérent avec Sheet, UI-A11Y4). Un scroll/redimensionnement
   // referme aussi (le menu en position fixe se détacherait sinon).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `close` est recréé à chaque rendu ; seul `open` doit (ré)installer les écouteurs.
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {

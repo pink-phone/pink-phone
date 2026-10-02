@@ -1,0 +1,53 @@
+# Config de `cargo deny` (CI : .forgejo/workflows/security.yml + lint.yml).
+# Complète `cargo audit` (advisories → .cargo/audit.toml) par les licences, les
+# sources autorisées et les doublons de versions.
+
+[graph]
+all-features = true
+
+[advisories]
+# « unmaintained » : seulement pour les dépendances DIRECTES du projet (un crate
+# transitif non maintenu mais sans faille — ex. `paste` — ne doit pas bloquer la CI ;
+# `cargo audit` couvre les vulnérabilités réelles).
+unmaintained = "workspace"
+# Mêmes exceptions que .cargo/audit.toml (raisonnement : SECURITY_FINDINGS.md).
+ignore = [
+    "RUSTSEC-2023-0071",
+    "RUSTSEC-2026-0194",
+    "RUSTSEC-2026-0195",
+]
+
+[licenses]
+# Licences permissives (+ MPL-2.0 pour `ece`, via web-push) compatibles avec la
+# licence du projet (AGPL-3.0-or-later). Toute autre licence (GPL seule, SSPL,
+# propriétaire…) fait échouer la CI : à examiner avant d'être ajoutée ici.
+allow = [
+    "AGPL-3.0-or-later",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "MIT",
+    "MIT-0",
+    "0BSD",
+    "BSD-1-Clause",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "BSL-1.0",
+    "CC0-1.0",
+    "CDLA-Permissive-2.0",
+    "MPL-2.0",
+    "Unicode-3.0",
+    "Unlicense",
+    "Zlib",
+    "LGPL-2.1-or-later",
+]
+confidence-threshold = 0.8
+
+[bans]
+multiple-versions = "warn"
+wildcards = "deny"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

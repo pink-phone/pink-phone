@@ -5,7 +5,7 @@ import { Button } from "../Button/Button";
 import { FireEmbers } from "../FireEmbers/FireEmbers";
 import { ContextMenu } from "../ContextMenu/ContextMenu";
 import { cn } from "../../lib/cn";
-import { type ChallengeStatus, type Intensity } from "./challenge";
+import type { ChallengeStatus, Intensity } from "./challenge";
 
 const INTENSITY_TONE: Record<Intensity, BadgeTone> = {
   soft: "soft",

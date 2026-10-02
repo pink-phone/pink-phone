@@ -109,8 +109,7 @@ fn reaction_allowed(r: &str) -> bool {
         return true;
     }
     let n = r.chars().count();
-    n >= 1
-        && n <= 8
+    (1..=8).contains(&n)
         && r.len() <= 32
         && !r
             .chars()

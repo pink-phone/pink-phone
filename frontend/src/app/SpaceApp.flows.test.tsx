@@ -92,9 +92,15 @@ beforeEach(() => {
   ls = {};
   vi.stubGlobal("localStorage", {
     getItem: (k: string) => ls[k] ?? null,
-    setItem: (k: string, v: string) => void (ls[k] = String(v)),
-    removeItem: (k: string) => void delete ls[k],
-    clear: () => void (ls = {}),
+    setItem: (k: string, v: string) => {
+      ls[k] = String(v);
+    },
+    removeItem: (k: string) => {
+      delete ls[k];
+    },
+    clear: () => {
+      ls = {};
+    },
   });
   vi.spyOn(console, "error").mockImplementation(() => {});
   a.members.mockResolvedValue([{ id: "me", displayName: "Moi", role: "partner" }] as never);

@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import { cn } from "../../lib/cn";
-import { type Intensity } from "../ChallengeCard/challenge";
+import type { Intensity } from "../ChallengeCard/challenge";
 
 const ORDER: Intensity[] = ["soft", "hot"];
 

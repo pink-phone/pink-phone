@@ -27,9 +27,9 @@ vi.mock("./SpaceApp", () => ({
     <div>
       <p>app:{p.space.id}</p>
       <p>count:{p.spaces.length}</p>
-      <button onClick={() => p.onSwitchSpace("s2")}>switch</button>
-      <button onClick={() => void p.onCreateSpace("Nouveau")}>create</button>
-      <button onClick={() => void p.onJoinSpace(" CODE#1 ")}>join</button>
+      <button type="button" onClick={() => p.onSwitchSpace("s2")}>switch</button>
+      <button type="button" onClick={() => void p.onCreateSpace("Nouveau")}>create</button>
+      <button type="button" onClick={() => void p.onJoinSpace(" CODE#1 ")}>join</button>
     </div>
   ),
 }));

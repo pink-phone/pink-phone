@@ -27,6 +27,7 @@ export interface CommentsSheetProps {
   onAdd: (body: string) => void;
   /** Édite un de mes commentaires (nouvelle valeur). Renvoie un succès optionnel
    * (REACT2-01) : si `false`, l'édition reste ouverte et signale l'échec. */
+  // biome-ignore lint/suspicious/noConfusingVoidType: les appelants peuvent passer un handler synchrone (void) ou asynchrone (Promise<boolean>).
   onEdit?: (id: string, body: string) => void | Promise<boolean>;
   /** Supprime un de mes commentaires. */
   onDelete?: (id: string) => void;

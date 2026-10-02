@@ -16,7 +16,8 @@
     "pinkdev": "node scripts/pinkdev.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "coverage": "vitest run --coverage"
+    "coverage": "vitest run --coverage",
+    "lint": "biome lint src"
   },
   "dependencies": {
     "@fontsource/inter": "^5.1.0",
@@ -28,6 +29,7 @@
     "react-i18next": "^17.0.8"
   },
   "devDependencies": {
+    "@biomejs/biome": "2.5.15",
     "@storybook/addon-docs": "10.6.0",
     "@storybook/react": "10.6.0",
     "@storybook/react-vite": "10.6.0",

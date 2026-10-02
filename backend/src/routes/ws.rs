@@ -86,13 +86,10 @@ async fn handle_socket(
             ev = rx.recv() => match ev {
                 // On ne renvoie pas ses propres mutations (déjà appliquées côté client).
                 Ok(ev) if ev.space_id == space_id && ev.actor_id != user_id => {
-                    match serde_json::to_string(&ev) {
-                        Ok(text) => {
-                            if socket.send(Message::Text(text.into())).await.is_err() {
-                                break;
-                            }
+                    if let Ok(text) = serde_json::to_string(&ev) {
+                        if socket.send(Message::Text(text.into())).await.is_err() {
+                            break;
                         }
-                        Err(_) => {}
                     }
                 }
                 Ok(_) => {}

@@ -943,7 +943,7 @@ async fn post_brouillon_visible_de_l_auteur_publication_repositionne_created_at(
     assert_eq!(p["draft"], false);
     assert_ne!(p["createdAt"].as_str().unwrap(), avant);
     assert_eq!(p["createdAt"], p["updatedAt"]);
-    assert_eq!(serde_json::to_value(&rx.try_recv().unwrap()).unwrap()["kind"], "post");
+    assert_eq!(serde_json::to_value(rx.try_recv().unwrap()).unwrap()["kind"], "post");
     let (_, l) = req(&app, "GET", &base, &tb, None).await;
     assert_eq!(n(&l), 1);
 
@@ -1202,7 +1202,7 @@ async fn suppression_de_commentaire_emet_un_event_comment(pool: PgPool) {
     let mut rx = state.events.subscribe();
     let (st, _) = req(&app, "DELETE", &format!("{base}/{}", c["id"].as_str().unwrap()), &t, None).await;
     assert_eq!(st, StatusCode::NO_CONTENT);
-    assert_eq!(serde_json::to_value(&rx.try_recv().unwrap()).unwrap()["kind"], "comment");
+    assert_eq!(serde_json::to_value(rx.try_recv().unwrap()).unwrap()["kind"], "comment");
     let (st, _) = req(&app, "DELETE", &format!("{base}/{}", c["id"].as_str().unwrap()), &t, None).await;
     assert_eq!(st, StatusCode::NOT_FOUND);
 }

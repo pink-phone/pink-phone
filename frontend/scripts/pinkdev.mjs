@@ -145,9 +145,17 @@ function runStep(label, cmd, cmdArgs, cwd) {
 
 function check(includeIntegration) {
   const steps = [
+    ["frontend: lint (biome)", "npm", ["run", "lint"], FRONTEND_DIR],
     ["frontend: build (tsc + vite)", "npm", ["run", "build"], FRONTEND_DIR],
     ["frontend: build-storybook", "npm", ["run", "build-storybook"], FRONTEND_DIR],
     ["frontend: test (vitest)", "npm", ["run", "test"], FRONTEND_DIR],
+    ["backend: cargo fmt --check", "cargo", ["fmt", "--check"], BACKEND_DIR],
+    [
+      "backend: cargo clippy (warnings = erreurs)",
+      "cargo",
+      ["clippy", "--all-targets", "--features", "integration", "--", "-D", "warnings"],
+      BACKEND_DIR,
+    ],
     ["backend: cargo build", "cargo", ["build"], BACKEND_DIR],
     ["backend: cargo test", "cargo", ["test"], BACKEND_DIR],
   ];
