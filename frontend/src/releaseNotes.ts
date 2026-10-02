@@ -16,6 +16,48 @@ export interface ReleaseNote {
 
 export const RELEASE_NOTES: ReleaseNote[] = [
   {
+    version: "Menu du soir, nouvelle version",
+    date: "2026-10-02",
+    items: {
+      fr: [
+        "Le menu du soir se compose en trois services (Entrée, Plat, Dessert) : chacun affiche ce que vous avez choisi, et « ＋ Ajouter » ouvre une recherche à sélection multiple.",
+        "Piochez aussi hors des catégories d'un service avec « Tout le catalogue » ; l'item choisi reste dans le service où vous l'avez ajouté.",
+        "Retirer un choix : un ✕ explicite, avec « Annuler » pendant quelques secondes (et une confirmation si cela défait un match).",
+        "En mode ouvert, répondez à une proposition par « Partant·e » ou « Pas ce soir » ; chaque état a sa marque (✓ choisi, ＋ proposé, ✨ match, ⊘ refusé).",
+        "L'accueil montre le menu de ce soir d'un coup d'œil, service par service.",
+        "Réglages › Menu du soir : sa propre section, avec le choix des catégories qui alimentent chaque service (une catégorie peut nourrir plusieurs services).",
+        "Le catalogue partagé s'enrichit (positions du Kamasutra et modernes, pratiques), et les envies existantes sont conservées.",
+        "Valider le sélecteur ne vous renvoie plus à l'accueil, et le mode aveugle ne laisse plus rien filtrer d'un choix non matché.",
+      ],
+      en: [
+        "Tonight's menu is now built in three courses (Starter, Main, Dessert): each shows what you picked, and “＋ Add” opens a multi-select search.",
+        "Also pick outside a course's categories with “Whole catalog”; the item stays in the course where you added it.",
+        "Removing a pick: an explicit ✕, with “Undo” for a few seconds (and a confirmation if it undoes a match).",
+        "In open mode, answer a proposal with “I'm in” or “Not tonight”; each state has its own mark (✓ picked, ＋ proposed, ✨ match, ⊘ declined).",
+        "The home screen shows tonight's menu at a glance, course by course.",
+        "Settings › Tonight's menu: its own section, with the categories feeding each course (a category can feed several courses).",
+        "The shared catalog grows (Kamasutra and modern positions, practices), and your existing wishes are kept.",
+        "Confirming the picker no longer sends you back to the home screen, and blind mode no longer leaks anything about an unmatched pick.",
+      ],
+    },
+  },
+  {
+    version: "Médias plein écran",
+    date: "2026-09-30",
+    items: {
+      fr: [
+        "Touchez une photo ou une vidéo d'un post pour l'ouvrir en plein écran.",
+        "Faites pivoter à la main un média paysage pour qu'il remplisse l'écran.",
+        "Un halo aux couleurs du thème entoure le média en plein écran.",
+      ],
+      en: [
+        "Tap a post's photo or video to open it full screen.",
+        "Manually rotate a landscape media so it fills the screen.",
+        "A glow in your theme's colors surrounds the full-screen media.",
+      ],
+    },
+  },
+  {
     version: "Centre de notifications",
     date: "2026-09-23",
     items: {
