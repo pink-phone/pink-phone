@@ -2453,3 +2453,59 @@ async fn menu_du_soir_apres_devoilement_valider_ou_refuser(pool: PgPool) {
     let (st, _) = req(&app, "DELETE", &format!("{list}/{b_game}"), &tb, None).await;
     assert_eq!(st, StatusCode::CONFLICT, "le menu d'origine reste figé");
 }
+
+/// Validations résiduelles du menu du soir : stance inconnu, trop d'entrées de
+/// service, et purge des coches / validations périmées (> 2 jours).
+#[sqlx::test]
+async fn menu_du_soir_validations_et_purge(pool: PgPool) {
+    let (app, state) = build_app(pool.clone());
+    let alice = seed_user(&pool, "alice").await;
+    let space = seed_space(&pool, alice).await;
+    let ta = token_for(&state, alice);
+    let patch = format!("/api/spaces/{space}");
+    let list = format!("/api/spaces/{space}/evening-menu");
+    let (st, _) = req(&app, "PATCH", &patch, &ta, Some(json!({ "eveningMenuEnabled": true }))).await;
+    assert_eq!(st, StatusCode::OK);
+
+    // Stance inconnu → 400.
+    let (st, _) = req(&app, "PUT", &format!("{list}/evening-massage"), &ta, Some(json!({ "stance": "peut-etre" }))).await;
+    assert_eq!(st, StatusCode::BAD_REQUEST);
+
+    // Plus de 64 entrées de classement → 400 (borne anti-abus).
+    let many: Vec<String> = (0..65).map(|i| format!("main:cat{i}")).collect();
+    let (st, _) = req(&app, "PATCH", &patch, &ta, Some(json!({ "eveningCourseCategories": many }))).await;
+    assert_eq!(st, StatusCode::BAD_REQUEST);
+
+    // Purge : une coche et une validation vieilles de 3 jours disparaissent,
+    // celles du jour restent.
+    sqlx::query(
+        "INSERT INTO evening_menu_picks (space_id, user_id, code, day, created_at)
+         VALUES ($1, $2, 'evening-massage', current_date - 3, now() - interval '3 days'),
+                ($1, $2, 'evening-movie',   current_date,     now())",
+    )
+    .bind(space)
+    .bind(alice)
+    .execute(&pool)
+    .await
+    .unwrap();
+    sqlx::query(
+        "INSERT INTO evening_menu_done (space_id, user_id, day, created_at)
+         VALUES ($1, $2, current_date - 3, now() - interval '3 days')",
+    )
+    .bind(space)
+    .bind(alice)
+    .execute(&pool)
+    .await
+    .unwrap();
+    crate::routes::evening_menu::purge_old_picks(&pool).await;
+    let picks: Vec<String> = sqlx::query_scalar("SELECT code FROM evening_menu_picks ORDER BY code")
+        .fetch_all(&pool)
+        .await
+        .unwrap();
+    assert_eq!(picks, vec!["evening-movie".to_string()]);
+    let dones: i64 = sqlx::query_scalar("SELECT count(*) FROM evening_menu_done")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+    assert_eq!(dones, 0);
+}
