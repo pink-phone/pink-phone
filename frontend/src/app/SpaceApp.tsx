@@ -39,6 +39,7 @@ import { LoveNoteComposer } from "../components/LoveNoteComposer/LoveNoteCompose
 import { Toast } from "../components/Toast/Toast";
 import { CommentsSheet } from "../components/CommentsSheet/CommentsSheet";
 import { NotificationCenter } from "../components/NotificationCenter/NotificationCenter";
+import { clearPostDraft, loadPostDraft, savePostDraft } from "../lib/postDraft";
 import { PostComposer, type PostDraft } from "../components/PostComposer/PostComposer";
 import {
   ChallengeComposer,
@@ -430,6 +431,16 @@ export function SpaceApp({
   // Retour Android / swipe iOS ferment la surface ouverte (au lieu de quitter).
   useBackClose(showSettings, () => setShowSettings(false));
   useBackClose(showBank, () => setShowBank(false));
+  // Brouillon local restauré à l'ouverture d'un NOUVEAU post (la feuille démonte
+  // le composer à la fermeture → relu à chaque ouverture).
+  const restoredDraft = useMemo(
+    () =>
+      openSheet === "post" && !editingPost
+        ? loadPostDraft(user.id, space.id)
+        : undefined,
+    [openSheet, editingPost, user.id, space.id],
+  );
+
   useBackClose(openSheet !== null, () => {
     setOpenSheet(null);
     setEditingPost(null);
@@ -624,6 +635,7 @@ export function SpaceApp({
   // garde que la fermeture de feuille (succès) et la confirmation de suppression.
   const addPost = async (draft: PostDraft) => {
     if (await addPostH(draft)) {
+      clearPostDraft(user.id, space.id);
       setOpenSheet(null);
       setSharedFiles([]);
     }
@@ -1084,6 +1096,12 @@ export function SpaceApp({
             editingPost ? editingPost.allowDownload : space.allowMediaDownload
           }
           initialFiles={editingPost ? undefined : sharedFiles}
+          initialText={restoredDraft}
+          onTextChange={
+            editingPost
+              ? undefined
+              : (d) => savePostDraft(user.id, space.id, d)
+          }
           initial={
             editingPost
               ? {
