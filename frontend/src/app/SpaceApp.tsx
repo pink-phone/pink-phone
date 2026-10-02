@@ -26,6 +26,10 @@ import { BlogScreen } from "../screens/BlogScreen/BlogScreen";
 import { ChallengesScreen } from "../screens/ChallengesScreen/ChallengesScreen";
 import { ChallengeBankScreen } from "../screens/ChallengeBankScreen/ChallengeBankScreen";
 import { DesiresScreen } from "../screens/DesiresScreen/DesiresScreen";
+import {
+  SERVICE_COURSES,
+  type CourseCategory,
+} from "../components/EveningCourseSettings/EveningCourseSettings";
 import { EveningMenuScreen } from "../screens/EveningMenuScreen/EveningMenuScreen";
 import { Splash } from "../screens/Splash/Splash";
 
@@ -61,6 +65,7 @@ import {
   toCommentViews,
   toDashboardNotices,
   toNotificationItems,
+  toEveningMenuPreview,
   toPostData,
 } from "./mappers";
 
@@ -171,6 +176,7 @@ export function SpaceApp({
     items: eveningMenuItems,
     refetch: refetchEveningMenu,
     toggle: toggleEveningMenu,
+    refuse: refuseEveningMenu,
   } = useEveningMenu(space.id, space.eveningMenuEnabled);
   // Mots doux (#102) : toujours actif (pas de flag).
   const {
@@ -457,7 +463,40 @@ export function SpaceApp({
   // Match du soir (#97b) : nb d'items matchés + toast « ✨ Match ce soir ! » quand
   // ça augmente (le partenaire vient de compléter un match). On « arme » le toast
   // ~1,5 s après le `ready` pour ne pas le tirer sur les matchs déjà là au montage.
-  const eveningMatches = eveningMenuItems.filter((i) => i.matched).length;
+  // (mes choix seulement : une proposition de l'autre non validée n'est pas un match)
+  const eveningMatches = eveningMenuItems.filter((i) => i.matched && i.picked).length;
+  // Catégories du catalogue du menu du soir (réglage des services) : une par
+  // catégorie, avec son service par défaut (`mixed` si ses items se répartissent).
+  const eveningCategories = useMemo<CourseCategory[]>(() => {
+    const byId = new Map<string, { cat: CourseCategory; defaults: Set<string> }>();
+    for (const i of eveningMenuItems) {
+      let entry = byId.get(i.category);
+      if (!entry) {
+        entry = {
+          cat: {
+            id: i.category,
+            label: lang.startsWith("en") ? i.categoryLabelEn : i.categoryLabelFr,
+            defaultCourses: [],
+          },
+          defaults: new Set(),
+        };
+        byId.set(i.category, entry);
+      }
+      if (i.defaultCourse) entry.defaults.add(i.defaultCourse);
+    }
+    return [...byId.values()].map(({ cat, defaults }) => ({
+      ...cat,
+      defaultCourses: SERVICE_COURSES.filter((c) => defaults.has(c)),
+    }));
+  }, [eveningMenuItems, lang]);
+  const eveningPreview = useMemo(
+    () =>
+      toEveningMenuPreview(eveningMenuItems, {
+        isEn: lang.startsWith("en"),
+        explicit: space.desiresExplicitLabels,
+      }),
+    [eveningMenuItems, lang, space.desiresExplicitLabels],
+  );
   const prevEveningMatches = useRef<number | null>(null);
   const toastArmed = useRef(false);
   useEffect(() => {
@@ -690,6 +729,40 @@ export function SpaceApp({
     }
   };
 
+  const changeEveningCourseCategories = async (eveningCourseCategories: string[]) => {
+    try {
+      setSpace(
+        await api.updateSpace(space.id, { eveningCourseCustom: true, eveningCourseCategories }),
+      );
+      refetchEveningMenu(); // les services affichés dépendent du classement
+    } catch (e) {
+      console.error("réglage des services du menu échoué", e);
+    }
+  };
+
+  const resetEveningCourses = async () => {
+    try {
+      setSpace(
+        await api.updateSpace(space.id, {
+          eveningCourseCustom: false,
+          eveningCourseCategories: [],
+        }),
+      );
+      refetchEveningMenu();
+    } catch (e) {
+      console.error("rétablissement des services du menu échoué", e);
+    }
+  };
+
+  const changeEveningMenuBlind = async (eveningMenuBlind: boolean) => {
+    try {
+      setSpace(await api.updateSpace(space.id, { eveningMenuBlind }));
+      refetchEveningMenu(); // les flags matched/partnerWants dépendent du mode (#0040)
+    } catch (e) {
+      console.error("changement du mode du menu du soir échoué", e);
+    }
+  };
+
   const changeNotifMode = async (mode: NotifMode) => {
     setSettingsBusy(true);
     setPushError(null);
@@ -791,7 +864,11 @@ export function SpaceApp({
             desiresEnabled: space.desiresEnabled,
             desiresExplicitLabels: space.desiresExplicitLabels,
             eveningMenuEnabled: space.eveningMenuEnabled,
+            eveningMenuBlind: space.eveningMenuBlind,
+            eveningCourseCustom: space.eveningCourseCustom,
+            eveningCourseCategories: space.eveningCourseCategories,
           }}
+          eveningCategories={eveningCategories}
           members={members.map((m) => ({ id: m.id, name: m.displayName }))}
           inviteCode={inviteCode}
           onCreateInvite={createInvite}
@@ -807,6 +884,9 @@ export function SpaceApp({
           onDesiresEnabledChange={changeDesiresEnabled}
           onDesiresExplicitChange={changeDesiresExplicit}
           onEveningMenuEnabledChange={changeEveningMenuEnabled}
+          onEveningMenuBlindChange={changeEveningMenuBlind}
+          onEveningCourseCategoriesChange={changeEveningCourseCategories}
+          onEveningCourseReset={resetEveningCourses}
           reactions={space.reactions}
           allowCustomReactions={space.allowCustomReactions}
           onReactionsChange={changeReactions}
@@ -866,7 +946,10 @@ export function SpaceApp({
       <div className="mx-auto h-dvh max-w-md overflow-y-auto overscroll-contain bg-charcoal-900 bg-felt-velvet px-4 pb-[calc(2.5rem+env(safe-area-inset-bottom))] pt-[calc(1rem+env(safe-area-inset-top))]">
         <EveningMenuScreen
           items={eveningMenuItems}
+          explicit={space.desiresExplicitLabels}
+          partnerName={partners.length === 1 ? partners[0].displayName : undefined}
           onToggle={toggleEveningMenu}
+          onRefuse={refuseEveningMenu}
           onBack={() => setShowEveningMenu(false)}
         />
       </div>
@@ -908,6 +991,7 @@ export function SpaceApp({
           onOpen={setTab}
           eveningMenuEnabled={space.eveningMenuEnabled}
           eveningMenuMatches={eveningMatches}
+          eveningMenuPreview={eveningPreview}
           onOpenEveningMenu={() => setShowEveningMenu(true)}
           userId={user.id}
           loveNotes={loveNotes}

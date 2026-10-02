@@ -56,3 +56,12 @@ export interface ChallengeData {
   /** Défi de l'autre, créé depuis mon dernier passage : pilote la ligne « non lus ». */
   unread?: boolean;
 }
+
+/** Une ligne d'aperçu du menu du soir sur le dashboard (114a) : les libellés
+ *  déjà sur le menu pour un service (déjà résolus langue + registre). */
+export interface EveningMenuPreviewRow {
+  course: "starter" | "main" | "dessert";
+  labels: string[];
+  /** Au moins un item de ce service est un match (✨). */
+  matched: boolean;
+}

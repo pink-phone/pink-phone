@@ -2,23 +2,44 @@ import type { Meta, StoryObj } from "@storybook/react-vite";
 import { DesiresScreen } from "./DesiresScreen";
 import type { ApiDesire } from "../../api/types";
 
-const CATALOG: Array<[string, string]> = [
-  ["morningCuddle", "tender"],
-  ["oilMassage", "tender"],
-  ["roleplay", "games"],
-  ["missionary", "positions"],
-  ["doggy", "positions"],
-  ["blindfold", "sensations"],
-  ["gentleDomination", "power"],
-  ["hotel", "places"],
-  ["fellatio", "practices"],
-  ["anal", "practices"],
+const CATALOG_LABELS: Record<string, string> = {
+  tender: "Tendre & complice",
+  games: "Jeux & scénarios",
+  positions: "Positions",
+  sensations: "Sensations",
+  power: "Pouvoir & rôles",
+  places: "Lieux & frissons",
+  practices: "Pratiques (hot)",
+};
+
+// [code, category, libellé, intensité]
+const CATALOG: Array<[string, string, string, "soft" | "hot"]> = [
+  ["morningCuddle", "tender", "Un réveil câlin", "soft"],
+  ["oilMassage", "tender", "Un massage aux huiles", "soft"],
+  ["roleplay", "games", "Un jeu de rôle", "soft"],
+  ["kamasutra-missionary", "positions", "Missionnaire", "soft"],
+  ["kamasutra-doggy-style", "positions", "Levrette", "hot"],
+  ["blindfold", "sensations", "À l'aveugle (bandeau)", "soft"],
+  ["gentleDomination", "power", "Domination douce", "hot"],
+  ["hotel", "places", "Un hôtel, un week-end", "soft"],
+  ["fellatio", "practices", "Fellation", "hot"],
+  ["anal", "practices", "Sodomie", "hot"],
 ];
 
 const d = (over: Record<string, Partial<ApiDesire>> = {}): ApiDesire[] =>
-  CATALOG.map(([code, category]) => ({
+  CATALOG.map(([code, category, label, intensity]) => ({
     code,
     category,
+    categoryLabelFr: CATALOG_LABELS[category],
+    categoryLabelEn: CATALOG_LABELS[category],
+    subcategory: null,
+    labelFr: label,
+    labelEn: label,
+    labelFrSoft: null,
+    labelEnSoft: null,
+    descriptionFr: null,
+    descriptionEn: null,
+    intensity,
     interested: false,
     against: false,
     matched: false,
@@ -61,7 +82,7 @@ export const Explicite: Story = {
     explicit: true,
     items: d({
       oilMassage: { interested: true, matched: true },
-      missionary: { done: true },
+      "kamasutra-missionary": { done: true },
       anal: { against: true, limit: true },
       fellatio: { limit: true },
     }),

@@ -276,9 +276,12 @@ struct CatalogRow {
     id: String,
     label: String,
     used_in_bucket_list: bool,
-    used_in_evening_menu: bool,
     active_items: i64,
     inactive_items: i64,
+    /// Items actifs de la catégorie éligibles au menu du soir (`evening_course`
+    /// renseigné, #0039) — item-level, plus une catégorie n'est pas « toute »
+    /// ou « pas du tout » dans le menu du soir.
+    evening_menu_items: i64,
 }
 
 #[derive(Serialize)]
@@ -1140,8 +1143,8 @@ async fn notify_list(
 // ---------- catalog ----------
 
 async fn catalog_list(pool: &PgPool, json: bool) -> Result<(), Box<dyn std::error::Error>> {
-    let categories: Vec<(String, String, bool, bool)> = sqlx::query_as(
-        "SELECT id, label_fr, used_in_bucket_list, used_in_evening_menu
+    let categories: Vec<(String, String, bool)> = sqlx::query_as(
+        "SELECT id, label_fr, used_in_bucket_list
          FROM catalog_categories ORDER BY sort_order",
     )
     .fetch_all(pool)
@@ -1153,9 +1156,10 @@ async fn catalog_list(pool: &PgPool, json: bool) -> Result<(), Box<dyn std::erro
     }
 
     let mut json_rows = Vec::with_capacity(categories.len());
-    for (id, label, bucket, menu) in categories {
-        let (active_items, inactive_items): (i64, i64) = sqlx::query_as(
-            "SELECT count(*) FILTER (WHERE active), count(*) FILTER (WHERE NOT active)
+    for (id, label, bucket) in categories {
+        let (active_items, inactive_items, evening_menu_items): (i64, i64, i64) = sqlx::query_as(
+            "SELECT count(*) FILTER (WHERE active), count(*) FILTER (WHERE NOT active),
+                    count(*) FILTER (WHERE active AND evening_course IS NOT NULL)
              FROM catalog_items WHERE category_id = $1",
         )
         .bind(&id)
@@ -1166,17 +1170,17 @@ async fn catalog_list(pool: &PgPool, json: bool) -> Result<(), Box<dyn std::erro
                 id,
                 label,
                 used_in_bucket_list: bucket,
-                used_in_evening_menu: menu,
                 active_items,
                 inactive_items,
+                evening_menu_items,
             });
         } else {
             let mut uses = Vec::new();
             if bucket {
-                uses.push("bucket-list");
+                uses.push("bucket-list".to_string());
             }
-            if menu {
-                uses.push("menu-du-soir");
+            if evening_menu_items > 0 {
+                uses.push(format!("menu-du-soir: {evening_menu_items}"));
             }
             println!(
                 "{id:<24} {label:<28} [{}]  actifs: {active_items:<4} inactifs: {inactive_items}",

@@ -3,11 +3,12 @@ import * as api from "../api/client";
 import type {
   ApiChallenge,
   ApiComment,
+  ApiEveningMenuItem,
   ApiNotification,
   ApiPost,
   Notice,
 } from "../api/types";
-import type { ChallengeData, PostData } from "../types/view";
+import type { ChallengeData, EveningMenuPreviewRow, PostData } from "../types/view";
 import type { CommentView } from "../components/CommentsSheet/CommentsSheet";
 import type { NotificationItemView } from "../components/NotificationCenter/NotificationCenter";
 import { relativeTime } from "../lib/time";
@@ -156,4 +157,36 @@ export function toCommentViews(
     unread: c.authorId !== userId && !!seenAt && c.createdAt > seenAt,
     edited: c.updatedAt > c.createdAt,
   }));
+}
+
+const COURSES = ["starter", "main", "dessert"] as const;
+
+/** Aperçu du menu du soir pour le dashboard (114a) : par service, les items
+ *  déjà sur le menu (choisis par moi ou proposés par l'autre, hors refusés),
+ *  libellés résolus (langue + registre explicite/suggestif). Toujours les 3
+ *  services, dans l'ordre d'un repas — un service vide a `labels: []` (la tuile
+ *  garde ainsi une structure stable quand un seul service est rempli). */
+export function toEveningMenuPreview(
+  items: ApiEveningMenuItem[],
+  { isEn, explicit }: { isEn: boolean; explicit: boolean },
+): EveningMenuPreviewRow[] {
+  const labelFor = (i: ApiEveningMenuItem): string => {
+    if (!explicit) {
+      const soft = isEn ? i.labelEnSoft : i.labelFrSoft;
+      if (soft) return soft;
+    }
+    return isEn ? i.labelEn : i.labelFr;
+  };
+  const rows: EveningMenuPreviewRow[] = [];
+  for (const course of COURSES) {
+    const on = items.filter(
+      (i) => i.course === course && !i.refused && (i.picked || i.partnerWants),
+    );
+    rows.push({
+      course,
+      labels: on.map(labelFor),
+      matched: on.some((i) => i.matched && i.picked),
+    });
+  }
+  return rows;
 }

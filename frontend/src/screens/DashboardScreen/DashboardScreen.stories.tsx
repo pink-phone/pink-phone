@@ -88,6 +88,34 @@ export const Rituels: Story = {
   },
 };
 
+/** 114a : le menu de ce soir est lisible directement sur la tuile, sans l'ouvrir. */
+export const MenuDuSoirApercu: Story = {
+  name: "Menu du soir : aperçu sur la tuile",
+  args: {
+    eveningMenuEnabled: true,
+    onOpenEveningMenu: fn(),
+    eveningMenuPreview: [
+      { course: "starter", labels: ["Câlins sous la couette"], matched: false },
+      { course: "main", labels: ["Le lotus", "La chaise de bureau", "Levrette", "Le pont", "Le papillon", "Missionnaire", "Le CAT"], matched: true },
+      { course: "dessert", labels: [], matched: false },
+    ],
+    eveningMenuMatches: 1,
+  },
+};
+
+/** Un seul service rempli : les 3 lignes restent, les vides affichent « — ». */
+export const MenuDuSoirUnSeulService: Story = {
+  args: {
+    eveningMenuEnabled: true,
+    onOpenEveningMenu: fn(),
+    eveningMenuPreview: [
+      { course: "starter", labels: ["Câlins sous la couette", "Un bain à deux"], matched: false },
+      { course: "main", labels: [], matched: false },
+      { course: "dessert", labels: [], matched: false },
+    ],
+  },
+};
+
 /** Match du soir révélé : l'entrée « Menu du soir » se transforme (braise + badge). */
 export const MatchDuSoir: Story = {
   args: {
