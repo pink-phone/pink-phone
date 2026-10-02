@@ -38,6 +38,10 @@ export interface PostComposerProps {
   defaultAllowDownload?: boolean;
   /** Médias pré-joints (partage natif #86/#87) : ajoutés comme nouveaux médias. */
   initialFiles?: File[];
+  /** Texte pré-rempli d'un NOUVEAU post (brouillon local restauré) — sans passer en mode édition. */
+  initialText?: { title: string; body: string };
+  /** Notifié à chaque frappe (titre/corps) : sert à la sauvegarde auto du brouillon. */
+  onTextChange?: (text: { title: string; body: string }) => void;
   /** Valeurs initiales (édition). `media` = galerie déjà attachée, ordonnée. */
   initial?: {
     title?: string;
@@ -66,12 +70,14 @@ export function PostComposer({
   initial,
   defaultAllowDownload = false,
   initialFiles,
+  initialText,
+  onTextChange,
 }: PostComposerProps) {
   const { t } = useTranslation();
   const editing = initial !== undefined;
   const editingPublished = editing && initial?.draft === false;
-  const [title, setTitle] = useState(initial?.title ?? "");
-  const [body, setBody] = useState(initial?.body ?? "");
+  const [title, setTitle] = useState(initial?.title ?? initialText?.title ?? "");
+  const [body, setBody] = useState(initial?.body ?? initialText?.body ?? "");
   const [items, setItems] = useState<Item[]>(() => {
     const existing: Item[] = (initial?.media ?? []).map((m) => ({
       kind: "existing",
@@ -142,6 +148,13 @@ export function PostComposer({
       [next[i], next[j]] = [next[j], next[i]];
       return next;
     });
+
+  // Sauvegarde auto : on notifie le parent dès que le texte change.
+  const onTextChangeRef = useRef(onTextChange);
+  onTextChangeRef.current = onTextChange;
+  useEffect(() => {
+    onTextChangeRef.current?.({ title, body });
+  }, [title, body]);
 
   const hasMedia = items.length > 0;
   const hasNew = items.some((it) => it.kind === "new");

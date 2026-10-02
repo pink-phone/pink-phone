@@ -9,6 +9,7 @@ import {
 } from "react";
 import * as api from "../api/client";
 import type { UserPublic } from "../api/types";
+import { clearAllPostDrafts } from "../lib/postDraft";
 
 const TOKEN_KEY = "pp_token";
 
@@ -118,6 +119,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     localStorage.removeItem(TOKEN_KEY);
+    clearAllPostDrafts(); // texte intime en clair : pas de reste sur l'appareil
     api.setToken(null);
     setTokenState(null);
     setUser(null);
