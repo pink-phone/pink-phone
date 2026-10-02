@@ -58,10 +58,38 @@ mod tests {
 
     #[test]
     fn limite_bornee() {
-        assert_eq!(PageParams { limit: None, before: None }.limit(), DEFAULT_LIMIT);
-        assert_eq!(PageParams { limit: Some(0), before: None }.limit(), 1);
-        assert_eq!(PageParams { limit: Some(9999), before: None }.limit(), MAX_LIMIT);
-        assert_eq!(PageParams { limit: Some(10), before: None }.limit(), 10);
+        assert_eq!(
+            PageParams {
+                limit: None,
+                before: None
+            }
+            .limit(),
+            DEFAULT_LIMIT
+        );
+        assert_eq!(
+            PageParams {
+                limit: Some(0),
+                before: None
+            }
+            .limit(),
+            1
+        );
+        assert_eq!(
+            PageParams {
+                limit: Some(9999),
+                before: None
+            }
+            .limit(),
+            MAX_LIMIT
+        );
+        assert_eq!(
+            PageParams {
+                limit: Some(10),
+                before: None
+            }
+            .limit(),
+            10
+        );
     }
 
     #[test]

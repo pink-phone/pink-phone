@@ -22,10 +22,7 @@ pub fn router() -> Router<AppState> {
             patch(update_suggestion).delete(delete_suggestion),
         )
         // #70 : masquer / réafficher une suggestion par salon.
-        .route(
-            "/api/spaces/{id}/suggestions/{sid}/hidden",
-            put(set_hidden),
-        )
+        .route("/api/spaces/{id}/suggestions/{sid}/hidden", put(set_hidden))
 }
 
 #[derive(Deserialize)]
@@ -219,13 +216,11 @@ async fn set_hidden(
         .execute(&state.pool)
         .await?;
     } else {
-        sqlx::query(
-            "DELETE FROM hidden_suggestions WHERE space_id = $1 AND suggestion_id = $2",
-        )
-        .bind(space_id)
-        .bind(sid)
-        .execute(&state.pool)
-        .await?;
+        sqlx::query("DELETE FROM hidden_suggestions WHERE space_id = $1 AND suggestion_id = $2")
+            .bind(space_id)
+            .bind(sid)
+            .execute(&state.pool)
+            .await?;
     }
     Ok(StatusCode::NO_CONTENT)
 }

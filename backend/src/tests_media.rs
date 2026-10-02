@@ -83,7 +83,8 @@ async fn upload(
     }
     // Champ inconnu : ignoré sans erreur.
     body.extend_from_slice(
-        format!("--{b}\r\nContent-Disposition: form-data; name=\"inconnu\"\r\n\r\nvaleur\r\n").as_bytes(),
+        format!("--{b}\r\nContent-Disposition: form-data; name=\"inconnu\"\r\n\r\nvaleur\r\n")
+            .as_bytes(),
     );
     body.extend_from_slice(
         format!("--{b}\r\nContent-Disposition: form-data; name=\"viewOnce\"\r\n\r\n{view_once}\r\n--{b}--\r\n")
@@ -96,7 +97,10 @@ async fn upload(
                 .method("POST")
                 .uri(format!("/api/spaces/{space}/media"))
                 .header(header::AUTHORIZATION, format!("Bearer {token}"))
-                .header(header::CONTENT_TYPE, format!("multipart/form-data; boundary={b}"))
+                .header(
+                    header::CONTENT_TYPE,
+                    format!("multipart/form-data; boundary={b}"),
+                )
                 .header("x-real-ip", "127.0.0.1")
                 .body(Body::from(body))
                 .unwrap(),
@@ -130,9 +134,22 @@ async fn get(
     if let Some(r) = range {
         b = b.header(header::RANGE, r);
     }
-    let resp = app.clone().oneshot(b.body(Body::empty()).unwrap()).await.unwrap();
+    let resp = app
+        .clone()
+        .oneshot(b.body(Body::empty()).unwrap())
+        .await
+        .unwrap();
     let (st, h) = (resp.status(), resp.headers().clone());
-    (st, h, resp.into_body().collect().await.unwrap().to_bytes().to_vec())
+    (
+        st,
+        h,
+        resp.into_body()
+            .collect()
+            .await
+            .unwrap()
+            .to_bytes()
+            .to_vec(),
+    )
 }
 
 async fn row(pool: &PgPool, id: Uuid) -> (String, bool, Option<i32>, Option<i32>) {
@@ -162,7 +179,14 @@ async fn env(pool: &PgPool, key: Option<[u8; 32]>) -> Env {
     let alice = seed_user(pool, &format!("alice-{}", Uuid::new_v4().simple())).await;
     let space = seed_space(pool, alice).await;
     let ta = token_for(&state, alice);
-    Env { app, state, dir, alice, space, ta }
+    Env {
+        app,
+        state,
+        dir,
+        alice,
+        space,
+        ta,
+    }
 }
 
 // =====================================================================
@@ -181,10 +205,20 @@ async fn upload_refuse_mime_hors_liste_blanche_champ_manquant_et_non_membre(pool
     assert_eq!(st, StatusCode::BAD_REQUEST);
     // Non-membre.
     let mallory = token_for(&e.state, seed_user(&pool, "mallory").await);
-    let (st, _) = upload(&e.app, e.space, &mallory, Some((CLEAR, "image/jpeg")), false).await;
+    let (st, _) = upload(
+        &e.app,
+        e.space,
+        &mallory,
+        Some((CLEAR, "image/jpeg")),
+        false,
+    )
+    .await;
     assert_eq!(st, StatusCode::FORBIDDEN);
     // Rien n'a été écrit ni enregistré.
-    let n: i64 = sqlx::query_scalar("SELECT count(*) FROM media").fetch_one(&pool).await.unwrap();
+    let n: i64 = sqlx::query_scalar("SELECT count(*) FROM media")
+        .fetch_one(&pool)
+        .await
+        .unwrap();
     assert_eq!(n, 0);
     assert_eq!(std::fs::read_dir(&e.dir.0).unwrap().count(), 0);
 }
@@ -366,8 +400,14 @@ async fn view_once_range_consomme_et_supprime_le_fichier(pool: PgPool) {
 
         // Une lecture partielle suffit à consommer le média éphémère.
         let (st, _, body) = get(&e.app, e.space, id, &e.ta, Some("bytes=0-3")).await;
-        assert_eq!((st, body.as_slice()), (StatusCode::PARTIAL_CONTENT, &CLEAR[..4]));
-        assert!(!e.dir.file(&storage).exists(), "fichier supprimé après lecture");
+        assert_eq!(
+            (st, body.as_slice()),
+            (StatusCode::PARTIAL_CONTENT, &CLEAR[..4])
+        );
+        assert!(
+            !e.dir.file(&storage).exists(),
+            "fichier supprimé après lecture"
+        );
         let consumed: bool = sqlx::query_scalar("SELECT consumed FROM media WHERE id = $1")
             .bind(id)
             .fetch_one(&pool)
@@ -396,8 +436,18 @@ async fn view_once_lectures_concurrentes_une_seule_gagne(pool: PgPool) {
         get(&e.app, e.space, id, &tb, None),
     );
     let statuts = [a.0, b.0, c.0];
-    assert_eq!(statuts.iter().filter(|s| **s == StatusCode::OK).count(), 1, "{statuts:?}");
-    assert_eq!(statuts.iter().filter(|s| **s == StatusCode::NOT_FOUND).count(), 2);
+    assert_eq!(
+        statuts.iter().filter(|s| **s == StatusCode::OK).count(),
+        1,
+        "{statuts:?}"
+    );
+    assert_eq!(
+        statuts
+            .iter()
+            .filter(|s| **s == StatusCode::NOT_FOUND)
+            .count(),
+        2
+    );
 }
 
 // =====================================================================
@@ -437,7 +487,10 @@ async fn purge_orphelins_supprime_les_vieux_non_rattaches_seulement(pool: PgPool
         .unwrap();
     assert!(!ids.contains(&vieux_orphelin));
     assert!(ids.contains(&vieux_attache) && ids.contains(&recent_orphelin));
-    assert!(!e.dir.file(&k_orphelin).exists(), "fichier orphelin supprimé");
+    assert!(
+        !e.dir.file(&k_orphelin).exists(),
+        "fichier orphelin supprimé"
+    );
     assert!(e.dir.file(&k_attache).exists() && e.dir.file(&k_recent).exists());
 
     // Idempotent.
@@ -459,16 +512,27 @@ async fn backfill_chiffre_les_medias_en_clair_et_est_reexecutable(pool: PgPool) 
     std::fs::remove_file(e.dir.file(&k_absent)).unwrap(); // fichier manquant : ignoré
     let (old_a, ..) = row(&pool, a).await;
 
-    backfill_encryption(&pool, &e.dir.s(), &KEY_A).await.unwrap();
+    backfill_encryption(&pool, &e.dir.s(), &KEY_A)
+        .await
+        .unwrap();
 
     let (new_a, enc_a, ..) = row(&pool, a).await;
     assert!(enc_a);
     assert_ne!(new_a, old_a, "nouveau storage_key");
-    assert!(!e.dir.file(&old_a).exists(), "ancien fichier en clair supprimé");
-    assert_eq!(decrypt(&KEY_A, &std::fs::read(e.dir.file(&new_a)).unwrap()).unwrap(), CLEAR);
+    assert!(
+        !e.dir.file(&old_a).exists(),
+        "ancien fichier en clair supprimé"
+    );
+    assert_eq!(
+        decrypt(&KEY_A, &std::fs::read(e.dir.file(&new_a)).unwrap()).unwrap(),
+        CLEAR
+    );
     assert!(row(&pool, b).await.1);
     let (k, enc_absent, ..) = row(&pool, absent).await;
-    assert!(!enc_absent && k == k_absent, "ligne au fichier absent inchangée");
+    assert!(
+        !enc_absent && k == k_absent,
+        "ligne au fichier absent inchangée"
+    );
 
     // Servi en clair via l'API avec la clé configurée.
     let (app, state) = build_app_with(pool.clone(), config(&e.dir, Some(KEY_A)));
@@ -477,12 +541,20 @@ async fn backfill_chiffre_les_medias_en_clair_et_est_reexecutable(pool: PgPool) 
 
     // Ré-exécution : plus rien d'éligible (sauf l'absent), aucun double chiffrement.
     let avant = row(&pool, a).await.0;
-    backfill_encryption(&pool, &e.dir.s(), &KEY_A).await.unwrap();
+    backfill_encryption(&pool, &e.dir.s(), &KEY_A)
+        .await
+        .unwrap();
     assert_eq!(row(&pool, a).await.0, avant);
 
     // Base entièrement chiffrée : sortie immédiate.
-    sqlx::query("DELETE FROM media WHERE id = $1").bind(absent).execute(&pool).await.unwrap();
-    backfill_encryption(&pool, &e.dir.s(), &KEY_A).await.unwrap();
+    sqlx::query("DELETE FROM media WHERE id = $1")
+        .bind(absent)
+        .execute(&pool)
+        .await
+        .unwrap();
+    backfill_encryption(&pool, &e.dir.s(), &KEY_A)
+        .await
+        .unwrap();
 }
 
 #[sqlx::test]
@@ -491,7 +563,14 @@ async fn rotation_de_cle_migre_ignore_les_deja_migres_et_refuse_les_mauvaises_cl
     let chiffre = upload_ok(&e.app, e.space, &e.ta, CLEAR, false).await;
     // Un média encore en clair rejoint la rotation et se retrouve chiffré (clé B).
     let (app_clair, state_clair) = build_app_with(pool.clone(), config(&e.dir, None));
-    let clair = upload_ok(&app_clair, e.space, &token_for(&state_clair, e.alice), b"en clair", false).await;
+    let clair = upload_ok(
+        &app_clair,
+        e.space,
+        &token_for(&state_clair, e.alice),
+        b"en clair",
+        false,
+    )
+    .await;
     let (old_chiffre, ..) = row(&pool, chiffre).await;
 
     rotate_key(&pool, &e.dir.s(), &KEY_A, &KEY_B).await.unwrap();
@@ -501,15 +580,28 @@ async fn rotation_de_cle_migre_ignore_les_deja_migres_et_refuse_les_mauvaises_cl
     assert_ne!(new_chiffre, old_chiffre);
     assert!(!e.dir.file(&old_chiffre).exists());
     let blob = std::fs::read(e.dir.file(&new_chiffre)).unwrap();
-    assert!(decrypt(&KEY_A, &blob).is_none(), "l'ancienne clé ne marche plus");
+    assert!(
+        decrypt(&KEY_A, &blob).is_none(),
+        "l'ancienne clé ne marche plus"
+    );
     assert_eq!(decrypt(&KEY_B, &blob).unwrap(), CLEAR);
     let (k_clair, enc_clair, ..) = row(&pool, clair).await;
     assert!(enc_clair);
-    assert_eq!(decrypt(&KEY_B, &std::fs::read(e.dir.file(&k_clair)).unwrap()).unwrap(), b"en clair");
+    assert_eq!(
+        decrypt(&KEY_B, &std::fs::read(e.dir.file(&k_clair)).unwrap()).unwrap(),
+        b"en clair"
+    );
 
     // L'API configurée avec la NOUVELLE clé sert bien le clair.
     let (app_b, state_b) = build_app_with(pool.clone(), config(&e.dir, Some(KEY_B)));
-    let (st, _, body) = get(&app_b, e.space, chiffre, &token_for(&state_b, e.alice), None).await;
+    let (st, _, body) = get(
+        &app_b,
+        e.space,
+        chiffre,
+        &token_for(&state_b, e.alice),
+        None,
+    )
+    .await;
     assert_eq!((st, body.as_slice()), (StatusCode::OK, CLEAR));
 
     // Ré-exécution (A→B) : médias déjà migrés détectés et ignorés, rien ne change.
@@ -517,7 +609,9 @@ async fn rotation_de_cle_migre_ignore_les_deja_migres_et_refuse_les_mauvaises_cl
     assert_eq!(row(&pool, chiffre).await.0, new_chiffre);
 
     // Ni l'ancienne ni la nouvelle clé : échec franc (clé erronée), rien d'écrasé.
-    let err = rotate_key(&pool, &e.dir.s(), &[1; 32], &[2; 32]).await.unwrap_err();
+    let err = rotate_key(&pool, &e.dir.s(), &[1; 32], &[2; 32])
+        .await
+        .unwrap_err();
     assert!(err.to_string().contains("ne déchiffre ni"));
     assert_eq!(row(&pool, chiffre).await.0, new_chiffre);
 }
@@ -526,7 +620,9 @@ async fn rotation_de_cle_migre_ignore_les_deja_migres_et_refuse_les_mauvaises_cl
 async fn rotation_sans_media_et_fichier_absent_ne_plante_pas(pool: PgPool) {
     let e = env(&pool, Some(KEY_A)).await;
     rotate_key(&pool, &e.dir.s(), &KEY_A, &KEY_B).await.unwrap(); // aucun média
-    backfill_encryption(&pool, &e.dir.s(), &KEY_A).await.unwrap(); // aucun média
+    backfill_encryption(&pool, &e.dir.s(), &KEY_A)
+        .await
+        .unwrap(); // aucun média
 
     let id = upload_ok(&e.app, e.space, &e.ta, CLEAR, false).await;
     let (k, ..) = row(&pool, id).await;
@@ -567,7 +663,13 @@ async fn lecture_plages_mal_formees_ou_multiples(pool: PgPool) {
     let (st, _, body) = get(&e.app, e.space, id, &e.ta, Some("bytes=0-1,5-6")).await;
     assert_eq!((st, body.as_slice()), (StatusCode::OK, CLEAR));
     // Unité inconnue, bornes non numériques, début au-delà de la fin : 416.
-    for spec in ["items=0-1", "bytes=abc-", "bytes=0-xyz", "bytes=10-5", "bytes=-0"] {
+    for spec in [
+        "items=0-1",
+        "bytes=abc-",
+        "bytes=0-xyz",
+        "bytes=10-5",
+        "bytes=-0",
+    ] {
         let (st, ..) = get(&e.app, e.space, id, &e.ta, Some(spec)).await;
         assert_eq!(st, StatusCode::RANGE_NOT_SATISFIABLE, "{spec}");
     }

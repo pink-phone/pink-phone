@@ -49,11 +49,9 @@ async fn ws_handler(
     if state
         .rate_limiter
         .is_limited(&format!("ws:ip:{}", ip.0), WS_MAX_ATTEMPTS, WS_WINDOW)
-        || state.rate_limiter.is_limited(
-            &format!("ws:user:{user_id}"),
-            WS_MAX_ATTEMPTS,
-            WS_WINDOW,
-        )
+        || state
+            .rate_limiter
+            .is_limited(&format!("ws:user:{user_id}"), WS_MAX_ATTEMPTS, WS_WINDOW)
     {
         return Err(ApiError::TooManyRequests(
             "trop de tentatives de connexion, réessaie dans une minute".into(),
@@ -64,9 +62,7 @@ async fn ws_handler(
         user_id,
         WS_MAX_CONCURRENT_PER_USER,
     )
-    .ok_or_else(|| {
-        ApiError::TooManyRequests("trop de connexions temps réel simultanées".into())
-    })?;
+    .ok_or_else(|| ApiError::TooManyRequests("trop de connexions temps réel simultanées".into()))?;
 
     Ok(ws.on_upgrade(move |socket| handle_socket(socket, state, space_id, user_id, guard)))
 }

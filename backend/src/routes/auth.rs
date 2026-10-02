@@ -113,11 +113,10 @@ async fn login(
     if !state.config.password_auth_enabled {
         return Err(ApiError::Forbidden);
     }
-    if state.rate_limiter.is_limited(
-        &format!("login:{}", ip.0),
-        LOGIN_MAX_ATTEMPTS,
-        LOGIN_WINDOW,
-    ) {
+    if state
+        .rate_limiter
+        .is_limited(&format!("login:{}", ip.0), LOGIN_MAX_ATTEMPTS, LOGIN_WINDOW)
+    {
         return Err(too_many_requests());
     }
     let email = body.email.trim().to_lowercase();
@@ -150,16 +149,12 @@ async fn login(
     }))
 }
 
-async fn me(
-    State(state): State<AppState>,
-    auth: AuthUser,
-) -> ApiResult<Json<UserPublic>> {
-    let user: UserPublic = sqlx::query_as(
-        "SELECT id, email, display_name, created_at FROM users WHERE id = $1",
-    )
-    .bind(auth.user_id)
-    .fetch_one(&state.pool)
-    .await?;
+async fn me(State(state): State<AppState>, auth: AuthUser) -> ApiResult<Json<UserPublic>> {
+    let user: UserPublic =
+        sqlx::query_as("SELECT id, email, display_name, created_at FROM users WHERE id = $1")
+            .bind(auth.user_id)
+            .fetch_one(&state.pool)
+            .await?;
     Ok(Json(user))
 }
 
@@ -195,12 +190,11 @@ async fn update_me(
     .await?;
 
     // Rafraîchit le nom affiché chez les autres membres de chaque salon.
-    let spaces: Vec<uuid::Uuid> = sqlx::query_scalar(
-        "SELECT space_id FROM space_memberships WHERE user_id = $1",
-    )
-    .bind(auth.user_id)
-    .fetch_all(&state.pool)
-    .await?;
+    let spaces: Vec<uuid::Uuid> =
+        sqlx::query_scalar("SELECT space_id FROM space_memberships WHERE user_id = $1")
+            .bind(auth.user_id)
+            .fetch_all(&state.pool)
+            .await?;
     for space_id in spaces {
         state.emit(space_id, auth.user_id, EventKind::Space);
     }
@@ -212,10 +206,7 @@ async fn update_me(
 /// de perte/vol d'appareil. Fixe `min_token_iat = now()` : tous les JWT émis avant
 /// (y compris celui de cette requête) deviennent invalides. Le client doit ensuite
 /// se reconnecter.
-async fn logout_all(
-    State(state): State<AppState>,
-    auth: AuthUser,
-) -> ApiResult<StatusCode> {
+async fn logout_all(State(state): State<AppState>, auth: AuthUser) -> ApiResult<StatusCode> {
     sqlx::query("UPDATE users SET min_token_iat = now() WHERE id = $1")
         .bind(auth.user_id)
         .execute(&state.pool)

@@ -82,9 +82,17 @@ async fn interactions_refusent_non_membre_et_post_d_un_autre_salon(pool: PgPool)
     let a = format!("/api/spaces/{space_a}/posts/{post_a}");
     // Bob (non membre du salon A) : tout est refusé (403).
     for (m, p, body) in [
-        ("POST", format!("{a}/reactions"), Some(json!({"reaction": "heart"}))),
+        (
+            "POST",
+            format!("{a}/reactions"),
+            Some(json!({"reaction": "heart"})),
+        ),
         ("DELETE", format!("{a}/reactions/heart"), None),
-        ("PUT", format!("{a}/verdict"), Some(json!({"verdict": "hot"}))),
+        (
+            "PUT",
+            format!("{a}/verdict"),
+            Some(json!({"verdict": "hot"})),
+        ),
         ("DELETE", format!("{a}/verdict"), None),
         ("GET", format!("{a}/comments"), None),
         ("POST", format!("{a}/comments"), Some(json!({"body": "x"}))),
@@ -94,7 +102,14 @@ async fn interactions_refusent_non_membre_et_post_d_un_autre_salon(pool: PgPool)
     }
     // Alice vise, dans SON salon, un post qui appartient au salon B : 404 (pas de fuite).
     let croise = format!("/api/spaces/{space_a}/posts/{post_b}");
-    let (st, _) = req(&app, "POST", &format!("{croise}/reactions"), &ta, Some(json!({"reaction": "heart"}))).await;
+    let (st, _) = req(
+        &app,
+        "POST",
+        &format!("{croise}/reactions"),
+        &ta,
+        Some(json!({"reaction": "heart"})),
+    )
+    .await;
     assert_eq!(st, StatusCode::NOT_FOUND);
     let (st, _) = req(&app, "GET", &format!("{croise}/comments"), &ta, None).await;
     assert_eq!(st, StatusCode::NOT_FOUND);
@@ -167,7 +182,14 @@ async fn commentaires_liste_paginee_recents_d_abord_et_edition_par_l_auteur(pool
 
     let mut ids = Vec::new();
     for (tok, txt) in [(&ta, "un"), (&tb, "deux"), (&ta, "trois")] {
-        let (st, c) = req(&app, "POST", &base, tok, Some(json!({"body": format!(" {txt} ")}))).await;
+        let (st, c) = req(
+            &app,
+            "POST",
+            &base,
+            tok,
+            Some(json!({"body": format!(" {txt} ")})),
+        )
+        .await;
         assert_eq!(st, StatusCode::CREATED);
         assert_eq!(c["body"], txt); // trimé
         ids.push(c["id"].as_str().unwrap().to_string());
@@ -176,21 +198,40 @@ async fn commentaires_liste_paginee_recents_d_abord_et_edition_par_l_auteur(pool
     // Page 1 : les 2 plus récents (trois, deux), il en reste un.
     let (st, p1) = req(&app, "GET", &format!("{base}?limit=2"), &ta, None).await;
     assert_eq!(st, StatusCode::OK);
-    let bodies: Vec<_> = p1["items"].as_array().unwrap().iter().map(|c| c["body"].as_str().unwrap()).collect();
+    let bodies: Vec<_> = p1["items"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|c| c["body"].as_str().unwrap())
+        .collect();
     assert_eq!(bodies, vec!["trois", "deux"]);
     assert_eq!(p1["hasMore"], true);
     assert_eq!(p1["items"][1]["authorName"], "bob");
 
     // Page 2 via curseur : le plus ancien.
     let cursor = enc(p1["items"][1]["createdAt"].as_str().unwrap());
-    let (_, p2) = req(&app, "GET", &format!("{base}?limit=2&before={cursor}"), &ta, None).await;
+    let (_, p2) = req(
+        &app,
+        "GET",
+        &format!("{base}?limit=2&before={cursor}"),
+        &ta,
+        None,
+    )
+    .await;
     assert_eq!(p2["items"].as_array().unwrap().len(), 1);
     assert_eq!(p2["items"][0]["body"], "un");
     assert_eq!(p2["hasMore"], false);
 
     // Édition : par l'auteur uniquement.
     let mine = format!("{base}/{}", ids[0]); // « un », écrit par alice
-    let (st, c) = req(&app, "PATCH", &mine, &ta, Some(json!({"body": "  un (édité) "}))).await;
+    let (st, c) = req(
+        &app,
+        "PATCH",
+        &mine,
+        &ta,
+        Some(json!({"body": "  un (édité) "})),
+    )
+    .await;
     assert_eq!(st, StatusCode::OK);
     assert_eq!(c["body"], "un (édité)");
     let (st, _) = req(&app, "PATCH", &mine, &tb, Some(json!({"body": "piraté"}))).await;
@@ -198,10 +239,24 @@ async fn commentaires_liste_paginee_recents_d_abord_et_edition_par_l_auteur(pool
     // Validation : vide / trop long.
     let (st, _) = req(&app, "PATCH", &mine, &ta, Some(json!({"body": "   "}))).await;
     assert_eq!(st, StatusCode::BAD_REQUEST);
-    let (st, _) = req(&app, "PATCH", &mine, &ta, Some(json!({"body": "x".repeat(8 * 1024 + 1)}))).await;
+    let (st, _) = req(
+        &app,
+        "PATCH",
+        &mine,
+        &ta,
+        Some(json!({"body": "x".repeat(8 * 1024 + 1)})),
+    )
+    .await;
     assert_eq!(st, StatusCode::BAD_REQUEST);
     // Commentaire inexistant.
-    let (st, _) = req(&app, "PATCH", &format!("{base}/{}", Uuid::new_v4()), &ta, Some(json!({"body": "x"}))).await;
+    let (st, _) = req(
+        &app,
+        "PATCH",
+        &format!("{base}/{}", Uuid::new_v4()),
+        &ta,
+        Some(json!({"body": "x"})),
+    )
+    .await;
     assert_eq!(st, StatusCode::NOT_FOUND);
     // Le texte d'origine n'a pas été écrasé par les tentatives refusées.
     let body: String = sqlx::query_scalar("SELECT body FROM post_comments WHERE id = $1")
@@ -235,7 +290,14 @@ async fn defis_liste_paginee_et_cloisonnee_par_salon(pool: PgPool) {
     assert_eq!(p1["items"].as_array().unwrap().len(), 2);
     assert_eq!(p1["hasMore"], true);
     let cursor = enc(p1["items"][1]["createdAt"].as_str().unwrap());
-    let (_, p2) = req(&app, "GET", &format!("{base}?limit=2&before={cursor}"), &ta, None).await;
+    let (_, p2) = req(
+        &app,
+        "GET",
+        &format!("{base}?limit=2&before={cursor}"),
+        &ta,
+        None,
+    )
+    .await;
     assert_eq!(p2["items"].as_array().unwrap().len(), 1);
     assert_eq!(p2["hasMore"], false);
 
@@ -267,20 +329,41 @@ async fn defi_edition_par_le_proposeur_validation_et_autz(pool: PgPool) {
     assert_eq!(c["intensity"], "soft");
     assert_eq!(c["deadlineLabel"], "ce soir");
     // Échéance vide ⇒ effacée.
-    let (_, c) = req(&app, "PATCH", &url, &ta, Some(json!({"title": "T", "description": "", "intensity": "hot", "deadlineLabel": "  "}))).await;
+    let (_, c) = req(
+        &app,
+        "PATCH",
+        &url,
+        &ta,
+        Some(json!({"title": "T", "description": "", "intensity": "hot", "deadlineLabel": "  "})),
+    )
+    .await;
     assert!(c["deadlineLabel"].is_null());
 
     // Seul le proposeur édite : bob (membre du salon) → 403.
     let (st, _) = req(&app, "PATCH", &url, &tb, Some(ok.clone())).await;
     assert_eq!(st, StatusCode::FORBIDDEN);
     // Défi inconnu → 404 ; non-membre du salon → 403.
-    let (st, _) = req(&app, "PATCH", &format!("/api/spaces/{space}/challenges/{}", Uuid::new_v4()), &ta, Some(ok.clone())).await;
+    let (st, _) = req(
+        &app,
+        "PATCH",
+        &format!("/api/spaces/{space}/challenges/{}", Uuid::new_v4()),
+        &ta,
+        Some(ok.clone()),
+    )
+    .await;
     assert_eq!(st, StatusCode::NOT_FOUND);
     let tc = token_for(&state, seed_user(&pool, "carol").await);
     let (st, _) = req(&app, "PATCH", &url, &tc, Some(ok.clone())).await;
     assert_eq!(st, StatusCode::FORBIDDEN);
     // Défi du salon A visé depuis le salon B par un membre de B : 404 (cloisonné).
-    let (st, _) = req(&app, "PATCH", &format!("/api/spaces/{space_b}/challenges/{ch}"), &tb, Some(ok)).await;
+    let (st, _) = req(
+        &app,
+        "PATCH",
+        &format!("/api/spaces/{space_b}/challenges/{ch}"),
+        &tb,
+        Some(ok),
+    )
+    .await;
     assert_eq!(st, StatusCode::NOT_FOUND);
 
     // Validation.
@@ -338,21 +421,53 @@ async fn defi_creation_valide_la_suggestion_d_origine_et_les_champs(pool: PgPool
     };
 
     // Suggestion du salon A : acceptée et liée.
-    let (_, sa) = req(&app, "POST", &format!("/api/spaces/{space_a}/suggestions"), &ta, Some(json!({"title": "S", "description": "", "intensity": "hot"}))).await;
+    let (_, sa) = req(
+        &app,
+        "POST",
+        &format!("/api/spaces/{space_a}/suggestions"),
+        &ta,
+        Some(json!({"title": "S", "description": "", "intensity": "hot"})),
+    )
+    .await;
     let sid = sa["id"].as_str().unwrap();
-    let (st, c) = req(&app, "POST", &base, &ta, Some(body(json!({"sourceSuggestionId": sid})))).await;
+    let (st, c) = req(
+        &app,
+        "POST",
+        &base,
+        &ta,
+        Some(body(json!({"sourceSuggestionId": sid}))),
+    )
+    .await;
     assert_eq!(st, StatusCode::CREATED);
-    let src: Option<Uuid> = sqlx::query_scalar("SELECT source_suggestion_id FROM challenges WHERE id = $1")
-        .bind(Uuid::parse_str(c["id"].as_str().unwrap()).unwrap())
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+    let src: Option<Uuid> =
+        sqlx::query_scalar("SELECT source_suggestion_id FROM challenges WHERE id = $1")
+            .bind(Uuid::parse_str(c["id"].as_str().unwrap()).unwrap())
+            .fetch_one(&pool)
+            .await
+            .unwrap();
     assert_eq!(src.unwrap().to_string(), sid);
 
     // Suggestion PRIVÉE du salon B : refusée à alice (SEC-NEW-002). Inconnue : idem.
-    let (_, sb) = req(&app, "POST", &format!("/api/spaces/{space_b}/suggestions"), &tb, Some(json!({"title": "Secret", "description": "", "intensity": "hot"}))).await;
-    for bad in [sb["id"].as_str().unwrap().to_string(), Uuid::new_v4().to_string()] {
-        let (st, _) = req(&app, "POST", &base, &ta, Some(body(json!({"sourceSuggestionId": bad})))).await;
+    let (_, sb) = req(
+        &app,
+        "POST",
+        &format!("/api/spaces/{space_b}/suggestions"),
+        &tb,
+        Some(json!({"title": "Secret", "description": "", "intensity": "hot"})),
+    )
+    .await;
+    for bad in [
+        sb["id"].as_str().unwrap().to_string(),
+        Uuid::new_v4().to_string(),
+    ] {
+        let (st, _) = req(
+            &app,
+            "POST",
+            &base,
+            &ta,
+            Some(body(json!({"sourceSuggestionId": bad}))),
+        )
+        .await;
         assert_eq!(st, StatusCode::BAD_REQUEST);
     }
 
@@ -383,9 +498,23 @@ async fn salon_creation_liste_et_membres(pool: PgPool) {
     let (ta, tb) = (token_for(&state, alice), token_for(&state, bob));
 
     // Nom vide refusé ; sinon créé (trimé), le créateur en est membre.
-    let (st, _) = req(&app, "POST", "/api/spaces", &ta, Some(json!({"name": "   "}))).await;
+    let (st, _) = req(
+        &app,
+        "POST",
+        "/api/spaces",
+        &ta,
+        Some(json!({"name": "   "})),
+    )
+    .await;
     assert_eq!(st, StatusCode::BAD_REQUEST);
-    let (st, s) = req(&app, "POST", "/api/spaces", &ta, Some(json!({"name": "  Notre salon "}))).await;
+    let (st, s) = req(
+        &app,
+        "POST",
+        "/api/spaces",
+        &ta,
+        Some(json!({"name": "  Notre salon "})),
+    )
+    .await;
     assert_eq!(st, StatusCode::CREATED);
     assert_eq!(s["name"], "Notre salon");
     let space = Uuid::parse_str(s["id"].as_str().unwrap()).unwrap();
@@ -399,13 +528,32 @@ async fn salon_creation_liste_et_membres(pool: PgPool) {
 
     // Membres : liste pour un membre, 403 sinon.
     add_member(&pool, bob, space).await;
-    let (st, m) = req(&app, "GET", &format!("/api/spaces/{space}/members"), &ta, None).await;
+    let (st, m) = req(
+        &app,
+        "GET",
+        &format!("/api/spaces/{space}/members"),
+        &ta,
+        None,
+    )
+    .await;
     assert_eq!(st, StatusCode::OK);
-    let names: Vec<_> = m.as_array().unwrap().iter().map(|x| x["displayName"].as_str().unwrap()).collect();
+    let names: Vec<_> = m
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|x| x["displayName"].as_str().unwrap())
+        .collect();
     assert_eq!(names, vec!["alice", "bob"]);
     assert_eq!(m[0]["role"], "partner");
     let tc = token_for(&state, seed_user(&pool, "carol").await);
-    let (st, _) = req(&app, "GET", &format!("/api/spaces/{space}/members"), &tc, None).await;
+    let (st, _) = req(
+        &app,
+        "GET",
+        &format!("/api/spaces/{space}/members"),
+        &tc,
+        None,
+    )
+    .await;
     assert_eq!(st, StatusCode::FORBIDDEN);
 }
 
@@ -418,11 +566,18 @@ async fn salon_reglages_nom_fuseau_reactions_et_drapeaux(pool: PgPool) {
     let (ta, tb) = (token_for(&state, alice), token_for(&state, bob));
     let url = format!("/api/spaces/{space}");
 
-    let (st, s) = req(&app, "PATCH", &url, &ta, Some(json!({
-        "name": "  Cocon ", "timezone": "Europe/Paris",
-        "reactions": ["fire", "heart"], "allowCustomReactions": false,
-        "blindMood": true,
-    }))).await;
+    let (st, s) = req(
+        &app,
+        "PATCH",
+        &url,
+        &ta,
+        Some(json!({
+            "name": "  Cocon ", "timezone": "Europe/Paris",
+            "reactions": ["fire", "heart"], "allowCustomReactions": false,
+            "blindMood": true,
+        })),
+    )
+    .await;
     assert_eq!(st, StatusCode::OK);
     assert_eq!(s["name"], "Cocon");
     assert_eq!(s["timezone"], "Europe/Paris");
@@ -431,13 +586,24 @@ async fn salon_reglages_nom_fuseau_reactions_et_drapeaux(pool: PgPool) {
     assert_eq!(s["blindMood"], true);
 
     // PATCH partiel : les champs absents ne bougent pas (COALESCE).
-    let (_, s) = req(&app, "PATCH", &url, &ta, Some(json!({"allowMediaDownload": true}))).await;
+    let (_, s) = req(
+        &app,
+        "PATCH",
+        &url,
+        &ta,
+        Some(json!({"allowMediaDownload": true})),
+    )
+    .await;
     assert_eq!(s["allowMediaDownload"], true);
     assert_eq!(s["name"], "Cocon");
     assert_eq!(s["blindMood"], true);
 
     // Refus : nom vide, fuseau inconnu, réaction inconnue, non-membre.
-    for bad in [json!({"name": " "}), json!({"timezone": "Mars/Olympus"}), json!({"reactions": ["heart", "pizza"]})] {
+    for bad in [
+        json!({"name": " "}),
+        json!({"timezone": "Mars/Olympus"}),
+        json!({"reactions": ["heart", "pizza"]}),
+    ] {
         let (st, _) = req(&app, "PATCH", &url, &ta, Some(bad)).await;
         assert_eq!(st, StatusCode::BAD_REQUEST);
     }
@@ -467,14 +633,23 @@ async fn invitation_refuse_expiree_utilisee_et_salon_complet(pool: PgPool) {
     // Invitation expirée → 409.
     let (_, inv) = req(&app, "POST", &invites, &ta, None).await;
     let code = inv["code"].as_str().unwrap().to_string();
-    sqlx::query("UPDATE space_invites SET expires_at = now() - interval '1 day' WHERE space_id = $1")
-        .bind(space)
-        .execute(&pool)
-        .await
-        .unwrap();
+    sqlx::query(
+        "UPDATE space_invites SET expires_at = now() - interval '1 day' WHERE space_id = $1",
+    )
+    .bind(space)
+    .execute(&pool)
+    .await
+    .unwrap();
     let bob = seed_user(&pool, "bob").await;
     let tb = token_for(&state, bob);
-    let (st, _) = req(&app, "POST", "/api/spaces/join", &tb, Some(json!({"code": code}))).await;
+    let (st, _) = req(
+        &app,
+        "POST",
+        "/api/spaces/join",
+        &tb,
+        Some(json!({"code": code})),
+    )
+    .await;
     assert_eq!(st, StatusCode::CONFLICT);
 
     // Une invitation expirée n'est pas « active » : un nouveau code est frappé.
@@ -482,18 +657,39 @@ async fn invitation_refuse_expiree_utilisee_et_salon_complet(pool: PgPool) {
     assert_eq!(st, StatusCode::CREATED);
     let code2 = inv2["code"].as_str().unwrap().to_string();
     assert_ne!(code, code2);
-    let (st, s) = req(&app, "POST", "/api/spaces/join", &tb, Some(json!({"code": code2.clone()}))).await;
+    let (st, s) = req(
+        &app,
+        "POST",
+        "/api/spaces/join",
+        &tb,
+        Some(json!({"code": code2.clone()})),
+    )
+    .await;
     assert_eq!(st, StatusCode::CREATED);
     assert_eq!(s["id"], space.to_string());
 
     // Déjà utilisée : un tiers ne peut plus la réutiliser (409)…
     let carol = seed_user(&pool, "carol").await;
     let tc = token_for(&state, carol);
-    let (st, _) = req(&app, "POST", "/api/spaces/join", &tc, Some(json!({"code": code2.clone()}))).await;
+    let (st, _) = req(
+        &app,
+        "POST",
+        "/api/spaces/join",
+        &tc,
+        Some(json!({"code": code2.clone()})),
+    )
+    .await;
     assert_eq!(st, StatusCode::CONFLICT);
     // …et bob, qui l'a consommée, n'y retourne pas non plus : le contrôle « utilisée »
     // précède celui « déjà membre » (le cas 200 est couvert par le test dédié).
-    let (st, _) = req(&app, "POST", "/api/spaces/join", &tb, Some(json!({"code": code2}))).await;
+    let (st, _) = req(
+        &app,
+        "POST",
+        "/api/spaces/join",
+        &tb,
+        Some(json!({"code": code2})),
+    )
+    .await;
     assert_eq!(st, StatusCode::CONFLICT);
 
     // Salon complet : 8 membres max (#52).
@@ -508,7 +704,14 @@ async fn invitation_refuse_expiree_utilisee_et_salon_complet(pool: PgPool) {
         .unwrap();
     assert_eq!(n, 8);
     let (_, inv3) = req(&app, "POST", &invites, &ta, None).await;
-    let (st, _) = req(&app, "POST", "/api/spaces/join", &tc, Some(json!({"code": inv3["code"]}))).await;
+    let (st, _) = req(
+        &app,
+        "POST",
+        "/api/spaces/join",
+        &tc,
+        Some(json!({"code": inv3["code"]})),
+    )
+    .await;
     assert_eq!(st, StatusCode::CONFLICT);
     let n: i64 = sqlx::query_scalar("SELECT count(*) FROM space_memberships WHERE space_id = $1")
         .bind(space)
@@ -528,15 +731,30 @@ async fn invitation_membre_existant_rejoint_sans_consommer(pool: PgPool) {
     let ta = token_for(&state, alice);
     let tb = token_for(&state, bob);
 
-    let (_, inv) = req(&app, "POST", &format!("/api/spaces/{space}/invites"), &ta, None).await;
+    let (_, inv) = req(
+        &app,
+        "POST",
+        &format!("/api/spaces/{space}/invites"),
+        &ta,
+        None,
+    )
+    .await;
     // Bob est déjà membre : 200 (pas 201), invitation NON consommée (SEC-NEW-003).
-    let (st, s) = req(&app, "POST", "/api/spaces/join", &tb, Some(json!({"code": inv["code"]}))).await;
+    let (st, s) = req(
+        &app,
+        "POST",
+        "/api/spaces/join",
+        &tb,
+        Some(json!({"code": inv["code"]})),
+    )
+    .await;
     assert_eq!(st, StatusCode::OK);
     assert_eq!(s["id"], space.to_string());
-    let used: i64 = sqlx::query_scalar("SELECT count(*) FROM space_invites WHERE used_at IS NOT NULL")
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+    let used: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM space_invites WHERE used_at IS NOT NULL")
+            .fetch_one(&pool)
+            .await
+            .unwrap();
     assert_eq!(used, 0);
 }
 
@@ -546,7 +764,14 @@ async fn purge_des_invitations_perimees_garde_les_actives(pool: PgPool) {
     let alice = seed_user(&pool, "alice").await;
     let space = seed_space(&pool, alice).await;
     let ta = token_for(&state, alice);
-    let (_, inv) = req(&app, "POST", &format!("/api/spaces/{space}/invites"), &ta, None).await;
+    let (_, inv) = req(
+        &app,
+        "POST",
+        &format!("/api/spaces/{space}/invites"),
+        &ta,
+        None,
+    )
+    .await;
     let active = inv["code"].as_str().unwrap().to_string();
     sqlx::query(
         "INSERT INTO space_invites (space_id, created_by, expires_at, code)
@@ -596,7 +821,14 @@ async fn humeur_retrait_idempotent_emet_un_event_et_refuse_non_membre(pool: PgPo
         let (st, _) = req(&app, "PUT", &url, tok, Some(json!({"status": status}))).await;
         assert_eq!(st, StatusCode::OK);
     }
-    let (_, moods) = req(&app, "GET", &format!("/api/spaces/{space}/moods"), &ta, None).await;
+    let (_, moods) = req(
+        &app,
+        "GET",
+        &format!("/api/spaces/{space}/moods"),
+        &ta,
+        None,
+    )
+    .await;
     assert_eq!(moods.as_array().unwrap().len(), 2);
 
     // Retrait : 204, émet un event `mood` (resync du partenaire), ne retire QUE le mien.
@@ -606,8 +838,20 @@ async fn humeur_retrait_idempotent_emet_un_event_et_refuse_non_membre(pool: PgPo
     let ev = rx.try_recv().expect("event émis");
     assert_eq!((ev.space_id, ev.actor_id), (space, alice));
     assert_eq!(serde_json::to_value(&ev).unwrap()["kind"], "mood");
-    let (_, moods) = req(&app, "GET", &format!("/api/spaces/{space}/moods"), &tb, None).await;
-    let restantes: Vec<_> = moods.as_array().unwrap().iter().map(|m| m["userId"].as_str().unwrap().to_string()).collect();
+    let (_, moods) = req(
+        &app,
+        "GET",
+        &format!("/api/spaces/{space}/moods"),
+        &tb,
+        None,
+    )
+    .await;
+    let restantes: Vec<_> = moods
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|m| m["userId"].as_str().unwrap().to_string())
+        .collect();
     assert_eq!(restantes, vec![bob.to_string()]);
 
     // Idempotent.
@@ -642,15 +886,36 @@ async fn logs_client_authentifies_bornes_et_tolerants(pool: PgPool) {
         json!({"level": "x".repeat(10_000), "message": "é".repeat(5_000), "context": "c".repeat(5_000)}),
     ];
     entries.extend((0..60).map(|i| json!({"message": format!("m{i}")})));
-    let (st, _) = req(&app, "POST", "/api/logs", &t, Some(json!({"entries": entries, "userAgent": "UA/1.0 ".repeat(100)}))).await;
+    let (st, _) = req(
+        &app,
+        "POST",
+        "/api/logs",
+        &t,
+        Some(json!({"entries": entries, "userAgent": "UA/1.0 ".repeat(100)})),
+    )
+    .await;
     assert_eq!(st, StatusCode::NO_CONTENT);
     let (st, _) = req(&app, "POST", "/api/logs", &t, Some(json!({"entries": []}))).await;
     assert_eq!(st, StatusCode::NO_CONTENT);
 
     // Corps invalide : rejeté (pas de panique) ; sans jeton : 401.
-    let (st, _) = req(&app, "POST", "/api/logs", &t, Some(json!({"entries": "pas-une-liste"}))).await;
+    let (st, _) = req(
+        &app,
+        "POST",
+        "/api/logs",
+        &t,
+        Some(json!({"entries": "pas-une-liste"})),
+    )
+    .await;
     assert!(st.is_client_error(), "{st}");
-    let (st, _) = req(&app, "POST", "/api/logs", "jeton-invalide", Some(json!({"entries": []}))).await;
+    let (st, _) = req(
+        &app,
+        "POST",
+        "/api/logs",
+        "jeton-invalide",
+        Some(json!({"entries": []})),
+    )
+    .await;
     assert_eq!(st, StatusCode::UNAUTHORIZED);
 }
 
@@ -721,7 +986,10 @@ async fn mots_doux_livraison_des_mots_echus_une_seule_fois(pool: PgPool) {
         .unwrap();
     let notified = |id: Uuid| flags.iter().find(|(i, _)| *i == id).unwrap().1;
     assert!(notified(echu), "le mot échu est marqué livré");
-    assert!(!notified(futur) && !notified(immediat), "ni futur ni immédiat n'est touché");
+    assert!(
+        !notified(futur) && !notified(immediat),
+        "ni futur ni immédiat n'est touché"
+    );
     assert!(notified(deja));
 
     // Le destinataire a bien été notifié (abonnement SSRF purgé à l'envoi).
@@ -732,7 +1000,10 @@ async fn mots_doux_livraison_des_mots_echus_une_seule_fois(pool: PgPool) {
         .unwrap()
         > 0
     {
-        assert!(std::time::Instant::now() < deadline, "aucune notification émise");
+        assert!(
+            std::time::Instant::now() < deadline,
+            "aucune notification émise"
+        );
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;
     }
 
@@ -760,7 +1031,10 @@ impl MediaDir {
         MediaDir(p)
     }
     fn config(&self) -> Config {
-        Config { media_dir: self.0.to_string_lossy().into_owned(), ..test_config() }
+        Config {
+            media_dir: self.0.to_string_lossy().into_owned(),
+            ..test_config()
+        }
     }
     /// Média rattachable à un post : ligne `media` + fichier sur disque.
     async fn media(&self, pool: &PgPool, space: Uuid, owner: Uuid) -> (Uuid, std::path::PathBuf) {
@@ -818,17 +1092,42 @@ async fn post_creation_valide_texte_et_galerie(pool: PgPool) {
     let (foreign, _) = md.media(&pool, space_b, bob).await;
     let (own, _) = md.media(&pool, space, alice).await;
     let trop: Vec<_> = (0..11).map(|_| own.to_string()).collect();
-    for ids in [trop, vec![foreign.to_string()], vec![Uuid::new_v4().to_string()]] {
-        let (st, _) = req(&app, "POST", &base, &ta, Some(json!({"body": "x", "mediaIds": ids}))).await;
+    for ids in [
+        trop,
+        vec![foreign.to_string()],
+        vec![Uuid::new_v4().to_string()],
+    ] {
+        let (st, _) = req(
+            &app,
+            "POST",
+            &base,
+            &ta,
+            Some(json!({"body": "x", "mediaIds": ids})),
+        )
+        .await;
         assert_eq!(st, StatusCode::BAD_REQUEST);
     }
 
     // Un média seul suffit (pas de récit) ; titre vide ⇒ null ; titre trimé sinon.
-    let (st, p) = req(&app, "POST", &base, &ta, Some(json!({"title": "  ", "body": "", "mediaIds": [own]}))).await;
+    let (st, p) = req(
+        &app,
+        "POST",
+        &base,
+        &ta,
+        Some(json!({"title": "  ", "body": "", "mediaIds": [own]})),
+    )
+    .await;
     assert_eq!(st, StatusCode::CREATED);
     assert!(p["title"].is_null());
     assert_eq!(p["media"].as_array().unwrap().len(), 1);
-    let (_, p) = req(&app, "POST", &base, &ta, Some(json!({"title": "  Mon titre ", "body": "x"}))).await;
+    let (_, p) = req(
+        &app,
+        "POST",
+        &base,
+        &ta,
+        Some(json!({"title": "  Mon titre ", "body": "x"})),
+    )
+    .await;
     assert_eq!(p["title"], "Mon titre");
 }
 
@@ -843,18 +1142,38 @@ async fn post_edition_titre_recit_galerie_et_nettoyage_des_medias_retires(pool: 
     let (ta, tb) = (token_for(&state, alice), token_for(&state, bob));
     let (m1, f1) = md.media(&pool, space, alice).await;
     let (m2, f2) = md.media(&pool, space, alice).await;
-    let (_, p) = req(&app, "POST", &format!("/api/spaces/{space}/posts"), &ta,
-        Some(json!({"title": "T", "body": "récit", "mediaIds": [m1, m2]}))).await;
+    let (_, p) = req(
+        &app,
+        "POST",
+        &format!("/api/spaces/{space}/posts"),
+        &ta,
+        Some(json!({"title": "T", "body": "récit", "mediaIds": [m1, m2]})),
+    )
+    .await;
     let pid = p["id"].as_str().unwrap().to_string();
     let url = format!("/api/spaces/{space}/posts/{pid}");
 
     // Titre/récit : remplacés (trimés) ; titre vide ⇒ supprimé.
-    let (st, p) = req(&app, "PATCH", &url, &ta, Some(json!({"title": " Nouveau ", "body": " autre "}))).await;
+    let (st, p) = req(
+        &app,
+        "PATCH",
+        &url,
+        &ta,
+        Some(json!({"title": " Nouveau ", "body": " autre "})),
+    )
+    .await;
     assert_eq!(st, StatusCode::OK);
-    assert_eq!((p["title"].as_str(), p["body"].as_str()), (Some("Nouveau"), Some("autre")));
+    assert_eq!(
+        (p["title"].as_str(), p["body"].as_str()),
+        (Some("Nouveau"), Some("autre"))
+    );
     let (_, p) = req(&app, "PATCH", &url, &ta, Some(json!({"title": ""}))).await;
     assert!(p["title"].is_null());
-    assert_eq!(p["media"].as_array().unwrap().len(), 2, "galerie inchangée si absente");
+    assert_eq!(
+        p["media"].as_array().unwrap().len(),
+        2,
+        "galerie inchangée si absente"
+    );
 
     // Validation.
     for body in [
@@ -866,7 +1185,14 @@ async fn post_edition_titre_recit_galerie_et_nettoyage_des_medias_retires(pool: 
         assert_eq!(st, StatusCode::BAD_REQUEST);
     }
     // Vider récit ET galerie ⇒ plus rien : refusé.
-    let (st, _) = req(&app, "PATCH", &url, &ta, Some(json!({"body": " ", "mediaIds": []}))).await;
+    let (st, _) = req(
+        &app,
+        "PATCH",
+        &url,
+        &ta,
+        Some(json!({"body": " ", "mediaIds": []})),
+    )
+    .await;
     assert_eq!(st, StatusCode::BAD_REQUEST);
     assert!(media_exists(&pool, m1).await && f1.exists());
 
@@ -880,7 +1206,14 @@ async fn post_edition_titre_recit_galerie_et_nettoyage_des_medias_retires(pool: 
     // Seul l'auteur édite (bob → 403) ; post inconnu → 404.
     let (st, _) = req(&app, "PATCH", &url, &tb, Some(json!({"body": "piraté"}))).await;
     assert_eq!(st, StatusCode::FORBIDDEN);
-    let (st, _) = req(&app, "PATCH", &format!("/api/spaces/{space}/posts/{}", Uuid::new_v4()), &ta, Some(json!({"body": "x"}))).await;
+    let (st, _) = req(
+        &app,
+        "PATCH",
+        &format!("/api/spaces/{space}/posts/{}", Uuid::new_v4()),
+        &ta,
+        Some(json!({"body": "x"})),
+    )
+    .await;
     assert_eq!(st, StatusCode::NOT_FOUND);
 
     // Suppression du post : le média restant est nettoyé aussi (ligne + fichier).
@@ -898,14 +1231,42 @@ async fn post_media_partage_n_est_pas_supprime_tant_qu_un_post_le_reference(pool
     let ta = token_for(&state, alice);
     let (m, f) = md.media(&pool, space, alice).await;
     let base = format!("/api/spaces/{space}/posts");
-    let (_, p1) = req(&app, "POST", &base, &ta, Some(json!({"body": "a", "mediaIds": [m]}))).await;
-    let (_, p2) = req(&app, "POST", &base, &ta, Some(json!({"body": "b", "mediaIds": [m]}))).await;
+    let (_, p1) = req(
+        &app,
+        "POST",
+        &base,
+        &ta,
+        Some(json!({"body": "a", "mediaIds": [m]})),
+    )
+    .await;
+    let (_, p2) = req(
+        &app,
+        "POST",
+        &base,
+        &ta,
+        Some(json!({"body": "b", "mediaIds": [m]})),
+    )
+    .await;
 
     // Supprimer le 1er post : le média est encore référencé par le 2ᵉ ⇒ conservé.
-    let (st, _) = req(&app, "DELETE", &format!("{base}/{}", p1["id"].as_str().unwrap()), &ta, None).await;
+    let (st, _) = req(
+        &app,
+        "DELETE",
+        &format!("{base}/{}", p1["id"].as_str().unwrap()),
+        &ta,
+        None,
+    )
+    .await;
     assert_eq!(st, StatusCode::NO_CONTENT);
     assert!(media_exists(&pool, m).await && f.exists());
-    let (st, _) = req(&app, "DELETE", &format!("{base}/{}", p2["id"].as_str().unwrap()), &ta, None).await;
+    let (st, _) = req(
+        &app,
+        "DELETE",
+        &format!("{base}/{}", p2["id"].as_str().unwrap()),
+        &ta,
+        None,
+    )
+    .await;
     assert_eq!(st, StatusCode::NO_CONTENT);
     assert!(!media_exists(&pool, m).await && !f.exists());
 }
@@ -920,7 +1281,14 @@ async fn post_brouillon_visible_de_l_auteur_publication_repositionne_created_at(
     let (ta, tb) = (token_for(&state, alice), token_for(&state, bob));
     let base = format!("/api/spaces/{space}/posts");
 
-    let (_, d) = req(&app, "POST", &base, &ta, Some(json!({"body": "brouillon", "draft": true}))).await;
+    let (_, d) = req(
+        &app,
+        "POST",
+        &base,
+        &ta,
+        Some(json!({"body": "brouillon", "draft": true})),
+    )
+    .await;
     let pid = d["id"].as_str().unwrap().to_string();
     let url = format!("{base}/{pid}");
     let n = |v: &Value| v["items"].as_array().unwrap().len();
@@ -931,7 +1299,14 @@ async fn post_brouillon_visible_de_l_auteur_publication_repositionne_created_at(
 
     // Éditer un brouillon qui reste brouillon : aucun event pour les autres.
     let mut rx = state.events.subscribe();
-    let (_, p) = req(&app, "PATCH", &url, &ta, Some(json!({"body": "brouillon v2"}))).await;
+    let (_, p) = req(
+        &app,
+        "PATCH",
+        &url,
+        &ta,
+        Some(json!({"body": "brouillon v2"})),
+    )
+    .await;
     assert_eq!(p["draft"], true);
     assert!(rx.try_recv().is_err());
 
@@ -943,7 +1318,10 @@ async fn post_brouillon_visible_de_l_auteur_publication_repositionne_created_at(
     assert_eq!(p["draft"], false);
     assert_ne!(p["createdAt"].as_str().unwrap(), avant);
     assert_eq!(p["createdAt"], p["updatedAt"]);
-    assert_eq!(serde_json::to_value(rx.try_recv().unwrap()).unwrap()["kind"], "post");
+    assert_eq!(
+        serde_json::to_value(rx.try_recv().unwrap()).unwrap()["kind"],
+        "post"
+    );
     let (_, l) = req(&app, "GET", &base, &tb, None).await;
     assert_eq!(n(&l), 1);
 
@@ -964,27 +1342,94 @@ async fn posts_liste_agrege_reactions_verdict_et_commentaires(pool: PgPool) {
     let pid = create_post(&app, space, &ta, "agrégats").await;
     let p = format!("/api/spaces/{space}/posts/{pid}");
 
-    req(&app, "POST", &format!("{p}/reactions"), &ta, Some(json!({"reaction": "heart"}))).await;
-    req(&app, "POST", &format!("{p}/reactions"), &tb, Some(json!({"reaction": "heart"}))).await;
-    req(&app, "POST", &format!("{p}/reactions"), &tb, Some(json!({"reaction": "🔥"}))).await;
-    req(&app, "PUT", &format!("{p}/verdict"), &tb, Some(json!({"verdict": "hot"}))).await;
-    req(&app, "POST", &format!("{p}/comments"), &tb, Some(json!({"body": "salut"}))).await;
-    req(&app, "POST", &format!("{p}/comments"), &ta, Some(json!({"body": "coucou"}))).await;
+    req(
+        &app,
+        "POST",
+        &format!("{p}/reactions"),
+        &ta,
+        Some(json!({"reaction": "heart"})),
+    )
+    .await;
+    req(
+        &app,
+        "POST",
+        &format!("{p}/reactions"),
+        &tb,
+        Some(json!({"reaction": "heart"})),
+    )
+    .await;
+    req(
+        &app,
+        "POST",
+        &format!("{p}/reactions"),
+        &tb,
+        Some(json!({"reaction": "🔥"})),
+    )
+    .await;
+    req(
+        &app,
+        "PUT",
+        &format!("{p}/verdict"),
+        &tb,
+        Some(json!({"verdict": "hot"})),
+    )
+    .await;
+    req(
+        &app,
+        "POST",
+        &format!("{p}/comments"),
+        &tb,
+        Some(json!({"body": "salut"})),
+    )
+    .await;
+    req(
+        &app,
+        "POST",
+        &format!("{p}/comments"),
+        &ta,
+        Some(json!({"body": "coucou"})),
+    )
+    .await;
 
     // Vue d'alice.
-    let (_, l) = req(&app, "GET", &format!("/api/spaces/{space}/posts"), &ta, None).await;
+    let (_, l) = req(
+        &app,
+        "GET",
+        &format!("/api/spaces/{space}/posts"),
+        &ta,
+        None,
+    )
+    .await;
     let post = &l["items"][0];
     assert_eq!(post["reactionCounts"]["heart"], 2);
     assert_eq!(post["reactionCounts"]["🔥"], 1);
     assert_eq!(post["myReactions"], json!(["heart"]));
-    assert!(post["verdict"].is_null(), "le verdict de bob n'est pas celui d'alice");
+    assert!(
+        post["verdict"].is_null(),
+        "le verdict de bob n'est pas celui d'alice"
+    );
     assert_eq!(post["commentCount"], 2);
-    assert!(post["lastCommentAt"].is_string(), "dernier commentaire d'un AUTRE (bob)");
+    assert!(
+        post["lastCommentAt"].is_string(),
+        "dernier commentaire d'un AUTRE (bob)"
+    );
     // Vue de bob.
-    let (_, l) = req(&app, "GET", &format!("/api/spaces/{space}/posts"), &tb, None).await;
+    let (_, l) = req(
+        &app,
+        "GET",
+        &format!("/api/spaces/{space}/posts"),
+        &tb,
+        None,
+    )
+    .await;
     let post = &l["items"][0];
     assert_eq!(post["verdict"], "hot");
-    let mut mine: Vec<_> = post["myReactions"].as_array().unwrap().iter().map(|v| v.as_str().unwrap()).collect();
+    let mut mine: Vec<_> = post["myReactions"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|v| v.as_str().unwrap())
+        .collect();
     mine.sort();
     assert_eq!(mine, vec!["heart", "🔥"]);
 }
@@ -1013,7 +1458,14 @@ async fn suggestions_langue_repli_fr_masquage_et_statut_fait(pool: PgPool) {
     let (_, repli) = req(&app, "GET", &format!("{base}?lang=en"), &ta, None).await;
     assert_eq!(repli, fr);
     assert!(!fr.as_array().unwrap().is_empty(), "le seed fr existe");
-    let (_, mine) = req(&app, "POST", &base, &ta, Some(json!({"title": "Idea", "description": "", "intensity": "soft", "locale": "en"}))).await;
+    let (_, mine) = req(
+        &app,
+        "POST",
+        &base,
+        &ta,
+        Some(json!({"title": "Idea", "description": "", "intensity": "soft", "locale": "en"})),
+    )
+    .await;
     let sid = mine["id"].as_str().unwrap().to_string();
     assert_eq!(mine["locale"], "en");
     let (_, en) = req(&app, "GET", &format!("{base}?lang=en"), &ta, None).await;
@@ -1027,7 +1479,14 @@ async fn suggestions_langue_repli_fr_masquage_et_statut_fait(pool: PgPool) {
         Some(json!({"title": "c", "description": "", "intensity": "soft", "sourceSuggestionId": sid}))).await;
     let cid = ch["id"].as_str().unwrap();
     for to in ["challengeAccepted", "jobDone"] {
-        let (st, _) = req(&app, "POST", &format!("/api/spaces/{space}/challenges/{cid}/transitions"), &tb, Some(json!({"to": to}))).await;
+        let (st, _) = req(
+            &app,
+            "POST",
+            &format!("/api/spaces/{space}/challenges/{cid}/transitions"),
+            &tb,
+            Some(json!({"to": to})),
+        )
+        .await;
         assert_eq!(st, StatusCode::OK, "{to}");
     }
     let (_, en) = req(&app, "GET", &format!("{base}?lang=en"), &ta, None).await;
@@ -1046,16 +1505,37 @@ async fn suggestions_langue_repli_fr_masquage_et_statut_fait(pool: PgPool) {
     assert_eq!(en[0]["hidden"], true);
     let (_, fr2) = req(&app, "GET", &format!("{base}?lang=fr"), &ta, None).await;
     assert_eq!(fr2[0]["hidden"], true);
-    let (st, _) = req(&app, "PUT", &format!("{base}/{sid}/hidden"), &ta, Some(json!({"hidden": false}))).await;
+    let (st, _) = req(
+        &app,
+        "PUT",
+        &format!("{base}/{sid}/hidden"),
+        &ta,
+        Some(json!({"hidden": false})),
+    )
+    .await;
     assert_eq!(st, StatusCode::NO_CONTENT);
     let (_, en) = req(&app, "GET", &format!("{base}?lang=en"), &ta, None).await;
     assert_eq!(en[0]["hidden"], false);
 
     // Suggestion introuvable / non membre.
-    let (st, _) = req(&app, "PUT", &format!("{base}/{}/hidden", Uuid::new_v4()), &ta, Some(json!({"hidden": true}))).await;
+    let (st, _) = req(
+        &app,
+        "PUT",
+        &format!("{base}/{}/hidden", Uuid::new_v4()),
+        &ta,
+        Some(json!({"hidden": true})),
+    )
+    .await;
     assert_eq!(st, StatusCode::NOT_FOUND);
     let tc = token_for(&state, seed_user(&pool, "carol").await);
-    let (st, _) = req(&app, "PUT", &format!("{base}/{sid}/hidden"), &tc, Some(json!({"hidden": true}))).await;
+    let (st, _) = req(
+        &app,
+        "PUT",
+        &format!("{base}/{sid}/hidden"),
+        &tc,
+        Some(json!({"hidden": true})),
+    )
+    .await;
     assert_eq!(st, StatusCode::FORBIDDEN);
 }
 
@@ -1068,7 +1548,14 @@ async fn suggestions_edition_et_suppression_reservees_au_createur(pool: PgPool) 
     add_member(&pool, bob, space).await;
     let (ta, tb) = (token_for(&state, alice), token_for(&state, bob));
     let base = format!("/api/spaces/{space}/suggestions");
-    let (_, s) = req(&app, "POST", &base, &ta, Some(json!({"title": "À moi", "description": "", "intensity": "hot"}))).await;
+    let (_, s) = req(
+        &app,
+        "POST",
+        &base,
+        &ta,
+        Some(json!({"title": "À moi", "description": "", "intensity": "hot"})),
+    )
+    .await;
     let url = format!("{base}/{}", s["id"].as_str().unwrap());
     let upd = json!({"title": "Édité", "description": "d", "intensity": "soft"});
 
@@ -1091,7 +1578,10 @@ async fn suggestions_edition_et_suppression_reservees_au_createur(pool: PgPool) 
 
 #[sqlx::test]
 async fn auth_mot_de_passe_desactive_register_et_login_donnent_403(pool: PgPool) {
-    let cfg = Config { password_auth_enabled: false, ..test_config() };
+    let cfg = Config {
+        password_auth_enabled: false,
+        ..test_config()
+    };
     let (app, _) = build_app_with(pool, cfg);
     let creds = json!({"email": "a@x.test", "displayName": "A", "password": "motdepasse-solide"});
     for path in ["/api/auth/register", "/api/auth/login"] {
@@ -1105,7 +1595,14 @@ async fn auth_hash_illisible_en_base_refuse_la_connexion(pool: PgPool) {
     let (app, _) = build_app_with(pool.clone(), test_config());
     // `seed_user` pose `password_hash = 'x'` : pas un hash Argon2 valide (corruption).
     seed_user(&pool, "alice").await;
-    let (st, _) = req(&app, "POST", "/api/auth/login", "", Some(json!({"email": "alice@test.local", "password": "peu-importe-12"}))).await;
+    let (st, _) = req(
+        &app,
+        "POST",
+        "/api/auth/login",
+        "",
+        Some(json!({"email": "alice@test.local", "password": "peu-importe-12"})),
+    )
+    .await;
     assert_eq!(st, StatusCode::UNAUTHORIZED);
 }
 
@@ -1141,11 +1638,25 @@ async fn auth_changement_de_nom_borne_et_previent_les_salons(pool: PgPool) {
     let space = seed_space(&pool, alice).await;
     let t = token_for(&state, alice);
 
-    let (st, _) = req(&app, "PATCH", "/api/auth/me", &t, Some(json!({"displayName": "x".repeat(81)}))).await;
+    let (st, _) = req(
+        &app,
+        "PATCH",
+        "/api/auth/me",
+        &t,
+        Some(json!({"displayName": "x".repeat(81)})),
+    )
+    .await;
     assert_eq!(st, StatusCode::BAD_REQUEST);
 
     let mut rx = state.events.subscribe();
-    let (st, me) = req(&app, "PATCH", "/api/auth/me", &t, Some(json!({"displayName": " Alice B "}))).await;
+    let (st, me) = req(
+        &app,
+        "PATCH",
+        "/api/auth/me",
+        &t,
+        Some(json!({"displayName": " Alice B "})),
+    )
+    .await;
     assert_eq!(st, StatusCode::OK);
     assert_eq!(me["displayName"], "Alice B");
     // Chaque salon de l'utilisateur reçoit un event `space` (nom dénormalisé).
@@ -1185,7 +1696,14 @@ async fn mot_doux_trop_long_vide_ou_passe_refuses_ou_immediats(pool: PgPool) {
         assert_eq!(st, StatusCode::BAD_REQUEST);
     }
     // 2000 caractères (multi-octets) : à la limite, accepté.
-    let (st, _) = req(&app, "POST", &url, &t, Some(json!({"body": "é".repeat(2000)}))).await;
+    let (st, _) = req(
+        &app,
+        "POST",
+        &url,
+        &t,
+        Some(json!({"body": "é".repeat(2000)})),
+    )
+    .await;
     assert_eq!(st, StatusCode::CREATED);
 }
 
@@ -1200,10 +1718,27 @@ async fn suppression_de_commentaire_emet_un_event_comment(pool: PgPool) {
     let (_, c) = req(&app, "POST", &base, &t, Some(json!({"body": "x"}))).await;
 
     let mut rx = state.events.subscribe();
-    let (st, _) = req(&app, "DELETE", &format!("{base}/{}", c["id"].as_str().unwrap()), &t, None).await;
+    let (st, _) = req(
+        &app,
+        "DELETE",
+        &format!("{base}/{}", c["id"].as_str().unwrap()),
+        &t,
+        None,
+    )
+    .await;
     assert_eq!(st, StatusCode::NO_CONTENT);
-    assert_eq!(serde_json::to_value(rx.try_recv().unwrap()).unwrap()["kind"], "comment");
-    let (st, _) = req(&app, "DELETE", &format!("{base}/{}", c["id"].as_str().unwrap()), &t, None).await;
+    assert_eq!(
+        serde_json::to_value(rx.try_recv().unwrap()).unwrap()["kind"],
+        "comment"
+    );
+    let (st, _) = req(
+        &app,
+        "DELETE",
+        &format!("{base}/{}", c["id"].as_str().unwrap()),
+        &t,
+        None,
+    )
+    .await;
     assert_eq!(st, StatusCode::NOT_FOUND);
 }
 

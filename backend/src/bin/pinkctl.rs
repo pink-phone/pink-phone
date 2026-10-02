@@ -28,7 +28,11 @@ use web_push::HyperWebPushClient;
 const MAX_MEMBERS: usize = 8;
 
 #[derive(Parser)]
-#[command(name = "pinkctl", version, about = "Administration d'une instance PinkPhone self-hosted")]
+#[command(
+    name = "pinkctl",
+    version,
+    about = "Administration d'une instance PinkPhone self-hosted"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Command,
@@ -381,12 +385,8 @@ async fn run() -> Result<(), Box<dyn std::error::Error>> {
             let pool = connect(&config).await?;
             match action {
                 SpaceCmd::List => space_list(&pool, json).await?,
-                SpaceCmd::Create { name, members } => {
-                    space_create(&pool, &name, &members).await?
-                }
-                SpaceCmd::Rename { space_id, name } => {
-                    space_rename(&pool, space_id, &name).await?
-                }
+                SpaceCmd::Create { name, members } => space_create(&pool, &name, &members).await?,
+                SpaceCmd::Rename { space_id, name } => space_rename(&pool, space_id, &name).await?,
                 SpaceCmd::Delete { space_id, confirm } => {
                     if !confirm {
                         return Err(format!(
@@ -569,9 +569,9 @@ fn config_check(config: &Config) -> Vec<String> {
 
     match config.media_key_bytes() {
         Some(_) => lines.push("✔ MEDIA_KEY définie (chiffrement AES-256-GCM actif)".into()),
-        None if config.media_key.trim().is_empty() => lines.push(
-            "⚠ MEDIA_KEY absente : les médias sont stockés EN CLAIR sur disque".into(),
-        ),
+        None if config.media_key.trim().is_empty() => {
+            lines.push("⚠ MEDIA_KEY absente : les médias sont stockés EN CLAIR sur disque".into())
+        }
         None => lines.push(
             "✖ MEDIA_KEY fournie mais INVALIDE (base64 de 32 octets attendu) — médias \
              chiffrés existants illisibles, nouveaux médias stockés en clair"
@@ -593,8 +593,7 @@ fn config_check(config: &Config) -> Vec<String> {
 
     if config.vapid_public_key.is_empty() || config.vapid_private_key.is_empty() {
         lines.push(
-            "⚠ VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY absents → notifications push désactivées"
-                .into(),
+            "⚠ VAPID_PUBLIC_KEY/VAPID_PRIVATE_KEY absents → notifications push désactivées".into(),
         );
     } else {
         lines.push("✔ clés VAPID définies (notifications push actives)".into());
@@ -680,11 +679,10 @@ async fn db_status(pool: &PgPool) -> Result<(), Box<dyn std::error::Error>> {
 // ---------- user ----------
 
 async fn user_list(pool: &PgPool, json: bool) -> Result<(), Box<dyn std::error::Error>> {
-    let rows: Vec<(Uuid, String, String, DateTime<Utc>)> = sqlx::query_as(
-        "SELECT id, email, display_name, created_at FROM users ORDER BY created_at",
-    )
-    .fetch_all(pool)
-    .await?;
+    let rows: Vec<(Uuid, String, String, DateTime<Utc>)> =
+        sqlx::query_as("SELECT id, email, display_name, created_at FROM users ORDER BY created_at")
+            .fetch_all(pool)
+            .await?;
     if json {
         let rows: Vec<UserRow> = rows
             .into_iter()
@@ -835,10 +833,11 @@ async fn space_delete(
     media_dir: &str,
     space_id: Uuid,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let storage_keys: Vec<String> = sqlx::query_scalar("SELECT storage_key FROM media WHERE space_id = $1")
-        .bind(space_id)
-        .fetch_all(pool)
-        .await?;
+    let storage_keys: Vec<String> =
+        sqlx::query_scalar("SELECT storage_key FROM media WHERE space_id = $1")
+            .bind(space_id)
+            .fetch_all(pool)
+            .await?;
 
     let deleted: Option<Uuid> = sqlx::query_scalar("DELETE FROM spaces WHERE id = $1 RETURNING id")
         .bind(space_id)
@@ -913,13 +912,16 @@ async fn space_create(
             .bind(&email)
             .fetch_optional(&mut *tx)
             .await?;
-        let user_id = user_id
-            .ok_or_else(|| format!("aucun compte pour {email} (crée-le d'abord avec `user create`)"))?;
-        sqlx::query("INSERT INTO space_memberships (user_id, space_id, role) VALUES ($1, $2, 'partner')")
-            .bind(user_id)
-            .bind(space_id)
-            .execute(&mut *tx)
-            .await?;
+        let user_id = user_id.ok_or_else(|| {
+            format!("aucun compte pour {email} (crée-le d'abord avec `user create`)")
+        })?;
+        sqlx::query(
+            "INSERT INTO space_memberships (user_id, space_id, role) VALUES ($1, $2, 'partner')",
+        )
+        .bind(user_id)
+        .bind(space_id)
+        .execute(&mut *tx)
+        .await?;
     }
     tx.commit().await?;
     println!(
@@ -1198,7 +1200,10 @@ async fn catalog_list(pool: &PgPool, json: bool) -> Result<(), Box<dyn std::erro
 /// des listings sans casser les picks/stances déjà posés dessus, contrairement
 /// à une suppression — la FK `catalog_items` en `ON DELETE RESTRICT` l'interdit
 /// de toute façon).
-async fn catalog_toggle_item(pool: &PgPool, item_id: &str) -> Result<(), Box<dyn std::error::Error>> {
+async fn catalog_toggle_item(
+    pool: &PgPool,
+    item_id: &str,
+) -> Result<(), Box<dyn std::error::Error>> {
     let new_active: Option<bool> = sqlx::query_scalar(
         "UPDATE catalog_items SET active = NOT active WHERE id = $1 RETURNING active",
     )
@@ -1328,12 +1333,11 @@ async fn seed_demo(pool: &PgPool, config: &Config) -> Result<(), Box<dyn std::er
         user_ids.push(id);
     }
 
-    let existing_space: Option<Uuid> = sqlx::query_scalar(
-        "SELECT space_id FROM space_memberships WHERE user_id = $1 LIMIT 1",
-    )
-    .bind(user_ids[0])
-    .fetch_optional(pool)
-    .await?;
+    let existing_space: Option<Uuid> =
+        sqlx::query_scalar("SELECT space_id FROM space_memberships WHERE user_id = $1 LIMIT 1")
+            .bind(user_ids[0])
+            .fetch_optional(pool)
+            .await?;
 
     let (space_id, fresh) = match existing_space {
         Some(id) => (id, false),
@@ -1389,7 +1393,11 @@ async fn seed_demo(pool: &PgPool, config: &Config) -> Result<(), Box<dyn std::er
 
     println!(
         "jeu de données de démo {} (espace {space_id}) :",
-        if fresh { "créé" } else { "déjà présent, réutilisé" }
+        if fresh {
+            "créé"
+        } else {
+            "déjà présent, réutilisé"
+        }
     );
     for ((email, display_name), id) in DEMO_USERS.iter().zip(&user_ids) {
         println!("  {display_name:<6} {email}  (id {id})  mot de passe : {DEMO_PASSWORD}");
@@ -1411,7 +1419,10 @@ async fn health_check(
     // Si `connect()` (appelé avant) a réussi, la DB était joignable à ce
     // moment — cette requête confirme qu'elle répond ENCORE (pas juste que la
     // poignée de main initiale a marché).
-    match sqlx::query_scalar::<_, i32>("SELECT 1").fetch_one(pool).await {
+    match sqlx::query_scalar::<_, i32>("SELECT 1")
+        .fetch_one(pool)
+        .await
+    {
         Ok(_) => lines.push("✔ base de données joignable".to_string()),
         Err(e) => lines.push(format!("✖ base de données injoignable : {e}")),
     }
@@ -1423,9 +1434,15 @@ async fn health_check(
     .fetch_all(pool)
     .await
     .unwrap_or_default();
-    let pending = migrator.iter().filter(|m| !applied.contains(&m.version)).count();
+    let pending = migrator
+        .iter()
+        .filter(|m| !applied.contains(&m.version))
+        .count();
     if pending == 0 {
-        lines.push(format!("✔ migrations à jour ({} appliquées)", applied.len()));
+        lines.push(format!(
+            "✔ migrations à jour ({} appliquées)",
+            applied.len()
+        ));
     } else {
         lines.push(format!(
             "✖ {pending} migration(s) en attente — code et schéma DB désynchronisés"
@@ -1458,7 +1475,10 @@ fn default_health_url(bind_addr: &str) -> String {
 /// Vérifie que le serveur répond réellement (requête HTTP sur `/health`).
 /// Seule commande de `pinkctl` qui parle HTTP plutôt que DB directe — voir la
 /// doc de `Command::Ping` pour la contrainte `docker exec` (pas `run`).
-async fn ping(bind_addr: &str, url_override: Option<&str>) -> Result<(), Box<dyn std::error::Error>> {
+async fn ping(
+    bind_addr: &str,
+    url_override: Option<&str>,
+) -> Result<(), Box<dyn std::error::Error>> {
     let url = url_override
         .map(str::to_string)
         .unwrap_or_else(|| default_health_url(bind_addr));
@@ -1706,9 +1726,18 @@ mod tests {
 
     #[test]
     fn default_health_url_prend_le_port_de_bind_addr_toujours_en_loopback() {
-        assert_eq!(default_health_url("0.0.0.0:8080"), "http://127.0.0.1:8080/health");
-        assert_eq!(default_health_url("127.0.0.1:8080"), "http://127.0.0.1:8080/health");
-        assert_eq!(default_health_url("[::]:9000"), "http://127.0.0.1:9000/health");
+        assert_eq!(
+            default_health_url("0.0.0.0:8080"),
+            "http://127.0.0.1:8080/health"
+        );
+        assert_eq!(
+            default_health_url("127.0.0.1:8080"),
+            "http://127.0.0.1:8080/health"
+        );
+        assert_eq!(
+            default_health_url("[::]:9000"),
+            "http://127.0.0.1:9000/health"
+        );
     }
 
     #[tokio::test]
@@ -1736,8 +1765,10 @@ mod tests {
 
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
-        let app = Router::new()
-            .route("/health", get(|| async { (StatusCode::INTERNAL_SERVER_ERROR, "nope") }));
+        let app = Router::new().route(
+            "/health",
+            get(|| async { (StatusCode::INTERNAL_SERVER_ERROR, "nope") }),
+        );
         tokio::spawn(async move {
             axum::serve(listener, app).await.unwrap();
         });
@@ -1852,16 +1883,19 @@ mod integration_tests {
     #[sqlx::test]
     async fn user_delete_cascade_sur_les_memberships(pool: PgPool) {
         let user_id = seed_user(&pool, "alice").await;
-        let space_id: Uuid = sqlx::query_scalar("INSERT INTO spaces (name) VALUES ('S') RETURNING id")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
-        sqlx::query("INSERT INTO space_memberships (user_id, space_id, role) VALUES ($1, $2, 'partner')")
-            .bind(user_id)
-            .bind(space_id)
-            .execute(&pool)
-            .await
-            .unwrap();
+        let space_id: Uuid =
+            sqlx::query_scalar("INSERT INTO spaces (name) VALUES ('S') RETURNING id")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        sqlx::query(
+            "INSERT INTO space_memberships (user_id, space_id, role) VALUES ($1, $2, 'partner')",
+        )
+        .bind(user_id)
+        .bind(space_id)
+        .execute(&pool)
+        .await
+        .unwrap();
 
         user_delete(&pool, "alice@test.local").await.unwrap();
 
@@ -1930,10 +1964,11 @@ mod integration_tests {
     #[sqlx::test]
     async fn media_prune_dry_run_ne_supprime_rien(pool: PgPool) {
         let user_id = seed_user(&pool, "alice").await;
-        let space_id: Uuid = sqlx::query_scalar("INSERT INTO spaces (name) VALUES ('S') RETURNING id")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+        let space_id: Uuid =
+            sqlx::query_scalar("INSERT INTO spaces (name) VALUES ('S') RETURNING id")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         sqlx::query(
             "INSERT INTO media (space_id, owner_id, storage_key, mime, created_at)
              VALUES ($1, $2, 'orphan.jpg', 'image/jpeg', now() - interval '2 hours')",
@@ -1959,10 +1994,11 @@ mod integration_tests {
     #[sqlx::test]
     async fn media_prune_apply_supprime_les_orphelins_pas_les_rattaches(pool: PgPool) {
         let user_id = seed_user(&pool, "alice").await;
-        let space_id: Uuid = sqlx::query_scalar("INSERT INTO spaces (name) VALUES ('S') RETURNING id")
-            .fetch_one(&pool)
-            .await
-            .unwrap();
+        let space_id: Uuid =
+            sqlx::query_scalar("INSERT INTO spaces (name) VALUES ('S') RETURNING id")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
 
         let orphan_id: Uuid = sqlx::query_scalar(
             "INSERT INTO media (space_id, owner_id, storage_key, mime, created_at)
@@ -2199,7 +2235,10 @@ mod integration_tests {
             .fetch_one(&pool)
             .await
             .unwrap();
-        assert_eq!(count, 1, "aucune ligne ne doit être touchée sans confirmation");
+        assert_eq!(
+            count, 1,
+            "aucune ligne ne doit être touchée sans confirmation"
+        );
     }
 
     #[sqlx::test]
@@ -2222,14 +2261,12 @@ mod integration_tests {
     async fn nuke_supprime_tout_sauf_le_catalogue_et_la_banque_globale(pool: PgPool) {
         let user_id = seed_user(&pool, "alice").await;
         let space_id = seed_space(&pool, user_id).await;
-        sqlx::query(
-            "INSERT INTO posts (space_id, author_id, body) VALUES ($1, $2, 'x')",
-        )
-        .bind(space_id)
-        .bind(user_id)
-        .execute(&pool)
-        .await
-        .unwrap();
+        sqlx::query("INSERT INTO posts (space_id, author_id, body) VALUES ($1, $2, 'x')")
+            .bind(space_id)
+            .bind(user_id)
+            .execute(&pool)
+            .await
+            .unwrap();
 
         let dir = std::env::temp_dir().join(format!("pinkctl-test-{}", Uuid::new_v4()));
         tokio::fs::create_dir_all(&dir).await.unwrap();
@@ -2249,12 +2286,11 @@ mod integration_tests {
             .fetch_one(&pool)
             .await
             .unwrap();
-        let global_suggestions_before: i64 = sqlx::query_scalar(
-            "SELECT count(*) FROM challenge_suggestions WHERE space_id IS NULL",
-        )
-        .fetch_one(&pool)
-        .await
-        .unwrap();
+        let global_suggestions_before: i64 =
+            sqlx::query_scalar("SELECT count(*) FROM challenge_suggestions WHERE space_id IS NULL")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
         assert!(catalog_before > 0);
         assert!(global_suggestions_before > 0);
 
@@ -2290,13 +2326,15 @@ mod integration_tests {
             .fetch_one(&pool)
             .await
             .unwrap();
-        let global_suggestions_after: i64 = sqlx::query_scalar(
-            "SELECT count(*) FROM challenge_suggestions WHERE space_id IS NULL",
-        )
-        .fetch_one(&pool)
-        .await
-        .unwrap();
-        assert_eq!(catalog_after, catalog_before, "le catalogue ne doit pas être touché");
+        let global_suggestions_after: i64 =
+            sqlx::query_scalar("SELECT count(*) FROM challenge_suggestions WHERE space_id IS NULL")
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(
+            catalog_after, catalog_before,
+            "le catalogue ne doit pas être touché"
+        );
         assert_eq!(
             global_suggestions_after, global_suggestions_before,
             "la banque de défis globale ne doit pas être touchée"
@@ -2348,7 +2386,10 @@ mod integration_tests {
             .fetch_one(&pool)
             .await
             .unwrap();
-        assert_eq!((users, spaces, members, moods, posts, challenges), (2, 1, 2, 2, 1, 1));
+        assert_eq!(
+            (users, spaces, members, moods, posts, challenges),
+            (2, 1, 2, 2, 1, 1)
+        );
     }
 
     #[sqlx::test]
@@ -2418,7 +2459,9 @@ mod integration_tests {
 
     #[sqlx::test]
     async fn space_delete_espace_inconnu_erreur(pool: PgPool) {
-        let err = space_delete(&pool, "/tmp", Uuid::new_v4()).await.unwrap_err();
+        let err = space_delete(&pool, "/tmp", Uuid::new_v4())
+            .await
+            .unwrap_err();
         assert!(err.to_string().contains("aucun espace"));
     }
 

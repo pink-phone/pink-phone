@@ -39,10 +39,7 @@ pub struct Settings {
     pub notif_mode: String,
 }
 
-async fn get_settings(
-    State(state): State<AppState>,
-    auth: AuthUser,
-) -> ApiResult<Json<Settings>> {
+async fn get_settings(State(state): State<AppState>, auth: AuthUser) -> ApiResult<Json<Settings>> {
     let mode: Option<String> =
         sqlx::query_scalar("SELECT notif_mode FROM user_settings WHERE user_id = $1")
             .bind(auth.user_id)
@@ -119,7 +116,9 @@ async fn subscribe(
     // requête HTTP sortante (notify_members) — rejeté ici si ce n'est pas un
     // vrai service de push public (échec rapide ; revalidé aussi à l'envoi).
     if !crate::notifications::endpoint_is_safe(&body.endpoint).await {
-        return Err(ApiError::BadRequest("endpoint de notification invalide".into()));
+        return Err(ApiError::BadRequest(
+            "endpoint de notification invalide".into(),
+        ));
     }
     sqlx::query(
         "INSERT INTO push_subscriptions (user_id, endpoint, p256dh, auth)
@@ -149,13 +148,11 @@ async fn unsubscribe(
     auth: AuthUser,
     Query(q): Query<UnsubscribeQuery>,
 ) -> ApiResult<StatusCode> {
-    sqlx::query(
-        "DELETE FROM push_subscriptions WHERE endpoint = $1 AND user_id = $2",
-    )
-    .bind(&q.endpoint)
-    .bind(auth.user_id)
-    .execute(&state.pool)
-    .await?;
+    sqlx::query("DELETE FROM push_subscriptions WHERE endpoint = $1 AND user_id = $2")
+        .bind(&q.endpoint)
+        .bind(auth.user_id)
+        .execute(&state.pool)
+        .await?;
     Ok(StatusCode::NO_CONTENT)
 }
 

@@ -33,17 +33,12 @@ pub fn router() -> Router<AppState> {
 }
 
 /// Garde commune : membre du salon ET fonctionnalité activée (#99). 403 si off.
-async fn ensure_enabled(
-    pool: &sqlx::PgPool,
-    user_id: Uuid,
-    space_id: Uuid,
-) -> ApiResult<()> {
+async fn ensure_enabled(pool: &sqlx::PgPool, user_id: Uuid, space_id: Uuid) -> ApiResult<()> {
     ensure_member(pool, user_id, space_id).await?;
-    let enabled: bool =
-        sqlx::query_scalar("SELECT desires_enabled FROM spaces WHERE id = $1")
-            .bind(space_id)
-            .fetch_one(pool)
-            .await?;
+    let enabled: bool = sqlx::query_scalar("SELECT desires_enabled FROM spaces WHERE id = $1")
+        .bind(space_id)
+        .fetch_one(pool)
+        .await?;
     if !enabled {
         return Err(ApiError::Forbidden);
     }

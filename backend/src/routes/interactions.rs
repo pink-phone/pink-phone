@@ -43,12 +43,7 @@ pub fn router() -> Router<AppState> {
 }
 
 /// Vérifie l'appartenance au space ET que le post y appartient bien.
-async fn guard(
-    pool: &sqlx::PgPool,
-    user_id: Uuid,
-    space_id: Uuid,
-    post_id: Uuid,
-) -> ApiResult<()> {
+async fn guard(pool: &sqlx::PgPool, user_id: Uuid, space_id: Uuid, post_id: Uuid) -> ApiResult<()> {
     ensure_member(pool, user_id, space_id).await?;
     let ok: Option<Uuid> =
         sqlx::query_scalar("SELECT id FROM posts WHERE id = $1 AND space_id = $2")
@@ -137,7 +132,9 @@ async fn add_reaction(
     .execute(&state.pool)
     .await?;
     state.emit(space_id, auth.user_id, EventKind::Reaction);
-    Ok(Json(reaction_summary(&state.pool, post_id, auth.user_id).await?))
+    Ok(Json(
+        reaction_summary(&state.pool, post_id, auth.user_id).await?,
+    ))
 }
 
 async fn remove_reaction(
@@ -146,16 +143,16 @@ async fn remove_reaction(
     Path((space_id, post_id, reaction)): Path<(Uuid, Uuid, String)>,
 ) -> ApiResult<Json<ReactionSummary>> {
     guard(&state.pool, auth.user_id, space_id, post_id).await?;
-    sqlx::query(
-        "DELETE FROM post_reactions WHERE post_id = $1 AND user_id = $2 AND reaction = $3",
-    )
-    .bind(post_id)
-    .bind(auth.user_id)
-    .bind(&reaction)
-    .execute(&state.pool)
-    .await?;
+    sqlx::query("DELETE FROM post_reactions WHERE post_id = $1 AND user_id = $2 AND reaction = $3")
+        .bind(post_id)
+        .bind(auth.user_id)
+        .bind(&reaction)
+        .execute(&state.pool)
+        .await?;
     state.emit(space_id, auth.user_id, EventKind::Reaction);
-    Ok(Json(reaction_summary(&state.pool, post_id, auth.user_id).await?))
+    Ok(Json(
+        reaction_summary(&state.pool, post_id, auth.user_id).await?,
+    ))
 }
 
 // ---------- Verdict ----------

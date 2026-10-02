@@ -15,7 +15,10 @@ pub fn router() -> Router<AppState> {
     Router::new()
         // `/moods` = collection ; `/moods/me` = mon humeur (cohérent /auth/me — API-01).
         .route("/api/spaces/{id}/moods", get(list_moods))
-        .route("/api/spaces/{id}/moods/me", put(set_mood).delete(clear_mood))
+        .route(
+            "/api/spaces/{id}/moods/me",
+            put(set_mood).delete(clear_mood),
+        )
 }
 
 #[derive(Deserialize)]

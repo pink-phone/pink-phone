@@ -24,12 +24,11 @@ async fn list_seen(
     Path(space_id): Path<Uuid>,
 ) -> ApiResult<Json<Vec<SeenEntry>>> {
     ensure_member(&state.pool, auth.user_id, space_id).await?;
-    let rows: Vec<SeenEntry> = sqlx::query_as(
-        "SELECT user_id, feature, seen_at FROM space_last_seen WHERE space_id = $1",
-    )
-    .bind(space_id)
-    .fetch_all(&state.pool)
-    .await?;
+    let rows: Vec<SeenEntry> =
+        sqlx::query_as("SELECT user_id, feature, seen_at FROM space_last_seen WHERE space_id = $1")
+            .bind(space_id)
+            .fetch_all(&state.pool)
+            .await?;
     Ok(Json(rows))
 }
 
