@@ -2,11 +2,19 @@
 -- tables de suivi référençaient un `code TEXT` libre, validé côté Rust contre
 -- une const figée. Elles référencent maintenant `catalog_items` par clé
 -- étrangère — la validation devient « l'id existe et est actif » en base.
--- Pas de données à migrer (contenu de démo uniquement) : DROP + recréation.
+--
+-- Les choix du menu du soir sont quotidiens (purgés après 2 jours) et ses anciens
+-- codes n'existent plus : on les jette. En revanche les envies (bucket list) et
+-- leur « réalisé » sont DURABLES : les anciennes tables sont mises de côté ici et
+-- leurs lignes reprises par la migration 0051, une fois le catalogue semé.
 
 DROP TABLE evening_menu_picks;
-DROP TABLE desire_done;
-DROP TABLE desire_interests;
+
+ALTER TABLE desire_interests RENAME TO desire_interests_old;
+ALTER INDEX desire_interests_pkey RENAME TO desire_interests_old_pkey;
+ALTER INDEX idx_desire_interests_space_code RENAME TO idx_desire_interests_old_space_code;
+ALTER TABLE desire_done RENAME TO desire_done_old;
+ALTER INDEX desire_done_pkey RENAME TO desire_done_old_pkey;
 
 CREATE TABLE desire_interests (
     space_id   UUID NOT NULL REFERENCES spaces(id) ON DELETE CASCADE,
