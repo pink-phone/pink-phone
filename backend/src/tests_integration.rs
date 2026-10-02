@@ -23,7 +23,7 @@ use crate::state::AppState;
 
 // --- Harnais ---------------------------------------------------------------
 
-fn test_config() -> Config {
+pub(crate) fn test_config() -> Config {
     Config {
         database_url: String::new(),
         db_host: String::new(),
@@ -50,10 +50,14 @@ fn test_config() -> Config {
 }
 
 fn build_app(pool: PgPool) -> (Router, AppState) {
+    build_app_with(pool, test_config())
+}
+
+pub(crate) fn build_app_with(pool: PgPool, config: Config) -> (Router, AppState) {
     let (events, _) = tokio::sync::broadcast::channel(256);
     let state = AppState {
         pool,
-        config: Arc::new(test_config()),
+        config: Arc::new(config),
         http: reqwest::Client::new(),
         push_client: Arc::new(web_push::HyperWebPushClient::new()),
         oidc_states: Arc::new(Mutex::new(Default::default())),
@@ -67,7 +71,7 @@ fn build_app(pool: PgPool) -> (Router, AppState) {
     (app, state)
 }
 
-async fn seed_user(pool: &PgPool, name: &str) -> Uuid {
+pub(crate) async fn seed_user(pool: &PgPool, name: &str) -> Uuid {
     sqlx::query_scalar(
         "INSERT INTO users (email, display_name, password_hash)
          VALUES ($1, $2, 'x') RETURNING id",
@@ -79,7 +83,7 @@ async fn seed_user(pool: &PgPool, name: &str) -> Uuid {
     .unwrap()
 }
 
-async fn seed_space(pool: &PgPool, owner: Uuid) -> Uuid {
+pub(crate) async fn seed_space(pool: &PgPool, owner: Uuid) -> Uuid {
     let id: Uuid =
         sqlx::query_scalar("INSERT INTO spaces (name) VALUES ('Salon') RETURNING id")
             .fetch_one(pool)
@@ -89,7 +93,7 @@ async fn seed_space(pool: &PgPool, owner: Uuid) -> Uuid {
     id
 }
 
-async fn add_member(pool: &PgPool, user: Uuid, space: Uuid) {
+pub(crate) async fn add_member(pool: &PgPool, user: Uuid, space: Uuid) {
     sqlx::query("INSERT INTO space_memberships (user_id, space_id) VALUES ($1, $2)")
         .bind(user)
         .bind(space)
@@ -98,7 +102,7 @@ async fn add_member(pool: &PgPool, user: Uuid, space: Uuid) {
         .unwrap();
 }
 
-fn token_for(state: &AppState, user: Uuid) -> String {
+pub(crate) fn token_for(state: &AppState, user: Uuid) -> String {
     issue_token(&state.config.jwt_secret, user).unwrap()
 }
 
@@ -117,7 +121,7 @@ async fn seed_media(pool: &PgPool, space: Uuid, owner: Uuid, mime: &str) -> Uuid
 }
 
 /// Envoie une requête authentifiée et renvoie (statut, corps JSON).
-async fn req(
+pub(crate) async fn req(
     app: &Router,
     method: &str,
     path: &str,
@@ -425,7 +429,7 @@ async fn notices_refuse_un_non_membre(pool: PgPool) {
 // --- Tests : autz & validation des routes (RR-02/03, machine à états, SEC-015) -
 
 /// Crée un post via HTTP et renvoie son id.
-async fn create_post(app: &Router, space: Uuid, token: &str, body: &str) -> Uuid {
+pub(crate) async fn create_post(app: &Router, space: Uuid, token: &str, body: &str) -> Uuid {
     let (st, p) = req(
         app,
         "POST",
@@ -518,7 +522,7 @@ async fn commentaire_vide_ou_trop_long_refuse_et_autz_suppression(pool: PgPool) 
 }
 
 /// Crée un défi via HTTP (auteur = proposeur) et renvoie son id.
-async fn create_challenge(app: &Router, space: Uuid, token: &str) -> Uuid {
+pub(crate) async fn create_challenge(app: &Router, space: Uuid, token: &str) -> Uuid {
     let (st, ch) = req(
         app,
         "POST",

@@ -513,3 +513,25 @@ mod tests {
         assert_eq!(parse_course_category("none:places"), None);
     }
 }
+
+#[cfg(all(test, feature = "integration"))]
+mod tests_integration_sql {
+    use super::is_unique_violation;
+
+    /// 23505 (doublon d'email) est reconnu ; une autre erreur SQL ne l'est pas — sans
+    /// quoi `create_invite` retenterait à l'infini ou masquerait une vraie panne.
+    #[sqlx::test]
+    async fn is_unique_violation_distingue_23505_des_autres_erreurs(pool: sqlx::PgPool) {
+        let insert = "INSERT INTO users (email, display_name, password_hash) VALUES ('a@x.test', 'a', 'x')";
+        sqlx::query(insert).execute(&pool).await.unwrap();
+        let doublon = sqlx::query(insert).execute(&pool).await.unwrap_err();
+        assert!(is_unique_violation(&doublon));
+
+        let autre = sqlx::query("SELECT * FROM table_qui_n_existe_pas")
+            .execute(&pool)
+            .await
+            .unwrap_err();
+        assert!(!is_unique_violation(&autre));
+        assert!(!is_unique_violation(&sqlx::Error::RowNotFound));
+    }
+}
