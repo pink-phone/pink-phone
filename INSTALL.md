@@ -59,9 +59,18 @@ services:
     volumes: [pink-pgdata:/var/lib/postgresql/data]
     networks: [pink]
 
+  media-perms:   # one-shot: API runs as uid 10001; fixes ownership of existing volumes
+    image: ${API_IMAGE:-pinkphone/pinkphone-api}:${IMAGE_TAG:-latest}
+    user: "0:0"
+    entrypoint: ["chown", "-R", "10001:10001", "/data/media"]
+    volumes: [pink-media:/data/media]
+    networks: [pink]
+
   api:
     image: ${API_IMAGE:-pinkphone/pinkphone-api}:${IMAGE_TAG:-latest}
-    depends_on: [db]
+    depends_on:
+      db: { condition: service_started }
+      media-perms: { condition: service_completed_successfully }
     environment:
       DB_HOST: db
       DB_PASSWORD: ${POSTGRES_PASSWORD}
@@ -76,7 +85,7 @@ services:
   web:
     image: ${WEB_IMAGE:-pinkphone/pinkphone-web}:${IMAGE_TAG:-latest}
     depends_on: [api]
-    ports: ["${WEB_PORT:-8095}:80"]
+    ports: ["${WEB_PORT:-8095}:8080"]
     networks: [pink]
 
 networks: { pink: {} }
