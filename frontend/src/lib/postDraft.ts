@@ -62,7 +62,7 @@ export function clearAllPostDrafts(): void {
       const k = localStorage.key(i);
       if (k?.startsWith(PREFIX)) keys.push(k);
     }
-    keys.forEach((k) => localStorage.removeItem(k));
+    for (const k of keys) localStorage.removeItem(k);
   } catch {
     // ignoré
   }

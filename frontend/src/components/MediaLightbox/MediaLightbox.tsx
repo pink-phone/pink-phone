@@ -68,6 +68,7 @@ export function MediaLightbox({
   // Changement de média : l'ancien ratio ne s'applique plus (`SafeMedia`
   // signale le nouveau via `onRatioChange` dès son montage), et la rotation
   // manuelle ne doit jamais survivre d'un média à l'autre.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `index` n'est pas lu : son changement signale un autre média.
   useEffect(() => {
     setRotated(false);
   }, [index]);

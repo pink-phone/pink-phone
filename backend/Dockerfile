@@ -53,6 +53,10 @@ COPY --from=builder /app/pinkphone-api /usr/local/bin/pinkphone-api
 COPY --from=builder /app/pinkctl /usr/local/bin/pinkctl
 ENV MEDIA_DIR=/data/media \
     BIND_ADDR=0.0.0.0:8080
-RUN mkdir -p /data/media
+# Non-root (Trivy DS-0002). Les volumes déjà existants appartiennent à root : les
+# compose lancent un service `media-perms` one-shot qui fait le chown (uid 10001).
+RUN useradd --system --uid 10001 --no-create-home --shell /usr/sbin/nologin app \
+    && mkdir -p /data/media && chown app:app /data/media
+USER 10001
 EXPOSE 8080
 CMD ["pinkphone-api"]

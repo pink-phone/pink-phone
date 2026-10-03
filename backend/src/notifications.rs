@@ -220,10 +220,7 @@ async fn send_and_handle(
     let info = SubscriptionInfo::new(sub.endpoint.clone(), sub.p256dh.clone(), sub.auth.clone());
 
     // web-push 0.11 : la clé est toujours du base64 URL-safe sans padding.
-    let signature = match VapidSignatureBuilder::from_base64(
-        &config.vapid_private_key,
-        &info,
-    ) {
+    let signature = match VapidSignatureBuilder::from_base64(&config.vapid_private_key, &info) {
         Ok(mut builder) => {
             builder.add_claim("sub", config.vapid_subject.clone());
             match builder.build() {
@@ -285,13 +282,12 @@ pub async fn send_test_notification(
     if config.vapid_private_key.is_empty() {
         return Err("VAPID non configuré : notifications push désactivées".into());
     }
-    let subs: Vec<SubRow> = sqlx::query_as(
-        "SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = $1",
-    )
-    .bind(user_id)
-    .fetch_all(pool)
-    .await
-    .map_err(|e| e.to_string())?;
+    let subs: Vec<SubRow> =
+        sqlx::query_as("SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = $1")
+            .bind(user_id)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| e.to_string())?;
 
     let total = subs.len();
     let payload = json!({ "title": title, "body": GENERIC_BODY }).to_string();

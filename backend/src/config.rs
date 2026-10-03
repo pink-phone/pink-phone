@@ -73,13 +73,11 @@ impl Config {
             db_user: env::var("DB_USER").unwrap_or_else(|_| "pink".into()),
             db_password: env::var("DB_PASSWORD").unwrap_or_else(|_| "pink".into()),
             db_name: env::var("DB_NAME").unwrap_or_else(|_| "pinkphone".into()),
-            jwt_secret: env::var("JWT_SECRET")
-                .unwrap_or_else(|_| "dev-insecure-secret".into()),
+            jwt_secret: env::var("JWT_SECRET").unwrap_or_else(|_| "dev-insecure-secret".into()),
             media_dir: env::var("MEDIA_DIR").unwrap_or_else(|_| "./media-store".into()),
             media_key: env::var("MEDIA_KEY").unwrap_or_default(),
             bind_addr: env::var("BIND_ADDR").unwrap_or_else(|_| "127.0.0.1:8080".into()),
-            cors_origin: env::var("CORS_ORIGIN")
-                .unwrap_or_else(|_| "http://localhost:5173".into()),
+            cors_origin: env::var("CORS_ORIGIN").unwrap_or_else(|_| "http://localhost:5173".into()),
             vapid_public_key: env::var("VAPID_PUBLIC_KEY").unwrap_or_default(),
             vapid_private_key: env::var("VAPID_PRIVATE_KEY").unwrap_or_default(),
             vapid_subject: env::var("VAPID_SUBJECT")

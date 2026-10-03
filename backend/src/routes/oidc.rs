@@ -70,9 +70,7 @@ async fn fetch_oidc_metadata(state: &AppState) -> ApiResult<(OidcMeta, JwkSet)> 
     // Défense en profondeur (SEC-009 / OIDC Discovery §4.3) : l'issuer renvoyé par
     // la discovery doit correspondre à l'OIDC_ISSUER configuré, sinon une réponse
     // de discovery substituée pourrait imposer un issuer/JWKS attaquant.
-    if disc.issuer.trim_end_matches('/')
-        != state.config.oidc_issuer.trim_end_matches('/')
-    {
+    if disc.issuer.trim_end_matches('/') != state.config.oidc_issuer.trim_end_matches('/') {
         tracing::error!(
             configured = %state.config.oidc_issuer,
             discovered = %disc.issuer,
@@ -158,8 +156,7 @@ async fn login(State(state): State<AppState>) -> ApiResult<Redirect> {
         );
     }
 
-    let mut url = url::Url::parse(&meta.authorization_endpoint)
-        .map_err(|_| ApiError::Internal)?;
+    let mut url = url::Url::parse(&meta.authorization_endpoint).map_err(|_| ApiError::Internal)?;
     url.query_pairs_mut()
         .append_pair("response_type", "code")
         .append_pair("client_id", &state.config.oidc_client_id)
@@ -203,10 +200,7 @@ struct IdClaims {
     nonce: Option<String>,
 }
 
-async fn callback(
-    State(state): State<AppState>,
-    Query(params): Query<CallbackParams>,
-) -> Redirect {
+async fn callback(State(state): State<AppState>, Query(params): Query<CallbackParams>) -> Redirect {
     let front = state.config.oidc_post_login_redirect.clone();
     match callback_inner(&state, params).await {
         Ok(token) => {
@@ -262,18 +256,19 @@ async fn exchange(
     }))
 }
 
-async fn callback_inner(
-    state: &AppState,
-    params: CallbackParams,
-) -> ApiResult<String> {
+async fn callback_inner(state: &AppState, params: CallbackParams) -> ApiResult<String> {
     if !state.config.oidc_enabled() {
         return Err(ApiError::NotFound);
     }
     if let Some(err) = params.error {
         return Err(ApiError::BadRequest(format!("fournisseur: {err}")));
     }
-    let code = params.code.ok_or(ApiError::BadRequest("code manquant".into()))?;
-    let csrf = params.state.ok_or(ApiError::BadRequest("state manquant".into()))?;
+    let code = params
+        .code
+        .ok_or(ApiError::BadRequest("code manquant".into()))?;
+    let csrf = params
+        .state
+        .ok_or(ApiError::BadRequest("state manquant".into()))?;
 
     // Récupère (et consomme) le flux associé au state — protection CSRF.
     let flow = {
@@ -303,8 +298,7 @@ async fn callback_inner(
         .await?;
 
     // Validation de l'id_token : signature (JWKS), iss, aud, exp, puis nonce.
-    let header =
-        decode_header(&token.id_token).map_err(|_| ApiError::Unauthorized)?;
+    let header = decode_header(&token.id_token).map_err(|_| ApiError::Unauthorized)?;
     let kid = header.kid.ok_or(ApiError::Unauthorized)?;
     // `kid` connu du JWKS en cache ? Sinon, l'IdP a probablement tourné ses clés :
     // on force un refetch immédiat (au-delà du TTL) avant d'abandonner (RUST-04).
@@ -341,9 +335,7 @@ async fn callback_inner(
         .name
         .or(claims.preferred_username)
         .filter(|s| !s.trim().is_empty())
-        .unwrap_or_else(|| {
-            email.split('@').next().unwrap_or("Partenaire").to_string()
-        });
+        .unwrap_or_else(|| email.split('@').next().unwrap_or("Partenaire").to_string());
 
     let user_id = upsert_oidc_user(state, &claims.sub, &email, &display).await?;
     issue_token(&state.config.jwt_secret, user_id)
@@ -397,12 +389,10 @@ async fn upsert_oidc_user(
     // 0018) garantit en plus l'absence de doublon même en cas de course.
     let mut tx = state.pool.begin().await?;
 
-    if let Some(id) = sqlx::query_scalar::<_, Uuid>(
-        "SELECT id FROM users WHERE oidc_sub = $1",
-    )
-    .bind(sub)
-    .fetch_optional(&mut *tx)
-    .await?
+    if let Some(id) = sqlx::query_scalar::<_, Uuid>("SELECT id FROM users WHERE oidc_sub = $1")
+        .bind(sub)
+        .fetch_optional(&mut *tx)
+        .await?
     {
         tx.commit().await?;
         return Ok(id);

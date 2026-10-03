@@ -12,6 +12,8 @@ Helpers for a production, self-hosted deployment. Full step-by-step guide:
 - **`docker-compose.local.yml`** — zero-config local demo (hard-coded throwaway
   secrets, no `.env`): `docker compose -f docker-compose.local.yml up`, then open
   http://localhost:8095. For testing only — not for production.
+
+Images run as **non-root** (API uid 10001, web = nginx-unprivileged on container port **8080**). On upgrade, the one-shot `media-perms` service re-owns an existing `pink-media` volume automatically.
 - **`.env.example`** — all environment variables (copy to `.env` and fill in).
 
 The `web` image bakes its own nginx config (`frontend/nginx.conf`): it serves the

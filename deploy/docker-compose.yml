@@ -21,10 +21,23 @@ services:
     networks:
       - pink
 
+  # One-shot : les volumes existants (créés avant le passage de l'API en non-root,
+  # uid 10001) appartiennent à root — on rend /data/media inscriptible.
+  media-perms:
+    image: ${API_IMAGE:-pinkphone/pinkphone-api}:${IMAGE_TAG:-latest}
+    user: "0:0"
+    entrypoint: ["chown", "-R", "10001:10001", "/data/media"]
+    volumes:
+      - pink-media:/data/media
+    restart: "no"
+    networks: [pink]
+
   api:
     image: ${API_IMAGE:-pinkphone/pinkphone-api}:${IMAGE_TAG:-latest}
     restart: unless-stopped
     depends_on:
+      media-perms:
+        condition: service_completed_successfully
       db:
         condition: service_healthy
     environment:
@@ -64,7 +77,7 @@ services:
       - api
     ports:
       # Exposed on the host; point your reverse proxy here.
-      - "${WEB_PORT:-8095}:80"
+      - "${WEB_PORT:-8095}:8080"
     networks:
       - pink
 

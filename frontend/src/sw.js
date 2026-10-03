@@ -66,7 +66,7 @@ async function handleSharedPost(request) {
         }),
       );
     }
-  } catch (e) {
+  } catch {
     // best-effort : on redirige quand même vers l'app.
   }
   // 303 → navigation GET vers l'app avec le drapeau de partage.
@@ -78,8 +78,8 @@ self.addEventListener("push", (event) => {
   let data = {};
   try {
     data = event.data ? event.data.json() : {};
-  } catch (e) {
-    data = { body: event.data && event.data.text() };
+  } catch {
+    data = { body: event.data?.text() };
   }
   const title = data.title || "Pink Phone";
   const body = data.body || "";

@@ -84,11 +84,10 @@ pub(crate) async fn seed_user(pool: &PgPool, name: &str) -> Uuid {
 }
 
 pub(crate) async fn seed_space(pool: &PgPool, owner: Uuid) -> Uuid {
-    let id: Uuid =
-        sqlx::query_scalar("INSERT INTO spaces (name) VALUES ('Salon') RETURNING id")
-            .fetch_one(pool)
-            .await
-            .unwrap();
+    let id: Uuid = sqlx::query_scalar("INSERT INTO spaces (name) VALUES ('Salon') RETURNING id")
+        .fetch_one(pool)
+        .await
+        .unwrap();
     add_member(pool, owner, id).await;
     id
 }
@@ -194,8 +193,14 @@ async fn join_emet_une_notice_member_joined(pool: PgPool) {
     assert_eq!(st, StatusCode::CREATED);
 
     // Alice voit la notice « member_joined » (acteur = bob).
-    let (st, na) =
-        req(&app, "GET", &format!("/api/spaces/{space}/notices"), &ta, None).await;
+    let (st, na) = req(
+        &app,
+        "GET",
+        &format!("/api/spaces/{space}/notices"),
+        &ta,
+        None,
+    )
+    .await;
     assert_eq!(st, StatusCode::OK);
     let arr = na.as_array().unwrap();
     assert_eq!(arr.len(), 1, "alice devrait voir 1 notice");
@@ -203,9 +208,19 @@ async fn join_emet_une_notice_member_joined(pool: PgPool) {
     assert_eq!(arr[0]["actorName"], "bob");
 
     // Bob ne voit PAS sa propre action (exclusion `actor_id <> moi`).
-    let (_, nb) =
-        req(&app, "GET", &format!("/api/spaces/{space}/notices"), &tb, None).await;
-    assert_eq!(nb.as_array().unwrap().len(), 0, "bob ne se notifie pas lui-même");
+    let (_, nb) = req(
+        &app,
+        "GET",
+        &format!("/api/spaces/{space}/notices"),
+        &tb,
+        None,
+    )
+    .await;
+    assert_eq!(
+        nb.as_array().unwrap().len(),
+        0,
+        "bob ne se notifie pas lui-même"
+    );
 }
 
 #[sqlx::test]
@@ -217,7 +232,14 @@ async fn invite_code_lisible_et_join_insensible_a_la_casse(pool: PgPool) {
     let ta = token_for(&state, alice);
     let tb = token_for(&state, bob);
 
-    let (st, inv) = req(&app, "POST", &format!("/api/spaces/{space}/invites"), &ta, None).await;
+    let (st, inv) = req(
+        &app,
+        "POST",
+        &format!("/api/spaces/{space}/invites"),
+        &ta,
+        None,
+    )
+    .await;
     assert_eq!(st, StatusCode::CREATED);
     let code = inv["code"].as_str().unwrap().to_string();
     // Le code est lisible : « MotMot#chiffre » (pas un UUID).
@@ -235,7 +257,11 @@ async fn invite_code_lisible_et_join_insensible_a_la_casse(pool: PgPool) {
         Some(json!({ "code": messy })),
     )
     .await;
-    assert_eq!(st, StatusCode::CREATED, "join insensible à la casse/espaces");
+    assert_eq!(
+        st,
+        StatusCode::CREATED,
+        "join insensible à la casse/espaces"
+    );
     assert_eq!(joined["id"].as_str().unwrap(), space.to_string());
 }
 
@@ -312,8 +338,14 @@ async fn activation_download_emet_une_notice_une_seule_fois(pool: PgPool) {
     assert_eq!(st, StatusCode::OK);
 
     // Bob voit « download_enabled ».
-    let (_, nb) =
-        req(&app, "GET", &format!("/api/spaces/{space}/notices"), &tb, None).await;
+    let (_, nb) = req(
+        &app,
+        "GET",
+        &format!("/api/spaces/{space}/notices"),
+        &tb,
+        None,
+    )
+    .await;
     let arr = nb.as_array().unwrap();
     assert_eq!(arr.len(), 1);
     assert_eq!(arr[0]["kind"], "download_enabled");
@@ -341,8 +373,14 @@ async fn activation_download_emet_une_notice_une_seule_fois(pool: PgPool) {
         Some(json!({ "allowMediaDownload": true })),
     )
     .await;
-    let (_, nb2) =
-        req(&app, "GET", &format!("/api/spaces/{space}/notices"), &tb, None).await;
+    let (_, nb2) = req(
+        &app,
+        "GET",
+        &format!("/api/spaces/{space}/notices"),
+        &tb,
+        None,
+    )
+    .await;
     assert_eq!(
         nb2.as_array().unwrap().len(),
         1,
@@ -421,8 +459,14 @@ async fn notices_refuse_un_non_membre(pool: PgPool) {
     let space = seed_space(&pool, alice).await;
     let t = token_for(&state, intrus);
 
-    let (st, _) =
-        req(&app, "GET", &format!("/api/spaces/{space}/notices"), &t, None).await;
+    let (st, _) = req(
+        &app,
+        "GET",
+        &format!("/api/spaces/{space}/notices"),
+        &t,
+        None,
+    )
+    .await;
     assert_eq!(st, StatusCode::FORBIDDEN, "ensure_member doit bloquer");
 }
 
@@ -507,17 +551,17 @@ async fn commentaire_vide_ou_trop_long_refuse_et_autz_suppression(pool: PgPool) 
     assert_eq!(st, StatusCode::BAD_REQUEST, "commentaire borné (RR-02)");
 
     // Bob commente, Alice (non-auteure du commentaire) ne peut pas le supprimer.
-    let (st, c) = req(&app, "POST", &comments, &tb, Some(json!({ "body": "joli" }))).await;
-    assert_eq!(st, StatusCode::CREATED);
-    let cid = c["id"].as_str().unwrap();
-    let (st, _) = req(
+    let (st, c) = req(
         &app,
-        "DELETE",
-        &format!("{comments}/{cid}"),
-        &ta,
-        None,
+        "POST",
+        &comments,
+        &tb,
+        Some(json!({ "body": "joli" })),
     )
     .await;
+    assert_eq!(st, StatusCode::CREATED);
+    let cid = c["id"].as_str().unwrap();
+    let (st, _) = req(&app, "DELETE", &format!("{comments}/{cid}"), &ta, None).await;
     assert_eq!(st, StatusCode::NOT_FOUND, "autz auteur du commentaire");
 }
 
@@ -552,12 +596,29 @@ async fn defi_machine_etat_via_http(pool: PgPool) {
     assert_eq!(st, StatusCode::CONFLICT, "transition non autorisée");
 
     // SEC-015 : la proposeuse ne peut pas accepter sa propre proposition → 403.
-    let (st, _) = req(&app, "POST", &tr, &ta, Some(json!({ "to": "challengeAccepted" }))).await;
-    assert_eq!(st, StatusCode::FORBIDDEN, "proposeuse ne s'auto-accepte pas");
+    let (st, _) = req(
+        &app,
+        "POST",
+        &tr,
+        &ta,
+        Some(json!({ "to": "challengeAccepted" })),
+    )
+    .await;
+    assert_eq!(
+        st,
+        StatusCode::FORBIDDEN,
+        "proposeuse ne s'auto-accepte pas"
+    );
 
     // Le destinataire, lui, peut accepter → 200.
-    let (st, ch_json) =
-        req(&app, "POST", &tr, &tb, Some(json!({ "to": "challengeAccepted" }))).await;
+    let (st, ch_json) = req(
+        &app,
+        "POST",
+        &tr,
+        &tb,
+        Some(json!({ "to": "challengeAccepted" })),
+    )
+    .await;
     assert_eq!(st, StatusCode::OK);
     assert_eq!(ch_json["status"], "challengeAccepted");
 }
@@ -690,8 +751,18 @@ async fn posts_pagination_par_curseur(pool: PgPool) {
     assert_eq!(p1["hasMore"], true);
 
     // Page 2 : curseur = createdAt du dernier item reçu → le 3ᵉ post, hasMore = false.
-    let cursor = p1["items"][1]["createdAt"].as_str().unwrap().replace(':', "%3A");
-    let (st, p2) = req(&app, "GET", &format!("{base}?limit=2&before={cursor}"), &ta, None).await;
+    let cursor = p1["items"][1]["createdAt"]
+        .as_str()
+        .unwrap()
+        .replace(':', "%3A");
+    let (st, p2) = req(
+        &app,
+        "GET",
+        &format!("{base}?limit=2&before={cursor}"),
+        &ta,
+        None,
+    )
+    .await;
     assert_eq!(st, StatusCode::OK);
     assert_eq!(p2["items"].as_array().unwrap().len(), 1);
     assert_eq!(p2["hasMore"], false);
@@ -805,7 +876,12 @@ async fn desires_double_consentement_et_gating(pool: PgPool) {
 
     // Double-aveugle : Bob ne voit RIEN de l'envie d'Alice.
     let (_, ib) = req(&app, "GET", &list, &tb, None).await;
-    let mb = ib.as_array().unwrap().iter().find(|i| i["code"] == "oilMassage").unwrap();
+    let mb = ib
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|i| i["code"] == "oilMassage")
+        .unwrap();
     assert_eq!(mb["interested"], false);
     assert_eq!(mb["matched"], false, "secret d'Alice non révélé");
     assert_eq!(mb["limit"], false);
@@ -814,17 +890,34 @@ async fn desires_double_consentement_et_gating(pool: PgPool) {
     let (_, b) = req(&app, "PUT", &stance, &tb, want()).await;
     assert_eq!(b["matched"], true, "Bob complète → match");
     let (_, ia) = req(&app, "GET", &list, &ta, None).await;
-    let ma = ia.as_array().unwrap().iter().find(|i| i["code"] == "oilMassage").unwrap();
+    let ma = ia
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|i| i["code"] == "oilMassage")
+        .unwrap();
     assert_eq!(ma["matched"], true, "match révélé chez Alice aussi");
 
     // « Contre » = LIMITE surfacée : Bob passe « against » → limite visible des
     // DEUX, match cassé.
-    let (_, b) = req(&app, "PUT", &stance, &tb, Some(json!({ "stance": "against" }))).await;
+    let (_, b) = req(
+        &app,
+        "PUT",
+        &stance,
+        &tb,
+        Some(json!({ "stance": "against" })),
+    )
+    .await;
     assert_eq!(b["against"], true);
     assert_eq!(b["limit"], true);
     assert_eq!(b["matched"], false, "un contre casse le match");
     let (_, ia) = req(&app, "GET", &list, &ta, None).await;
-    let ma = ia.as_array().unwrap().iter().find(|i| i["code"] == "oilMassage").unwrap();
+    let ma = ia
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|i| i["code"] == "oilMassage")
+        .unwrap();
     assert_eq!(ma["limit"], true, "la limite de Bob est surfacée à Alice");
     assert_eq!(ma["matched"], false, "plus de match");
     assert_eq!(ma["against"], false, "ce n'est pas MA limite");
@@ -836,7 +929,11 @@ async fn desires_double_consentement_et_gating(pool: PgPool) {
     assert_eq!(d["done"], true);
     let (_, ib) = req(&app, "GET", &list, &tb, None).await;
     assert_eq!(
-        ib.as_array().unwrap().iter().find(|i| i["code"] == "oilMassage").unwrap()["done"],
+        ib.as_array()
+            .unwrap()
+            .iter()
+            .find(|i| i["code"] == "oilMassage")
+            .unwrap()["done"],
         true,
         "réalisé visible du couple"
     );
@@ -847,7 +944,11 @@ async fn desires_double_consentement_et_gating(pool: PgPool) {
     assert_eq!(b["against"], false);
     let (_, ia) = req(&app, "GET", &list, &ta, None).await;
     assert_eq!(
-        ia.as_array().unwrap().iter().find(|i| i["code"] == "oilMassage").unwrap()["limit"],
+        ia.as_array()
+            .unwrap()
+            .iter()
+            .find(|i| i["code"] == "oilMassage")
+            .unwrap()["limit"],
         false,
         "limite levée"
     );
@@ -941,7 +1042,10 @@ async fn menu_du_soir_match_du_jour_et_gating(pool: PgPool) {
     .await
     .unwrap();
     let (_, again) = req(&app, "PUT", &format!("{list}/evening-movie"), &ta, None).await;
-    assert_eq!(again["matched"], false, "la coche d'hier ne matche pas ce soir");
+    assert_eq!(
+        again["matched"], false,
+        "la coche d'hier ne matche pas ce soir"
+    );
 
     // Alice retire « massage » → plus de match.
     let (st, a) = req(&app, "DELETE", &massage, &ta, None).await;
@@ -980,7 +1084,10 @@ async fn menu_du_soir_mode_ouvert_valider_refuser(pool: PgPool) {
     let (st, a) = req(&app, "PUT", &massage, &ta, None).await;
     assert_eq!(st, StatusCode::OK);
     assert_eq!(a["picked"], true);
-    assert_eq!(a["matched"], true, "silence de l'autre côté = inclus par défaut");
+    assert_eq!(
+        a["matched"], true,
+        "silence de l'autre côté = inclus par défaut"
+    );
 
     let (_, ib) = req(&app, "GET", &list, &tb, None).await;
     let m_b = ib
@@ -989,7 +1096,10 @@ async fn menu_du_soir_mode_ouvert_valider_refuser(pool: PgPool) {
         .iter()
         .find(|i| i["code"] == "evening-massage")
         .unwrap();
-    assert_eq!(m_b["partnerWants"], true, "proposition visible tout de suite");
+    assert_eq!(
+        m_b["partnerWants"], true,
+        "proposition visible tout de suite"
+    );
     assert_eq!(m_b["matched"], true);
     assert_eq!(m_b["picked"], false, "Bob n'a rien coché lui-même");
 
@@ -1009,7 +1119,10 @@ async fn menu_du_soir_mode_ouvert_valider_refuser(pool: PgPool) {
     .await;
     assert_eq!(st, StatusCode::OK);
     assert_eq!(b["refused"], true);
-    assert_eq!(b["matched"], false, "un refus exclut, même si Alice veut toujours");
+    assert_eq!(
+        b["matched"], false,
+        "un refus exclut, même si Alice veut toujours"
+    );
     let (_, ia) = req(&app, "GET", &list, &ta, None).await;
     let m_a = ia
         .as_array()
@@ -1017,9 +1130,15 @@ async fn menu_du_soir_mode_ouvert_valider_refuser(pool: PgPool) {
         .iter()
         .find(|i| i["code"] == "evening-massage")
         .unwrap();
-    assert_eq!(m_a["refused"], true, "le refus est visible côté proposeur·se aussi");
+    assert_eq!(
+        m_a["refused"], true,
+        "le refus est visible côté proposeur·se aussi"
+    );
     assert_eq!(m_a["matched"], false);
-    assert_eq!(m_a["picked"], true, "Alice veut toujours, juste exclu par le refus");
+    assert_eq!(
+        m_a["picked"], true,
+        "Alice veut toujours, juste exclu par le refus"
+    );
 
     // Le refus est indisponible en mode aveugle.
     let (st, _) = req(
@@ -1054,7 +1173,14 @@ async fn mots_doux_immediat_differe_scelle_et_autz(pool: PgPool) {
     let notes = format!("/api/spaces/{space}/love-notes");
 
     // Mot immédiat d'Alice → lisible par Bob tout de suite.
-    let (st, n) = req(&app, "POST", &notes, &ta, Some(json!({ "body": "je t'aime" }))).await;
+    let (st, n) = req(
+        &app,
+        "POST",
+        &notes,
+        &ta,
+        Some(json!({ "body": "je t'aime" })),
+    )
+    .await;
     assert_eq!(st, StatusCode::CREATED);
     assert_eq!(n["sealed"], false);
     let (_, list_b) = req(&app, "GET", &notes, &tb, None).await;
@@ -1066,8 +1192,7 @@ async fn mots_doux_immediat_differe_scelle_et_autz(pool: PgPool) {
     assert_eq!(st, StatusCode::BAD_REQUEST);
 
     // Mot différé d'Alice (ouverture demain) → SCELLÉ pour Bob (corps caché).
-    let tomorrow =
-        (chrono::Utc::now() + chrono::Duration::days(1)).to_rfc3339();
+    let tomorrow = (chrono::Utc::now() + chrono::Duration::days(1)).to_rfc3339();
     let (st, nd) = req(
         &app,
         "POST",
@@ -1089,7 +1214,10 @@ async fn mots_doux_immediat_differe_scelle_et_autz(pool: PgPool) {
         .find(|n| n["sealed"] == true)
         .expect("un mot scellé côté Bob");
     assert!(sealed["body"].is_null(), "corps masqué tant que scellé");
-    assert!(!sealed["openAt"].is_null(), "la date d'ouverture est visible");
+    assert!(
+        !sealed["openAt"].is_null(),
+        "la date d'ouverture est visible"
+    );
 
     // Bob ne peut pas supprimer le mot d'Alice (autz auteur·e → 404).
     let nid = n["id"].as_str().unwrap();
@@ -1112,7 +1240,9 @@ async fn auth_register_login_me_flux_et_mauvais_identifiants(pool: PgPool) {
         "POST",
         "/api/auth/register",
         "",
-        Some(json!({ "email": "  Zoe@Test.Local ", "displayName": "Zoe", "password": "motdepasse" })),
+        Some(
+            json!({ "email": "  Zoe@Test.Local ", "displayName": "Zoe", "password": "motdepasse" }),
+        ),
     )
     .await;
     assert_eq!(st, StatusCode::CREATED);
@@ -1172,11 +1302,25 @@ async fn update_me_change_le_nom_et_valide(pool: PgPool) {
     let token = r["token"].as_str().unwrap().to_string();
 
     // Nom vide → 400.
-    let (st, _) = req(&app, "PATCH", "/api/auth/me", &token, Some(json!({ "displayName": "  " }))).await;
+    let (st, _) = req(
+        &app,
+        "PATCH",
+        "/api/auth/me",
+        &token,
+        Some(json!({ "displayName": "  " })),
+    )
+    .await;
     assert_eq!(st, StatusCode::BAD_REQUEST);
 
     // Renommage OK (trim appliqué).
-    let (st, u) = req(&app, "PATCH", "/api/auth/me", &token, Some(json!({ "displayName": "  Après  " }))).await;
+    let (st, u) = req(
+        &app,
+        "PATCH",
+        "/api/auth/me",
+        &token,
+        Some(json!({ "displayName": "  Après  " })),
+    )
+    .await;
     assert_eq!(st, StatusCode::OK);
     assert_eq!(u["displayName"], "Après");
 
@@ -1195,11 +1339,25 @@ async fn auth_register_refuse_mdp_court_et_email_deja_pris(pool: PgPool) {
     assert_eq!(st, StatusCode::BAD_REQUEST);
 
     // Création OK.
-    let (st, _) = req(&app, "POST", "/api/auth/register", "", Some(body("motdepasse"))).await;
+    let (st, _) = req(
+        &app,
+        "POST",
+        "/api/auth/register",
+        "",
+        Some(body("motdepasse")),
+    )
+    .await;
     assert_eq!(st, StatusCode::CREATED);
 
     // Email déjà pris → 400 générique (jamais « email existe »).
-    let (st, _) = req(&app, "POST", "/api/auth/register", "", Some(body("autremotdepasse"))).await;
+    let (st, _) = req(
+        &app,
+        "POST",
+        "/api/auth/register",
+        "",
+        Some(body("autremotdepasse")),
+    )
+    .await;
     assert_eq!(st, StatusCode::BAD_REQUEST);
 }
 
@@ -1210,9 +1368,7 @@ async fn auth_register_refuse_mdp_court_et_email_deja_pris(pool: PgPool) {
 #[sqlx::test]
 async fn register_rate_limite_apres_n_tentatives(pool: PgPool) {
     let (app, _state) = build_app(pool.clone());
-    let body = |n: usize| {
-        json!({ "email": format!("rl{n}@test.local"), "displayName": "RL", "password": "motdepasse" })
-    };
+    let body = |n: usize| json!({ "email": format!("rl{n}@test.local"), "displayName": "RL", "password": "motdepasse" });
     // Les REGISTER_MAX_ATTEMPTS (5) premières tentatives passent la garde de
     // rate limiting (chacune un email distinct → 201, pas de 400 « déjà pris »).
     for i in 0..5 {
@@ -1278,14 +1434,21 @@ async fn upload_media_rate_limite_apres_n_tentatives(pool: PgPool) {
                     .method("POST")
                     .uri(format!("/api/spaces/{space}/media"))
                     .header(header::AUTHORIZATION, format!("Bearer {ta}"))
-                    .header(header::CONTENT_TYPE, format!("multipart/form-data; boundary={b}"))
+                    .header(
+                        header::CONTENT_TYPE,
+                        format!("multipart/form-data; boundary={b}"),
+                    )
                     .header("x-real-ip", "127.0.0.1")
                     .body(Body::from(body.clone()))
                     .unwrap(),
             )
             .await
             .unwrap();
-        assert_eq!(resp.status(), StatusCode::CREATED, "upload {i} sous la limite");
+        assert_eq!(
+            resp.status(),
+            StatusCode::CREATED,
+            "upload {i} sous la limite"
+        );
     }
     // Le 31e est bloqué.
     let resp = app
@@ -1295,7 +1458,10 @@ async fn upload_media_rate_limite_apres_n_tentatives(pool: PgPool) {
                 .method("POST")
                 .uri(format!("/api/spaces/{space}/media"))
                 .header(header::AUTHORIZATION, format!("Bearer {ta}"))
-                .header(header::CONTENT_TYPE, format!("multipart/form-data; boundary={b}"))
+                .header(
+                    header::CONTENT_TYPE,
+                    format!("multipart/form-data; boundary={b}"),
+                )
                 .header("x-real-ip", "127.0.0.1")
                 .body(Body::from(body))
                 .unwrap(),
@@ -1329,7 +1495,11 @@ async fn logout_all_revoque_les_anciens_jetons(pool: PgPool) {
 
     // Le jeton d'avant le logout-all est invalidé (min_token_iat).
     let (st, _) = req(&app, "GET", "/api/auth/me", &token, None).await;
-    assert_eq!(st, StatusCode::UNAUTHORIZED, "ancien jeton révoqué (SEC-003)");
+    assert_eq!(
+        st,
+        StatusCode::UNAUTHORIZED,
+        "ancien jeton révoqué (SEC-003)"
+    );
 }
 
 #[sqlx::test]
@@ -1340,11 +1510,25 @@ async fn seen_marque_et_liste_et_refuse_fil_inconnu(pool: PgPool) {
     let ta = token_for(&state, alice);
 
     // Fil inconnu → 400.
-    let (st, _) = req(&app, "PUT", &format!("/api/spaces/{space}/seen/inconnu"), &ta, None).await;
+    let (st, _) = req(
+        &app,
+        "PUT",
+        &format!("/api/spaces/{space}/seen/inconnu"),
+        &ta,
+        None,
+    )
+    .await;
     assert_eq!(st, StatusCode::BAD_REQUEST);
 
     // Marque « blog » vu.
-    let (st, e) = req(&app, "PUT", &format!("/api/spaces/{space}/seen/blog"), &ta, None).await;
+    let (st, e) = req(
+        &app,
+        "PUT",
+        &format!("/api/spaces/{space}/seen/blog"),
+        &ta,
+        None,
+    )
+    .await;
     assert_eq!(st, StatusCode::OK);
     assert_eq!(e["feature"], "blog");
 
@@ -1415,7 +1599,14 @@ async fn notification_creee_listee_marquee_lue_et_isolee_par_destinataire(pool: 
     assert_eq!(st, StatusCode::NO_CONTENT);
 
     // Un id inconnu → 404.
-    let (st, _) = req(&app, "PUT", &format!("{notifs}/{}/read", Uuid::new_v4()), &tb, None).await;
+    let (st, _) = req(
+        &app,
+        "PUT",
+        &format!("{notifs}/{}/read", Uuid::new_v4()),
+        &tb,
+        None,
+    )
+    .await;
     assert_eq!(st, StatusCode::NOT_FOUND);
 }
 
@@ -1448,7 +1639,14 @@ async fn notifications_refuse_un_non_membre(pool: PgPool) {
     let intrus = seed_user(&pool, "intrus").await;
     let space = seed_space(&pool, alice).await;
     let t = token_for(&state, intrus);
-    let (st, _) = req(&app, "GET", &format!("/api/spaces/{space}/notifications"), &t, None).await;
+    let (st, _) = req(
+        &app,
+        "GET",
+        &format!("/api/spaces/{space}/notifications"),
+        &t,
+        None,
+    )
+    .await;
     assert_eq!(st, StatusCode::FORBIDDEN);
 }
 
@@ -2001,7 +2199,11 @@ async fn backfill_0039_relie_le_commentaire_precis(pool: PgPool) {
     .fetch_one(&pool)
     .await
     .unwrap();
-    assert_eq!(entity_id, Some(post.to_string()), "entity_id (le post) inchangé");
+    assert_eq!(
+        entity_id,
+        Some(post.to_string()),
+        "entity_id (le post) inchangé"
+    );
     assert_eq!(
         comment_id,
         Some(comment2.to_string()),
@@ -2022,31 +2224,75 @@ async fn suggestions_crud_validation_et_autz(pool: PgPool) {
     let base = format!("/api/spaces/{space}/suggestions");
 
     // Intensité invalide → 400.
-    let (st, _) = req(&app, "POST", &base, &ta, Some(json!({ "title": "X", "description": "", "intensity": "nope" }))).await;
+    let (st, _) = req(
+        &app,
+        "POST",
+        &base,
+        &ta,
+        Some(json!({ "title": "X", "description": "", "intensity": "nope" })),
+    )
+    .await;
     assert_eq!(st, StatusCode::BAD_REQUEST);
     // Titre vide → 400.
-    let (st, _) = req(&app, "POST", &base, &ta, Some(json!({ "title": "  ", "description": "", "intensity": "hot" }))).await;
+    let (st, _) = req(
+        &app,
+        "POST",
+        &base,
+        &ta,
+        Some(json!({ "title": "  ", "description": "", "intensity": "hot" })),
+    )
+    .await;
     assert_eq!(st, StatusCode::BAD_REQUEST);
 
     // Création OK.
-    let (st, s) = req(&app, "POST", &base, &ta, Some(json!({ "title": "Mon idée", "description": "d", "intensity": "hot" }))).await;
+    let (st, s) = req(
+        &app,
+        "POST",
+        &base,
+        &ta,
+        Some(json!({ "title": "Mon idée", "description": "d", "intensity": "hot" })),
+    )
+    .await;
     assert_eq!(st, StatusCode::CREATED);
     let sid = s["id"].as_str().unwrap().to_string();
 
     // La banque du salon contient ma suggestion.
     let (st, list) = req(&app, "GET", &base, &ta, None).await;
     assert_eq!(st, StatusCode::OK);
-    assert!(list.as_array().unwrap().iter().any(|x| x["id"].as_str().unwrap() == sid));
+    assert!(list
+        .as_array()
+        .unwrap()
+        .iter()
+        .any(|x| x["id"].as_str().unwrap() == sid));
 
     // Bob (non créateur) ne peut pas l'éditer → 404 (SEC-013).
-    let (st, _) = req(&app, "PATCH", &format!("{base}/{sid}"), &tb, Some(json!({ "title": "pirate", "description": "", "intensity": "hot" }))).await;
+    let (st, _) = req(
+        &app,
+        "PATCH",
+        &format!("{base}/{sid}"),
+        &tb,
+        Some(json!({ "title": "pirate", "description": "", "intensity": "hot" })),
+    )
+    .await;
     assert_eq!(st, StatusCode::NOT_FOUND);
 
     // Masquer (#70) → 204, la liste la marque hidden.
-    let (st, _) = req(&app, "PUT", &format!("{base}/{sid}/hidden"), &ta, Some(json!({ "hidden": true }))).await;
+    let (st, _) = req(
+        &app,
+        "PUT",
+        &format!("{base}/{sid}/hidden"),
+        &ta,
+        Some(json!({ "hidden": true })),
+    )
+    .await;
     assert_eq!(st, StatusCode::NO_CONTENT);
     let (_, list) = req(&app, "GET", &base, &ta, None).await;
-    let mine = list.as_array().unwrap().iter().find(|x| x["id"].as_str().unwrap() == sid).unwrap();
+    let mine = list
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|x| x["id"].as_str().unwrap() == sid)
+        .unwrap();
     assert_eq!(mine["hidden"], true);
 
     // Le créateur supprime → 204.
@@ -2074,7 +2320,14 @@ async fn menu_du_soir_services_parametrables_et_choix_hors_categorie(pool: PgPoo
     let patch = format!("/api/spaces/{space}");
     let list = format!("/api/spaces/{space}/evening-menu");
 
-    let (st, _) = req(&app, "PATCH", &patch, &ta, Some(json!({ "eveningMenuEnabled": true }))).await;
+    let (st, _) = req(
+        &app,
+        "PATCH",
+        &patch,
+        &ta,
+        Some(json!({ "eveningMenuEnabled": true })),
+    )
+    .await;
     assert_eq!(st, StatusCode::OK);
 
     let find = |items: &serde_json::Value, code: &str| -> serde_json::Value {
@@ -2089,7 +2342,11 @@ async fn menu_du_soir_services_parametrables_et_choix_hors_categorie(pool: PgPoo
 
     // La catégorie transverse « evening » a disparu (#0042).
     let (_, all) = req(&app, "GET", &list, &ta, None).await;
-    assert!(all.as_array().unwrap().iter().all(|i| i["category"] != "evening"));
+    assert!(all
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|i| i["category"] != "evening"));
 
     // Défaut du catalogue : un item de « places » n'est dans aucun service,
     // mais reste listé (choisissable hors catégorie).
@@ -2104,7 +2361,11 @@ async fn menu_du_soir_services_parametrables_et_choix_hors_categorie(pool: PgPoo
     assert_eq!(places[0]["course"], "");
     let place_code = places[0]["code"].as_str().unwrap().to_string();
     // Le prompt rotatif n'est pas un choix du soir.
-    assert!(items.as_array().unwrap().iter().all(|i| i["code"] != "positions-new-monthly"));
+    assert!(items
+        .as_array()
+        .unwrap()
+        .iter()
+        .all(|i| i["code"] != "positions-new-monthly"));
 
     // Choisir cet item DEPUIS « dessert » : le service est mémorisé.
     let (st, picked) = req(
@@ -2163,10 +2424,23 @@ async fn menu_du_soir_services_parametrables_et_choix_hors_categorie(pool: PgPoo
     );
     let (_, after) = req(&app, "GET", &list, &ta, None).await;
     let t = find(&after, &tender_code);
-    assert_eq!(t["courses"], json!(["main", "dessert"]), "une catégorie nourrit plusieurs services");
+    assert_eq!(
+        t["courses"],
+        json!(["main", "dessert"]),
+        "une catégorie nourrit plusieurs services"
+    );
     assert_eq!(t["course"], "main", "service affiché = le premier proposé");
-    let games = after.as_array().unwrap().iter().find(|i| i["category"] == "games").unwrap();
-    assert_eq!(games["courses"], json!([]), "catégorie décochée partout : aucun service");
+    let games = after
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|i| i["category"] == "games")
+        .unwrap();
+    assert_eq!(
+        games["courses"],
+        json!([]),
+        "catégorie décochée partout : aucun service"
+    );
     assert_eq!(games["course"], "");
 
     // Validation : service inconnu, catégorie inconnue, doublon, mal formé → 400.
@@ -2215,7 +2489,14 @@ async fn menu_du_soir_aveugle_ne_fuite_ni_le_service_ni_un_evenement(pool: PgPoo
     let tb = token_for(&state, bob);
     let patch = format!("/api/spaces/{space}");
     let list = format!("/api/spaces/{space}/evening-menu");
-    let (st, _) = req(&app, "PATCH", &patch, &ta, Some(json!({ "eveningMenuEnabled": true }))).await;
+    let (st, _) = req(
+        &app,
+        "PATCH",
+        &patch,
+        &ta,
+        Some(json!({ "eveningMenuEnabled": true })),
+    )
+    .await;
     assert_eq!(st, StatusCode::OK);
 
     // Un item hors de tout service par défaut (« places ») : course = "".
@@ -2245,15 +2526,26 @@ async fn menu_du_soir_aveugle_ne_fuite_ni_le_service_ni_un_evenement(pool: PgPoo
 
     // Bob ne doit rien déduire : service inchangé, pas coché, pas matché.
     let (_, items_b) = req(&app, "GET", &list, &tb, None).await;
-    let it = items_b.as_array().unwrap().iter().find(|i| i["code"] == code).unwrap();
-    assert_eq!(it["course"], "", "le service du choix d'Alice ne doit pas fuiter");
+    let it = items_b
+        .as_array()
+        .unwrap()
+        .iter()
+        .find(|i| i["code"] == code)
+        .unwrap();
+    assert_eq!(
+        it["course"], "",
+        "le service du choix d'Alice ne doit pas fuiter"
+    );
     assert_eq!(it["picked"], false);
     assert_eq!(it["partnerWants"], false);
 
     // Et la réponse à Bob qui coche à son tour (match) révèle alors le service.
     let (_, bobs) = req(&app, "PUT", &format!("{list}/{code}"), &tb, None).await;
     assert_eq!(bobs["matched"], true);
-    assert_eq!(bobs["course"], "dessert", "révélé seulement une fois le match fait");
+    assert_eq!(
+        bobs["course"], "dessert",
+        "révélé seulement une fois le match fait"
+    );
     // (le match émet un évènement ; on le consomme avant la suite)
     while rx.try_recv().is_ok() {}
 
@@ -2297,11 +2589,24 @@ async fn menu_du_soir_aveugle_j_ai_fini_devoile_les_non_matchs(pool: PgPool) {
     let list = format!("/api/spaces/{space}/evening-menu");
     let status = format!("/api/spaces/{space}/evening-menu-status");
     let done = format!("/api/spaces/{space}/evening-menu-done");
-    let (st, _) = req(&app, "PATCH", &patch, &ta, Some(json!({ "eveningMenuEnabled": true }))).await;
+    let (st, _) = req(
+        &app,
+        "PATCH",
+        &patch,
+        &ta,
+        Some(json!({ "eveningMenuEnabled": true })),
+    )
+    .await;
     assert_eq!(st, StatusCode::OK);
 
     let find = |items: &serde_json::Value, code: &str| -> serde_json::Value {
-        items.as_array().unwrap().iter().find(|i| i["code"] == code).unwrap().clone()
+        items
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|i| i["code"] == code)
+            .unwrap()
+            .clone()
     };
     // Alice : massage + film ; Bob : massage + bain (« evening-bath » est désactivé : cuddle).
     let (a1, a2, b2) = ("evening-massage", "evening-movie", "evening-cuddle");
@@ -2315,7 +2620,14 @@ async fn menu_du_soir_aveugle_j_ai_fini_devoile_les_non_matchs(pool: PgPool) {
     }
 
     let (_, s) = req(&app, "GET", &status, &ta, None).await;
-    assert_eq!((s["meDone"].clone(), s["doneCount"].clone(), s["memberCount"].clone()), (json!(false), json!(0), json!(2)));
+    assert_eq!(
+        (
+            s["meDone"].clone(),
+            s["doneCount"].clone(),
+            s["memberCount"].clone()
+        ),
+        (json!(false), json!(0), json!(2))
+    );
 
     // Alice valide : verrouillée, rien n'est dévoilé à Bob.
     let (st, s) = req(&app, "PUT", &done, &ta, None).await;
@@ -2323,9 +2635,17 @@ async fn menu_du_soir_aveugle_j_ai_fini_devoile_les_non_matchs(pool: PgPool) {
     assert_eq!(s["meDone"], true);
     assert_eq!(s["revealed"], false);
     let (st, _) = req(&app, "PUT", &format!("{list}/evening-bath"), &ta, None).await;
-    assert_eq!(st, StatusCode::CONFLICT, "choix verrouillés après validation");
+    assert_eq!(
+        st,
+        StatusCode::CONFLICT,
+        "choix verrouillés après validation"
+    );
     let (_, items_b) = req(&app, "GET", &list, &tb, None).await;
-    assert_eq!(find(&items_b, a2)["partnerWants"], false, "rien de dévoilé tant que Bob n'a pas fini");
+    assert_eq!(
+        find(&items_b, a2)["partnerWants"],
+        false,
+        "rien de dévoilé tant que Bob n'a pas fini"
+    );
 
     // Alice se ravise (Bob n'a pas fini) : déverrouillée, puis revalide.
     let (st, s) = req(&app, "DELETE", &done, &ta, None).await;
@@ -2356,26 +2676,51 @@ async fn menu_du_soir_aveugle_j_ai_fini_devoile_les_non_matchs(pool: PgPool) {
             .unwrap()
         }
     };
-    assert_eq!(kinds(alice).await.len(), 1, "notification de dévoilement pour Alice");
+    assert_eq!(
+        kinds(alice).await.len(),
+        1,
+        "notification de dévoilement pour Alice"
+    );
     assert!(kinds(bob).await.is_empty());
     let (_, items_b) = req(&app, "GET", &list, &tb, None).await;
     assert_eq!(find(&items_b, a1)["matched"], true);
     let film = find(&items_b, a2);
     assert_eq!(film["picked"], false);
     assert_eq!(film["matched"], false);
-    assert_eq!(film["partnerWants"], true, "le choix non matché d'Alice est dévoilé");
+    assert_eq!(
+        film["partnerWants"], true,
+        "le choix non matché d'Alice est dévoilé"
+    );
     let (_, items_a) = req(&app, "GET", &list, &ta, None).await;
-    assert_eq!(find(&items_a, b2)["partnerWants"], true, "et réciproquement");
+    assert_eq!(
+        find(&items_a, b2)["partnerWants"],
+        true,
+        "et réciproquement"
+    );
 
     // Définitif : plus de retrait de validation, plus de choix.
     let (st, _) = req(&app, "DELETE", &done, &tb, None).await;
     assert_eq!(st, StatusCode::CONFLICT);
     // Dévoilé : seules les idées de l'autre se valident (rien d'autre à choisir).
-    let (st, _) = req(&app, "PUT", &format!("{list}/evening-passionate"), &tb, None).await;
+    let (st, _) = req(
+        &app,
+        "PUT",
+        &format!("{list}/evening-passionate"),
+        &tb,
+        None,
+    )
+    .await;
     assert_eq!(st, StatusCode::CONFLICT);
 
     // Mode ouvert : pas de « J'ai fini » (tout est déjà visible).
-    let (st, _) = req(&app, "PATCH", &patch, &ta, Some(json!({ "eveningMenuBlind": false }))).await;
+    let (st, _) = req(
+        &app,
+        "PATCH",
+        &patch,
+        &ta,
+        Some(json!({ "eveningMenuBlind": false })),
+    )
+    .await;
     assert_eq!(st, StatusCode::OK);
     let (st, _) = req(&app, "PUT", &done, &ta, None).await;
     assert_eq!(st, StatusCode::BAD_REQUEST);
@@ -2394,15 +2739,32 @@ async fn menu_du_soir_apres_devoilement_valider_ou_refuser(pool: PgPool) {
     let tb = token_for(&state, bob);
     let list = format!("/api/spaces/{space}/evening-menu");
     let done = format!("/api/spaces/{space}/evening-menu-done");
-    let (st, _) = req(&app, "PATCH", &format!("/api/spaces/{space}"), &ta, Some(json!({ "eveningMenuEnabled": true }))).await;
+    let (st, _) = req(
+        &app,
+        "PATCH",
+        &format!("/api/spaces/{space}"),
+        &ta,
+        Some(json!({ "eveningMenuEnabled": true })),
+    )
+    .await;
     assert_eq!(st, StatusCode::OK);
     let find = |items: &serde_json::Value, code: &str| -> serde_json::Value {
-        items.as_array().unwrap().iter().find(|i| i["code"] == code).unwrap().clone()
+        items
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|i| i["code"] == code)
+            .unwrap()
+            .clone()
     };
 
     // Alice : massage (commun), film, câlins. Bob : massage (commun), jeu.
-    let (common, a_film, a_cuddle, b_game) =
-        ("evening-massage", "evening-movie", "evening-cuddle", "evening-game");
+    let (common, a_film, a_cuddle, b_game) = (
+        "evening-massage",
+        "evening-movie",
+        "evening-cuddle",
+        "evening-game",
+    );
     for code in [common, a_film, a_cuddle] {
         req(&app, "PUT", &format!("{list}/{code}"), &ta, None).await;
     }
@@ -2410,7 +2772,14 @@ async fn menu_du_soir_apres_devoilement_valider_ou_refuser(pool: PgPool) {
         req(&app, "PUT", &format!("{list}/{code}"), &tb, None).await;
     }
     // Avant dévoilement : le refus reste indisponible en aveugle.
-    let (st, _) = req(&app, "PUT", &format!("{list}/{a_film}"), &tb, Some(json!({ "stance": "refused" }))).await;
+    let (st, _) = req(
+        &app,
+        "PUT",
+        &format!("{list}/{a_film}"),
+        &tb,
+        Some(json!({ "stance": "refused" })),
+    )
+    .await;
     assert_eq!(st, StatusCode::BAD_REQUEST);
     req(&app, "PUT", &done, &ta, None).await;
     req(&app, "PUT", &done, &tb, None).await;
@@ -2418,23 +2787,46 @@ async fn menu_du_soir_apres_devoilement_valider_ou_refuser(pool: PgPool) {
     // Le match d'origine est « par coïncidence », pas « validé ensemble ».
     let (_, items_b) = req(&app, "GET", &list, &tb, None).await;
     let m = find(&items_b, common);
-    assert_eq!((m["matched"].clone(), m["agreed"].clone()), (json!(true), json!(false)));
+    assert_eq!(
+        (m["matched"].clone(), m["agreed"].clone()),
+        (json!(true), json!(false))
+    );
 
     // Bob valide le film d'Alice → match « validé ensemble », des deux côtés.
     let (st, r) = req(&app, "PUT", &format!("{list}/{a_film}"), &tb, None).await;
     assert_eq!(st, StatusCode::OK);
-    assert_eq!((r["matched"].clone(), r["agreed"].clone(), r["responded"].clone()), (json!(true), json!(true), json!(true)));
+    assert_eq!(
+        (
+            r["matched"].clone(),
+            r["agreed"].clone(),
+            r["responded"].clone()
+        ),
+        (json!(true), json!(true), json!(true))
+    );
     let (_, items_a) = req(&app, "GET", &list, &ta, None).await;
     let f = find(&items_a, a_film);
-    assert_eq!((f["matched"].clone(), f["agreed"].clone()), (json!(true), json!(true)));
+    assert_eq!(
+        (f["matched"].clone(), f["agreed"].clone()),
+        (json!(true), json!(true))
+    );
 
     // Bob se ravise : sa réponse tardive se retire (l'idée d'Alice reste proposée).
     let (st, r) = req(&app, "DELETE", &format!("{list}/{a_film}"), &tb, None).await;
     assert_eq!(st, StatusCode::OK);
-    assert_eq!((r["matched"].clone(), r["partnerWants"].clone()), (json!(false), json!(true)));
+    assert_eq!(
+        (r["matched"].clone(), r["partnerWants"].clone()),
+        (json!(false), json!(true))
+    );
 
     // Bob refuse les câlins d'Alice : refusé pour les deux.
-    let (st, r) = req(&app, "PUT", &format!("{list}/{a_cuddle}"), &tb, Some(json!({ "stance": "refused" }))).await;
+    let (st, r) = req(
+        &app,
+        "PUT",
+        &format!("{list}/{a_cuddle}"),
+        &tb,
+        Some(json!({ "stance": "refused" })),
+    )
+    .await;
     assert_eq!(st, StatusCode::OK);
     assert_eq!(r["refused"], true);
     let (_, items_a) = req(&app, "GET", &list, &ta, None).await;
@@ -2448,7 +2840,14 @@ async fn menu_du_soir_apres_devoilement_valider_ou_refuser(pool: PgPool) {
     // Verrous : un item que l'autre n'a pas proposé, ou son menu d'origine → 409.
     let (st, _) = req(&app, "PUT", &format!("{list}/evening-newThing"), &tb, None).await;
     assert_eq!(st, StatusCode::CONFLICT);
-    let (st, _) = req(&app, "PUT", &format!("{list}/evening-passionate"), &tb, None).await;
+    let (st, _) = req(
+        &app,
+        "PUT",
+        &format!("{list}/evening-passionate"),
+        &tb,
+        None,
+    )
+    .await;
     assert_eq!(st, StatusCode::CONFLICT);
     let (st, _) = req(&app, "DELETE", &format!("{list}/{b_game}"), &tb, None).await;
     assert_eq!(st, StatusCode::CONFLICT, "le menu d'origine reste figé");
@@ -2464,16 +2863,37 @@ async fn menu_du_soir_validations_et_purge(pool: PgPool) {
     let ta = token_for(&state, alice);
     let patch = format!("/api/spaces/{space}");
     let list = format!("/api/spaces/{space}/evening-menu");
-    let (st, _) = req(&app, "PATCH", &patch, &ta, Some(json!({ "eveningMenuEnabled": true }))).await;
+    let (st, _) = req(
+        &app,
+        "PATCH",
+        &patch,
+        &ta,
+        Some(json!({ "eveningMenuEnabled": true })),
+    )
+    .await;
     assert_eq!(st, StatusCode::OK);
 
     // Stance inconnu → 400.
-    let (st, _) = req(&app, "PUT", &format!("{list}/evening-massage"), &ta, Some(json!({ "stance": "peut-etre" }))).await;
+    let (st, _) = req(
+        &app,
+        "PUT",
+        &format!("{list}/evening-massage"),
+        &ta,
+        Some(json!({ "stance": "peut-etre" })),
+    )
+    .await;
     assert_eq!(st, StatusCode::BAD_REQUEST);
 
     // Plus de 64 entrées de classement → 400 (borne anti-abus).
     let many: Vec<String> = (0..65).map(|i| format!("main:cat{i}")).collect();
-    let (st, _) = req(&app, "PATCH", &patch, &ta, Some(json!({ "eveningCourseCategories": many }))).await;
+    let (st, _) = req(
+        &app,
+        "PATCH",
+        &patch,
+        &ta,
+        Some(json!({ "eveningCourseCategories": many })),
+    )
+    .await;
     assert_eq!(st, StatusCode::BAD_REQUEST);
 
     // Purge : une coche et une validation vieilles de 3 jours disparaissent,
@@ -2498,10 +2918,11 @@ async fn menu_du_soir_validations_et_purge(pool: PgPool) {
     .await
     .unwrap();
     crate::routes::evening_menu::purge_old_picks(&pool).await;
-    let picks: Vec<String> = sqlx::query_scalar("SELECT code FROM evening_menu_picks ORDER BY code")
-        .fetch_all(&pool)
-        .await
-        .unwrap();
+    let picks: Vec<String> =
+        sqlx::query_scalar("SELECT code FROM evening_menu_picks ORDER BY code")
+            .fetch_all(&pool)
+            .await
+            .unwrap();
     assert_eq!(picks, vec!["evening-movie".to_string()]);
     let dones: i64 = sqlx::query_scalar("SELECT count(*) FROM evening_menu_done")
         .fetch_one(&pool)

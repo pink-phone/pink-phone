@@ -1,0 +1,8 @@
+# Findings Trivy connus et assumés (`trivy fs`, CI : security.yml). Chaque entrée
+# doit dire POURQUOI et ce qui permettrait de la retirer.
+#
+# DS-0002 — les images api/web tournent en root (pas d'instruction USER dans
+# backend/Dockerfile ni frontend/Dockerfile). À durcir : utilisateur non-root
+# pour l'API (propriété de MEDIA_DIR/volumes à adapter) et nginx-unprivileged
+# (port ≠ 80) pour le web ; touche le déploiement → à faire à part, testé.
+DS-0002

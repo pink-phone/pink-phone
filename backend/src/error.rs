@@ -117,7 +117,11 @@ mod tests {
 
         // TooManyRequests
         let e = ApiError::TooManyRequests("trop de tentatives".into());
-        assert_eq!(e.status(), StatusCode::TOO_MANY_REQUESTS, "TooManyRequests status");
+        assert_eq!(
+            e.status(),
+            StatusCode::TOO_MANY_REQUESTS,
+            "TooManyRequests status"
+        );
         assert_eq!(e.code(), "too_many_requests", "TooManyRequests code");
 
         // Internal
@@ -135,10 +139,7 @@ mod tests {
             ApiError::BadRequest("champ requis".into()).to_string(),
             "champ requis"
         );
-        assert_eq!(
-            ApiError::Conflict("doublon".into()).to_string(),
-            "doublon"
-        );
+        assert_eq!(ApiError::Conflict("doublon".into()).to_string(), "doublon");
     }
 
     /// Les messages fixes des variantes sans payload sont stables (contrat API).

@@ -545,9 +545,15 @@ mod tests {
 
     #[test]
     fn transitions_autorisees() {
-        assert!(challenge_transition_allowed("proposed", "challengeAccepted"));
+        assert!(challenge_transition_allowed(
+            "proposed",
+            "challengeAccepted"
+        ));
         assert!(challenge_transition_allowed("proposed", "maybeMaybe"));
-        assert!(challenge_transition_allowed("maybeMaybe", "challengeAccepted"));
+        assert!(challenge_transition_allowed(
+            "maybeMaybe",
+            "challengeAccepted"
+        ));
         assert!(challenge_transition_allowed("challengeAccepted", "jobDone"));
     }
 
@@ -567,7 +573,10 @@ mod tests {
         assert!(!challenge_transition_allowed("proposed", "jobDone"));
         assert!(!challenge_transition_allowed("maybeMaybe", "jobDone"));
         assert!(!challenge_transition_allowed("jobDone", "proposed"));
-        assert!(!challenge_transition_allowed("challengeAccepted", "maybeMaybe"));
+        assert!(!challenge_transition_allowed(
+            "challengeAccepted",
+            "maybeMaybe"
+        ));
         assert!(!challenge_transition_allowed("proposed", "proposed"));
         assert!(!challenge_transition_allowed("inconnu", "jobDone"));
     }

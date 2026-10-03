@@ -3,9 +3,7 @@ use axum::extract::FromRequestParts;
 use axum::http::header::AUTHORIZATION;
 use axum::http::request::Parts;
 use chrono::{Duration, Utc};
-use jsonwebtoken::{
-    decode, encode, DecodingKey, EncodingKey, Header, Validation,
-};
+use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 

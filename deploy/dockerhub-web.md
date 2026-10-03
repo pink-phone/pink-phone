@@ -13,7 +13,7 @@ This image is **one half** of the stack. It is not meant to run alone — use th
 
 ## What it does
 
-nginx serving the installable **PWA** (service worker, offline fonts, dark "felted" UI) **and** reverse-proxying `/api` — including the WebSocket upgrade — to the `api` service. So everything is **same-origin** (no CORS). Listens on **:80** inside the container.
+nginx serving the installable **PWA** (service worker, offline fonts, dark "felted" UI) **and** reverse-proxying `/api` — including the WebSocket upgrade — to the `api` service. So everything is **same-origin** (no CORS). Runs as a non-root user (nginx-unprivileged) and listens on **:8080** inside the container.
 
 ## Run it
 
@@ -29,7 +29,7 @@ MEDIA_KEY=$(openssl rand -base64 32) \
 docker compose up -d
 ```
 
-This is the **only service you expose** (default host port `8095` → container `80`). Put a reverse proxy in front for your domain + TLS; make sure it forwards the WebSocket upgrade headers on `/api`. Full guide: **[INSTALL.md](https://github.com/pink-phone/pink-phone/blob/main/INSTALL.md)**.
+This is the **only service you expose** (default host port `8095` → container `8080`). Put a reverse proxy in front for your domain + TLS; make sure it forwards the WebSocket upgrade headers on `/api`. Full guide: **[INSTALL.md](https://github.com/pink-phone/pink-phone/blob/main/INSTALL.md)**.
 
 ## Ports & wiring
 
@@ -37,7 +37,7 @@ This image is **static** — it has **no runtime environment variables** (all co
 
 | | |
 |---|---|
-| **Listens on** | `80` (container). Map it to a host port — the Compose file uses `WEB_PORT`, default `8095`. |
+| **Listens on** | `8080` (container, non-root). Map it to a host port — the Compose file uses `WEB_PORT`, default `8095`. |
 | **Upstream** | proxies `/api` (incl. the WebSocket `…/ws`) to **`http://api:8080`** (hard-coded) → the API must be reachable as host **`api`** on the same Docker network. |
 | **Max upload** | `100 MB` (matches the API's media limit). |
 | **Reverse proxy** | put one in front for your domain + TLS, and forward the WebSocket upgrade headers on `/api`. |

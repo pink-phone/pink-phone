@@ -108,7 +108,10 @@ mod tests {
         assert_eq!(escape_for_log("ligne1\nligne2"), "ligne1\\nligne2");
         assert_eq!(escape_for_log("retour\rchariot"), "retour\\rchariot");
         // Séquence d'échappement ANSI (ESC = \x1b) : échappée, pas interprétée.
-        assert_eq!(escape_for_log("\x1b[31mrouge\x1b[0m"), "\\u{1b}[31mrouge\\u{1b}[0m");
+        assert_eq!(
+            escape_for_log("\x1b[31mrouge\x1b[0m"),
+            "\\u{1b}[31mrouge\\u{1b}[0m"
+        );
         assert_eq!(escape_for_log("message normal"), "message normal");
     }
 }

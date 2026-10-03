@@ -71,10 +71,7 @@ pub struct UpdateSpaceBody {
 
 /// Valide le classement du menu du soir : « <service>:<categorie> », service ∈
 /// starter|main|dessert, catégorie existante, pas de doublon.
-async fn validate_course_categories(
-    pool: &sqlx::PgPool,
-    entries: &[String],
-) -> ApiResult<()> {
+async fn validate_course_categories(pool: &sqlx::PgPool, entries: &[String]) -> ApiResult<()> {
     if entries.len() > 64 {
         return Err(ApiError::BadRequest("trop d'entrées".into()));
     }
@@ -221,13 +218,8 @@ async fn update_space(
     .await?;
 
     if download_enabled {
-        crate::routes::notices::record(
-            &state.pool,
-            space_id,
-            "download_enabled",
-            auth.user_id,
-        )
-        .await;
+        crate::routes::notices::record(&state.pool, space_id, "download_enabled", auth.user_id)
+            .await;
         crate::notifications::notify_members(
             &state,
             space_id,
@@ -244,10 +236,7 @@ async fn update_space(
     Ok(Json(space))
 }
 
-async fn my_spaces(
-    State(state): State<AppState>,
-    auth: AuthUser,
-) -> ApiResult<Json<Vec<Space>>> {
+async fn my_spaces(State(state): State<AppState>, auth: AuthUser) -> ApiResult<Json<Vec<Space>>> {
     let spaces: Vec<Space> = sqlx::query_as(
         "SELECT s.id, s.name, s.timezone, s.reactions, s.allow_custom_reactions, s.blind_mood, s.allow_media_download, s.desires_enabled, s.desires_explicit_labels, s.evening_menu_enabled, s.evening_menu_blind, s.evening_course_custom, s.evening_course_categories, s.created_at
          FROM spaces s
@@ -375,14 +364,13 @@ async fn join_by_invite(
     // Lookup insensible à la casse (#89) ; invitation verrouillée le temps de la
     // transaction. On récupère aussi le token (PK) pour la consommer.
     let code = crate::invite_code::normalize(&body.code);
-    let invite: Option<(Uuid, Uuid, Option<chrono::DateTime<chrono::Utc>>, bool)> =
-        sqlx::query_as(
-            "SELECT token, space_id, used_at, (expires_at < now()) AS expired
+    let invite: Option<(Uuid, Uuid, Option<chrono::DateTime<chrono::Utc>>, bool)> = sqlx::query_as(
+        "SELECT token, space_id, used_at, (expires_at < now()) AS expired
              FROM space_invites WHERE lower(code) = $1 FOR UPDATE",
-        )
-        .bind(&code)
-        .fetch_optional(&mut *tx)
-        .await?;
+    )
+    .bind(&code)
+    .fetch_optional(&mut *tx)
+    .await?;
     let (token, space_id, used_at, expired) =
         invite.ok_or(ApiError::BadRequest("invitation invalide".into()))?;
     if used_at.is_some() {
@@ -416,12 +404,11 @@ async fn join_by_invite(
         return Ok((StatusCode::OK, Json(space)));
     }
 
-    let count: i64 = sqlx::query_scalar(
-        "SELECT count(*) FROM space_memberships WHERE space_id = $1",
-    )
-    .bind(space_id)
-    .fetch_one(&mut *tx)
-    .await?;
+    let count: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM space_memberships WHERE space_id = $1")
+            .bind(space_id)
+            .fetch_one(&mut *tx)
+            .await?;
     if count >= MAX_MEMBERS {
         return Err(ApiError::Conflict("cet espace est déjà complet".into()));
     }
@@ -481,11 +468,9 @@ async fn members(
 /// Purge périodique des invitations devenues inutiles (consommées ou expirées) —
 /// borne la table `space_invites` (SEC-NEW-004). Best-effort (erreur journalisée).
 pub async fn purge_stale_invites(pool: &sqlx::PgPool) {
-    match sqlx::query(
-        "DELETE FROM space_invites WHERE used_at IS NOT NULL OR expires_at < now()",
-    )
-    .execute(pool)
-    .await
+    match sqlx::query("DELETE FROM space_invites WHERE used_at IS NOT NULL OR expires_at < now()")
+        .execute(pool)
+        .await
     {
         Ok(res) if res.rows_affected() > 0 => {
             tracing::info!(count = res.rows_affected(), "invitations périmées purgées");
@@ -501,8 +486,14 @@ mod tests {
 
     #[test]
     fn entree_de_service_bien_formee() {
-        assert_eq!(parse_course_category("main:positions"), Some(("main", "positions")));
-        assert_eq!(parse_course_category("starter:tender"), Some(("starter", "tender")));
+        assert_eq!(
+            parse_course_category("main:positions"),
+            Some(("main", "positions"))
+        );
+        assert_eq!(
+            parse_course_category("starter:tender"),
+            Some(("starter", "tender"))
+        );
     }
 
     #[test]
@@ -522,7 +513,8 @@ mod tests_integration_sql {
     /// quoi `create_invite` retenterait à l'infini ou masquerait une vraie panne.
     #[sqlx::test]
     async fn is_unique_violation_distingue_23505_des_autres_erreurs(pool: sqlx::PgPool) {
-        let insert = "INSERT INTO users (email, display_name, password_hash) VALUES ('a@x.test', 'a', 'x')";
+        let insert =
+            "INSERT INTO users (email, display_name, password_hash) VALUES ('a@x.test', 'a', 'x')";
         sqlx::query(insert).execute(&pool).await.unwrap();
         let doublon = sqlx::query(insert).execute(&pool).await.unwrap_err();
         assert!(is_unique_violation(&doublon));

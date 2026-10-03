@@ -311,15 +311,15 @@ async fn upload(
     Path(space_id): Path<Uuid>,
     mut multipart: Multipart,
 ) -> ApiResult<(StatusCode, Json<MediaCreated>)> {
-    if state
-        .rate_limiter
-        .is_limited(&format!("upload:ip:{}", ip.0), UPLOAD_MAX_ATTEMPTS, UPLOAD_WINDOW)
-        || state.rate_limiter.is_limited(
-            &format!("upload:user:{}", auth.user_id),
-            UPLOAD_MAX_ATTEMPTS,
-            UPLOAD_WINDOW,
-        )
-    {
+    if state.rate_limiter.is_limited(
+        &format!("upload:ip:{}", ip.0),
+        UPLOAD_MAX_ATTEMPTS,
+        UPLOAD_WINDOW,
+    ) || state.rate_limiter.is_limited(
+        &format!("upload:user:{}", auth.user_id),
+        UPLOAD_MAX_ATTEMPTS,
+        UPLOAD_WINDOW,
+    ) {
         return Err(ApiError::TooManyRequests(
             "trop d'uploads, réessaie dans une minute".into(),
         ));
@@ -371,8 +371,7 @@ async fn upload(
     let bytes = {
         let mime_for_strip = mime.clone();
         let original = bytes.clone(); // `Bytes::clone` = partage Arc, pas de copie (RUST-06)
-        match tokio::task::spawn_blocking(move || strip_metadata(&original, &mime_for_strip))
-            .await
+        match tokio::task::spawn_blocking(move || strip_metadata(&original, &mime_for_strip)).await
         {
             Ok(Some(stripped)) => Bytes::from(stripped),
             _ => bytes,
@@ -421,7 +420,14 @@ async fn upload(
     .fetch_one(&state.pool)
     .await?;
 
-    Ok((StatusCode::CREATED, Json(MediaCreated { id, mime, view_once })))
+    Ok((
+        StatusCode::CREATED,
+        Json(MediaCreated {
+            id,
+            mime,
+            view_once,
+        }),
+    ))
 }
 
 /// Lecture authentifiée : vérifie l'appartenance au space puis stream les octets.
@@ -462,8 +468,7 @@ async fn stream(
     }
 
     let path = media_path(&state.config.media_dir, &media.storage_key);
-    let content_type =
-        HeaderValue::from_str(&media.mime).map_err(|_| ApiError::Internal)?;
+    let content_type = HeaderValue::from_str(&media.mime).map_err(|_| ApiError::Internal)?;
 
     // view_once et chiffré : on doit lire le fichier entier en mémoire (le GCM
     // s'authentifie sur tout le blob ; le view_once se consomme après lecture).
@@ -566,9 +571,7 @@ async fn stream(
             resp.headers_mut().insert(CONTENT_TYPE, content_type);
             common_headers(resp.headers_mut(), len);
             *resp.status_mut() = StatusCode::PARTIAL_CONTENT;
-            if let Ok(cr) =
-                HeaderValue::from_str(&format!("bytes {start}-{end}/{total}"))
-            {
+            if let Ok(cr) = HeaderValue::from_str(&format!("bytes {start}-{end}/{total}")) {
                 resp.headers_mut().insert(CONTENT_RANGE, cr);
             }
             resp
@@ -640,7 +643,10 @@ pub async fn backfill_encryption(
         tracing::info!("backfill chiffrement : aucun média en clair, rien à faire.");
         return Ok(());
     }
-    tracing::info!(count = rows.len(), "backfill chiffrement : médias en clair à traiter");
+    tracing::info!(
+        count = rows.len(),
+        "backfill chiffrement : médias en clair à traiter"
+    );
 
     let mut done = 0usize;
     for (id, old_key) in rows {
@@ -706,7 +712,10 @@ pub async fn rotate_key(
         tracing::info!("rotation de clé média : aucun média.");
         return Ok(());
     }
-    tracing::info!(count = rows.len(), "rotation de clé média : médias à traiter");
+    tracing::info!(
+        count = rows.len(),
+        "rotation de clé média : médias à traiter"
+    );
 
     let mut rotated = 0usize;
     let mut skipped = 0usize;
@@ -776,22 +785,40 @@ mod tests {
 
     #[test]
     fn sans_header_full() {
-        assert!(matches!(parse_range(&HeaderMap::new(), 100), RangeReq::Full));
+        assert!(matches!(
+            parse_range(&HeaderMap::new(), 100),
+            RangeReq::Full
+        ));
     }
 
     #[test]
     fn plages_satisfiables() {
-        assert!(matches!(range("bytes=0-99", 1000), RangeReq::Partial(0, 99)));
-        assert!(matches!(range("bytes=100-", 1000), RangeReq::Partial(100, 999)));
+        assert!(matches!(
+            range("bytes=0-99", 1000),
+            RangeReq::Partial(0, 99)
+        ));
+        assert!(matches!(
+            range("bytes=100-", 1000),
+            RangeReq::Partial(100, 999)
+        ));
         // Suffixe : les 50 derniers octets.
-        assert!(matches!(range("bytes=-50", 1000), RangeReq::Partial(950, 999)));
+        assert!(matches!(
+            range("bytes=-50", 1000),
+            RangeReq::Partial(950, 999)
+        ));
         // `end` au-delà de la taille => borné à total-1.
-        assert!(matches!(range("bytes=0-100000", 1000), RangeReq::Partial(0, 999)));
+        assert!(matches!(
+            range("bytes=0-100000", 1000),
+            RangeReq::Partial(0, 999)
+        ));
     }
 
     #[test]
     fn plages_non_satisfiables() {
-        assert!(matches!(range("bytes=2000-3000", 1000), RangeReq::Unsatisfiable));
+        assert!(matches!(
+            range("bytes=2000-3000", 1000),
+            RangeReq::Unsatisfiable
+        ));
         assert!(matches!(range("bytes=abc", 1000), RangeReq::Unsatisfiable));
         assert!(matches!(range("bytes=-0", 1000), RangeReq::Unsatisfiable));
         // Ressource vide : aucune plage n'est satisfiable.
@@ -863,14 +890,26 @@ mod tests {
         let img = image::RgbImage::from_pixel(4, 4, image::Rgb([200, 50, 80]));
         let mut jpeg_bytes: Vec<u8> = Vec::new();
         image::DynamicImage::ImageRgb8(img)
-            .write_to(&mut std::io::Cursor::new(&mut jpeg_bytes), image::ImageFormat::Jpeg)
+            .write_to(
+                &mut std::io::Cursor::new(&mut jpeg_bytes),
+                image::ImageFormat::Jpeg,
+            )
             .expect("encodage JPEG de test");
 
         let mut metadata = ExifMetadata::new();
         metadata.set_tag(ExifTag::GPSLatitude(vec![
-            uR64 { nominator: 48, denominator: 1 },
-            uR64 { nominator: 51, denominator: 1 },
-            uR64 { nominator: 0, denominator: 1 },
+            uR64 {
+                nominator: 48,
+                denominator: 1,
+            },
+            uR64 {
+                nominator: 51,
+                denominator: 1,
+            },
+            uR64 {
+                nominator: 0,
+                denominator: 1,
+            },
         ]));
         metadata.set_tag(ExifTag::Orientation(vec![orientation]));
         metadata
@@ -880,7 +919,10 @@ mod tests {
         // Vérifie que la fixture porte bien ce qu'on croit y avoir mis, sinon
         // le test principal ne prouverait rien.
         let check = ExifMetadata::new_from_vec(&jpeg_bytes, FileExtension::JPEG).unwrap();
-        assert!(check.get_tag(&ExifTag::GPSLatitude(vec![])).next().is_some());
+        assert!(check
+            .get_tag(&ExifTag::GPSLatitude(vec![]))
+            .next()
+            .is_some());
         jpeg_bytes
     }
 
@@ -889,11 +931,17 @@ mod tests {
         let original = fixture_jpeg_avec_gps_et_orientation(6); // 6 = rotation 90°
         let stripped = strip_metadata(&original, "image/jpeg").expect("stripping JPEG supporté");
 
-        assert_ne!(stripped, original, "les octets doivent changer (métadonnées retirées)");
+        assert_ne!(
+            stripped, original,
+            "les octets doivent changer (métadonnées retirées)"
+        );
 
         let after = ExifMetadata::new_from_vec(&stripped, FileExtension::JPEG).unwrap();
         assert!(
-            after.get_tag(&ExifTag::GPSLatitude(vec![])).next().is_none(),
+            after
+                .get_tag(&ExifTag::GPSLatitude(vec![]))
+                .next()
+                .is_none(),
             "le GPS ne doit plus être présent"
         );
         let orientation_after = after
@@ -915,7 +963,10 @@ mod tests {
         let img = image::RgbImage::from_pixel(2, 2, image::Rgb([0, 0, 0]));
         let mut bytes = Vec::new();
         image::DynamicImage::ImageRgb8(img)
-            .write_to(&mut std::io::Cursor::new(&mut bytes), image::ImageFormat::Jpeg)
+            .write_to(
+                &mut std::io::Cursor::new(&mut bytes),
+                image::ImageFormat::Jpeg,
+            )
             .unwrap();
 
         let stripped = strip_metadata(&bytes, "image/jpeg").expect("stripping JPEG supporté");
@@ -934,7 +985,10 @@ mod tests {
         let img = image::RgbImage::from_pixel(6, 3, image::Rgb([10, 20, 30]));
         let mut bytes = Vec::new();
         image::DynamicImage::ImageRgb8(img)
-            .write_to(&mut std::io::Cursor::new(&mut bytes), image::ImageFormat::Jpeg)
+            .write_to(
+                &mut std::io::Cursor::new(&mut bytes),
+                image::ImageFormat::Jpeg,
+            )
             .expect("encodage JPEG de test");
         if let Some(o) = orientation {
             let mut metadata = ExifMetadata::new();
@@ -978,7 +1032,10 @@ mod tests {
     #[test]
     fn image_dimensions_video_ou_format_illisible_renvoie_none() {
         assert_eq!(image_dimensions(b"pas une image", "video/mp4"), None);
-        assert_eq!(image_dimensions(b"pas une image non plus", "image/heic"), None);
+        assert_eq!(
+            image_dimensions(b"pas une image non plus", "image/heic"),
+            None
+        );
     }
 
     #[test]

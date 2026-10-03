@@ -73,7 +73,9 @@ fn course_map(custom: bool, entries: &[String]) -> CourseMap {
     }
     let mut map: HashMap<String, Vec<String>> = HashMap::new();
     for (service, category) in entries.iter().filter_map(|e| parse_course_category(e)) {
-        map.entry(category.to_string()).or_default().push(service.to_string());
+        map.entry(category.to_string())
+            .or_default()
+            .push(service.to_string());
     }
     for services in map.values_mut() {
         services.sort_by_key(|s| COURSE_ORDER.iter().position(|c| c == s));
@@ -168,7 +170,12 @@ fn compute_flags(
         // Menus dévoilés : on répond aux idées de l'autre (« Partant·e » ou refus).
         // Match = les deux veulent (réciprocité), sauf refus de l'un des deux.
         let refused = my_stance == Some("refused") || other_refused;
-        (picked, picked && other_wants && !refused, other_wants, refused)
+        (
+            picked,
+            picked && other_wants && !refused,
+            other_wants,
+            refused,
+        )
     } else if blind {
         (picked, picked && other_wants, false, false)
     } else {
@@ -239,8 +246,13 @@ async fn list_menu(
     auth: AuthUser,
     Path(space_id): Path<Uuid>,
 ) -> ApiResult<Json<Vec<EveningMenuItem>>> {
-    let MenuCtx { blind, today, map, revealed, .. } =
-        ensure_enabled_today(&state.pool, auth.user_id, space_id).await?;
+    let MenuCtx {
+        blind,
+        today,
+        map,
+        revealed,
+        ..
+    } = ensure_enabled_today(&state.pool, auth.user_id, space_id).await?;
 
     // Tout le catalogue actif : c'est le client qui filtre par service (le
     // sélecteur peut piocher hors catégorie). Les items déjà du menu par défaut
@@ -351,8 +363,14 @@ async fn pick(
     Path((space_id, code)): Path<(Uuid, String)>,
     body: Option<Json<PickBody>>,
 ) -> ApiResult<Json<EveningMenuItem>> {
-    let MenuCtx { blind, today, map, revealed, me_done, .. } =
-        ensure_enabled_today(&state.pool, auth.user_id, space_id).await?;
+    let MenuCtx {
+        blind,
+        today,
+        map,
+        revealed,
+        me_done,
+        ..
+    } = ensure_enabled_today(&state.pool, auth.user_id, space_id).await?;
     // Mode aveugle : validé = verrouillé. Une fois les menus dévoilés on ne peut
     // plus que RÉPONDRE aux idées de l'autre (cf. plus bas).
     let responding = blind && revealed;
@@ -483,8 +501,14 @@ async fn unpick(
     auth: AuthUser,
     Path((space_id, code)): Path<(Uuid, String)>,
 ) -> ApiResult<Json<EveningMenuItem>> {
-    let MenuCtx { blind, today, map, revealed, me_done, .. } =
-        ensure_enabled_today(&state.pool, auth.user_id, space_id).await?;
+    let MenuCtx {
+        blind,
+        today,
+        map,
+        revealed,
+        me_done,
+        ..
+    } = ensure_enabled_today(&state.pool, auth.user_id, space_id).await?;
     if blind && me_done {
         // Validé = verrouillé ; une fois les menus dévoilés, seules mes RÉPONSES
         // tardives (posées après le dévoilement) se retirent — pas mon menu d'origine.
@@ -643,14 +667,13 @@ async fn unmark_done(
 /// Purge des coches de plus de 2 jours (le menu n'est pertinent que pour son jour
 /// local ; 2 jours couvrent les écarts de fuseau). Best-effort.
 pub async fn purge_old_picks(pool: &sqlx::PgPool) {
-    let _ = sqlx::query("DELETE FROM evening_menu_done WHERE created_at < now() - interval '2 days'")
+    let _ =
+        sqlx::query("DELETE FROM evening_menu_done WHERE created_at < now() - interval '2 days'")
+            .execute(pool)
+            .await;
+    match sqlx::query("DELETE FROM evening_menu_picks WHERE created_at < now() - interval '2 days'")
         .execute(pool)
-        .await;
-    match sqlx::query(
-        "DELETE FROM evening_menu_picks WHERE created_at < now() - interval '2 days'",
-    )
-    .execute(pool)
-    .await
+        .await
     {
         Ok(res) if res.rows_affected() > 0 => {
             tracing::info!(count = res.rows_affected(), "menus du soir périmés purgés");

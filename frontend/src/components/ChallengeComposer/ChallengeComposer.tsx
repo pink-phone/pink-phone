@@ -49,11 +49,11 @@ export function ChallengeComposer({
   const bank = suggestions && suggestions.length > 0 ? suggestions : CHALLENGE_PRESETS;
   // Sous-ensemble aléatoire, re-tiré à chaque clic sur "Autres idées".
   const [round, setRound] = useState(0);
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `round` n'est pas lu mais force un nouveau tirage.
   const visibleSuggestions = useMemo(() => {
     if (bank.length <= VISIBLE_SUGGESTIONS) return bank;
     return [...bank].sort(() => Math.random() - 0.5).slice(0, VISIBLE_SUGGESTIONS);
     // round force un nouveau tirage ; bank, un nouveau contenu.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bank, round]);
   const canReshuffle = bank.length > VISIBLE_SUGGESTIONS;
 

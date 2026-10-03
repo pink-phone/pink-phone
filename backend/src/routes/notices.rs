@@ -17,20 +17,14 @@ pub fn router() -> Router<AppState> {
 /// Enregistre une notice de salon (#84/#85). Générique sur l'exécuteur pour
 /// pouvoir l'appeler dans une transaction (jointure) comme sur le pool.
 /// Best-effort : une erreur est loguée mais ne fait pas échouer l'action.
-pub async fn record<'e, E: PgExecutor<'e>>(
-    ex: E,
-    space_id: Uuid,
-    kind: &str,
-    actor_id: Uuid,
-) {
-    if let Err(e) = sqlx::query(
-        "INSERT INTO space_notices (space_id, kind, actor_id) VALUES ($1, $2, $3)",
-    )
-    .bind(space_id)
-    .bind(kind)
-    .bind(actor_id)
-    .execute(ex)
-    .await
+pub async fn record<'e, E: PgExecutor<'e>>(ex: E, space_id: Uuid, kind: &str, actor_id: Uuid) {
+    if let Err(e) =
+        sqlx::query("INSERT INTO space_notices (space_id, kind, actor_id) VALUES ($1, $2, $3)")
+            .bind(space_id)
+            .bind(kind)
+            .bind(actor_id)
+            .execute(ex)
+            .await
     {
         tracing::warn!(target: "notices", "enregistrement de notice échoué: {e}");
     }
