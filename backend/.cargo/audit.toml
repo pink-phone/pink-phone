@@ -17,4 +17,12 @@ ignore = [
     # JPEG/WebP/HEIF ne touchent jamais quick-xml. SECURITY_FINDINGS.md #14.
     "RUSTSEC-2026-0194",
     "RUSTSEC-2026-0195",
+    # crypto-bigint 0.5.5 (variabilités de timing sur des opérations censées être à
+    # temps constant) : imposé par elliptic-curve 0.13 (p256/k256), via web-push →
+    # jwt-simple (signature VAPID ES256 avec la clé du serveur, en tâche de fond :
+    # aucun oracle de timing observable par un tiers) et jsonwebtoken (VÉRIFICATION
+    # seule des id_token OIDC, clé publique). Le correctif exige >=0.7.6, incompatible
+    # avec elliptic-curve 0.13 : à lever dès que web-push/jwt-simple migrent.
+    # SECURITY_FINDINGS.md (2026-11-02, #1).
+    "RUSTSEC-2026-0387",
 ]
