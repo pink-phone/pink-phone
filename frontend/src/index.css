@@ -1,5 +1,6 @@
 /* Les polices (@fontsource) sont importées dans src/fonts.ts — voir ce fichier. */
 @import "tailwindcss";
+@import "./themes.css";
 
 /* Fichiers scannés pour les classes (Tailwind 4 : détection automatique du
    projet ; on ajoute explicitement le dossier caché .storybook). */
@@ -41,8 +42,8 @@
 
   /* Titres : serif élégante haut contraste — l'élégance du murmure.
      Corps : sans-serif ronde et chaleureuse, lisible sans être clinique. */
-  --font-serif: "Playfair Display", Georgia, serif;
-  --font-sans: "Inter", system-ui, sans-serif;
+  --font-serif: var(--ff-serif);
+  --font-sans: var(--ff-sans);
 
   /* Interlignes des tailles de texte : longueurs absolues comme en Tailwind 3.
      La v4 les exprime en ratios sans unité (text-sm = 1.4286), qui sont
@@ -58,13 +59,13 @@
   --text-4xl--line-height: 2.5rem;
 
   /* Pas d'angles droits agressifs — arrondi généreux partout. */
-  --radius-xl: 1rem;
-  --radius-2xl: 1.5rem;
-  --radius-3xl: 2rem;
+  --radius-xl: var(--r-xl);
+  --radius-2xl: var(--r-2xl);
+  --radius-3xl: var(--r-3xl);
 
   /* Ombres portées très douces pour la profondeur "feutrée". */
-  --shadow-felt: 0 2px 8px -2px rgba(0, 0, 0, 0.35), 0 8px 28px -8px rgba(0, 0, 0, 0.45);
-  --shadow-felt-sm: 0 1px 4px -1px rgba(0, 0, 0, 0.3);
+  --shadow-felt: var(--sh-felt);
+  --shadow-felt-sm: var(--sh-felt-sm);
   /* Soft glow (Mood actif). */
   --shadow-glow: 0 0 16px -2px rgb(var(--spice-500) / 0.55);
   /* Même halo, en `filter: drop-shadow()` — pour un média `object-contain`
@@ -148,16 +149,12 @@
 
 /* Textures subtiles (velours / lin feutré) — bruit doux non agressif. */
 @utility bg-felt-velvet {
-  background-image:
-    radial-gradient(circle at 30% 20%, rgb(var(--spice-500) / 0.08), transparent 60%),
-    radial-gradient(circle at 80% 80%, rgb(var(--bordeaux-600) / 0.1), transparent 55%);
+  background-image: var(--tex-velvet);
+  background-size: var(--tex-velvet-size, auto);
 }
 @utility bg-felt-linen {
-  background-image: repeating-linear-gradient(
-    45deg,
-    rgba(255, 255, 255, 0.012) 0 2px,
-    transparent 2px 4px
-  );
+  background-image: var(--tex-linen);
+  background-size: var(--tex-linen-size, auto);
 }
 
 /* space-y-v3-N : espacement vertical avec la sémantique de Tailwind 3
@@ -199,6 +196,24 @@
   --taupe-200: 216 204 207;
   --taupe-300: 183 168 172;
   --taupe-400: 140 124 129;
+
+  /* Au-delà des couleurs, un thème pilote aussi la typo, les arrondis, les
+     ombres et les textures (cf. @theme ci-dessus qui les relit). Défauts = felted. */
+  --ff-serif: "Playfair Display", Georgia, serif;
+  --ff-sans: "Inter", system-ui, sans-serif;
+  --r-xl: 1rem;
+  --r-2xl: 1.5rem;
+  --r-3xl: 2rem;
+  --sh-felt: 0 2px 8px -2px rgba(0, 0, 0, 0.35), 0 8px 28px -8px rgba(0, 0, 0, 0.45);
+  --sh-felt-sm: 0 1px 4px -1px rgba(0, 0, 0, 0.3);
+  --tex-velvet:
+    radial-gradient(circle at 30% 20%, rgb(var(--spice-500) / 0.08), transparent 60%),
+    radial-gradient(circle at 80% 80%, rgb(var(--bordeaux-600) / 0.1), transparent 55%);
+  --tex-linen: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.012) 0 2px,
+    transparent 2px 4px
+  );
 }
 
 /* Red Velvet — rouge velours profond, plus dramatique que le rose feutré. */

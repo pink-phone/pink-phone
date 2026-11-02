@@ -42,6 +42,7 @@ export function Button({
   return (
     <button
       type={type}
+      data-variant={variant}
       disabled={disabled || loading}
       aria-busy={loading || undefined}
       className={cn(

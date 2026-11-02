@@ -45,8 +45,10 @@ export function Surface({
   return (
     <Tag
       id={id}
+      data-tone={tone}
       className={cn(
-        "border p-5 shadow-felt",
+        // `surface` : crochet CSS pour les thèmes (couture, double filet… cf. themes.css).
+        "surface border p-5 shadow-felt",
         RADII[radius],
         TONES[tone],
         className,

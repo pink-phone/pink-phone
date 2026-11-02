@@ -1,6 +1,6 @@
 // Thèmes (palette du DA "felted"). Les couleurs vivent en variables CSS
 // (src/index.css) ; on bascule via l'attribut data-theme sur <html>.
-export const THEMES = ["felted", "red-velvet"] as const;
+export const THEMES = ["felted", "red-velvet", "kawaii", "pixel", "cancan", "cuir", "synthwave"] as const;
 export type Theme = (typeof THEMES)[number];
 
 const KEY = "pp_theme";

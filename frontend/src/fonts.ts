@@ -8,3 +8,14 @@ import "@fontsource/playfair-display/600.css";
 import "@fontsource/inter/400.css";
 import "@fontsource/inter/500.css";
 import "@fontsource/inter/600.css";
+// Polices propres aux thèmes audacieux (src/themes.css) — sous-ensemble latin.
+import "@fontsource/fredoka/latin-400.css";
+import "@fontsource/fredoka/latin-600.css";
+import "@fontsource/press-start-2p/latin-400.css";
+import "@fontsource/vt323/latin-400.css";
+import "@fontsource/limelight/latin-400.css";
+import "@fontsource/cormorant-garamond/latin-500.css";
+import "@fontsource/cormorant-garamond/latin-600.css";
+import "@fontsource/cormorant-garamond/latin-600-italic.css";
+import "@fontsource/monoton/latin-400.css";
+import "@fontsource/audiowide/latin-400.css";

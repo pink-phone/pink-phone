@@ -868,3 +868,21 @@ existing one (the partner also wanted it). Open mode keeps its refresh events.
   (`AssertSqlSafe` on constants, no user input).
 - Migrations 0049/0050 exercised against seeded data in a scratch database (overrides → per-service lists).
 - Frontend: no `dangerouslySetInnerHTML`; labels come from the API and are rendered as text.
+
+---
+
+## 2026-11-02 — Dependency advisories (cargo audit gate on the beta deploy)
+
+`cargo audit` started failing the `build-api` job of `deploy-beta.yml` (8 advisories published in October).
+
+### 1. `crypto-bigint` 0.5.5, RUSTSEC-2026-0387 (timing variability) — accepted, no patched version compatible
+
+- **Location**: `backend/Cargo.lock` (transitive: `elliptic-curve` 0.13 → `web-push` → `jwt-simple`, and `jsonwebtoken`).
+- **Class**: CWE-208 (observable timing discrepancy). **Severity**: Low in this codebase. **Confidence**: confirmed (path traced with `cargo tree -i`).
+- **Impact here**: the only private-key operation is the VAPID ES256 signature, done server-side in a spawned
+  background task; the signature is sent to the push service and no per-operation timing is observable by an attacker.
+  `jsonwebtoken` only *verifies* OIDC `id_token` signatures with the issuer's public key.
+- **Remediation**: fix needs `crypto-bigint` >=0.7.6, incompatible with `elliptic-curve` 0.13 pinned by `web-push`/`jwt-simple`.
+  Ignored in `.cargo/audit.toml` and `deny.toml`; **status: open (accepted)** — drop the ignore once upstream migrates.
+- **Fixed in the same change**: `rustls` 0.23.45→0.23.46 (RUSTSEC-2026-0346/0347/0348/0349), `rustls-webpki` 0.103.15→0.103.16
+  (RUSTSEC-2026-0382), `webpki-roots` 1.0.7→1.0.11 (RUSTSEC-2026-0381), `ctutils` 0.4.2→0.4.7 (RUSTSEC-2026-0385). **Status: fixed.**

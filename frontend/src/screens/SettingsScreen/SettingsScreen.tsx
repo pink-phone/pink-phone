@@ -39,6 +39,11 @@ import type { NotifMode } from "../../api/types";
 const THEME_LABEL_KEY = {
   felted: "settings.themeFelted",
   "red-velvet": "settings.themeRedVelvet",
+  kawaii: "settings.themeKawaii",
+  pixel: "settings.themePixel",
+  cancan: "settings.themeCancan",
+  cuir: "settings.themeCuir",
+  synthwave: "settings.themeSynthwave",
 } as const satisfies Record<Theme, string>;
 
 // Liste IANA complète si le navigateur la fournit, sinon un repli raisonnable.
@@ -815,7 +820,7 @@ export function SettingsScreen({
                 aria-checked={active}
                 onClick={() => void i18n.changeLanguage(lng)}
                 className={cn(
-                  "flex-1 rounded-2xl border px-3 py-2 text-sm font-medium",
+                  "rounded-2xl border px-3 py-2 text-sm font-medium",
                   "transition-all duration-300 ease-felt focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500",
                   active
                     ? "border-spice-500/70 bg-bordeaux-700 text-blush-100 shadow-glow"
@@ -842,7 +847,7 @@ export function SettingsScreen({
               <div
                 role="radiogroup"
                 aria-label={t("settings.theme")}
-                className="flex gap-2"
+                className="grid grid-cols-2 gap-2"
               >
                 {THEMES.map((th) => {
                   const active = theme === th;
