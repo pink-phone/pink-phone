@@ -55,6 +55,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                  — positionne CORS_ORIGIN sur l'origine réelle du déploiement."
             );
         }
+        // CORS_ORIGIN au défaut dev alors que l'API est exposée (SECURITY_FINDINGS.md #3) :
+        // sans effet sur l'app elle-même (servie same-origin derrière nginx en prod), mais
+        // ça autorise en pratique tout serveur de dev Vite local (port 5173 par défaut,
+        // n'importe quel projet) à faire des requêtes cross-origin vers cette API — signe
+        // que `CORS_ORIGIN` n'a pas été positionné pour ce déploiement.
+        if exposed && config.cors_origin == "http://localhost:5173" {
+            tracing::warn!(
+                "CORS_ORIGIN au défaut de dev ('http://localhost:5173') avec une API exposée \
+                 — positionne CORS_ORIGIN sur l'origine réelle du déploiement."
+            );
+        }
         if config.media_key_bytes().is_none() {
             if config.media_key.trim().is_empty() {
                 tracing::warn!("MEDIA_KEY absente : les médias sont stockés EN CLAIR sur disque.");
