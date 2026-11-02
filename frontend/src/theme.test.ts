@@ -8,7 +8,7 @@ describe("theme", () => {
   });
 
   it("expose les 8 thèmes", () => {
-    expect(THEMES).toEqual(["felted", "red-velvet", "kawaii", "pixel", "cancan", "cuir", "synthwave", "dentelle"]);
+    expect(THEMES).toEqual(["felted", "red-velvet", "kawaii", "pixel", "cancan", "cuir", "synthwave"]);
   });
 
   it("retombe sur felted par défaut ou si la valeur stockée est inconnue", () => {

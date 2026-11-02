@@ -44,7 +44,6 @@ const THEME_LABEL_KEY = {
   cancan: "settings.themeCancan",
   cuir: "settings.themeCuir",
   synthwave: "settings.themeSynthwave",
-  dentelle: "settings.themeDentelle",
 } as const satisfies Record<Theme, string>;
 
 // Liste IANA complète si le navigateur la fournit, sinon un repli raisonnable.
