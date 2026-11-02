@@ -396,6 +396,10 @@ export const fr = {
     theme: "Thème",
     themeFelted: "Feutré",
     themeRedVelvet: "Red Velvet",
+    themeKawaii: "Kawaii",
+    themePixel: "Pixel",
+    themeCancan: "French cancan",
+    themeCuir: "Dentelle et cuir",
     hotAnim: "Effet braise 🔥",
     hotAnimHint:
       "Halo et particules animés sur les états chauds. Désactive pour un rendu calme.",

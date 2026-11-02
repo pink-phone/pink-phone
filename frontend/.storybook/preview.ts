@@ -7,32 +7,38 @@ import "../src/index.css";
 import "./storybook.css";
 // Initialise i18n pour que les composants utilisant useTranslation s'affichent.
 import "../src/i18n";
+import { THEMES, applyTheme } from "../src/theme";
 
 const preview: Preview = {
+  // Sélecteur de thème dans la barre d'outils : valider chaque brique sous chaque thème.
+  globalTypes: {
+    theme: {
+      description: "Thème",
+      toolbar: { title: "Thème", icon: "paintbrush", items: [...THEMES], dynamicTitle: true },
+    },
+  },
+  decorators: [
+    (Story, ctx) => {
+      applyTheme((ctx.globals.theme as (typeof THEMES)[number]) ?? "felted");
+      return Story();
+    },
+  ],
   parameters: {
     controls: {
       matchers: { color: /(background|color)$/i, date: /Date$/i },
     },
-    // Fond feutré par défaut — on conçoit dans le contexte réel (dark/charbon doux).
-    backgrounds: {
-      options: {
-        charbon: { name: "charbon", value: "#1A1719" },
-        blush: { name: "blush", value: "#FBF1F4" }
-      }
-    },
+    // Fond = celui du thème actif (body de index.css) : l'addon backgrounds le masquerait.
+    backgrounds: { disable: true },
     // PinkPhone est mobile-first (PWA installée sur téléphone).
     viewport: {},
     layout: "centered",
   },
 
   initialGlobals: {
+    theme: "felted",
     viewport: {
       value: "mobile1",
       isRotated: false
-    },
-
-    backgrounds: {
-      value: "charbon"
     }
   }
 };

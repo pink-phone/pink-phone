@@ -20,8 +20,13 @@
     "lint": "biome lint src"
   },
   "dependencies": {
+    "@fontsource/cormorant-garamond": "^5.3.0",
+    "@fontsource/fredoka": "^5.3.0",
     "@fontsource/inter": "^5.1.0",
+    "@fontsource/limelight": "^5.3.0",
     "@fontsource/playfair-display": "^5.1.0",
+    "@fontsource/press-start-2p": "^5.3.0",
+    "@fontsource/vt323": "^5.3.0",
     "i18next": "^26.3.1",
     "i18next-browser-languagedetector": "^8.2.1",
     "react": "^19.0.0",
