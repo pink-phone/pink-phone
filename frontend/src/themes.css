@@ -113,7 +113,9 @@ html[data-theme="pixel"] button[data-variant="primary"]:active {
   box-shadow: 1px 1px 0 rgb(var(--bordeaux-700));
 }
 
-/* ---- French cancan : rouge Moulin Rouge, noir et or ---- */
+/* ---- French cancan : rouge Moulin Rouge, parchemin et or ----
+   Cartes = parchemin jaune (les couleurs de texte sont re-scopées dans la carte),
+   encarts "deep" = rouge vif bordé d'or, bandeau rideau rouge/noir en haut. */
 html[data-theme="cancan"] {
   font-size: 16.5px;
   --blush-50: 246 231 200;
@@ -124,9 +126,9 @@ html[data-theme="cancan"] {
   --spice-400: 205 40 62;
   --spice-500: 179 18 43;
   --spice-600: 150 14 36;
-  --bordeaux-500: 122 15 32;
-  --bordeaux-600: 100 11 26;
-  --bordeaux-700: 74 8 20;
+  --bordeaux-500: 112 10 26;
+  --bordeaux-600: 140 12 32;
+  --bordeaux-700: 170 16 40;
   --charcoal-900: 20 9 11;
   --charcoal-800: 33 14 18;
   --charcoal-700: 48 20 25;
@@ -141,31 +143,74 @@ html[data-theme="cancan"] {
   --r-3xl: 0.5rem;
   --sh-felt: 0 3px 10px rgb(0 0 0 / 0.6), 0 0 0 1px rgb(232 196 106 / 0.18);
   --sh-felt-sm: 0 1px 4px rgb(0 0 0 / 0.55);
-  --tex-velvet:
-    repeating-linear-gradient(90deg, rgb(179 18 43 / 0.1) 0 14px, transparent 14px 28px);
+  --tex-velvet: repeating-linear-gradient(90deg, rgb(179 18 43 / 0.1) 0 14px, transparent 14px 28px);
   --tex-linen: none;
 }
 html[data-theme="cancan"] .surface {
   position: relative;
-  border-color: rgb(var(--blush-200) / 0.55);
+  border-color: rgb(232 196 106 / 0.6);
 }
 html[data-theme="cancan"] .surface::after {
   content: "";
   position: absolute;
   inset: 4px;
-  border: 1px solid rgb(var(--blush-200) / 0.3);
+  border: 1px solid rgb(232 196 106 / 0.35);
   border-radius: inherit;
   pointer-events: none;
 }
-html[data-theme="cancan"] button[data-variant="primary"] {
-  background-color: rgb(var(--blush-200));
-  color: rgb(var(--charcoal-900));
+/* Cartes parchemin : on ré-assigne les canaux de texte/fond le temps de la carte. */
+html[data-theme="cancan"] .surface[data-tone="velvet"] {
+  --taupe-100: 74 12 24;
+  --taupe-200: 82 52 34;
+  --taupe-300: 120 84 48;
+  --taupe-400: 122 90 50;
+  --blush-100: 122 15 32;
+  --blush-200: 150 14 36;
+  --spice-300: 150 14 36;
+  --spice-400: 170 16 40;
+  --charcoal-900: 250 241 216;
+  --charcoal-800: 246 231 200;
+  --charcoal-700: 236 217 172;
+  --charcoal-600: 201 162 75;
 }
-html[data-theme="cancan"] button[data-variant="primary"]:hover {
-  background-color: rgb(var(--blush-100));
+/* Pastilles/boutons pleins rouges dans une carte : le texte redevient clair. */
+html[data-theme="cancan"] .surface[data-tone="velvet"] :is(.bg-bordeaux-700, .bg-bordeaux-600, .bg-spice-600, .bg-spice-500) {
+  --blush-100: 246 231 200;
+  --blush-200: 232 196 106;
+}
+html[data-theme="cancan"] .surface[data-tone="deep"] {
+  border-color: rgb(232 196 106 / 0.85);
+}
+/* Bandeau rideau rouge/noir. */
+html[data-theme="cancan"] .surface:is([data-tone="velvet"], [data-tone="blush"])::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 6px;
+  border-radius: var(--r-2xl) var(--r-2xl) 0 0;
+  background: repeating-linear-gradient(90deg, #b3122b 0 8px, #14090b 8px 16px);
+  pointer-events: none;
+}
+html[data-theme="cancan"] .surface:is([data-tone="velvet"], [data-tone="blush"]) {
+  padding-top: 1.5rem;
+}
+html[data-theme="cancan"] .surface:is([data-tone="velvet"], [data-tone="blush"])::after {
+  border-color: rgb(122 15 32 / 0.3);
+}
+html[data-theme="cancan"] button[data-variant="primary"]:not(.surface *) {
+  background-color: rgb(232 196 106);
+  color: rgb(20 9 11);
+}
+html[data-theme="cancan"] button[data-variant="primary"]:not(.surface *):hover {
+  background-color: rgb(240 220 175);
+}
+html[data-theme="cancan"] h1:not(.surface *) {
+  color: rgb(232 196 106);
 }
 
-/* ---- Dentelle et cuir : cuir noir, couture à points, dentelle ivoire ---- */
+/* ---- Cuir : cuir noir, couture à points, grain de peau ---- */
 html[data-theme="cuir"] {
   --blush-50: 244 236 224;
   --blush-100: 233 220 203;
@@ -193,9 +238,8 @@ html[data-theme="cuir"] {
   --sh-felt: 0 3px 8px rgb(0 0 0 / 0.6), inset 0 1px 0 rgb(255 255 255 / 0.07);
   --sh-felt-sm: 0 1px 3px rgb(0 0 0 / 0.6);
   --tex-velvet:
-    radial-gradient(circle at 50% 50%, rgb(var(--blush-200) / 0.09) 1.2px, transparent 1.7px) 0 0 / 14px 14px,
-    radial-gradient(circle at 0 0, transparent 5px, rgb(var(--blush-200) / 0.06) 5.6px, transparent 6.6px) 0 0 / 14px 14px,
-    radial-gradient(circle at 100% 100%, transparent 5px, rgb(var(--blush-200) / 0.06) 5.6px, transparent 6.6px) 0 0 / 14px 14px;
+    radial-gradient(circle at 20% 30%, rgb(255 255 255 / 0.035) 1px, transparent 1.6px) 0 0 / 7px 7px,
+    radial-gradient(circle at 70% 60%, rgb(0 0 0 / 0.28) 1px, transparent 1.7px) 0 0 / 9px 9px;
   --tex-linen:
     repeating-linear-gradient(45deg, rgb(255 255 255 / 0.015) 0 1px, transparent 1px 3px),
     repeating-linear-gradient(-45deg, rgb(0 0 0 / 0.12) 0 1px, transparent 1px 3px);
@@ -210,6 +254,62 @@ html[data-theme="cuir"] .surface::after {
   border: 1px dashed rgb(var(--blush-200) / 0.4);
   border-radius: calc(var(--r-3xl) - 3px);
   pointer-events: none;
+}
+
+/* ---- Néon synthwave : nuit violette, rose et cyan néon ---- */
+html[data-theme="synthwave"] {
+  --blush-50: 245 232 255;
+  --blush-100: 224 208 252;
+  --blush-200: 255 143 210;
+  --blush-300: 160 130 230;
+  --spice-300: 255 143 210;
+  --spice-400: 255 90 190;
+  --spice-500: 255 60 172;
+  --spice-600: 190 28 125;
+  --bordeaux-500: 140 60 190;
+  --bordeaux-600: 110 42 160;
+  --bordeaux-700: 88 36 150;
+  --charcoal-900: 18 10 36;
+  --charcoal-800: 30 16 64;
+  --charcoal-700: 42 21 89;
+  --charcoal-600: 96 56 160;
+  --taupe-100: 240 232 255;
+  --taupe-200: 205 195 242;
+  --taupe-300: 155 142 205;
+  --taupe-400: 143 130 196;
+  --ff-serif: "Audiowide", system-ui, sans-serif;
+  --r-xl: 0.625rem;
+  --r-2xl: 0.75rem;
+  --r-3xl: 1rem;
+  --sh-felt: 0 0 14px rgb(255 60 172 / 0.28), 0 6px 18px rgb(0 0 0 / 0.5);
+  --sh-felt-sm: 0 0 8px rgb(255 60 172 / 0.25);
+  --tex-velvet:
+    radial-gradient(ellipse at 50% 112%, rgb(255 60 172 / 0.28), transparent 55%),
+    linear-gradient(rgb(255 60 172 / 0.06) 1px, transparent 1px) 0 0 / 40px 40px,
+    linear-gradient(90deg, rgb(45 226 230 / 0.05) 1px, transparent 1px) 0 0 / 40px 40px;
+  --tex-linen: none;
+}
+html[data-theme="synthwave"] h1 {
+  font-family: "Monoton", "Audiowide", sans-serif;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: rgb(255 60 172);
+  text-shadow: 0 0 8px rgb(255 60 172), 0 0 18px rgb(255 60 172 / 0.55);
+}
+html[data-theme="synthwave"] .surface {
+  border-color: rgb(var(--spice-500) / 0.7);
+}
+html[data-theme="synthwave"] .surface[data-tone="velvet"] {
+  border-color: rgb(45 226 230 / 0.75);
+  box-shadow: 0 0 12px rgb(45 226 230 / 0.3), 0 6px 18px rgb(0 0 0 / 0.5);
+}
+html[data-theme="synthwave"] button[data-variant="primary"] {
+  background-image: linear-gradient(90deg, #ff3cac, #784ba0);
+  color: #fff;
+  box-shadow: 0 0 18px rgb(255 60 172 / 0.55);
+}
+html[data-theme="synthwave"] button[data-variant="primary"]:hover {
+  filter: brightness(1.12);
 }
 
 /* Kawaii (clair) : les accents pâles pensés pour fond sombre passent en rose franc. */

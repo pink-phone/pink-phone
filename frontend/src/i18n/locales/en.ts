@@ -399,7 +399,8 @@ export const en: Resources = {
     themeKawaii: "Kawaii",
     themePixel: "Pixel",
     themeCancan: "French cancan",
-    themeCuir: "Lace & leather",
+    themeCuir: "Leather",
+    themeSynthwave: "Neon synthwave",
     hotAnim: "Ember effect 🔥",
     hotAnimHint:
       "Animated halo and particles on hot states. Turn off for a calmer look.",
