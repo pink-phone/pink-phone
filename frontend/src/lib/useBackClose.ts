@@ -15,19 +15,41 @@ import { useEffect, useRef } from "react";
  * double-invoke risque d'introduire de vrais bugs de navigation en prod — on
  * accepte donc le comportement dev plutôt que de fragiliser la navigation réelle.
  */
+// Surfaces ouvertes, de la plus ancienne à la plus récente (imbrication : un
+// sélecteur ouvert PAR-DESSUS un écran lui-même refermable par retour). Seule la
+// plus récente réagit à un retour ; et le `history.back()` d'une fermeture
+// programmatique ne doit fermer AUCUNE surface parente.
+const stack: symbol[] = [];
+let ignorePop = false;
+
 export function useBackClose(open: boolean, close: () => void): void {
   const closeRef = useRef(close);
   closeRef.current = close;
 
   useEffect(() => {
     if (!open) return;
+    const id = Symbol("overlay");
+    stack.push(id);
+    let poppedByBack = false;
     window.history.pushState({ ppOverlay: true }, "");
-    const onPop = () => closeRef.current();
+    const onPop = () => {
+      if (ignorePop) return; // écho de la fermeture programmatique d'une surface fille
+      if (stack[stack.length - 1] !== id) return; // seule la surface du dessus se ferme
+      poppedByBack = true;
+      closeRef.current();
+    };
     window.addEventListener("popstate", onPop);
     return () => {
       window.removeEventListener("popstate", onPop);
-      // Fermeture programmatique (pas via retour) : notre entrée est encore là.
-      if (window.history.state?.ppOverlay) window.history.back();
+      const at = stack.indexOf(id);
+      if (at >= 0) stack.splice(at, 1);
+      // Fermeture programmatique (✕, Valider…) : notre entrée d'historique est
+      // encore là → on la consomme, sans que les surfaces parentes y réagissent.
+      if (!poppedByBack) {
+        ignorePop = true;
+        window.addEventListener("popstate", () => (ignorePop = false), { once: true });
+        window.history.back();
+      }
     };
   }, [open]);
 }

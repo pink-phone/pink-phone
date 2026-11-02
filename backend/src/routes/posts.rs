@@ -44,11 +44,7 @@ fn validate_post_text(title: Option<&str>, body: &str) -> ApiResult<()> {
 }
 
 /// Vérifie le nombre (≤ MAX_MEDIA) et que chaque média appartient à l'espace (#87).
-async fn validate_media(
-    pool: &sqlx::PgPool,
-    space_id: Uuid,
-    ids: &[Uuid],
-) -> ApiResult<()> {
+async fn validate_media(pool: &sqlx::PgPool, space_id: Uuid, ids: &[Uuid]) -> ApiResult<()> {
     if ids.len() > MAX_MEDIA {
         return Err(ApiError::BadRequest("trop de médias".into()));
     }
@@ -60,7 +56,9 @@ async fn validate_media(
                 .fetch_optional(pool)
                 .await?;
         if ok.is_none() {
-            return Err(ApiError::BadRequest("média introuvable pour cet espace".into()));
+            return Err(ApiError::BadRequest(
+                "média introuvable pour cet espace".into(),
+            ));
         }
     }
     Ok(())
@@ -69,24 +67,18 @@ async fn validate_media(
 /// (Ré)écrit la galerie d'un post : purge les liens existants puis insère la liste
 /// ordonnée (#87). Ne nettoie PAS les fichiers orphelins (cf. `cleanup_unreferenced`
 /// + purge horaire).
-async fn set_post_media(
-    pool: &sqlx::PgPool,
-    post_id: Uuid,
-    ids: &[Uuid],
-) -> ApiResult<()> {
+async fn set_post_media(pool: &sqlx::PgPool, post_id: Uuid, ids: &[Uuid]) -> ApiResult<()> {
     sqlx::query("DELETE FROM post_media WHERE post_id = $1")
         .bind(post_id)
         .execute(pool)
         .await?;
     for (i, id) in ids.iter().enumerate() {
-        sqlx::query(
-            "INSERT INTO post_media (post_id, media_id, position) VALUES ($1, $2, $3)",
-        )
-        .bind(post_id)
-        .bind(id)
-        .bind(i as i32)
-        .execute(pool)
-        .await?;
+        sqlx::query("INSERT INTO post_media (post_id, media_id, position) VALUES ($1, $2, $3)")
+            .bind(post_id)
+            .bind(id)
+            .bind(i as i32)
+            .execute(pool)
+            .await?;
     }
     Ok(())
 }
@@ -173,11 +165,7 @@ async fn enrich_one(pool: &sqlx::PgPool, row: PostRow, user_id: Uuid) -> ApiResu
 
 /// Enrichit des posts bruts avec leurs interactions (réactions / verdict / nb
 /// de commentaires), en quelques requêtes groupées plutôt qu'une par post.
-async fn enrich(
-    pool: &sqlx::PgPool,
-    rows: Vec<PostRow>,
-    user_id: Uuid,
-) -> ApiResult<Vec<Post>> {
+async fn enrich(pool: &sqlx::PgPool, rows: Vec<PostRow>, user_id: Uuid) -> ApiResult<Vec<Post>> {
     let ids: Vec<Uuid> = rows.iter().map(|r| r.id).collect();
 
     let reactions: Vec<ReactionRow> = sqlx::query_as(
@@ -224,8 +212,7 @@ async fn enrich(
     .bind(user_id)
     .fetch_all(pool)
     .await?;
-    let last_comment_by_post: HashMap<Uuid, DateTime<Utc>> =
-        last_comments.into_iter().collect();
+    let last_comment_by_post: HashMap<Uuid, DateTime<Utc>> = last_comments.into_iter().collect();
 
     // Galerie de médias par post (#87), ordonnée par `position`.
     let media_rows: Vec<PostMediaRow> = sqlx::query_as(
@@ -239,14 +226,17 @@ async fn enrich(
     .await?;
     let mut media_by_post: HashMap<Uuid, Vec<PostMediaItem>> = HashMap::new();
     for r in media_rows {
-        media_by_post.entry(r.post_id).or_default().push(PostMediaItem {
-            id: r.id,
-            mime: r.mime,
-            view_once: r.view_once,
-            consumed: r.consumed,
-            width: r.width,
-            height: r.height,
-        });
+        media_by_post
+            .entry(r.post_id)
+            .or_default()
+            .push(PostMediaItem {
+                id: r.id,
+                mime: r.mime,
+                view_once: r.view_once,
+                consumed: r.consumed,
+                width: r.width,
+                height: r.height,
+            });
     }
 
     let mut counts_by_post: HashMap<Uuid, HashMap<String, i64>> = HashMap::new();
@@ -261,8 +251,10 @@ async fn enrich(
             mine_by_post.entry(r.post_id).or_default().push(r.reaction);
         }
     }
-    let verdict_by_post: HashMap<Uuid, String> =
-        verdicts.into_iter().map(|v| (v.post_id, v.verdict)).collect();
+    let verdict_by_post: HashMap<Uuid, String> = verdicts
+        .into_iter()
+        .map(|v| (v.post_id, v.verdict))
+        .collect();
     let comments_by_post: HashMap<Uuid, i64> =
         counts.into_iter().map(|c| (c.post_id, c.n)).collect();
 
@@ -318,7 +310,10 @@ async fn list_posts(
     .fetch_all(&state.pool)
     .await?;
 
-    let Page { items: rows, has_more } = Page::from_rows(rows, limit);
+    let Page {
+        items: rows,
+        has_more,
+    } = Page::from_rows(rows, limit);
     let items = enrich(&state.pool, rows, auth.user_id).await?;
     Ok(Json(Page { items, has_more }))
 }
@@ -355,7 +350,12 @@ async fn create_post(
     )
     .bind(space_id)
     .bind(auth.user_id)
-    .bind(body.title.as_deref().map(str::trim).filter(|s| !s.is_empty()))
+    .bind(
+        body.title
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty()),
+    )
     .bind(body.body.trim())
     .bind(body.draft)
     .bind(body.allow_download)
@@ -373,8 +373,12 @@ async fn create_post(
             &state,
             space_id,
             auth.user_id,
+            "post",
+            Some(&post.id.to_string()),
+            None,
             "Nouveau message".into(),
-        );
+        )
+        .await;
     }
     Ok((StatusCode::CREATED, Json(post)))
 }
@@ -388,13 +392,12 @@ async fn delete_post(
 ) -> ApiResult<StatusCode> {
     ensure_member(&state.pool, auth.user_id, space_id).await?;
 
-    let author_id: Option<Uuid> = sqlx::query_scalar(
-        "SELECT author_id FROM posts WHERE id = $1 AND space_id = $2",
-    )
-    .bind(post_id)
-    .bind(space_id)
-    .fetch_optional(&state.pool)
-    .await?;
+    let author_id: Option<Uuid> =
+        sqlx::query_scalar("SELECT author_id FROM posts WHERE id = $1 AND space_id = $2")
+            .bind(post_id)
+            .bind(space_id)
+            .fetch_optional(&state.pool)
+            .await?;
     if author_id.ok_or(ApiError::NotFound)? != auth.user_id {
         return Err(ApiError::Forbidden);
     }
@@ -439,8 +442,7 @@ async fn update_post(
     .bind(space_id)
     .fetch_optional(&state.pool)
     .await?;
-    let (author_id, cur_title, cur_body, was_draft) =
-        current.ok_or(ApiError::NotFound)?;
+    let (author_id, cur_title, cur_body, was_draft) = current.ok_or(ApiError::NotFound)?;
     if author_id != auth.user_id {
         return Err(ApiError::Forbidden);
     }
@@ -465,14 +467,15 @@ async fn update_post(
 
     // Galerie (#87) : `media_ids` présent ⇒ remplace toute la liste ; absent ⇒
     // inchangée. On lit l'état courant pour le check « vide » et le nettoyage.
-    let cur_media_ids: Vec<Uuid> = sqlx::query_scalar(
-        "SELECT media_id FROM post_media WHERE post_id = $1 ORDER BY position",
-    )
-    .bind(post_id)
-    .fetch_all(&state.pool)
-    .await?;
-    let new_media_ids: Vec<Uuid> =
-        body.media_ids.clone().unwrap_or_else(|| cur_media_ids.clone());
+    let cur_media_ids: Vec<Uuid> =
+        sqlx::query_scalar("SELECT media_id FROM post_media WHERE post_id = $1 ORDER BY position")
+            .bind(post_id)
+            .fetch_all(&state.pool)
+            .await?;
+    let new_media_ids: Vec<Uuid> = body
+        .media_ids
+        .clone()
+        .unwrap_or_else(|| cur_media_ids.clone());
     // Un post peut être un simple média : on exige un récit OU au moins un média.
     if new_body.is_empty() && new_media_ids.is_empty() {
         return Err(ApiError::BadRequest(
@@ -487,8 +490,7 @@ async fn update_post(
     // `updated_at` ne bouge que si le CONTENU change (API-10) : une simple
     // publication de brouillon (`{draft:false}` seul) n'est pas une « édition »
     // et ne doit pas marquer le post comme modifié.
-    let content_changed =
-        body.title.is_some() || body.body.is_some() || body.media_ids.is_some();
+    let content_changed = body.title.is_some() || body.body.is_some() || body.media_ids.is_some();
     // Publication d'un brouillon (brouillon → publié) : le post « naît » dans le
     // fil à cet instant → on repositionne created_at (et updated_at, pour ne pas
     // le marquer « modifié ») sur now(). Sinon il garderait la date de création
@@ -546,8 +548,12 @@ async fn update_post(
             &state,
             space_id,
             auth.user_id,
+            "post",
+            Some(&post_id.to_string()),
+            None,
             "Nouveau message".into(),
-        );
+        )
+        .await;
     }
     Ok(Json(post))
 }

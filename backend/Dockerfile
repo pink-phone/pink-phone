@@ -11,8 +11,8 @@ WORKDIR /app
 # ce dernier est tout-ou-rien (la moindre ligne changée dans Cargo.lock invalide
 # tout le calque et recompile les ~120 crates depuis zéro) ; le cache mount, lui,
 # persiste par crate et survit même quand le calque est invalidé. `target/` étant
-# un mount (invisible hors du RUN qui le monte), le binaire est copié vers un
-# chemin normal avant la fin du RUN de build réel, sinon l'étage final ne le
+# un mount (invisible hors du RUN qui le monte), les binaires sont copiés vers un
+# chemin normal avant la fin du RUN de build réel, sinon l'étage final ne les
 # retrouve pas.
 COPY Cargo.toml Cargo.lock ./
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
@@ -33,7 +33,7 @@ ENV APP_VERSION=$APP_VERSION \
 # Build réel + tests (#65 : un test cassé fait échouer le build d'image, donc
 # rien de cassé ne part en prod ; sans DB, le test de codegen `domain_codegen`
 # se saute ici car `../frontend` est absent du contexte). Même RUN que la copie
-# du binaire : `target/` (mount) doit encore être monté à ce moment-là.
+# des binaires : `target/` (mount) doit encore être monté à ce moment-là.
 COPY src ./src
 COPY migrations ./migrations
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
@@ -41,15 +41,22 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     touch src/main.rs \
     && cargo build --release \
     && cargo test --release \
-    && cp target/release/pinkphone-api /app/pinkphone-api
+    && cp target/release/pinkphone-api /app/pinkphone-api \
+    && cp target/release/pinkctl /app/pinkctl
 
 FROM debian:bookworm-slim
 RUN apt-get update \
     && apt-get install -y --no-install-recommends ca-certificates libssl3 \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=builder /app/pinkphone-api /usr/local/bin/pinkphone-api
+# CLI d'admin (`pinkctl`) — cf. INSTALL.md#admin-cli-pinkctl.
+COPY --from=builder /app/pinkctl /usr/local/bin/pinkctl
 ENV MEDIA_DIR=/data/media \
     BIND_ADDR=0.0.0.0:8080
-RUN mkdir -p /data/media
+# Non-root (Trivy DS-0002). Les volumes déjà existants appartiennent à root : les
+# compose lancent un service `media-perms` one-shot qui fait le chown (uid 10001).
+RUN useradd --system --uid 10001 --no-create-home --shell /usr/sbin/nologin app \
+    && mkdir -p /data/media && chown app:app /data/media
+USER 10001
 EXPOSE 8080
 CMD ["pinkphone-api"]

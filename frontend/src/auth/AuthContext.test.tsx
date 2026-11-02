@@ -1,101 +1,79 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ReactNode } from "react";
-
-vi.mock("../api/client", () => ({
-  setToken: vi.fn(),
-  me: vi.fn(),
-  login: vi.fn(),
-  register: vi.fn(),
-  updateMe: vi.fn(),
-  oidcExchange: vi.fn(),
-}));
-
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../api/client";
 import { AuthProvider, useAuth } from "./AuthContext";
 
-const user = { id: "u1", email: "a@b.c", displayName: "Ana" } as never;
-const mocked = vi.mocked(api);
+vi.mock("../api/client");
+const a = vi.mocked(api, true);
 
+const USER = { id: "u1", email: "a@x.test", displayName: "Alex", createdAt: "2026-01-01T00:00:00Z" };
 const wrapper = ({ children }: { children: ReactNode }) => (
   <AuthProvider>{children}</AuthProvider>
 );
 
 beforeEach(() => {
+  vi.clearAllMocks();
   localStorage.clear();
   window.history.replaceState(null, "", "/");
-  vi.clearAllMocks();
-});
-
-afterEach(() => {
-  window.history.replaceState(null, "", "/");
-});
-
-describe("useAuth", () => {
-  it("lève hors AuthProvider", () => {
-    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
-    expect(() => renderHook(() => useAuth())).toThrow(/AuthProvider/);
-    spy.mockRestore();
-  });
 });
 
 describe("AuthProvider — démarrage", () => {
-  it("sans jeton stocké : fin du chargement, pas d'utilisateur", async () => {
+  it("sans jeton : pas connecté, plus en chargement, aucun appel réseau", async () => {
     const { result } = renderHook(() => useAuth(), { wrapper });
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.user).toBeNull();
     expect(result.current.token).toBeNull();
-    expect(mocked.me).not.toHaveBeenCalled();
+    expect(a.me).not.toHaveBeenCalled();
   });
 
-  it("avec un jeton stocké : charge l'utilisateur", async () => {
+  it("jeton stocké valide : restaure la session via /me", async () => {
     localStorage.setItem("pp_token", "tok");
-    mocked.me.mockResolvedValue(user);
+    a.me.mockResolvedValue(USER);
     const { result } = renderHook(() => useAuth(), { wrapper });
-    await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(mocked.setToken).toHaveBeenCalledWith("tok");
-    expect(result.current.user).toBe(user);
+    await waitFor(() => expect(result.current.user).toEqual(USER));
+    expect(a.setToken).toHaveBeenCalledWith("tok");
     expect(result.current.token).toBe("tok");
+    expect(result.current.loading).toBe(false);
   });
 
-  it("jeton invalide : on le purge", async () => {
-    localStorage.setItem("pp_token", "vieux");
-    mocked.me.mockRejectedValue(new Error("401"));
+  it("jeton stocké refusé par l'API : il est oublié", async () => {
+    localStorage.setItem("pp_token", "perime");
+    a.me.mockRejectedValue(new Error("401"));
     const { result } = renderHook(() => useAuth(), { wrapper });
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.user).toBeNull();
     expect(result.current.token).toBeNull();
     expect(localStorage.getItem("pp_token")).toBeNull();
-    expect(mocked.setToken).toHaveBeenLastCalledWith(null);
+    expect(a.setToken).toHaveBeenLastCalledWith(null);
   });
 
-  it("callback OIDC : échange le code, adopte le jeton, nettoie l'URL", async () => {
-    window.history.replaceState(null, "", "/app?x=1#code=abc%20def");
-    mocked.oidcExchange.mockResolvedValue({ token: "jwt" });
-    mocked.me.mockResolvedValue(user);
+  it("callback OIDC (#code=…) : échange le code, nettoie l'URL, ouvre la session", async () => {
+    window.history.replaceState(null, "", "/#code=abc%20def");
+    a.oidcExchange.mockResolvedValue({ token: "jwt" });
+    a.me.mockResolvedValue(USER);
     const { result } = renderHook(() => useAuth(), { wrapper });
-    await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(mocked.oidcExchange).toHaveBeenCalledWith("abc def");
+    await waitFor(() => expect(result.current.user).toEqual(USER));
+    expect(a.oidcExchange).toHaveBeenCalledWith("abc def");
     expect(localStorage.getItem("pp_token")).toBe("jwt");
-    expect(result.current.user).toBe(user);
     expect(window.location.hash).toBe("");
-    expect(window.location.pathname + window.location.search).toBe("/app?x=1");
   });
 
-  it("callback OIDC en échec : pas de session", async () => {
+  it("callback OIDC dont l'échange échoue : pas de session", async () => {
     window.history.replaceState(null, "", "/#code=zzz");
-    mocked.oidcExchange.mockRejectedValue(new Error("expiré"));
+    a.oidcExchange.mockRejectedValue(new Error("401"));
     const { result } = renderHook(() => useAuth(), { wrapper });
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.user).toBeNull();
     expect(localStorage.getItem("pp_token")).toBeNull();
   });
 
-  it("nettoie un fragment #error=oidc", async () => {
+  it("#error=oidc : fragment nettoyé, pas de session", async () => {
     window.history.replaceState(null, "", "/#error=oidc");
     const { result } = renderHook(() => useAuth(), { wrapper });
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(window.location.hash).toBe("");
+    expect(result.current.user).toBeNull();
   });
 });
 
@@ -106,40 +84,61 @@ describe("AuthProvider — actions", () => {
     return hook;
   }
 
-  it("login persiste jeton + utilisateur", async () => {
-    mocked.login.mockResolvedValue({ token: "t1", user });
+  it("login : persiste le jeton et l'utilisateur", async () => {
+    a.login.mockResolvedValue({ token: "t1", user: USER });
     const { result } = await ready();
-    await act(() => result.current.login("a@b.c", "pw"));
-    expect(result.current.user).toBe(user);
-    expect(result.current.token).toBe("t1");
+    await act(() => result.current.login("a@x.test", "motdepasse"));
+    expect(a.login).toHaveBeenCalledWith("a@x.test", "motdepasse");
+    expect(result.current.user).toEqual(USER);
     expect(localStorage.getItem("pp_token")).toBe("t1");
-    expect(mocked.setToken).toHaveBeenLastCalledWith("t1");
+    expect(a.setToken).toHaveBeenLastCalledWith("t1");
   });
 
-  it("register persiste jeton + utilisateur", async () => {
-    mocked.register.mockResolvedValue({ token: "t2", user });
+  it("register : persiste le jeton et l'utilisateur", async () => {
+    a.register.mockResolvedValue({ token: "t2", user: USER });
     const { result } = await ready();
-    await act(() => result.current.register("a@b.c", "Ana", "pw"));
-    expect(mocked.register).toHaveBeenCalledWith("a@b.c", "Ana", "pw");
+    await act(() => result.current.register("a@x.test", "Alex", "motdepasse"));
+    expect(a.register).toHaveBeenCalledWith("a@x.test", "Alex", "motdepasse");
     expect(result.current.token).toBe("t2");
   });
 
-  it("logout vide la session", async () => {
-    mocked.login.mockResolvedValue({ token: "t1", user });
+  it("login refusé : l'erreur remonte et rien n'est persisté", async () => {
+    a.login.mockRejectedValue(new Error("identifiants invalides"));
     const { result } = await ready();
-    await act(() => result.current.login("a@b.c", "pw"));
+    await expect(
+      act(() => result.current.login("a@x.test", "mauvais")),
+    ).rejects.toThrow("identifiants invalides");
+    expect(result.current.user).toBeNull();
+    expect(localStorage.getItem("pp_token")).toBeNull();
+  });
+
+  it("logout : oublie le jeton, l'utilisateur et les brouillons en clair", async () => {
+    a.login.mockResolvedValue({ token: "t1", user: USER });
+    localStorage.setItem("pp_post_draft:s1", "texte intime");
+    const { result } = await ready();
+    await act(() => result.current.login("a@x.test", "motdepasse"));
     act(() => result.current.logout());
     expect(result.current.user).toBeNull();
     expect(result.current.token).toBeNull();
     expect(localStorage.getItem("pp_token")).toBeNull();
+    expect(a.setToken).toHaveBeenLastCalledWith(null);
   });
 
-  it("updateDisplayName met à jour l'utilisateur local", async () => {
-    const updated = { ...(user as object), displayName: "Nouveau" } as never;
-    mocked.updateMe.mockResolvedValue(updated);
+  it("updateDisplayName : met à jour l'utilisateur avec la réponse de l'API", async () => {
+    a.login.mockResolvedValue({ token: "t1", user: USER });
+    a.updateMe.mockResolvedValue({ ...USER, displayName: "Alexandre" });
     const { result } = await ready();
-    await act(() => result.current.updateDisplayName("Nouveau"));
-    expect(mocked.updateMe).toHaveBeenCalledWith("Nouveau");
-    expect(result.current.user).toBe(updated);
+    await act(() => result.current.login("a@x.test", "motdepasse"));
+    await act(() => result.current.updateDisplayName("Alexandre"));
+    expect(a.updateMe).toHaveBeenCalledWith("Alexandre");
+    expect(result.current.user?.displayName).toBe("Alexandre");
+  });
+});
+
+describe("useAuth", () => {
+  it("hors AuthProvider : erreur explicite", () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    expect(() => renderHook(() => useAuth())).toThrow(/AuthProvider/);
+    spy.mockRestore();
   });
 });

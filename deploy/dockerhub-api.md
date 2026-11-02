@@ -13,7 +13,7 @@ This image is **one half** of the stack. It is not meant to run alone — use th
 
 ## What it does
 
-Axum + Tokio HTTP/WebSocket server: JWT auth (Argon2id) and optional OIDC/SSO, per-space content (journal, moods, dares, comments, reactions), Web Push, and authenticated media streaming (optionally **encrypted at rest**, AES-256-GCM). Listens on **:8080**. **Runs its database migrations automatically on startup.**
+Axum + Tokio HTTP/WebSocket server: JWT auth (Argon2id) and optional OIDC/SSO, per-space content (journal, moods, dares, comments, reactions), Web Push, and authenticated media streaming (optionally **encrypted at rest**, AES-256-GCM). Listens on **:8080**. Runs as a **non-root user (uid 10001)**. **Runs its database migrations automatically on startup.**
 
 ## Run it
 

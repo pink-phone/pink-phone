@@ -7,6 +7,17 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: "jsdom",
+    // `isolate: false` a été essayé pour amortir le coût de recréation de
+    // jsdom par fichier (~55-60% du temps de la suite, mesuré) : passe en
+    // local (macOS, plus de workers → moins de fichiers partagés par
+    // worker), mais casse en CI (moins de CPU disponibles → plus de fichiers
+    // par worker → les `vi.mock("../api/client", ...)` de fichiers
+    // différents, qui remplacent le module par des formes différentes,
+    // finissent par se marcher dessus dans un même worker — repro réel :
+    // run #2695, SpaceApp.test.tsx + useApiBuild.test.ts cassés alors que
+    // 303/303 passaient en local). Non déterministe (dépend du nombre de
+    // CPU du runner) → abandonné, pas de fix sûr sans revoir la stratégie de
+    // mock de ces fichiers.
     globals: true,
     setupFiles: ["./src/test/setup.ts"],
     css: false,

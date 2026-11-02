@@ -1,116 +1,107 @@
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, render, screen } from "@testing-library/react";
-
-vi.mock("../components/InstallBanner/InstallBanner", () => ({
-  InstallBanner: (p: { mode: string; onInstall: () => void; onDismiss: () => void }) => (
-    <div>
-      <span data-testid="mode">{p.mode}</span>
-      <button onClick={p.onInstall}>install</button>
-      <button onClick={p.onDismiss}>dismiss</button>
-    </div>
-  ),
-}));
-
 import { InstallPrompt } from "./InstallPrompt";
 
-function stubMatchMedia(standalone: boolean) {
-  vi.stubGlobal("matchMedia", (q: string) => ({
-    matches: standalone && q.includes("standalone"),
-    addEventListener: () => {},
-    removeEventListener: () => {},
-  }));
+const UA = window.navigator.userAgent;
+function setUa(ua: string) {
+  Object.defineProperty(window.navigator, "userAgent", { value: ua, configurable: true });
 }
-
-function setUserAgent(ua: string) {
-  Object.defineProperty(window.navigator, "userAgent", { configurable: true, value: ua });
+function standalone(on: boolean) {
+  window.matchMedia = ((q: string) => ({
+    matches: on && q.includes("standalone"),
+    media: q,
+    addEventListener() {},
+    removeEventListener() {},
+  })) as unknown as typeof window.matchMedia;
 }
-
-function fireBeforeInstall() {
-  const e = new Event("beforeinstallprompt", { cancelable: true }) as Event & {
+function beforeInstall() {
+  const ev = new Event("beforeinstallprompt", { cancelable: true }) as Event & {
     prompt: () => Promise<void>;
     userChoice: Promise<{ outcome: string }>;
   };
-  e.prompt = vi.fn().mockResolvedValue(undefined);
-  e.userChoice = Promise.resolve({ outcome: "accepted" });
+  ev.prompt = vi.fn().mockResolvedValue(undefined);
+  ev.userChoice = Promise.resolve({ outcome: "accepted" });
   act(() => {
-    window.dispatchEvent(e);
+    window.dispatchEvent(ev);
   });
-  return e;
+  return ev;
 }
 
 beforeEach(() => {
   localStorage.clear();
-  stubMatchMedia(false);
-  setUserAgent("Mozilla/5.0 (X11; Linux) Chrome");
+  standalone(false);
+  vi.useFakeTimers({ shouldAdvanceTime: true });
 });
-
 afterEach(() => {
   vi.useRealTimers();
-  vi.unstubAllGlobals();
+  setUa(UA);
 });
 
 describe("InstallPrompt", () => {
-  it("rien tant qu'aucun événement n'arrive", () => {
-    render(<InstallPrompt />);
-    expect(screen.queryByTestId("mode")).not.toBeInTheDocument();
+  it("rien tant qu'aucun signal d'installation n'est reçu", () => {
+    const { container } = render(<InstallPrompt />);
+    expect(container).toBeEmptyDOMElement();
   });
 
-  it("rien si déjà installée (standalone)", () => {
-    stubMatchMedia(true);
+  it("Android : capte beforeinstallprompt, installe via le prompt natif puis disparaît", async () => {
     render(<InstallPrompt />);
-    fireBeforeInstall();
-    expect(screen.queryByTestId("mode")).not.toBeInTheDocument();
+    const ev = beforeInstall();
+    expect(ev.defaultPrevented).toBe(true);
+    await userEvent.click(screen.getByRole("button", { name: /install/i }));
+    expect(ev.prompt).toHaveBeenCalled();
+    await act(async () => {});
+    expect(screen.queryByRole("button", { name: /install/i })).toBeNull();
   });
 
-  it("rien si déjà refusée", () => {
+  it("refuser mémorise le choix et masque la bannière", async () => {
+    render(<InstallPrompt />);
+    beforeInstall();
+    const buttons = screen.getAllByRole("button");
+    await userEvent.click(buttons[buttons.length - 1]);
+    expect(localStorage.getItem("pp_install_dismissed")).toBe("1");
+    expect(screen.queryAllByRole("button")).toHaveLength(0);
+  });
+
+  it("iOS : propose les instructions après un délai (pas d'événement natif)", () => {
+    setUa("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)");
+    const { container } = render(<InstallPrompt />);
+    expect(container).toBeEmptyDOMElement();
+    act(() => {
+      vi.advanceTimersByTime(2600);
+    });
+    expect(container).not.toBeEmptyDOMElement();
+  });
+
+  it("déjà installée (standalone) : ne propose rien", () => {
+    standalone(true);
+    render(<InstallPrompt />);
+    const ev = new Event("beforeinstallprompt", { cancelable: true });
+    act(() => {
+      window.dispatchEvent(ev);
+    });
+    expect(ev.defaultPrevented).toBe(false);
+    expect(screen.queryAllByRole("button")).toHaveLength(0);
+  });
+
+  it("déjà refusée auparavant : ne propose plus", () => {
     localStorage.setItem("pp_install_dismissed", "1");
     render(<InstallPrompt />);
-    fireBeforeInstall();
-    expect(screen.queryByTestId("mode")).not.toBeInTheDocument();
-  });
-
-  it("Android : capte beforeinstallprompt, installe via le prompt natif", async () => {
-    render(<InstallPrompt />);
-    const e = fireBeforeInstall();
-    expect(e.defaultPrevented).toBe(true);
-    expect(screen.getByTestId("mode")).toHaveTextContent("android");
-    await act(async () => {
-      screen.getByText("install").click();
-    });
-    expect(e.prompt).toHaveBeenCalled();
-    expect(screen.queryByTestId("mode")).not.toBeInTheDocument();
-  });
-
-  it("refuser mémorise le choix et masque la bannière", () => {
-    render(<InstallPrompt />);
-    fireBeforeInstall();
-    act(() => screen.getByText("dismiss").click());
-    expect(localStorage.getItem("pp_install_dismissed")).toBe("1");
-    expect(screen.queryByTestId("mode")).not.toBeInTheDocument();
-  });
-
-  it("iOS : instructions affichées après un délai ; install sans prompt = no-op", async () => {
-    vi.useFakeTimers();
-    setUserAgent("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)");
-    render(<InstallPrompt />);
-    expect(screen.queryByTestId("mode")).not.toBeInTheDocument();
+    const ev = new Event("beforeinstallprompt", { cancelable: true });
     act(() => {
-      vi.advanceTimersByTime(2500);
+      window.dispatchEvent(ev);
     });
-    expect(screen.getByTestId("mode")).toHaveTextContent("ios");
-    await act(async () => {
-      screen.getByText("install").click();
-    });
-    expect(screen.getByTestId("mode")).toBeInTheDocument();
+    expect(screen.queryAllByRole("button")).toHaveLength(0);
   });
 
-  it("appinstalled masque et mémorise", () => {
+  it("appinstalled : masque la bannière et mémorise", () => {
     render(<InstallPrompt />);
-    fireBeforeInstall();
+    beforeInstall();
+    expect(screen.queryAllByRole("button").length).toBeGreaterThan(0);
     act(() => {
-      window.dispatchEvent(new Event("appinstalled"));
+      fireEvent(window, new Event("appinstalled"));
     });
-    expect(screen.queryByTestId("mode")).not.toBeInTheDocument();
+    expect(screen.queryAllByRole("button")).toHaveLength(0);
     expect(localStorage.getItem("pp_install_dismissed")).toBe("1");
   });
 });

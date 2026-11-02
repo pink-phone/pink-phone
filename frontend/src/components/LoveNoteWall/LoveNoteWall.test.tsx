@@ -16,8 +16,7 @@ const note = (over: Partial<ApiLoveNote> & { id: string }): ApiLoveNote => ({
 
 describe("LoveNoteWall", () => {
   it("état vide : message dédié", () => {
-    render(<LoveNoteWall notes={[]} userId="u1" onSend={vi.fn()} />);
-    // Message d'état vide (≠ le label « Laisse un petit mot » du composer).
+    render(<LoveNoteWall notes={[]} userId="u1" />);
     expect(screen.getByText(/Aucun mot pour l'instant/i)).toBeInTheDocument();
   });
 
@@ -26,25 +25,18 @@ describe("LoveNoteWall", () => {
       <LoveNoteWall
         notes={[note({ id: "n1", body: "premier" }), note({ id: "n2", body: "second" })]}
         userId="u1"
-        onSend={vi.fn()}
       />,
     );
     expect(screen.getByText("premier")).toBeInTheDocument();
     expect(screen.getByText("second")).toBeInTheDocument();
   });
 
-  it("envoyer un mot : onSend appelé avec le texte, puis le brouillon est vidé", async () => {
-    const onSend = vi.fn().mockResolvedValue(true);
-    render(<LoveNoteWall notes={[]} userId="u1" onSend={onSend} />);
-    const ta = screen.getByRole("textbox");
-    await userEvent.type(ta, "je t'aime");
-    await userEvent.click(screen.getByRole("button", { name: /envoyer/i }));
-    expect(onSend).toHaveBeenCalledWith("je t'aime", undefined);
-    expect((ta as HTMLTextAreaElement).value).toBe("");
-  });
-
-  it("le bouton envoyer est désactivé tant que le mot est vide", () => {
-    render(<LoveNoteWall notes={[]} userId="u1" onSend={vi.fn()} />);
-    expect(screen.getByRole("button", { name: /envoyer/i })).toBeDisabled();
+  it("le bouton « écrire » appelle onCompose (n'écrit pas en ligne)", async () => {
+    const onCompose = vi.fn();
+    render(<LoveNoteWall notes={[]} userId="u1" onCompose={onCompose} />);
+    // Pas de zone de saisie sur le mur : l'écriture passe par le bouton.
+    expect(screen.queryByRole("textbox")).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: /un mot/i }));
+    expect(onCompose).toHaveBeenCalledTimes(1);
   });
 });

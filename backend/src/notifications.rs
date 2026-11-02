@@ -1,19 +1,21 @@
 use std::net::{IpAddr, Ipv4Addr};
 
 use serde_json::json;
+use sqlx::PgPool;
 use uuid::Uuid;
 use web_push::{
-    ContentEncoding, SubscriptionInfo, VapidSignatureBuilder, WebPushClient,
+    ContentEncoding, HyperWebPushClient, SubscriptionInfo, VapidSignatureBuilder, WebPushClient,
     WebPushError, WebPushMessageBuilder,
 };
 
-use crate::state::AppState;
+use crate::config::Config;
+use crate::state::{AppState, EventKind};
 
 #[derive(sqlx::FromRow)]
-struct SubRow {
-    endpoint: String,
-    p256dh: String,
-    auth: String,
+pub(crate) struct SubRow {
+    pub(crate) endpoint: String,
+    pub(crate) p256dh: String,
+    pub(crate) auth: String,
 }
 
 /// `true` si `ip` désigne une adresse interne/privée/réservée qu'un endpoint de
@@ -94,11 +96,72 @@ pub(crate) async fn endpoint_is_safe(endpoint: &str) -> bool {
 /// invite à ouvrir l'app — le contenu se découvre dans l'app authentifiée.
 const GENERIC_BODY: &str = "Ouvre l'app pour voir 🌸";
 
-/// Notifie (best-effort, en tâche de fond) les autres membres du space dont le
-/// mode est 'push', via Web Push. Ne bloque jamais la requête appelante.
-/// Les abonnements morts (404/410) sont purgés. `title` = type d'événement
-/// (générique) ; le corps est invariant (cf. `GENERIC_BODY`).
-pub fn notify_members(state: &AppState, space_id: Uuid, actor_id: Uuid, title: String) {
+/// Abonnements push à notifier pour un événement : ceux des AUTRES membres du
+/// space (jamais l'acteur) dont le mode est `push` — le défaut sans réglage
+/// explicite est `ghost` (pas de push). Isolé de l'envoi réseau pour être testé
+/// sur une vraie base sans toucher `web-push`.
+pub(crate) async fn push_recipients(
+    pool: &sqlx::PgPool,
+    space_id: Uuid,
+    actor_id: Uuid,
+) -> Result<Vec<SubRow>, sqlx::Error> {
+    sqlx::query_as(
+        "SELECT ps.endpoint, ps.p256dh, ps.auth
+         FROM push_subscriptions ps
+         JOIN space_memberships m ON m.user_id = ps.user_id
+         LEFT JOIN user_settings s ON s.user_id = ps.user_id
+         WHERE m.space_id = $1 AND ps.user_id <> $2
+           AND coalesce(s.notif_mode, 'ghost') = 'push'",
+    )
+    .bind(space_id)
+    .bind(actor_id)
+    .fetch_all(pool)
+    .await
+}
+
+/// Notifie les autres membres du salon d'un événement : (a) persiste une
+/// entrée dans le centre de notifications pour CHAQUE membre (indépendamment
+/// de son `notif_mode`, qui ne pilote que le Web Push ci-dessous), lu au fil
+/// de l'eau via `GET /api/spaces/{id}/notifications` ; (b) envoie un Web Push
+/// best-effort, en tâche de fond, aux seuls membres en mode 'push'. `kind` =
+/// type d'événement stable (persisté + WS) ; `entity_id` = référence vers
+/// l'item concerné (id de post/défi/mot doux, ou code desire/eveningMenu),
+/// `None` si le kind n'a pas d'item précis à ouvrir (mood/memberJoined/
+/// downloadEnabled) ; `comment_id` = UNIQUEMENT pour `kind = "comment"`, id du
+/// commentaire précis (distinct d'`entity_id` qui référence alors le POST
+/// commenté — il faut les deux : le post pour ouvrir le bon fil, le
+/// commentaire pour le surligner dedans) ; `title` = libellé du push (les
+/// abonnements morts 404/410 sont purgés, cf. `GENERIC_BODY` pour le corps).
+pub async fn notify_members(
+    state: &AppState,
+    space_id: Uuid,
+    actor_id: Uuid,
+    kind: &str,
+    entity_id: Option<&str>,
+    comment_id: Option<&str>,
+    title: String,
+) {
+    match sqlx::query(
+        "INSERT INTO notifications (space_id, user_id, kind, actor_id, entity_id, comment_id)
+         SELECT $1, m.user_id, $3, $2, $4, $5
+         FROM space_memberships m
+         WHERE m.space_id = $1 AND m.user_id <> $2",
+    )
+    .bind(space_id)
+    .bind(actor_id)
+    .bind(kind)
+    .bind(entity_id)
+    .bind(comment_id)
+    .execute(&state.pool)
+    .await
+    {
+        Ok(res) if res.rows_affected() > 0 => {
+            state.emit(space_id, actor_id, EventKind::Notification);
+        }
+        Ok(_) => {}
+        Err(e) => tracing::error!(error = ?e, "enregistrement de la notification"),
+    }
+
     let pool = state.pool.clone();
     let config = state.config.clone();
     let push_client = state.push_client.clone();
@@ -109,19 +172,7 @@ pub fn notify_members(state: &AppState, space_id: Uuid, actor_id: Uuid, title: S
             return;
         }
 
-        let subs: Vec<SubRow> = match sqlx::query_as(
-            "SELECT ps.endpoint, ps.p256dh, ps.auth
-             FROM push_subscriptions ps
-             JOIN space_memberships m ON m.user_id = ps.user_id
-             LEFT JOIN user_settings s ON s.user_id = ps.user_id
-             WHERE m.space_id = $1 AND ps.user_id <> $2
-               AND coalesce(s.notif_mode, 'ghost') = 'push'",
-        )
-        .bind(space_id)
-        .bind(actor_id)
-        .fetch_all(&pool)
-        .await
-        {
+        let subs = match push_recipients(&pool, space_id, actor_id).await {
             Ok(s) => s,
             Err(e) => {
                 tracing::error!(error = ?e, "lecture des abonnements push");
@@ -133,76 +184,123 @@ pub fn notify_members(state: &AppState, space_id: Uuid, actor_id: Uuid, title: S
         }
 
         let payload = json!({ "title": title, "body": GENERIC_BODY }).to_string();
-        let client = push_client;
 
         for sub in subs {
-            // Revalidation à l'envoi (SECURITY_FINDINGS.md #11) : réduit la
-            // fenêtre d'un DNS rebinding par rapport à une validation faite une
-            // fois pour toutes à l'abonnement.
-            if !endpoint_is_safe(&sub.endpoint).await {
-                tracing::warn!(
-                    target: "notifications",
-                    "endpoint de notification refusé à l'envoi (SSRF) — purgé"
-                );
-                let _ = sqlx::query("DELETE FROM push_subscriptions WHERE endpoint = $1")
-                    .bind(&sub.endpoint)
-                    .execute(&pool)
-                    .await;
-                continue;
-            }
-            let info = SubscriptionInfo::new(
-                sub.endpoint.clone(),
-                sub.p256dh.clone(),
-                sub.auth.clone(),
-            );
-
-            // web-push 0.11 : la clé est toujours du base64 URL-safe sans padding.
-            let signature = match VapidSignatureBuilder::from_base64(
-                &config.vapid_private_key,
-                &info,
-            ) {
-                Ok(mut builder) => {
-                    builder.add_claim("sub", config.vapid_subject.clone());
-                    match builder.build() {
-                        Ok(sig) => sig,
-                        Err(e) => {
-                            tracing::error!(error = ?e, "signature VAPID");
-                            continue;
-                        }
-                    }
-                }
-                Err(e) => {
-                    tracing::error!(error = ?e, "builder VAPID");
-                    continue;
-                }
-            };
-
-            let mut message = WebPushMessageBuilder::new(&info);
-            message.set_payload(ContentEncoding::Aes128Gcm, payload.as_bytes());
-            message.set_vapid_signature(signature);
-            let message = match message.build() {
-                Ok(m) => m,
-                Err(e) => {
-                    tracing::error!(error = ?e, "construction du message push");
-                    continue;
-                }
-            };
-
-            match client.send(message).await {
-                Ok(()) => {}
-                Err(WebPushError::EndpointNotValid(_))
-                | Err(WebPushError::EndpointNotFound(_)) => {
-                    let _ = sqlx::query(
-                        "DELETE FROM push_subscriptions WHERE endpoint = $1",
-                    )
-                    .bind(&sub.endpoint)
-                    .execute(&pool)
-                    .await;
-                }
-                Err(e) => tracing::warn!(error = ?e, "envoi push échoué"),
-            }
+            let _ = send_and_handle(&pool, &push_client, &config, sub, &payload).await;
         }
     });
+}
+
+/// Envoie une notification à UN abonnement, avec la même revalidation et le
+/// même nettoyage des abonnements morts que `notify_members` (factorisé ici
+/// pour être réutilisé par `send_test_notification`, cf. `pinkctl notify
+/// test`). `Ok(())` = envoyé ; `Err(())` = refusé/purgé/échoué (log déjà émis,
+/// pas de détail supplémentaire à faire remonter à l'appelant).
+async fn send_and_handle(
+    pool: &PgPool,
+    client: &HyperWebPushClient,
+    config: &Config,
+    sub: SubRow,
+    payload: &str,
+) -> Result<(), ()> {
+    // Revalidation à l'envoi (SECURITY_FINDINGS.md #11) : réduit la fenêtre
+    // d'un DNS rebinding par rapport à une validation faite une fois pour
+    // toutes à l'abonnement.
+    if !endpoint_is_safe(&sub.endpoint).await {
+        tracing::warn!(
+            target: "notifications",
+            "endpoint de notification refusé à l'envoi (SSRF) — purgé"
+        );
+        let _ = sqlx::query("DELETE FROM push_subscriptions WHERE endpoint = $1")
+            .bind(&sub.endpoint)
+            .execute(pool)
+            .await;
+        return Err(());
+    }
+    let info = SubscriptionInfo::new(sub.endpoint.clone(), sub.p256dh.clone(), sub.auth.clone());
+
+    // web-push 0.11 : la clé est toujours du base64 URL-safe sans padding.
+    let signature = match VapidSignatureBuilder::from_base64(&config.vapid_private_key, &info) {
+        Ok(mut builder) => {
+            builder.add_claim("sub", config.vapid_subject.clone());
+            match builder.build() {
+                Ok(sig) => sig,
+                Err(e) => {
+                    tracing::error!(error = ?e, "signature VAPID");
+                    return Err(());
+                }
+            }
+        }
+        Err(e) => {
+            tracing::error!(error = ?e, "builder VAPID");
+            return Err(());
+        }
+    };
+
+    let mut message = WebPushMessageBuilder::new(&info);
+    message.set_payload(ContentEncoding::Aes128Gcm, payload.as_bytes());
+    message.set_vapid_signature(signature);
+    let message = match message.build() {
+        Ok(m) => m,
+        Err(e) => {
+            tracing::error!(error = ?e, "construction du message push");
+            return Err(());
+        }
+    };
+
+    match client.send(message).await {
+        Ok(()) => Ok(()),
+        Err(WebPushError::EndpointNotValid(_)) | Err(WebPushError::EndpointNotFound(_)) => {
+            let _ = sqlx::query("DELETE FROM push_subscriptions WHERE endpoint = $1")
+                .bind(&sub.endpoint)
+                .execute(pool)
+                .await;
+            Err(())
+        }
+        Err(e) => {
+            tracing::warn!(error = ?e, "envoi push échoué");
+            Err(())
+        }
+    }
+}
+
+/// Envoie une notification de test à TOUS les abonnements push d'un
+/// utilisateur (sans filtrer par `notif_mode` ni par appartenance à un space —
+/// c'est un test manuel, pas un vrai événement) et attend le résultat
+/// (contrairement à `notify_members`, best-effort en tâche de fond : ici
+/// l'appelant — `pinkctl notify test` — veut savoir si ça a marché). Renvoie
+/// `(envoyés, total)`. `Err` seulement si VAPID n'est pas configuré ou si la
+/// lecture des abonnements échoue — un échec d'envoi individuel n'est PAS une
+/// erreur globale (compté dans `envoyés < total`).
+pub async fn send_test_notification(
+    pool: &PgPool,
+    config: &Config,
+    push_client: &HyperWebPushClient,
+    user_id: Uuid,
+    title: String,
+) -> Result<(usize, usize), String> {
+    if config.vapid_private_key.is_empty() {
+        return Err("VAPID non configuré : notifications push désactivées".into());
+    }
+    let subs: Vec<SubRow> =
+        sqlx::query_as("SELECT endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = $1")
+            .bind(user_id)
+            .fetch_all(pool)
+            .await
+            .map_err(|e| e.to_string())?;
+
+    let total = subs.len();
+    let payload = json!({ "title": title, "body": GENERIC_BODY }).to_string();
+    let mut sent = 0;
+    for sub in subs {
+        if send_and_handle(pool, push_client, config, sub, &payload)
+            .await
+            .is_ok()
+        {
+            sent += 1;
+        }
+    }
+    Ok((sent, total))
 }
 
 #[cfg(test)]
@@ -285,5 +383,13 @@ mod tests {
     async fn endpoint_url_invalide_refusee() {
         assert!(!endpoint_is_safe("pas-une-url").await);
         assert!(!endpoint_is_safe("").await);
+    }
+
+    #[tokio::test]
+    async fn endpoint_nom_resolvant_vers_loopback_ou_injoignable_refuse() {
+        // `localhost` se résout en 127.0.0.1/::1 : refusé (toutes les IP résolues
+        // sont contrôlées). `.invalid` (RFC 6761) ne se résout jamais : refusé aussi.
+        assert!(!endpoint_is_safe("https://localhost/push").await);
+        assert!(!endpoint_is_safe("https://pas-de-dns.invalid/push").await);
     }
 }

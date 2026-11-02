@@ -7,9 +7,7 @@ use uuid::Uuid;
 
 use crate::auth::AuthUser;
 use crate::error::{ApiError, ApiResult};
-use crate::models::{
-    challenge_transition_allowed, is_proposal_response, Challenge, INTENSITIES,
-};
+use crate::models::{challenge_transition_allowed, is_proposal_response, Challenge, INTENSITIES};
 use crate::pagination::{Page, PageParams};
 use crate::routes::ensure_member;
 use crate::state::{AppState, EventKind};
@@ -160,8 +158,12 @@ async fn create_challenge(
         &state,
         space_id,
         auth.user_id,
+        "challenge",
+        Some(&challenge.id.to_string()),
+        None,
         "Nouveau défi".into(),
-    );
+    )
+    .await;
 
     Ok((StatusCode::CREATED, Json(challenge)))
 }
@@ -225,13 +227,12 @@ async fn update_challenge(
         return Err(ApiError::BadRequest("intensité inconnue".into()));
     }
 
-    let proposer: Option<Uuid> = sqlx::query_scalar(
-        "SELECT proposer_id FROM challenges WHERE id = $1 AND space_id = $2",
-    )
-    .bind(challenge_id)
-    .bind(space_id)
-    .fetch_optional(&state.pool)
-    .await?;
+    let proposer: Option<Uuid> =
+        sqlx::query_scalar("SELECT proposer_id FROM challenges WHERE id = $1 AND space_id = $2")
+            .bind(challenge_id)
+            .bind(space_id)
+            .fetch_optional(&state.pool)
+            .await?;
     if proposer.ok_or(ApiError::NotFound)? != auth.user_id {
         return Err(ApiError::Forbidden);
     }
@@ -270,13 +271,12 @@ async fn delete_challenge(
 ) -> ApiResult<StatusCode> {
     ensure_member(&state.pool, auth.user_id, space_id).await?;
 
-    let proposer: Option<Uuid> = sqlx::query_scalar(
-        "SELECT proposer_id FROM challenges WHERE id = $1 AND space_id = $2",
-    )
-    .bind(challenge_id)
-    .bind(space_id)
-    .fetch_optional(&state.pool)
-    .await?;
+    let proposer: Option<Uuid> =
+        sqlx::query_scalar("SELECT proposer_id FROM challenges WHERE id = $1 AND space_id = $2")
+            .bind(challenge_id)
+            .bind(space_id)
+            .fetch_optional(&state.pool)
+            .await?;
     let proposer = proposer.ok_or(ApiError::NotFound)?;
     if proposer != auth.user_id {
         return Err(ApiError::Forbidden);

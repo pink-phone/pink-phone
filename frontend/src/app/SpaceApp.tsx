@@ -25,10 +25,21 @@ import { DashboardScreen } from "../screens/DashboardScreen/DashboardScreen";
 import { BlogScreen } from "../screens/BlogScreen/BlogScreen";
 import { ChallengesScreen } from "../screens/ChallengesScreen/ChallengesScreen";
 import { ChallengeBankScreen } from "../screens/ChallengeBankScreen/ChallengeBankScreen";
+import { DesiresScreen } from "../screens/DesiresScreen/DesiresScreen";
+import {
+  SERVICE_COURSES,
+  type CourseCategory,
+} from "../components/EveningCourseSettings/EveningCourseSettings";
+import { EveningMenuScreen } from "../screens/EveningMenuScreen/EveningMenuScreen";
 import { Splash } from "../screens/Splash/Splash";
 
 import { Sheet } from "../components/Sheet/Sheet";
+import { MoodSelector } from "../components/MoodSelector/MoodSelector";
+import { LoveNoteComposer } from "../components/LoveNoteComposer/LoveNoteComposer";
+import { Toast } from "../components/Toast/Toast";
 import { CommentsSheet } from "../components/CommentsSheet/CommentsSheet";
+import { NotificationCenter } from "../components/NotificationCenter/NotificationCenter";
+import { clearPostDraft, loadPostDraft, savePostDraft } from "../lib/postDraft";
 import { PostComposer, type PostDraft } from "../components/PostComposer/PostComposer";
 import {
   ChallengeComposer,
@@ -44,13 +55,18 @@ import { usePosts } from "./hooks/usePosts";
 import { useChallenges } from "./hooks/useChallenges";
 import { useMoods } from "./hooks/useMoods";
 import { useSeen } from "./hooks/useSeen";
+import { useDesires } from "./hooks/useDesires";
+import { useEveningMenu } from "./hooks/useEveningMenu";
 import { useLoveNotes } from "./hooks/useLoveNotes";
+import { useNotifications } from "./hooks/useNotifications";
 import { useApiBuild } from "./hooks/useApiBuild";
 import { WEB_BUILD } from "../lib/buildInfo";
 import {
   toChallengeData,
   toCommentViews,
   toDashboardNotices,
+  toNotificationItems,
+  toEveningMenuPreview,
   toPostData,
 } from "./mappers";
 
@@ -149,6 +165,22 @@ export function SpaceApp({
     remove: removeSuggestion,
     setHidden: setSuggestionHidden,
   } = useSuggestions(space.id, lang);
+  // Envies / Dossier Noir (#99) : domaine autonome, gated par le flag du salon.
+  const {
+    desires,
+    refetch: refetchDesires,
+    setStance: setDesireStance,
+    toggleDone: toggleDesireDone,
+  } = useDesires(space.id, space.desiresEnabled);
+  // Menu du soir (#97b) : rituel quotidien, gated par le flag du salon.
+  const {
+    items: eveningMenuItems,
+    status: eveningMenuStatus,
+    setDone: setEveningMenuDone,
+    refetch: refetchEveningMenu,
+    toggle: toggleEveningMenu,
+    refuse: refuseEveningMenu,
+  } = useEveningMenu(space.id, space.eveningMenuEnabled);
   // Mots doux (#102) : toujours actif (pas de flag).
   const {
     notes: loveNotes,
@@ -156,7 +188,30 @@ export function SpaceApp({
     add: addLoveNote,
     remove: removeLoveNote,
   } = useLoveNotes(space.id);
-  const [openSheet, setOpenSheet] = useState<"post" | "challenge" | null>(null);
+  // Centre de notifications : historique + compteur non lu (badge cloche).
+  const {
+    items: notifications,
+    unreadCount: unreadNotifications,
+    refetch: refetchNotifications,
+    markRead: markNotificationRead,
+    markAllRead: markAllNotificationsRead,
+  } = useNotifications(space.id);
+  const [showNotifications, setShowNotifications] = useState(false);
+  // Cible à surligner/scroller après navigation depuis le centre de
+  // notifications (#post-<id> / #challenge-<id> / #lovenote-<id>, cf.
+  // openNotification).
+  const [highlight, setHighlight] = useState<
+    { kind: "post" | "challenge" | "loveNote"; id: string } | null
+  >(null);
+  // Commentaire précis à surligner dans la feuille de commentaires (distinct
+  // de `highlight` ci-dessus : ce n'est pas un scroll de tab, mais un item à
+  // l'intérieur d'une feuille déjà ouverte par `openComments`).
+  const [highlightedCommentId, setHighlightedCommentId] = useState<
+    string | null
+  >(null);
+  const [openSheet, setOpenSheet] = useState<
+    "post" | "challenge" | "mood" | "loveNote" | null
+  >(null);
   // Brouillon en cours d'édition (sinon la feuille "post" crée un nouveau post).
   const [editingPost, setEditingPost] = useState<ApiPost | null>(null);
   // Média reçu via le partage natif (#86) : pré-rempli dans un nouveau post.
@@ -182,6 +237,9 @@ export function SpaceApp({
   // Version du serveur : lue à chaque ouverture des Réglages (section « À propos »).
   const apiBuild = useApiBuild(showSettings);
   const [showBank, setShowBank] = useState(false);
+  const [showEveningMenu, setShowEveningMenu] = useState(false);
+  // Toast éphémère « ✨ Match ce soir ! » (#97b, redesign dashboard).
+  const [matchToast, setMatchToast] = useState(false);
   const [notifMode, setNotifMode] = useState<NotifMode>("ghost");
   const [settingsBusy, setSettingsBusy] = useState(false);
   const [pushError, setPushError] = useState<string | null>(null);
@@ -269,6 +327,7 @@ export function SpaceApp({
       refetchSeen(),
       refetchNotices(),
       refetchLoveNotes(),
+      refetchNotifications(),
       api
         .getSettings()
         .then((s) => {
@@ -289,6 +348,7 @@ export function SpaceApp({
     refetchSeen,
     refetchNotices,
     refetchLoveNotes,
+    refetchNotifications,
   ]);
 
   // Applique la préférence "effet braise" globalement (classe sur <html>) + persiste.
@@ -311,9 +371,17 @@ export function SpaceApp({
       if (tabRef.current === "challenges") markSeen("challenges");
     } else if (kind === "mood") {
       refetchMoods();
+    } else if (kind === "desire") {
+      // Un match vient de se former (#99) → révèle-le de mon côté.
+      refetchDesires();
+    } else if (kind === "eveningMenu") {
+      // Match du soir (#97b) → révèle-le de mon côté.
+      refetchEveningMenu();
     } else if (kind === "loveNote") {
       // Nouveau mot doux (ou déverrouillage d'un mot différé) — #102.
       refetchLoveNotes();
+    } else if (kind === "notification") {
+      refetchNotifications();
     } else if (kind === "seen") {
       refetchSeen();
     } else if (kind === "space") {
@@ -339,7 +407,10 @@ export function SpaceApp({
       refetchMoods();
       refetchSeen();
       refetchNotices();
+      refetchDesires();
+      refetchEveningMenu();
       refetchLoveNotes();
+      refetchNotifications();
     };
     document.addEventListener("visibilitychange", resync);
     window.addEventListener("focus", resync);
@@ -353,18 +424,108 @@ export function SpaceApp({
     refetchMoods,
     refetchSeen,
     refetchNotices,
+    refetchDesires,
+    refetchEveningMenu,
     refetchLoveNotes,
+    refetchNotifications,
   ]);
 
   // Retour Android / swipe iOS ferment la surface ouverte (au lieu de quitter).
   useBackClose(showSettings, () => setShowSettings(false));
   useBackClose(showBank, () => setShowBank(false));
+  // Brouillon local restauré à l'ouverture d'un NOUVEAU post (la feuille démonte
+  // le composer à la fermeture → relu à chaque ouverture).
+  const restoredDraft = useMemo(
+    () =>
+      openSheet === "post" && !editingPost
+        ? loadPostDraft(user.id, space.id)
+        : undefined,
+    [openSheet, editingPost, user.id, space.id],
+  );
+
   useBackClose(openSheet !== null, () => {
     setOpenSheet(null);
     setEditingPost(null);
     setEditingChallenge(null);
   });
   useBackClose(commentsFor !== null, closeComments);
+  useBackClose(showEveningMenu, () => setShowEveningMenu(false));
+  useBackClose(showNotifications, () => setShowNotifications(false));
+
+  // Scroll + surlignage temporaire d'un post/défi/mot doux précis après un
+  // tap sur une notification (openNotification ci-dessous) : l'onglet vient
+  // de changer, l'item cible est donc déjà dans le DOM au moment où cet effet
+  // tourne. S'efface tout seul après l'animation (`animate-highlight-glow`,
+  // ~1.8 s).
+  useEffect(() => {
+    if (!highlight) return;
+    if (
+      (highlight.kind === "post" && tab !== "blog") ||
+      (highlight.kind === "challenge" && tab !== "challenges") ||
+      (highlight.kind === "loveNote" && tab !== "dashboard")
+    ) {
+      return;
+    }
+    document
+      .getElementById(`${highlight.kind}-${highlight.id}`)
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const timer = setTimeout(() => setHighlight(null), 2200);
+    return () => clearTimeout(timer);
+  }, [tab, highlight]);
+
+  // Match du soir (#97b) : nb d'items matchés + toast « ✨ Match ce soir ! » quand
+  // ça augmente (le partenaire vient de compléter un match). On « arme » le toast
+  // ~1,5 s après le `ready` pour ne pas le tirer sur les matchs déjà là au montage.
+  // (mes choix seulement : une proposition de l'autre non validée n'est pas un match)
+  const eveningMatches = eveningMenuItems.filter((i) => i.matched && i.picked).length;
+  // Catégories du catalogue du menu du soir (réglage des services) : une par
+  // catégorie, avec son service par défaut (`mixed` si ses items se répartissent).
+  const eveningCategories = useMemo<CourseCategory[]>(() => {
+    const byId = new Map<string, { cat: CourseCategory; defaults: Set<string> }>();
+    for (const i of eveningMenuItems) {
+      let entry = byId.get(i.category);
+      if (!entry) {
+        entry = {
+          cat: {
+            id: i.category,
+            label: lang.startsWith("en") ? i.categoryLabelEn : i.categoryLabelFr,
+            defaultCourses: [],
+          },
+          defaults: new Set(),
+        };
+        byId.set(i.category, entry);
+      }
+      if (i.defaultCourse) entry.defaults.add(i.defaultCourse);
+    }
+    return [...byId.values()].map(({ cat, defaults }) => ({
+      ...cat,
+      defaultCourses: SERVICE_COURSES.filter((c) => defaults.has(c)),
+    }));
+  }, [eveningMenuItems, lang]);
+  const eveningPreview = useMemo(
+    () =>
+      toEveningMenuPreview(eveningMenuItems, {
+        isEn: lang.startsWith("en"),
+        explicit: space.desiresExplicitLabels,
+      }),
+    [eveningMenuItems, lang, space.desiresExplicitLabels],
+  );
+  const prevEveningMatches = useRef<number | null>(null);
+  const toastArmed = useRef(false);
+  useEffect(() => {
+    if (!ready) return;
+    const id = setTimeout(() => {
+      toastArmed.current = true;
+    }, 1500);
+    return () => clearTimeout(id);
+  }, [ready]);
+  useEffect(() => {
+    const prev = prevEveningMatches.current;
+    prevEveningMatches.current = eveningMatches;
+    if (toastArmed.current && prev !== null && eveningMatches > prev) {
+      setMatchToast(true);
+    }
+  }, [eveningMatches]);
 
   // Dérivés mémoïsés (REACT-04) — AVANT tout `return` conditionnel (règle des
   // hooks). `toPostData` instancie un Intl.RelativeTimeFormat par post : on évite
@@ -405,6 +566,23 @@ export function SpaceApp({
     // depuis mon dernier passage au blog est « non lu ».
     () => toCommentViews(comments, user.id, blogDividerAt),
     [comments, user.id, blogDividerAt],
+  );
+  // Scroll + surlignage bref du commentaire visé par une notification, une
+  // fois que `openComments` (déclenché dans `openNotification`) a chargé le
+  // fil et qu'il y apparaît. Contrairement à l'effet `highlight` (tab), ici
+  // on attend le contenu de la feuille, pas juste le changement d'onglet.
+  useEffect(() => {
+    if (!highlightedCommentId) return;
+    if (!commentViews.some((c) => c.id === highlightedCommentId)) return;
+    document
+      .getElementById(`comment-${highlightedCommentId}`)
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    const timer = setTimeout(() => setHighlightedCommentId(null), 2200);
+    return () => clearTimeout(timer);
+  }, [commentViews, highlightedCommentId]);
+  const notificationItems = useMemo(
+    () => toNotificationItems(notifications),
+    [notifications],
   );
 
   if (!ready) return <Splash message={t("splash.loadingSpace")} />;
@@ -459,6 +637,7 @@ export function SpaceApp({
   // garde que la fermeture de feuille (succès) et la confirmation de suppression.
   const addPost = async (draft: PostDraft) => {
     if (await addPostH(draft)) {
+      clearPostDraft(user.id, space.id);
       setOpenSheet(null);
       setSharedFiles([]);
     }
@@ -537,6 +716,67 @@ export function SpaceApp({
     }
   };
 
+  const changeDesiresEnabled = async (desiresEnabled: boolean) => {
+    try {
+      // setSpace change `space.desiresEnabled` → useDesires se recharge (ou se
+      // vide) tout seul via son effet sur `[enabled]` (#99).
+      setSpace(await api.updateSpace(space.id, { desiresEnabled }));
+    } catch (e) {
+      console.error("changement de la liste d'envies échoué", e);
+    }
+  };
+
+  const changeDesiresExplicit = async (desiresExplicitLabels: boolean) => {
+    try {
+      setSpace(await api.updateSpace(space.id, { desiresExplicitLabels }));
+    } catch (e) {
+      console.error("changement du registre des libellés échoué", e);
+    }
+  };
+
+  const changeEveningMenuEnabled = async (eveningMenuEnabled: boolean) => {
+    try {
+      // useEveningMenu se recharge/vide via son effet sur `[enabled]` (#97b).
+      setSpace(await api.updateSpace(space.id, { eveningMenuEnabled }));
+    } catch (e) {
+      console.error("changement du menu du soir échoué", e);
+    }
+  };
+
+  const changeEveningCourseCategories = async (eveningCourseCategories: string[]) => {
+    try {
+      setSpace(
+        await api.updateSpace(space.id, { eveningCourseCustom: true, eveningCourseCategories }),
+      );
+      refetchEveningMenu(); // les services affichés dépendent du classement
+    } catch (e) {
+      console.error("réglage des services du menu échoué", e);
+    }
+  };
+
+  const resetEveningCourses = async () => {
+    try {
+      setSpace(
+        await api.updateSpace(space.id, {
+          eveningCourseCustom: false,
+          eveningCourseCategories: [],
+        }),
+      );
+      refetchEveningMenu();
+    } catch (e) {
+      console.error("rétablissement des services du menu échoué", e);
+    }
+  };
+
+  const changeEveningMenuBlind = async (eveningMenuBlind: boolean) => {
+    try {
+      setSpace(await api.updateSpace(space.id, { eveningMenuBlind }));
+      refetchEveningMenu(); // les flags matched/partnerWants dépendent du mode (#0040)
+    } catch (e) {
+      console.error("changement du mode du menu du soir échoué", e);
+    }
+  };
+
   const changeNotifMode = async (mode: NotifMode) => {
     setSettingsBusy(true);
     setPushError(null);
@@ -550,6 +790,73 @@ export function SpaceApp({
       setPushError(e instanceof Error ? e.message : "action impossible");
     } finally {
       setSettingsBusy(false);
+    }
+  };
+
+  // Tap sur une notification du centre : marque lue (si besoin) + navigue vers
+  // l'écran concerné. Quand `entityId` désigne un item précis (post/défi/mot
+  // doux), on scroll dessus et le surligne brièvement (cf. effet `highlight`
+  // ci-dessus) ; pour un commentaire, on scroll ET surligne le post commenté
+  // ET ouvre directement son fil (comme ailleurs dans l'app, via
+  // `openComments` de `usePosts`) — les deux gestes ensemble, pas l'un ou
+  // l'autre. `desire`/memberJoined/downloadEnabled restent à la granularité
+  // de l'onglet (item déjà bien visible en haut de liste / notices sur le
+  // dashboard, pas de scroll précis pour ces kinds).
+  const openNotification = (id: string) => {
+    const notif = notifications.find((n) => n.id === id);
+    if (notif && !notif.read) markNotificationRead(id);
+    setShowNotifications(false);
+    switch (notif?.kind) {
+      case "post":
+        setTab("blog");
+        setHighlight(notif.entityId ? { kind: "post", id: notif.entityId } : null);
+        break;
+      case "comment": {
+        setTab("blog");
+        setHighlight(notif.entityId ? { kind: "post", id: notif.entityId } : null);
+        // Ouverture différée de CommentsSheet, pour deux raisons :
+        // 1. `setShowNotifications(false)` ci-dessus programme un
+        //    `history.back()` DIFFÉRÉ (cleanup de useBackClose, cf. lib/
+        //    useBackClose.ts) pour dépiler l'entrée d'historique du centre de
+        //    notifications. Ouvrir CommentsSheet tout de suite empilerait une
+        //    NOUVELLE entrée par-dessus AVANT que ce back() différé ne se
+        //    déclenche — celui-ci dépilerait alors la mauvaise entrée (celle
+        //    de CommentsSheet), refermant la feuille aussitôt ouverte.
+        // 2. Confort (retour utilisateur) : laisser le temps de voir le post
+        //    scrollé/surligné et lire son titre avant que la feuille ne le
+        //    recouvre, plutôt qu'un enchaînement instantané.
+        const COMMENT_SHEET_OPEN_DELAY_MS = 2500;
+        const entityId = notif.entityId;
+        const commentId = notif.commentId;
+        setTimeout(() => {
+          if (entityId) openComments(entityId);
+          setHighlightedCommentId(commentId ?? null);
+        }, COMMENT_SHEET_OPEN_DELAY_MS);
+        break;
+      }
+      case "challenge":
+        setTab("challenges");
+        setHighlight(
+          notif.entityId ? { kind: "challenge", id: notif.entityId } : null,
+        );
+        break;
+      case "loveNote":
+        setTab("dashboard");
+        setHighlight(
+          notif.entityId ? { kind: "loveNote", id: notif.entityId } : null,
+        );
+        break;
+      case "desire":
+        setTab("desires");
+        break;
+      case "eveningMenu":
+      case "eveningMenuRevealed":
+        setShowEveningMenu(true);
+        break;
+      default:
+        // memberJoined / downloadEnabled : les notices de salon vivent sur le
+        // dashboard, sans item précis à surligner.
+        setTab("dashboard");
     }
   };
 
@@ -569,7 +876,14 @@ export function SpaceApp({
             timezone: space.timezone,
             blindMood: space.blindMood,
             allowMediaDownload: space.allowMediaDownload,
+            desiresEnabled: space.desiresEnabled,
+            desiresExplicitLabels: space.desiresExplicitLabels,
+            eveningMenuEnabled: space.eveningMenuEnabled,
+            eveningMenuBlind: space.eveningMenuBlind,
+            eveningCourseCustom: space.eveningCourseCustom,
+            eveningCourseCategories: space.eveningCourseCategories,
           }}
+          eveningCategories={eveningCategories}
           members={members.map((m) => ({ id: m.id, name: m.displayName }))}
           inviteCode={inviteCode}
           onCreateInvite={createInvite}
@@ -582,6 +896,12 @@ export function SpaceApp({
           onTimezoneChange={changeTimezone}
           onBlindMoodChange={changeBlindMood}
           onAllowMediaDownloadChange={changeAllowMediaDownload}
+          onDesiresEnabledChange={changeDesiresEnabled}
+          onDesiresExplicitChange={changeDesiresExplicit}
+          onEveningMenuEnabledChange={changeEveningMenuEnabled}
+          onEveningMenuBlindChange={changeEveningMenuBlind}
+          onEveningCourseCategoriesChange={changeEveningCourseCategories}
+          onEveningCourseReset={resetEveningCourses}
           reactions={space.reactions}
           allowCustomReactions={space.allowCustomReactions}
           onReactionsChange={changeReactions}
@@ -636,31 +956,79 @@ export function SpaceApp({
   }
 
 
+  if (showEveningMenu) {
+    return (
+      <div className="mx-auto h-dvh max-w-md overflow-y-auto overscroll-contain bg-charcoal-900 bg-felt-velvet px-4 pb-[calc(2.5rem+env(safe-area-inset-bottom))] pt-[calc(1rem+env(safe-area-inset-top))]">
+        <EveningMenuScreen
+          items={eveningMenuItems}
+          explicit={space.desiresExplicitLabels}
+          partnerName={partners.length === 1 ? partners[0].displayName : undefined}
+          blind={space.eveningMenuBlind}
+          status={eveningMenuStatus}
+          onDone={() => setEveningMenuDone(true)}
+          onUndoDone={() => setEveningMenuDone(false)}
+          onToggle={toggleEveningMenu}
+          onRefuse={refuseEveningMenu}
+          onBack={() => setShowEveningMenu(false)}
+        />
+      </div>
+    );
+  }
+
+
+  // La bucket list (#99) est un onglet (si activée). Si on désactive pendant
+  // qu'on y est, on retombe sur l'accueil.
+  const activeTab =
+    tab === "desires" && !space.desiresEnabled ? "dashboard" : tab;
+
   return (
     <AppShell
-      active={tab}
+      active={activeTab}
       onTabChange={setTab}
-      badges={{ blog: newPosts, challenges: newChallenges }}
+      badges={{
+        blog: newPosts,
+        challenges: newChallenges,
+        desires: desires.filter((d) => d.matched).length,
+      }}
+      desiresEnabled={space.desiresEnabled}
     >
-      {tab === "dashboard" && (
+      {activeTab === "dashboard" && (
         <DashboardScreen
           spaceName={space.name}
           partners={partnerCards}
           inviteCode={inviteCode}
           onCreateInvite={createInvite}
           myMood={myMood}
-          onMoodChange={setMood}
-          onMoodClear={clearMood}
+          onOpenMood={() => setOpenSheet("mood")}
           onOpenSettings={() => setShowSettings(true)}
+          onOpenNotifications={() => setShowNotifications(true)}
+          unreadNotifications={unreadNotifications}
           newPosts={newPosts}
           newComments={newComments}
           newChallenges={newChallenges}
           notices={dashboardNotices}
           onOpen={setTab}
+          eveningMenuEnabled={space.eveningMenuEnabled}
+          eveningMenuMatches={eveningMatches}
+          eveningMenuPreview={eveningPreview}
+          onOpenEveningMenu={() => setShowEveningMenu(true)}
           userId={user.id}
           loveNotes={loveNotes}
-          onSendLoveNote={addLoveNote}
+          onComposeLoveNote={() => setOpenSheet("loveNote")}
           onDeleteLoveNote={removeLoveNote}
+          highlightedLoveNoteId={
+            highlight?.kind === "loveNote" ? highlight.id : undefined
+          }
+        />
+      )}
+
+      {activeTab === "desires" && (
+        <DesiresScreen
+          items={desires}
+          explicit={space.desiresExplicitLabels}
+          onToggleWant={(code) => setDesireStance(code, "want")}
+          onToggleAgainst={(code) => setDesireStance(code, "against")}
+          onToggleDone={toggleDesireDone}
         />
       )}
 
@@ -678,6 +1046,7 @@ export function SpaceApp({
           allowCustomReactions={space.allowCustomReactions}
           onDeletePost={deletePost}
           onPublishPost={publishPost}
+          highlightedPostId={highlight?.kind === "post" ? highlight.id : undefined}
           onEditPost={(id) => {
             const p = posts.find((x) => x.id === id);
             if (p) {
@@ -707,6 +1076,9 @@ export function SpaceApp({
             }
           }}
           onDelete={deleteChallenge}
+          highlightedChallengeId={
+            highlight?.kind === "challenge" ? highlight.id : undefined
+          }
         />
       )}
 
@@ -731,6 +1103,12 @@ export function SpaceApp({
             editingPost ? editingPost.allowDownload : space.allowMediaDownload
           }
           initialFiles={editingPost ? undefined : sharedFiles}
+          initialText={restoredDraft}
+          onTextChange={
+            editingPost
+              ? undefined
+              : (d) => savePostDraft(user.id, space.id, d)
+          }
           initial={
             editingPost
               ? {
@@ -797,6 +1175,46 @@ export function SpaceApp({
         />
       </Sheet>
 
+      {/* Saisie d'humeur en feuille (redesign dashboard) : ouverte au tap sur ma
+          carte météo. On ferme dès qu'une humeur est choisie/retirée. */}
+      <Sheet
+        open={openSheet === "mood"}
+        title={t("dashboard.moodQuestion")}
+        onClose={() => setOpenSheet(null)}
+      >
+        <MoodSelector
+          value={myMood}
+          onChange={(m) => {
+            setMood(m);
+            setOpenSheet(null);
+          }}
+          onClear={() => {
+            clearMood();
+            setOpenSheet(null);
+          }}
+        />
+      </Sheet>
+
+      {/* Composer de mot doux en feuille (#102, redesign) : ouvert depuis le mur. */}
+      <Sheet
+        open={openSheet === "loveNote"}
+        title={t("loveNotes.sheetTitle")}
+        onClose={() => setOpenSheet(null)}
+      >
+        <LoveNoteComposer
+          onSend={addLoveNote}
+          onSent={() => setOpenSheet(null)}
+        />
+      </Sheet>
+
+      {matchToast && (
+        <Toast
+          icon="✨"
+          message={t("eveningMenu.matchToast")}
+          onDismiss={() => setMatchToast(false)}
+        />
+      )}
+
       <CommentsSheet
         // Remonté à chaque changement de post (REACT2-02) : réinitialise le
         // brouillon de réponse / l'édition en cours (sinon ils fuient d'un post
@@ -815,6 +1233,15 @@ export function SpaceApp({
           if (confirmAction(t("comments.confirmDelete"))) removeComment(id);
         }}
         onClose={closeComments}
+        highlightedCommentId={highlightedCommentId}
+      />
+
+      <NotificationCenter
+        open={showNotifications}
+        items={notificationItems}
+        onOpen={openNotification}
+        onMarkAllRead={markAllNotificationsRead}
+        onClose={() => setShowNotifications(false)}
       />
     </AppShell>
   );

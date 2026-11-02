@@ -1,102 +1,85 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const report = vi.fn();
-vi.mock("./api/client", () => ({ reportClientLogs: (e: unknown) => report(e) }));
+vi.mock("./api/client", () => ({ reportClientLogs: vi.fn() }));
 
+// Le module garde une file + un minuteur en état de module : on le recharge à
+// chaque test, et on enregistre les écouteurs globaux une seule fois par rechargement.
 async function load() {
   vi.resetModules();
-  return import("./clientLog");
+  const client = await import("./api/client");
+  const mod = await import("./clientLog");
+  return { report: vi.mocked(client.reportClientLogs), ...mod };
 }
 
-beforeEach(() => {
-  report.mockClear();
-  vi.useFakeTimers();
-});
-
-afterEach(() => {
-  vi.useRealTimers();
-});
+beforeEach(() => vi.useFakeTimers());
+afterEach(() => vi.useRealTimers());
 
 describe("clientLog", () => {
-  it("logClientError met en file puis vide après le délai", async () => {
-    const { logClientError } = await load();
-    logClientError("boom", "ctx");
-    logClientError("deux");
+  it("logClientError : envoi différé groupé (une seule requête)", async () => {
+    const { report, logClientError } = await load();
+    logClientError("a", "ctx");
+    logClientError("b");
     expect(report).not.toHaveBeenCalled();
     vi.advanceTimersByTime(3000);
     expect(report).toHaveBeenCalledTimes(1);
-    expect(report).toHaveBeenCalledWith([
-      { level: "error", message: "boom", context: "ctx" },
-      { level: "error", message: "deux", context: undefined },
+    expect(report.mock.calls[0][0]).toEqual([
+      { level: "error", message: "a", context: "ctx" },
+      { level: "error", message: "b", context: undefined },
     ]);
+    vi.advanceTimersByTime(10_000);
+    expect(report).toHaveBeenCalledTimes(1); // file vidée, plus d'envoi
   });
 
-  it("plafonne la file à 50 entrées (les plus anciennes sont écartées)", async () => {
-    const { logClientError } = await load();
-    for (let i = 0; i < 55; i++) logClientError(`m${i}`);
+  it("la file est bornée (les plus anciennes sont abandonnées)", async () => {
+    const { report, logClientError } = await load();
+    for (let i = 0; i < 60; i++) logClientError(`m${i}`);
     vi.advanceTimersByTime(3000);
-    const batch = report.mock.calls[0][0] as { message: string }[];
+    const batch = report.mock.calls[0][0];
     expect(batch).toHaveLength(50);
-    expect(batch[0].message).toBe("m5");
-    expect(batch[49].message).toBe("m54");
+    expect(batch[0].message).toBe("m10");
+    expect(batch[49].message).toBe("m59");
   });
 
-  it("capte window 'error' avec fichier:ligne:col", async () => {
-    const { initClientLogging } = await load();
+  it("initClientLogging : capte window.error et unhandledrejection", async () => {
+    const { report, initClientLogging } = await load();
     initClientLogging();
     window.dispatchEvent(
-      new ErrorEvent("error", { message: "kaput", filename: "a.js", lineno: 3, colno: 7 }),
+      new ErrorEvent("error", { message: "boom", filename: "app.js", lineno: 3, colno: 7 }),
     );
     window.dispatchEvent(new ErrorEvent("error", { message: "" }));
-    window.dispatchEvent(new Event("pagehide"));
-    const batch = report.mock.calls[report.mock.calls.length - 1][0] as { message: string; context?: string }[];
-    expect(batch[0]).toMatchObject({ message: "kaput", context: "a.js:3:7" });
-    expect(batch[1]).toMatchObject({ message: "erreur inconnue", context: undefined });
-  });
-
-  it("capte unhandledrejection (string, Error, vide)", async () => {
-    const { initClientLogging } = await load();
-    initClientLogging();
     const rej = (reason: unknown) => {
       const e = new Event("unhandledrejection") as Event & { reason: unknown };
       e.reason = reason;
       window.dispatchEvent(e);
     };
     rej("texte");
-    rej(new Error("objet"));
+    rej({ message: "objet" });
     rej(undefined);
-    window.dispatchEvent(new Event("pagehide"));
-    const batch = report.mock.calls[report.mock.calls.length - 1][0] as { message: string; context?: string }[];
-    expect(batch.map((b) => b.message)).toEqual([
-      "texte",
-      "objet",
-      "rejet de promesse non géré",
+    vi.advanceTimersByTime(3000);
+    expect(report.mock.calls[0][0]).toEqual([
+      { level: "error", message: "boom", context: "app.js:3:7" },
+      { level: "error", message: "erreur inconnue", context: undefined },
+      { level: "error", message: "texte", context: "unhandledrejection" },
+      { level: "error", message: "objet", context: "unhandledrejection" },
+      { level: "error", message: "rejet de promesse non géré", context: "unhandledrejection" },
     ]);
-    expect(batch.every((b) => b.context === "unhandledrejection")).toBe(true);
   });
 
-  it("vide la file quand l'onglet passe en arrière-plan", async () => {
-    const { initClientLogging, logClientError } = await load();
+  it("vide la file immédiatement au pagehide et quand l'onglet passe en arrière-plan", async () => {
+    const { report, initClientLogging, logClientError } = await load();
     initClientLogging();
-    logClientError("avant départ");
-    Object.defineProperty(document, "visibilityState", {
-      configurable: true,
-      get: () => "hidden",
-    });
-    document.dispatchEvent(new Event("visibilitychange"));
-    expect(report).toHaveBeenCalledTimes(1);
-    Object.defineProperty(document, "visibilityState", {
-      configurable: true,
-      get: () => "visible",
-    });
-    document.dispatchEvent(new Event("visibilitychange"));
-    expect(report).toHaveBeenCalledTimes(1);
-  });
-
-  it("ne rappelle pas reportClientLogs si la file est vide", async () => {
-    const { initClientLogging } = await load();
-    initClientLogging();
+    logClientError("x");
     window.dispatchEvent(new Event("pagehide"));
-    expect(report).not.toHaveBeenCalled();
+    expect(report).toHaveBeenCalledTimes(1);
+
+    logClientError("y");
+    Object.defineProperty(document, "visibilityState", { value: "hidden", configurable: true });
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(report).toHaveBeenCalledTimes(2);
+    Object.defineProperty(document, "visibilityState", { value: "visible", configurable: true });
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(report).toHaveBeenCalledTimes(2); // visible : pas de flush
+    window.dispatchEvent(new Event("pagehide")); // file vide : rien
+    expect(report).toHaveBeenCalledTimes(2);
   });
 });

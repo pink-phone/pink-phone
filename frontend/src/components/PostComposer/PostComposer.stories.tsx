@@ -23,6 +23,19 @@ export const Standalone: Story = {
   ),
 };
 
+/** Nouveau post avec le texte d'un brouillon local restauré (sauvegarde auto). */
+export const BrouillonRestauré: Story = {
+  args: {
+    initialText: { title: "Ce soir…", body: "Je commençais à écrire quand l'app s'est verrouillée." },
+    onTextChange: fn(),
+  },
+  render: (args) => (
+    <div className="w-80">
+      <PostComposer {...args} />
+    </div>
+  ),
+};
+
 /** Édition d'un brouillon : champs pré-remplis, photo ajoutable. */
 export const Édition: Story = {
   args: {

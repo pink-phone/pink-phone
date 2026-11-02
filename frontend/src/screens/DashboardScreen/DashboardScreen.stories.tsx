@@ -1,11 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react-vite";
 import { fn } from "storybook/test";
-import { useState } from "react";
 import {
   DashboardScreen,
   type DashboardPartner,
 } from "./DashboardScreen";
 import { SPACE_NAME } from "../../mock/data";
+import type { ApiLoveNote } from "../../api/types";
 
 const CAMILLE: DashboardPartner = {
   id: "p1",
@@ -15,41 +15,49 @@ const CAMILLE: DashboardPartner = {
   timeLabel: "il y a 10 min",
 };
 
+const NOTE = (over: Partial<ApiLoveNote> & { id: string }): ApiLoveNote => ({
+  authorId: "p1",
+  authorName: "Camille",
+  body: "Je pense à toi 🌸",
+  sealed: false,
+  openAt: null,
+  createdAt: "2026-06-29T20:00:00.000Z",
+  ...over,
+});
+
 const meta = {
   title: "Écrans/DashboardScreen",
   component: DashboardScreen,
   tags: ["autodocs"],
   parameters: { layout: "centered" },
+  decorators: [
+    (Story) => (
+      <div className="w-[380px]">
+        <Story />
+      </div>
+    ),
+  ],
   args: {
     spaceName: SPACE_NAME,
     partners: [CAMILLE],
     myMood: null,
-    onMoodChange: fn(),
+    userId: "me",
+    onOpenMood: fn(),
+    onOpenNotifications: fn(),
   },
 } satisfies Meta<typeof DashboardScreen>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const ParDéfaut: Story = {
-  render: (args) => {
-    const [myMood, setMyMood] = useState<string | null>(args.myMood);
-    return (
-      <div className="w-[380px]">
-        <DashboardScreen
-          {...args}
-          myMood={myMood}
-          onMoodChange={(m) => {
-            setMyMood(m);
-            args.onMoodChange?.(m);
-          }}
-        />
-      </div>
-    );
-  },
+export const ParDéfaut: Story = {};
+
+/** Mon humeur posée (carte « Toi » illuminée, tap pour changer). */
+export const HumeurPosée: Story = {
+  args: { myMood: "veryHot" },
 };
 
-/** Groupe (≥ 3 personnes, #52) : plusieurs cartes météo + formulation au pluriel. */
+/** Groupe (≥ 3 personnes, #52) : plusieurs cartes météo. */
 export const Groupe: Story = {
   name: "Salon à plusieurs",
   args: {
@@ -60,49 +68,66 @@ export const Groupe: Story = {
     ],
     myMood: "veryHot",
   },
-  render: (args) => (
-    <div className="w-[380px]">
-      <DashboardScreen {...args} />
-    </div>
-  ),
 };
 
 export const Mystère: Story = {
   name: "Humeur à l'aveugle (partenaire masqué)",
+  args: { partners: [{ ...CAMILLE, moodHidden: true }], myMood: null },
+};
+
+/** Le rituel « Menu du soir » + le mur de mots doux. */
+export const Rituels: Story = {
   args: {
-    partners: [{ ...CAMILLE, moodHidden: true }],
-    myMood: null,
+    eveningMenuEnabled: true,
+    onOpenEveningMenu: fn(),
+    onComposeLoveNote: fn(),
+    loveNotes: [
+      NOTE({ id: "n1", authorId: "me", authorName: "Toi", body: "Hâte de te voir." }),
+      NOTE({ id: "n2", body: "Tu me manques déjà." }),
+    ],
   },
-  render: (args) => {
-    const [myMood, setMyMood] = useState<string | null>(args.myMood);
-    return (
-      <div className="w-[380px]">
-        <DashboardScreen
-          {...args}
-          myMood={myMood}
-          // Une fois mon humeur posée, la carte du partenaire se dévoile.
-          partners={args.partners.map((p) => ({
-            ...p,
-            moodHidden: p.moodHidden && !myMood,
-          }))}
-          onMoodChange={(m) => {
-            setMyMood(m);
-            args.onMoodChange?.(m);
-          }}
-        />
-      </div>
-    );
+};
+
+/** 114a : le menu de ce soir est lisible directement sur la tuile, sans l'ouvrir. */
+export const MenuDuSoirApercu: Story = {
+  name: "Menu du soir : aperçu sur la tuile",
+  args: {
+    eveningMenuEnabled: true,
+    onOpenEveningMenu: fn(),
+    eveningMenuPreview: [
+      { course: "starter", labels: ["Câlins sous la couette"], matched: false },
+      { course: "main", labels: ["Le lotus", "La chaise de bureau", "Levrette", "Le pont", "Le papillon", "Missionnaire", "Le CAT"], matched: true },
+      { course: "dessert", labels: [], matched: false },
+    ],
+    eveningMenuMatches: 1,
+  },
+};
+
+/** Un seul service rempli : les 3 lignes restent, les vides affichent « — ». */
+export const MenuDuSoirUnSeulService: Story = {
+  args: {
+    eveningMenuEnabled: true,
+    onOpenEveningMenu: fn(),
+    eveningMenuPreview: [
+      { course: "starter", labels: ["Câlins sous la couette", "Un bain à deux"], matched: false },
+      { course: "main", labels: [], matched: false },
+      { course: "dessert", labels: [], matched: false },
+    ],
+  },
+};
+
+/** Match du soir révélé : l'entrée « Menu du soir » se transforme (braise + badge). */
+export const MatchDuSoir: Story = {
+  args: {
+    eveningMenuEnabled: true,
+    eveningMenuMatches: 1,
+    onOpenEveningMenu: fn(),
   },
 };
 
 export const Nouveautés: Story = {
   name: "Du nouveau (posts, commentaires, défis)",
   args: { newPosts: 1, newComments: 2, newChallenges: 1 },
-  render: (args) => (
-    <div className="w-[380px]">
-      <DashboardScreen {...args} />
-    </div>
-  ),
 };
 
 export const Notices: Story = {
@@ -113,11 +138,11 @@ export const Notices: Story = {
       { id: "2", kind: "download_enabled", actorName: "Alex" },
     ],
   },
-  render: (args) => (
-    <div className="w-[380px]">
-      <DashboardScreen {...args} />
-    </div>
-  ),
+};
+
+export const NotificationsNonLues: Story = {
+  name: "Cloche de notifications (badge)",
+  args: { unreadNotifications: 3 },
 };
 
 export const Solo: Story = {
@@ -127,9 +152,4 @@ export const Solo: Story = {
     inviteCode: "EmberVelvet#7",
     onCreateInvite: () => {},
   },
-  render: (args) => (
-    <div className="w-[380px]">
-      <DashboardScreen {...args} />
-    </div>
-  ),
 };

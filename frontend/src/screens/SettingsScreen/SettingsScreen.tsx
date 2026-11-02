@@ -27,6 +27,10 @@ import {
   enableBiometric,
   disableBiometric,
 } from "../../lib/biometric";
+import {
+  EveningCourseSettings,
+  type CourseCategory,
+} from "../../components/EveningCourseSettings/EveningCourseSettings";
 import { cn } from "../../lib/cn";
 import { SUPPORTED_LANGS } from "../../i18n";
 import { THEMES, applyTheme, getTheme, type Theme } from "../../theme";
@@ -91,7 +95,18 @@ export interface SettingsScreenProps {
     timezone: string;
     blindMood?: boolean;
     allowMediaDownload?: boolean;
+    desiresEnabled?: boolean;
+    desiresExplicitLabels?: boolean;
+    eveningMenuEnabled?: boolean;
+    /** Mode aveugle strict (défaut) vs mode ouvert (#0040). */
+    eveningMenuBlind?: boolean;
+    /** Services du menu du soir paramétrés par le salon ? (sinon : catalogue) */
+    eveningCourseCustom?: boolean;
+    /** Entrées « service:categorie » du classement du salon. */
+    eveningCourseCategories?: string[];
   };
+  /** Catégories du catalogue du menu du soir (réglage des services). */
+  eveningCategories?: CourseCategory[];
   members?: { id: string; name: string }[];
   /** Invitation d'un nouveau membre dans CE salon (#52) — code lisible + générateur. */
   inviteCode?: string | null;
@@ -108,6 +123,18 @@ export interface SettingsScreenProps {
   onBlindMoodChange?: (enabled: boolean) => void;
   /** Défaut du salon « média téléchargeable » des nouveaux posts (#78). */
   onAllowMediaDownloadChange?: (enabled: boolean) => void;
+  /** Active/désactive la liste d'envies à double consentement (#99). */
+  onDesiresEnabledChange?: (enabled: boolean) => void;
+  /** Bascule le registre des libellés de la bucket list (explicite/suggestif). */
+  onDesiresExplicitChange?: (explicit: boolean) => void;
+  /** Active/désactive le « Menu du soir » (rituel quotidien, #97b). */
+  onEveningMenuEnabledChange?: (enabled: boolean) => void;
+  /** Bascule le mode du menu du soir : aveugle (défaut) vs ouvert (#0040). */
+  onEveningMenuBlindChange?: (blind: boolean) => void;
+  /** Enregistre le classement du salon (entrées « service:categorie »). */
+  onEveningCourseCategoriesChange?: (entries: string[]) => void;
+  /** Rétablit le classement du catalogue. */
+  onEveningCourseReset?: () => void;
   /** Réactions du salon (ordre + emoji libres). Affichées si fournies. */
   reactions?: ReactionId[];
   allowCustomReactions?: boolean;
@@ -125,6 +152,9 @@ export interface SettingsScreenProps {
 
 /** Réglages : mode de notification « à la carte » + apparence + déconnexion. */
 export function SettingsScreen({
+  eveningCategories,
+  onEveningCourseCategoriesChange,
+  onEveningCourseReset,
   notifMode,
   onModeChange,
   pushSupported = true,
@@ -145,6 +175,10 @@ export function SettingsScreen({
   onTimezoneChange,
   onBlindMoodChange,
   onAllowMediaDownloadChange,
+  onDesiresEnabledChange,
+  onDesiresExplicitChange,
+  onEveningMenuEnabledChange,
+  onEveningMenuBlindChange,
   reactions,
   allowCustomReactions = true,
   onReactionsChange,
@@ -482,6 +516,68 @@ export function SettingsScreen({
                 hint={t("settings.allowMediaDownloadHint")}
               />
             )}
+
+            {/* Bucket list (#99) */}
+            {onDesiresEnabledChange && (
+              <Toggle
+                checked={space.desiresEnabled ?? false}
+                onChange={onDesiresEnabledChange}
+                label={t("settings.desiresEnabled")}
+                hint={t("settings.desiresEnabledHint")}
+              />
+            )}
+
+            {/* Registre des libellés bucket list (explicite/suggestif) — si activée. */}
+            {onDesiresExplicitChange && space.desiresEnabled && (
+              <Toggle
+                checked={space.desiresExplicitLabels ?? true}
+                onChange={onDesiresExplicitChange}
+                label={t("settings.desiresExplicit")}
+                hint={t("settings.desiresExplicitHint")}
+              />
+            )}
+          </Surface>
+        </section>
+      )}
+
+      {/* Menu du soir (#97b) : section à part — activation, mode, services. */}
+      {space && onEveningMenuEnabledChange && (
+        <section className="space-y-v3-3">
+          <h2 className="text-xs uppercase tracking-[0.15em] text-taupe-400">
+            {t("settings.eveningMenuSection")}
+          </h2>
+          <Surface tone="velvet" className="space-y-v3-4">
+            <Toggle
+              checked={space.eveningMenuEnabled ?? false}
+              onChange={onEveningMenuEnabledChange}
+              label={t("settings.eveningMenuEnabled")}
+              hint={t("settings.eveningMenuEnabledHint")}
+            />
+
+            {/* Mode du menu du soir : aveugle (défaut) vs ouvert (#0040) — si activé. */}
+            {onEveningMenuBlindChange && space.eveningMenuEnabled && (
+              <Toggle
+                checked={space.eveningMenuBlind ?? true}
+                onChange={onEveningMenuBlindChange}
+                label={t("settings.eveningMenuBlind")}
+                hint={t("settings.eveningMenuBlindHint")}
+              />
+            )}
+
+            {/* Services du menu (catégories → Entrée/Plat/Dessert), par salon. */}
+            {onEveningCourseCategoriesChange &&
+              onEveningCourseReset &&
+              space.eveningMenuEnabled &&
+              eveningCategories &&
+              eveningCategories.length > 0 && (
+                <EveningCourseSettings
+                  categories={eveningCategories}
+                  custom={space.eveningCourseCustom ?? false}
+                  entries={space.eveningCourseCategories ?? []}
+                  onChange={onEveningCourseCategoriesChange}
+                  onReset={onEveningCourseReset}
+                />
+              )}
           </Surface>
         </section>
       )}
@@ -661,10 +757,12 @@ export function SettingsScreen({
           <p className="text-xs text-taupe-400">{t("settings.pushUnavailable")}</p>
         )}
 
+        {/* Sélecteur compact (calqué sur le réglage de langue) : on choisit le
+            mode, sa description s'affiche EN DESSOUS (plutôt que toutes à la fois). */}
         <div
           role="radiogroup"
           aria-label={t("settings.notifications")}
-          className="space-y-v3-2"
+          className="flex gap-2"
         >
           {MODES.map((mode) => {
             const active = notifMode === mode.id;
@@ -677,43 +775,23 @@ export function SettingsScreen({
                 aria-checked={active}
                 disabled={disabled}
                 onClick={() => onModeChange(mode.id)}
-                className="block w-full text-left disabled:opacity-50"
+                className={cn(
+                  "flex flex-1 items-center justify-center gap-1.5 rounded-2xl border px-3 py-2 text-sm font-medium",
+                  "transition-all duration-300 ease-felt focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500 disabled:opacity-50",
+                  active
+                    ? "border-spice-500/70 bg-bordeaux-700 text-blush-100 shadow-glow"
+                    : "border-charcoal-600/60 bg-charcoal-800 text-taupe-300 hover:border-spice-400/40",
+                )}
               >
-                <Surface
-                  tone={active ? "deep" : "velvet"}
-                  className={cn(
-                    "flex items-start gap-3 transition-all duration-300 ease-felt",
-                    active ? "shadow-glow" : "hover:-translate-y-0.5",
-                  )}
-                >
-                  <span aria-hidden className="text-2xl">
-                    {mode.emoji}
-                  </span>
-                  <span className="leading-tight">
-                    <span className="flex items-center gap-2">
-                      <span
-                        className={cn(
-                          "font-serif text-base",
-                          active ? "text-blush-100" : "text-taupe-100",
-                        )}
-                      >
-                        {t(MODE_KEYS[mode.id].title)}
-                      </span>
-                    </span>
-                    <span
-                      className={cn(
-                        "mt-0.5 block text-xs",
-                        active ? "text-blush-200" : "text-taupe-400",
-                      )}
-                    >
-                      {t(MODE_KEYS[mode.id].desc)}
-                    </span>
-                  </span>
-                </Surface>
+                <span aria-hidden>{mode.emoji}</span>
+                {t(MODE_KEYS[mode.id].title)}
               </button>
             );
           })}
         </div>
+        <p className="text-xs text-taupe-300">
+          {t(MODE_KEYS[notifMode].desc)}
+        </p>
 
         {pushError && (
           <p className="rounded-2xl bg-bordeaux-700/40 px-3 py-2 text-xs text-blush-200">

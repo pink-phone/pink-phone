@@ -1,7 +1,9 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { isPinSet, setPin, verifyPin, clearPin } from "./pin";
 
-// localStorage indispo sous Node 26+ : stub minimal en mémoire.
+// localStorage indispo sous Node 26+ : stub minimal en mémoire. afterEach
+// restaure le global : avec `isolate: false` (vitest.config.ts), un stub non
+// restauré fuit vers les fichiers suivants du même worker.
 beforeEach(() => {
   const store = new Map<string, string>();
   vi.stubGlobal("localStorage", {
@@ -9,6 +11,10 @@ beforeEach(() => {
     setItem: (k: string, v: string) => void store.set(k, v),
     removeItem: (k: string) => void store.delete(k),
   });
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 describe("lib/pin", () => {

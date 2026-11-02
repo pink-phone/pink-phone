@@ -116,4 +116,30 @@ describe("SafeMedia — ratio connu avant chargement", () => {
     });
     expect(container.style.aspectRatio).toBe("");
   });
+
+  it("onRatioChange est appelé avec le ratio dès le montage (width/height fournis)", () => {
+    const onRatioChange = vi.fn();
+    render(
+      <SafeMedia
+        src="data:,"
+        alt="x"
+        width={1200}
+        height={630}
+        onRatioChange={onRatioChange}
+      />,
+    );
+    expect(onRatioChange).toHaveBeenCalledWith(1200 / 630);
+  });
+
+  it("onRatioChange(null) sans width/height ni chargement", () => {
+    const onRatioChange = vi.fn();
+    render(
+      <SafeMedia
+        alt="x"
+        loader={() => new Promise(() => {})}
+        onRatioChange={onRatioChange}
+      />,
+    );
+    expect(onRatioChange).toHaveBeenCalledWith(null);
+  });
 });

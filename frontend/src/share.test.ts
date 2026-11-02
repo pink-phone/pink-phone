@@ -1,89 +1,71 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-function res(body: string | null, init: { ok?: boolean; headers?: Record<string, string> } = {}) {
-  return {
-    ok: init.ok ?? true,
-    headers: new Headers(init.headers),
-    json: () => Promise.resolve(JSON.parse(String(body))),
-    blob: () => Promise.resolve(new Blob(body ? [body] : [])),
-  } as unknown as Response;
-}
-
-async function loadWithShare() {
-  window.history.replaceState(null, "", "/?share-target=1#h");
+async function load(search: string) {
   vi.resetModules();
+  window.history.replaceState(null, "", `/${search}#frag`);
   return import("./share");
 }
-
-let fetchMock: ReturnType<typeof vi.fn>;
+const fetchMock = vi.fn();
+const cachesDelete = vi.fn().mockResolvedValue(true);
 
 beforeEach(() => {
-  fetchMock = vi.fn();
+  fetchMock.mockReset();
+  cachesDelete.mockClear();
   vi.stubGlobal("fetch", fetchMock);
+  vi.stubGlobal("caches", { delete: cachesDelete });
 });
+afterEach(() => vi.unstubAllGlobals());
 
-afterEach(() => {
-  vi.unstubAllGlobals();
-  window.history.replaceState(null, "", "/");
-});
+const res = (body: BodyInit | null, init: ResponseInit & { headers?: Record<string, string> } = {}) =>
+  new Response(body, init);
 
 describe("share target", () => {
-  it("sans drapeau : aucun fichier et pas de fetch", async () => {
-    window.history.replaceState(null, "", "/");
-    vi.resetModules();
-    const { takeSharedFiles } = await import("./share");
-    await expect(takeSharedFiles()).resolves.toEqual([]);
+  it("sans drapeau ?share-target : aucun fichier, aucun appel réseau", async () => {
+    const { takeSharedFiles } = await load("");
+    expect(await takeSharedFiles()).toEqual([]);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("récupère les fichiers du SW, nettoie l'URL, ne sert qu'une fois", async () => {
-    fetchMock.mockImplementation((path: string) => {
-      if (path === "/__shared-media") return Promise.resolve(res(JSON.stringify({ count: 2 })));
-      if (path === "/__shared-media/0")
-        return Promise.resolve(res("abc", { headers: { "X-Share-Filename": encodeURIComponent("é a.png") } }));
-      return Promise.resolve(res("")); // 2e fichier vide → ignoré
+  it("récupère les fichiers du SW une seule fois, nettoie l'URL et le cache", async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === "/__shared-media") return res(JSON.stringify({ count: 2 }));
+      if (url === "/__shared-media/0")
+        return res("AAA", { headers: { "X-Share-Filename": "photo%20un.jpg", "Content-Type": "image/jpeg" } });
+      return res("BBB", { headers: { "Content-Type": "video/mp4" } });
     });
-    const { takeSharedFiles } = await loadWithShare();
-    expect(window.location.search).toBe("");
-    expect(window.location.hash).toBe("#h");
+    const { takeSharedFiles } = await load("?share-target=1");
+    expect(window.location.search).toBe(""); // drapeau effacé
+    expect(window.location.hash).toBe("#frag");
+
     const files = await takeSharedFiles();
-    expect(files).toHaveLength(1);
-    expect(files[0].name).toBe("é a.png");
-    await expect(takeSharedFiles()).resolves.toEqual([]);
+    expect(files.map((f) => f.name)).toEqual(["photo un.jpg", "media"]);
+    expect(files[0].type).toBe("image/jpeg");
+    expect(cachesDelete).toHaveBeenCalledWith("pp-share");
+    expect(await takeSharedFiles()).toEqual([]); // consommé une fois
   });
 
-  it("nom par défaut 'media' sans en-tête", async () => {
-    fetchMock.mockImplementation((path: string) =>
-      Promise.resolve(path === "/__shared-media" ? res(JSON.stringify({ count: 1 })) : res("x")),
-    );
-    const { takeSharedFiles } = await loadWithShare();
-    expect((await takeSharedFiles())[0].name).toBe("media");
-  });
-
-  it("réponse non ok → liste vide", async () => {
-    fetchMock.mockResolvedValue(res("{}", { ok: false }));
-    const { takeSharedFiles } = await loadWithShare();
-    await expect(takeSharedFiles()).resolves.toEqual([]);
-  });
-
-  it("count invalide ou erreur réseau → liste vide", async () => {
-    fetchMock.mockResolvedValueOnce(res(JSON.stringify({ count: "x" })));
-    const a = await loadWithShare();
-    await expect(a.takeSharedFiles()).resolves.toEqual([]);
-
-    fetchMock.mockRejectedValue(new Error("offline"));
-    const b = await loadWithShare();
-    await expect(b.takeSharedFiles()).resolves.toEqual([]);
-  });
-
-  it("un fichier en erreur est ignoré sans casser le lot", async () => {
-    fetchMock.mockImplementation((path: string) => {
-      if (path === "/__shared-media") return Promise.resolve(res(JSON.stringify({ count: 2 })));
-      if (path.endsWith("/0")) return Promise.reject(new Error("boom"));
-      return Promise.resolve(res("ok", { headers: { "X-Share-Filename": "b.png" } }));
+  it("ignore les fichiers vides ou en erreur", async () => {
+    fetchMock.mockImplementation(async (url: string) => {
+      if (url === "/__shared-media") return res(JSON.stringify({ count: 3 }));
+      if (url.endsWith("/0")) return res("", { status: 200 }); // vide
+      if (url.endsWith("/1")) return res("x", { status: 500 });
+      throw new Error("réseau");
     });
-    const { takeSharedFiles } = await loadWithShare();
-    const files = await takeSharedFiles();
-    expect(files.map((f) => f.name)).toEqual(["b.png"]);
+    const { takeSharedFiles } = await load("?share-target=1");
+    expect(await takeSharedFiles()).toEqual([]);
+  });
+
+  it("manifeste absent, invalide ou réseau en panne : liste vide sans erreur", async () => {
+    fetchMock.mockResolvedValue(res("", { status: 404 }));
+    let m = await load("?share-target=1");
+    expect(await m.takeSharedFiles()).toEqual([]);
+
+    fetchMock.mockResolvedValue(res(JSON.stringify({})));
+    m = await load("?share-target=1");
+    expect(await m.takeSharedFiles()).toEqual([]);
+
+    fetchMock.mockRejectedValue(new Error("réseau"));
+    m = await load("?share-target=1");
+    expect(await m.takeSharedFiles()).toEqual([]);
   });
 });

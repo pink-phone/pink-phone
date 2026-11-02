@@ -50,3 +50,9 @@ export const Programmé: Story = {
     openAt: "2099-01-01T09:00:00.000Z",
   },
 };
+
+/** Repère bref après un tap sur une notification (centre de notifications) :
+ *  halo spice qui pulse deux fois puis s'efface tout seul (~1,8 s). */
+export const Surligné: Story = {
+  args: { highlighted: true },
+};

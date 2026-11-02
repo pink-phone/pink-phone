@@ -73,6 +73,10 @@ export interface BlogPostProps {
    * liste qui a vu (et quand).
    */
   seenBy?: { name: string; timeLabel: string }[];
+  /** Ancre DOM (ex: `post-<id>`) pour scroller dessus depuis une notification. */
+  id?: string;
+  /** Repère visuel bref après navigation depuis une notification (#post/#comment). */
+  highlighted?: boolean;
   className?: string;
 }
 
@@ -100,6 +104,8 @@ export function BlogPost({
   onPublish,
   onEdit,
   seenBy,
+  id,
+  highlighted = false,
   className,
 }: BlogPostProps) {
   const { t } = useTranslation();
@@ -107,8 +113,14 @@ export function BlogPost({
   const seenPopupId = useId();
   return (
     <Surface
+      id={id}
       tone="velvet"
-      className={cn("w-full space-y-v3-4", draft && "relative", className)}
+      className={cn(
+        "w-full space-y-v3-4",
+        draft && "relative",
+        highlighted && "animate-highlight-glow motion-reduce:animate-none",
+        className,
+      )}
     >
       {/* Brouillon : liseré pointillé « croquis en cours » (overlay additif, ne
           touche pas à la bordure de la Surface ni à la lisibilité). */}

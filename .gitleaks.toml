@@ -1,0 +1,27 @@
+# Config gitleaks (CI : .forgejo/workflows/security.yml, scan de tout l'historique).
+# Règles par défaut + des allowlists STRICTES pour les fixtures de test connues
+# (jetons/clés factices). Un secret réel ailleurs fait toujours échouer le scan.
+[extend]
+useDefault = true
+
+# 1. Fichiers entièrement factices : id_token de test (tests unitaires OIDC) et clé
+#    RSA du faux fournisseur d'identité des tests d'intégration.
+[[allowlists]]
+description = "Jetons / clé de test OIDC"
+paths = [
+  '''backend/src/routes/oidc\.rs''',
+  '''backend/src/test_idp_key\.pem''',
+]
+
+# 2. Secrets de configuration FACTICES (`jwt_secret: "…"`, `vapid_private_key: "…"`,
+#    `inviteToken: "…"`) dans le code de test / les stories / les tests de pinkctl.
+#    Seule la règle générique « generic-api-key » est neutralisée dans ces fichiers :
+#    clés privées, jetons AWS/GitHub, etc. y restent détectés.
+[[allowlists]]
+description = "Secrets factices des configs de test et des stories"
+targetRules = ["generic-api-key"]
+paths = [
+  '''backend/src/tests_[a-z_]+\.rs''',
+  '''backend/src/bin/pinkctl\.rs''',
+  '''frontend/src/.*\.stories\.tsx''',
+]

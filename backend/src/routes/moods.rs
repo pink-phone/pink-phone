@@ -15,7 +15,10 @@ pub fn router() -> Router<AppState> {
     Router::new()
         // `/moods` = collection ; `/moods/me` = mon humeur (cohérent /auth/me — API-01).
         .route("/api/spaces/{id}/moods", get(list_moods))
-        .route("/api/spaces/{id}/moods/me", put(set_mood).delete(clear_mood))
+        .route(
+            "/api/spaces/{id}/moods/me",
+            put(set_mood).delete(clear_mood),
+        )
 }
 
 #[derive(Deserialize)]
@@ -32,7 +35,7 @@ fn mood_allowed(s: &str) -> bool {
     }
     let t = s.trim();
     let n = t.chars().count();
-    n >= 1 && n <= 40 && t.len() <= 120
+    (1..=40).contains(&n) && t.len() <= 120
 }
 
 async fn set_mood(
@@ -93,8 +96,12 @@ async fn set_mood(
                 &state,
                 space_id,
                 auth.user_id,
+                "mood",
+                None,
+                None,
                 "Nouvelle humeur".into(),
-            );
+            )
+            .await;
         }
     }
 

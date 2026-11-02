@@ -1,5 +1,10 @@
 # Pink Phone 🔥
 
+<!-- github-badges -->
+[![Coverage](https://github.com/pink-phone/pink-phone/actions/workflows/coverage.yml/badge.svg?branch=main)](https://github.com/pink-phone/pink-phone/actions/workflows/coverage.yml)
+[![Backend integration tests](https://github.com/pink-phone/pink-phone/actions/workflows/integration.yml/badge.svg?branch=main)](https://github.com/pink-phone/pink-phone/actions/workflows/integration.yml)
+<!-- /github-badges -->
+
 **A couple's secret garden.** An intimate PWA — not a dating app, not a social network — just for two. A laid-back shared journal, a "weather of desire", and playful dares. Shipped as a PWA, deliberately **outside the app stores**, self-hostable.
 
 > Mobile-first, dark, with a "felted" art direction (soft skeuomorphism, desaturated rose, velvet) — neither flat-and-cold, nor candy pink, nor clinical.

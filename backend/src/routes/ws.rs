@@ -49,11 +49,9 @@ async fn ws_handler(
     if state
         .rate_limiter
         .is_limited(&format!("ws:ip:{}", ip.0), WS_MAX_ATTEMPTS, WS_WINDOW)
-        || state.rate_limiter.is_limited(
-            &format!("ws:user:{user_id}"),
-            WS_MAX_ATTEMPTS,
-            WS_WINDOW,
-        )
+        || state
+            .rate_limiter
+            .is_limited(&format!("ws:user:{user_id}"), WS_MAX_ATTEMPTS, WS_WINDOW)
     {
         return Err(ApiError::TooManyRequests(
             "trop de tentatives de connexion, réessaie dans une minute".into(),
@@ -64,9 +62,7 @@ async fn ws_handler(
         user_id,
         WS_MAX_CONCURRENT_PER_USER,
     )
-    .ok_or_else(|| {
-        ApiError::TooManyRequests("trop de connexions temps réel simultanées".into())
-    })?;
+    .ok_or_else(|| ApiError::TooManyRequests("trop de connexions temps réel simultanées".into()))?;
 
     Ok(ws.on_upgrade(move |socket| handle_socket(socket, state, space_id, user_id, guard)))
 }
@@ -86,13 +82,10 @@ async fn handle_socket(
             ev = rx.recv() => match ev {
                 // On ne renvoie pas ses propres mutations (déjà appliquées côté client).
                 Ok(ev) if ev.space_id == space_id && ev.actor_id != user_id => {
-                    match serde_json::to_string(&ev) {
-                        Ok(text) => {
-                            if socket.send(Message::Text(text.into())).await.is_err() {
-                                break;
-                            }
+                    if let Ok(text) = serde_json::to_string(&ev) {
+                        if socket.send(Message::Text(text.into())).await.is_err() {
+                            break;
                         }
-                        Err(_) => {}
                     }
                 }
                 Ok(_) => {}

@@ -54,6 +54,50 @@ pub struct UpdateSpaceBody {
     pub blind_mood: Option<bool>,
     /// Défaut du salon « média téléchargeable » des nouveaux posts (#78).
     pub allow_media_download: Option<bool>,
+    /// Active la liste d'envies à double consentement (#99).
+    pub desires_enabled: Option<bool>,
+    /// Registre des libellés de la bucket list (explicite vs suggestif).
+    pub desires_explicit_labels: Option<bool>,
+    /// Active le « Menu du soir » (rituel quotidien, #97b).
+    pub evening_menu_enabled: Option<bool>,
+    /// Mode aveugle strict (défaut) vs mode ouvert (#0040).
+    pub evening_menu_blind: Option<bool>,
+    /// Services du menu du soir : classement du salon activé (vrai) ou retour au
+    /// classement du catalogue (faux).
+    pub evening_course_custom: Option<bool>,
+    /// Entrées « <service>:<categorie> » du menu du soir (remplacement complet).
+    pub evening_course_categories: Option<Vec<String>>,
+}
+
+/// Valide le classement du menu du soir : « <service>:<categorie> », service ∈
+/// starter|main|dessert, catégorie existante, pas de doublon.
+async fn validate_course_categories(pool: &sqlx::PgPool, entries: &[String]) -> ApiResult<()> {
+    if entries.len() > 64 {
+        return Err(ApiError::BadRequest("trop d'entrées".into()));
+    }
+    let known: Vec<String> = sqlx::query_scalar("SELECT id FROM catalog_categories")
+        .fetch_all(pool)
+        .await?;
+    let mut seen = std::collections::HashSet::new();
+    for entry in entries {
+        let (_, category) = parse_course_category(entry)
+            .ok_or_else(|| ApiError::BadRequest("entrée de service invalide".into()))?;
+        if !known.iter().any(|k| k == category) {
+            return Err(ApiError::BadRequest("catégorie inconnue".into()));
+        }
+        if !seen.insert(entry.as_str()) {
+            return Err(ApiError::BadRequest("entrée en double".into()));
+        }
+    }
+    Ok(())
+}
+
+/// « main:positions » → ("main", "positions") ; None si mal formé ou service inconnu.
+pub fn parse_course_category(entry: &str) -> Option<(&str, &str)> {
+    let (service, category) = entry.split_once(':')?;
+    matches!(service, "starter" | "main" | "dessert")
+        .then_some((service, category))
+        .filter(|(_, c)| !c.is_empty())
 }
 
 async fn create_space(
@@ -69,7 +113,7 @@ async fn create_space(
     let mut tx = state.pool.begin().await?;
     let space: Space = sqlx::query_as(
         "INSERT INTO spaces (name) VALUES ($1)
-         RETURNING id, name, timezone, reactions, allow_custom_reactions, blind_mood, allow_media_download, created_at",
+         RETURNING id, name, timezone, reactions, allow_custom_reactions, blind_mood, allow_media_download, desires_enabled, desires_explicit_labels, evening_menu_enabled, evening_menu_blind, evening_course_custom, evening_course_categories, created_at",
     )
     .bind(name)
     .fetch_one(&mut *tx)
@@ -124,6 +168,10 @@ async fn update_space(
         }
     }
 
+    if let Some(entries) = &body.evening_course_categories {
+        validate_course_categories(&state.pool, entries).await?;
+    }
+
     // Activation du téléchargement des médias (#84) : on note la transition
     // false→true pour émettre une notice « X a activé le téléchargement ».
     let mut download_enabled = false;
@@ -143,9 +191,15 @@ async fn update_space(
             reactions = COALESCE($4, reactions),
             allow_custom_reactions = COALESCE($5, allow_custom_reactions),
             blind_mood = COALESCE($6, blind_mood),
-            allow_media_download = COALESCE($7, allow_media_download)
+            allow_media_download = COALESCE($7, allow_media_download),
+            desires_enabled = COALESCE($8, desires_enabled),
+            desires_explicit_labels = COALESCE($9, desires_explicit_labels),
+            evening_menu_enabled = COALESCE($10, evening_menu_enabled),
+            evening_menu_blind = COALESCE($11, evening_menu_blind),
+            evening_course_custom = COALESCE($12, evening_course_custom),
+            evening_course_categories = COALESCE($13, evening_course_categories)
          WHERE id = $1
-         RETURNING id, name, timezone, reactions, allow_custom_reactions, blind_mood, allow_media_download, created_at",
+         RETURNING id, name, timezone, reactions, allow_custom_reactions, blind_mood, allow_media_download, desires_enabled, desires_explicit_labels, evening_menu_enabled, evening_menu_blind, evening_course_custom, evening_course_categories, created_at",
     )
     .bind(space_id)
     .bind(name)
@@ -154,15 +208,26 @@ async fn update_space(
     .bind(body.allow_custom_reactions)
     .bind(body.blind_mood)
     .bind(body.allow_media_download)
+    .bind(body.desires_enabled)
+    .bind(body.desires_explicit_labels)
+    .bind(body.evening_menu_enabled)
+    .bind(body.evening_menu_blind)
+    .bind(body.evening_course_custom)
+    .bind(body.evening_course_categories.as_deref())
     .fetch_one(&state.pool)
     .await?;
 
     if download_enabled {
-        crate::routes::notices::record(
-            &state.pool,
+        crate::routes::notices::record(&state.pool, space_id, "download_enabled", auth.user_id)
+            .await;
+        crate::notifications::notify_members(
+            &state,
             space_id,
-            "download_enabled",
             auth.user_id,
+            "downloadEnabled",
+            None,
+            None,
+            "Téléchargement des médias activé".into(),
         )
         .await;
     }
@@ -171,12 +236,9 @@ async fn update_space(
     Ok(Json(space))
 }
 
-async fn my_spaces(
-    State(state): State<AppState>,
-    auth: AuthUser,
-) -> ApiResult<Json<Vec<Space>>> {
+async fn my_spaces(State(state): State<AppState>, auth: AuthUser) -> ApiResult<Json<Vec<Space>>> {
     let spaces: Vec<Space> = sqlx::query_as(
-        "SELECT s.id, s.name, s.timezone, s.reactions, s.allow_custom_reactions, s.blind_mood, s.allow_media_download, s.created_at
+        "SELECT s.id, s.name, s.timezone, s.reactions, s.allow_custom_reactions, s.blind_mood, s.allow_media_download, s.desires_enabled, s.desires_explicit_labels, s.evening_menu_enabled, s.evening_menu_blind, s.evening_course_custom, s.evening_course_categories, s.created_at
          FROM spaces s
          JOIN space_memberships m ON m.space_id = s.id
          WHERE m.user_id = $1
@@ -302,14 +364,13 @@ async fn join_by_invite(
     // Lookup insensible à la casse (#89) ; invitation verrouillée le temps de la
     // transaction. On récupère aussi le token (PK) pour la consommer.
     let code = crate::invite_code::normalize(&body.code);
-    let invite: Option<(Uuid, Uuid, Option<chrono::DateTime<chrono::Utc>>, bool)> =
-        sqlx::query_as(
-            "SELECT token, space_id, used_at, (expires_at < now()) AS expired
+    let invite: Option<(Uuid, Uuid, Option<chrono::DateTime<chrono::Utc>>, bool)> = sqlx::query_as(
+        "SELECT token, space_id, used_at, (expires_at < now()) AS expired
              FROM space_invites WHERE lower(code) = $1 FOR UPDATE",
-        )
-        .bind(&code)
-        .fetch_optional(&mut *tx)
-        .await?;
+    )
+    .bind(&code)
+    .fetch_optional(&mut *tx)
+    .await?;
     let (token, space_id, used_at, expired) =
         invite.ok_or(ApiError::BadRequest("invitation invalide".into()))?;
     if used_at.is_some() {
@@ -320,7 +381,7 @@ async fn join_by_invite(
     }
 
     let space: Space = sqlx::query_as(
-        "SELECT id, name, timezone, reactions, allow_custom_reactions, blind_mood, allow_media_download, created_at
+        "SELECT id, name, timezone, reactions, allow_custom_reactions, blind_mood, allow_media_download, desires_enabled, desires_explicit_labels, evening_menu_enabled, evening_menu_blind, evening_course_custom, evening_course_categories, created_at
          FROM spaces WHERE id = $1 FOR UPDATE",
     )
     .bind(space_id)
@@ -343,12 +404,11 @@ async fn join_by_invite(
         return Ok((StatusCode::OK, Json(space)));
     }
 
-    let count: i64 = sqlx::query_scalar(
-        "SELECT count(*) FROM space_memberships WHERE space_id = $1",
-    )
-    .bind(space_id)
-    .fetch_one(&mut *tx)
-    .await?;
+    let count: i64 =
+        sqlx::query_scalar("SELECT count(*) FROM space_memberships WHERE space_id = $1")
+            .bind(space_id)
+            .fetch_one(&mut *tx)
+            .await?;
     if count >= MAX_MEMBERS {
         return Err(ApiError::Conflict("cet espace est déjà complet".into()));
     }
@@ -375,8 +435,12 @@ async fn join_by_invite(
         &state,
         space_id,
         auth.user_id,
+        "memberJoined",
+        None,
+        None,
         "Un membre a rejoint le salon".into(),
-    );
+    )
+    .await;
 
     Ok((StatusCode::CREATED, Json(space)))
 }
@@ -404,16 +468,62 @@ async fn members(
 /// Purge périodique des invitations devenues inutiles (consommées ou expirées) —
 /// borne la table `space_invites` (SEC-NEW-004). Best-effort (erreur journalisée).
 pub async fn purge_stale_invites(pool: &sqlx::PgPool) {
-    match sqlx::query(
-        "DELETE FROM space_invites WHERE used_at IS NOT NULL OR expires_at < now()",
-    )
-    .execute(pool)
-    .await
+    match sqlx::query("DELETE FROM space_invites WHERE used_at IS NOT NULL OR expires_at < now()")
+        .execute(pool)
+        .await
     {
         Ok(res) if res.rows_affected() > 0 => {
             tracing::info!(count = res.rows_affected(), "invitations périmées purgées");
         }
         Ok(_) => {}
         Err(e) => tracing::warn!(error = ?e, "purge des invitations échouée"),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::parse_course_category;
+
+    #[test]
+    fn entree_de_service_bien_formee() {
+        assert_eq!(
+            parse_course_category("main:positions"),
+            Some(("main", "positions"))
+        );
+        assert_eq!(
+            parse_course_category("starter:tender"),
+            Some(("starter", "tender"))
+        );
+    }
+
+    #[test]
+    fn entree_de_service_invalide() {
+        assert_eq!(parse_course_category("positions"), None);
+        assert_eq!(parse_course_category("brunch:positions"), None);
+        assert_eq!(parse_course_category("main:"), None);
+        assert_eq!(parse_course_category("none:places"), None);
+    }
+}
+
+#[cfg(all(test, feature = "integration"))]
+mod tests_integration_sql {
+    use super::is_unique_violation;
+
+    /// 23505 (doublon d'email) est reconnu ; une autre erreur SQL ne l'est pas — sans
+    /// quoi `create_invite` retenterait à l'infini ou masquerait une vraie panne.
+    #[sqlx::test]
+    async fn is_unique_violation_distingue_23505_des_autres_erreurs(pool: sqlx::PgPool) {
+        let insert =
+            "INSERT INTO users (email, display_name, password_hash) VALUES ('a@x.test', 'a', 'x')";
+        sqlx::query(insert).execute(&pool).await.unwrap();
+        let doublon = sqlx::query(insert).execute(&pool).await.unwrap_err();
+        assert!(is_unique_violation(&doublon));
+
+        let autre = sqlx::query("SELECT * FROM table_qui_n_existe_pas")
+            .execute(&pool)
+            .await
+            .unwrap_err();
+        assert!(!is_unique_violation(&autre));
+        assert!(!is_unique_violation(&sqlx::Error::RowNotFound));
     }
 }

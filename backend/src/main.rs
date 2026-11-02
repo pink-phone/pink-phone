@@ -1,19 +1,3 @@
-mod auth;
-mod config;
-mod error;
-mod invite_code;
-mod models;
-mod notifications;
-mod pagination;
-mod rate_limit;
-mod routes;
-mod state;
-
-// Tests d'intégration (routes + SQL) sur une vraie Postgres jetable, gated par la
-// feature `integration` (cf. Cargo.toml) → exclus du `cargo test` no-DB.
-#[cfg(all(test, feature = "integration"))]
-mod tests_integration;
-
 use axum::extract::DefaultBodyLimit;
 use axum::http::{header, HeaderValue, Method};
 use axum::routing::get;
@@ -24,8 +8,9 @@ use tower_http::cors::CorsLayer;
 use tower_http::trace::TraceLayer;
 use tracing_subscriber::EnvFilter;
 
-use crate::config::Config;
-use crate::state::AppState;
+use pinkphone_api::config::Config;
+use pinkphone_api::state::AppState;
+use pinkphone_api::{config, rate_limit, routes};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -49,10 +34,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // faible entropie (SEC-016) : un `JWT_SECRET` court (ex. la valeur du
         // compose de démo locale) contournerait la seule égalité avec la valeur
         // de dev tout en restant trivial à brute-forcer.
-        if exposed
-            && (config.jwt_secret == "dev-insecure-secret"
-                || config.jwt_secret.len() < 32)
-        {
+        if exposed && (config.jwt_secret == "dev-insecure-secret" || config.jwt_secret.len() < 32) {
             return Err(format!(
                 "JWT_SECRET trop faible (valeur de dev ou < 32 caractères) alors que l'API est exposée sur {} — refus de démarrer.",
                 config.bind_addr
@@ -60,9 +42,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .into());
         }
         if exposed && config.db_password == "pink" {
-            tracing::warn!(
-                "DB_PASSWORD par défaut ('pink') avec une API exposée — à changer."
-            );
+            tracing::warn!("DB_PASSWORD par défaut ('pink') avec une API exposée — à changer.");
         }
         // CORS_ORIGIN au défaut dev alors que l'API est exposée (SECURITY_FINDINGS.md #3) :
         // sans effet sur l'app elle-même (servie same-origin derrière nginx en prod), mais
@@ -77,9 +57,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         if config.media_key_bytes().is_none() {
             if config.media_key.trim().is_empty() {
-                tracing::warn!(
-                    "MEDIA_KEY absente : les médias sont stockés EN CLAIR sur disque."
-                );
+                tracing::warn!("MEDIA_KEY absente : les médias sont stockés EN CLAIR sur disque.");
             } else {
                 // Clé fournie mais illisible : les nouveaux médias passeront en clair ET
                 // tout média déjà chiffré deviendra impossible à déchiffrer (→ 500
@@ -148,12 +126,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let http = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(10))
         .build()?;
-    let oidc_states = std::sync::Arc::new(std::sync::Mutex::new(
-        std::collections::HashMap::new(),
-    ));
-    let oidc_tickets = std::sync::Arc::new(std::sync::Mutex::new(
-        std::collections::HashMap::new(),
-    ));
+    let oidc_states = std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::new()));
+    let oidc_tickets = std::sync::Arc::new(std::sync::Mutex::new(std::collections::HashMap::new()));
     let oidc_cache = std::sync::Arc::new(std::sync::Mutex::new(None));
     // Bus d'événements temps réel (WebSockets). Le receiver initial est jeté ;
     // chaque connexion s'abonne via `events.subscribe()`.
@@ -198,14 +172,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         let state = state.clone();
         let media_dir = state.config.media_dir.clone();
         tokio::spawn(async move {
-            let mut tick =
-                tokio::time::interval(std::time::Duration::from_secs(3600));
+            let mut tick = tokio::time::interval(std::time::Duration::from_secs(3600));
             loop {
                 tick.tick().await;
-                crate::routes::media::purge_orphan_media(&state.pool, &media_dir).await;
-                crate::routes::spaces::purge_stale_invites(&state.pool).await;
+                routes::media::purge_orphan_media(&state.pool, &media_dir).await;
+                routes::spaces::purge_stale_invites(&state.pool).await;
+                routes::evening_menu::purge_old_picks(&state.pool).await;
                 // Livre les mots doux différés arrivés à échéance (#102).
-                crate::routes::love_notes::deliver_due_notes(&state).await;
+                routes::love_notes::deliver_due_notes(&state).await;
             }
         });
     }

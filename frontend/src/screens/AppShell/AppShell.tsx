@@ -6,6 +6,8 @@ export interface AppShellProps {
   active: TabId;
   onTabChange: (tab: TabId) => void;
   badges?: Partial<Record<TabId, number>>;
+  /** Affiche l'onglet « Envies » (bucket list #99). */
+  desiresEnabled?: boolean;
   children: ReactNode;
   className?: string;
 }
@@ -18,6 +20,7 @@ export function AppShell({
   active,
   onTabChange,
   badges,
+  desiresEnabled,
   children,
   className,
 }: AppShellProps) {
@@ -31,7 +34,12 @@ export function AppShell({
       <main className="flex-1 overflow-y-auto px-4 pb-6 pt-[calc(1rem+env(safe-area-inset-top))]">
         {children}
       </main>
-      <BottomNav active={active} onChange={onTabChange} badges={badges} />
+      <BottomNav
+        active={active}
+        onChange={onTabChange}
+        badges={badges}
+        desiresEnabled={desiresEnabled}
+      />
     </div>
   );
 }

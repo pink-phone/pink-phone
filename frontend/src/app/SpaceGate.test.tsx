@@ -1,58 +1,43 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import * as api from "../api/client";
+import { ApiError } from "../api/client";
+import type { Space } from "../api/types";
+import { SpaceGate } from "./SpaceGate";
+import { CURRENT_SPACE_KEY } from "./currentSpace";
 
-const logout = vi.fn();
-vi.mock("../auth/AuthContext", () => ({ useAuth: () => ({ logout }) }));
 vi.mock("../api/client", async (orig) => ({
   ...(await orig<typeof import("../api/client")>()),
   mySpaces: vi.fn(),
   createSpace: vi.fn(),
   joinByInvite: vi.fn(),
 }));
-vi.mock("../screens/Splash/Splash", () => ({ Splash: () => <div>splash</div> }));
-vi.mock("../screens/OnboardingScreen/OnboardingScreen", () => ({
-  OnboardingScreen: (p: {
-    error: string | null;
-    busy: boolean;
-    onCreate: (n: string) => void;
-    onJoin: (t: string) => void;
-    onLogout: () => void;
-  }) => (
-    <div>
-      <span data-testid="err">{p.error}</span>
-      <button onClick={() => p.onCreate("Nid")}>create</button>
-      <button onClick={() => p.onJoin("  CODE  ")}>join</button>
-      <button onClick={p.onLogout}>logout</button>
-    </div>
-  ),
-}));
+const logout = vi.fn();
+vi.mock("../auth/AuthContext", () => ({ useAuth: () => ({ logout }) }));
+// SpaceApp est testé à part : on expose juste ce que SpaceGate lui passe.
 vi.mock("./SpaceApp", () => ({
   SpaceApp: (p: {
-    space: { id: string };
-    spaces: { id: string }[];
+    space: Space;
+    spaces: Space[];
     onSwitchSpace: (id: string) => void;
     onCreateSpace: (n: string) => Promise<void>;
-    onJoinSpace: (t: string) => Promise<void>;
+    onJoinSpace: (c: string) => Promise<void>;
   }) => (
     <div>
-      <span data-testid="current">{p.space.id}</span>
-      <span data-testid="count">{p.spaces.length}</span>
-      <button onClick={() => p.onSwitchSpace("s2")}>switch</button>
-      <button onClick={() => void p.onCreateSpace("Autre")}>new</button>
-      <button onClick={() => void p.onJoinSpace(" X ")}>joinother</button>
+      <p>app:{p.space.id}</p>
+      <p>count:{p.spaces.length}</p>
+      <button type="button" onClick={() => p.onSwitchSpace("s2")}>switch</button>
+      <button type="button" onClick={() => void p.onCreateSpace("Nouveau")}>create</button>
+      <button type="button" onClick={() => void p.onJoinSpace(" CODE#1 ")}>join</button>
     </div>
   ),
 }));
 
-import * as api from "../api/client";
-import { ApiError } from "../api/client";
-import { SpaceGate } from "./SpaceGate";
-import { CURRENT_SPACE_KEY } from "./currentSpace";
-
-const mocked = vi.mocked(api);
-const user = { id: "u", displayName: "Ana" } as never;
-const sp = (id: string) => ({ id, name: id }) as never;
+const a = vi.mocked(api, true);
+const USER = { id: "u1", email: "a@x.test", displayName: "Alex", createdAt: "2026-01-01T00:00:00Z" };
+const space = (id: string): Space =>
+  ({ id, name: id, timezone: "Europe/Paris" }) as unknown as Space;
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -60,79 +45,98 @@ beforeEach(() => {
 });
 
 describe("SpaceGate", () => {
-  it("Splash pendant le chargement des salons", () => {
-    mocked.mySpaces.mockReturnValue(new Promise(() => {}));
-    render(<SpaceGate user={user} />);
-    expect(screen.getByText("splash")).toBeInTheDocument();
+  it("charge les salons puis monte l'app sur le premier", async () => {
+    a.mySpaces.mockResolvedValue([space("s1"), space("s2")]);
+    render(<SpaceGate user={USER} />);
+    expect(await screen.findByText("app:s1")).toBeInTheDocument();
+    expect(screen.getByText("count:2")).toBeInTheDocument();
   });
 
-  it("aucun salon (ou erreur de chargement) → onboarding", async () => {
-    mocked.mySpaces.mockRejectedValue(new Error("down"));
-    render(<SpaceGate user={user} />);
-    expect(await screen.findByText("create")).toBeInTheDocument();
-  });
-
-  it("onboarding : créer un salon bascule dessus et le mémorise", async () => {
-    mocked.mySpaces.mockResolvedValue([]);
-    mocked.createSpace.mockResolvedValue(sp("new1"));
-    render(<SpaceGate user={user} />);
-    await userEvent.click(await screen.findByText("create"));
-    expect(await screen.findByTestId("current")).toHaveTextContent("new1");
-    expect(localStorage.getItem(CURRENT_SPACE_KEY)).toBe("new1");
-  });
-
-  it("onboarding : rejoindre trim le code ; l'erreur API s'affiche", async () => {
-    mocked.mySpaces.mockResolvedValue([]);
-    mocked.joinByInvite.mockRejectedValueOnce(new ApiError(404, "code invalide"));
-    render(<SpaceGate user={user} />);
-    await userEvent.click(await screen.findByText("join"));
-    expect(mocked.joinByInvite).toHaveBeenCalledWith("CODE");
-    await waitFor(() => expect(screen.getByTestId("err")).toHaveTextContent("code invalide"));
-    mocked.joinByInvite.mockResolvedValueOnce(sp("j1"));
-    await userEvent.click(screen.getByText("join"));
-    expect(await screen.findByTestId("current")).toHaveTextContent("j1");
-  });
-
-  it("onboarding : erreur non-API → message générique ; logout délégué", async () => {
-    mocked.mySpaces.mockResolvedValue([]);
-    mocked.createSpace.mockRejectedValue(new Error("boom"));
-    render(<SpaceGate user={user} />);
-    await userEvent.click(await screen.findByText("create"));
-    await waitFor(() => expect(screen.getByTestId("err")).not.toBeEmptyDOMElement());
-    await userEvent.click(screen.getByText("logout"));
-    expect(logout).toHaveBeenCalled();
-  });
-
-  it("ouvre le salon mémorisé, sinon le premier", async () => {
+  it("reprend le salon mémorisé s'il existe encore", async () => {
     localStorage.setItem(CURRENT_SPACE_KEY, "s2");
-    mocked.mySpaces.mockResolvedValue([sp("s1"), sp("s2")]);
-    const { unmount } = render(<SpaceGate user={user} />);
-    expect(await screen.findByTestId("current")).toHaveTextContent("s2");
-    unmount();
-
-    localStorage.setItem(CURRENT_SPACE_KEY, "disparu");
-    render(<SpaceGate user={user} />);
-    expect(await screen.findByTestId("current")).toHaveTextContent("s1");
+    a.mySpaces.mockResolvedValue([space("s1"), space("s2")]);
+    render(<SpaceGate user={USER} />);
+    expect(await screen.findByText("app:s2")).toBeInTheDocument();
   });
 
-  it("bascule de salon et persistance", async () => {
-    mocked.mySpaces.mockResolvedValue([sp("s1"), sp("s2")]);
-    render(<SpaceGate user={user} />);
+  it("bascule de salon : mémorise le choix", async () => {
+    a.mySpaces.mockResolvedValue([space("s1"), space("s2")]);
+    render(<SpaceGate user={USER} />);
     await userEvent.click(await screen.findByText("switch"));
+    expect(await screen.findByText("app:s2")).toBeInTheDocument();
     expect(localStorage.getItem(CURRENT_SPACE_KEY)).toBe("s2");
-    expect(screen.getByTestId("current")).toHaveTextContent("s2");
   });
 
-  it("crée / rejoint un autre salon depuis l'app (sans doublon)", async () => {
-    mocked.mySpaces.mockResolvedValue([sp("s1")]);
-    mocked.createSpace.mockResolvedValue(sp("s3"));
-    mocked.joinByInvite.mockResolvedValue(sp("s3"));
-    render(<SpaceGate user={user} />);
-    await userEvent.click(await screen.findByText("new"));
-    await waitFor(() => expect(screen.getByTestId("count")).toHaveTextContent("2"));
-    expect(screen.getByTestId("current")).toHaveTextContent("s3");
-    await userEvent.click(screen.getByText("joinother"));
-    await waitFor(() => expect(mocked.joinByInvite).toHaveBeenCalledWith("X"));
-    expect(screen.getByTestId("count")).toHaveTextContent("2"); // déjà présent
+  it("créer un autre salon depuis l'app : ajouté et sélectionné", async () => {
+    a.mySpaces.mockResolvedValue([space("s1")]);
+    a.createSpace.mockResolvedValue(space("s9"));
+    render(<SpaceGate user={USER} />);
+    await userEvent.click(await screen.findByText("create"));
+    expect(await screen.findByText("app:s9")).toBeInTheDocument();
+    expect(a.createSpace).toHaveBeenCalledWith("Nouveau");
+    expect(screen.getByText("count:2")).toBeInTheDocument();
+  });
+
+  it("rejoindre un salon : code nettoyé, pas de doublon si déjà membre", async () => {
+    a.mySpaces.mockResolvedValue([space("s1")]);
+    a.joinByInvite.mockResolvedValue(space("s1")); // déjà membre
+    render(<SpaceGate user={USER} />);
+    await userEvent.click(await screen.findByText("join"));
+    await waitFor(() => expect(a.joinByInvite).toHaveBeenCalledWith("CODE#1"));
+    expect(screen.getByText("count:1")).toBeInTheDocument();
+  });
+
+  it("aucun salon : onboarding ; créer en ouvre un", async () => {
+    a.mySpaces.mockResolvedValue([]);
+    a.createSpace.mockResolvedValue(space("n1"));
+    render(<SpaceGate user={USER} />);
+    expect(
+      await screen.findByRole("heading", { name: "Bienvenue, Alex" }),
+    ).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Créer" }));
+    expect(await screen.findByText("app:n1")).toBeInTheDocument();
+    expect(localStorage.getItem(CURRENT_SPACE_KEY)).toBe("n1");
+  });
+
+  it("onboarding : rejoindre par code ; une erreur API s'affiche", async () => {
+    a.mySpaces.mockResolvedValue([]);
+    a.joinByInvite.mockRejectedValueOnce(new ApiError(400, "invitation invalide"));
+    a.joinByInvite.mockResolvedValueOnce(space("j1"));
+    render(<SpaceGate user={USER} />);
+    const field = await screen.findByLabelText("Code d'invitation");
+    await userEvent.type(field, " MAUVAIS ");
+    await userEvent.click(screen.getByRole("button", { name: "Rejoindre" }));
+    expect(await screen.findByText("invitation invalide")).toBeInTheDocument();
+    expect(a.joinByInvite).toHaveBeenCalledWith("MAUVAIS");
+
+    await userEvent.clear(field);
+    await userEvent.type(field, "BON#1");
+    await userEvent.click(screen.getByRole("button", { name: "Rejoindre" }));
+    expect(await screen.findByText("app:j1")).toBeInTheDocument();
+  });
+
+  it("onboarding : création en échec → message générique si l'erreur n'est pas une ApiError", async () => {
+    a.mySpaces.mockResolvedValue([]);
+    a.createSpace.mockRejectedValue(new Error("boom"));
+    render(<SpaceGate user={USER} />);
+    await userEvent.click(await screen.findByRole("button", { name: "Créer" }));
+    expect(await screen.findByText("une erreur est survenue")).toBeInTheDocument();
+  });
+
+  it("liste des salons impossible à charger : traité comme « aucun salon »", async () => {
+    a.mySpaces.mockRejectedValue(new Error("réseau"));
+    render(<SpaceGate user={USER} />);
+    expect(
+      await screen.findByRole("heading", { name: "Bienvenue, Alex" }),
+    ).toBeInTheDocument();
+  });
+
+  it("onboarding : « se déconnecter » appelle logout", async () => {
+    a.mySpaces.mockResolvedValue([]);
+    render(<SpaceGate user={USER} />);
+    await userEvent.click(
+      await screen.findByRole("button", { name: /déconnecter/i }),
+    );
+    expect(logout).toHaveBeenCalled();
   });
 });

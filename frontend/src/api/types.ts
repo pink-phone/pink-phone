@@ -42,7 +42,93 @@ export interface Space {
   blindMood: boolean;
   /** Défaut du salon : nouveaux posts avec média téléchargeable (#78). */
   allowMediaDownload: boolean;
+  /** Liste d'envies à double consentement (#99) activée pour ce salon. */
+  desiresEnabled: boolean;
+  /** Registre des libellés de la bucket list : explicite (défaut) vs suggestif. */
+  desiresExplicitLabels: boolean;
+  /** « Menu du soir » : rituel quotidien à double consentement (#97b). */
+  eveningMenuEnabled: boolean;
+  /** Mode aveugle strict (défaut) vs mode ouvert — propositions visibles
+   *  tout de suite, à valider/refuser (#0040). */
+  eveningMenuBlind: boolean;
+  /** Services du menu du soir paramétrés par le salon ? Faux = classement du
+   *  catalogue. */
+  eveningCourseCustom: boolean;
+  /** Entrées « <service>:<categorie> » (service = starter|main|dessert) : les
+   *  catégories qui alimentent chaque service, si `eveningCourseCustom`. */
+  eveningCourseCategories: string[];
   createdAt: string;
+}
+
+/** Une envie du catalogue partagé (#99, #0033) côté membre courant : son contenu
+ *  (bilingue) + mon intérêt + état « matché ». L'intérêt brut des autres n'est
+ *  jamais exposé (matched = réciprocité). */
+export interface ApiDesire {
+  /** Id stable du catalogue. */
+  code: string;
+  /** Catégorie du catalogue (bucket list #99) — regroupement à l'écran. */
+  category: string;
+  categoryLabelFr: string;
+  categoryLabelEn: string;
+  /** Regroupement libre à l'intérieur de la catégorie (ex. 'kamasutra'). */
+  subcategory: string | null;
+  labelFr: string;
+  labelEn: string;
+  /** Variante suggestive (registre #99), si le catalogue en fournit une. */
+  labelFrSoft: string | null;
+  labelEnSoft: string | null;
+  descriptionFr: string | null;
+  descriptionEn: string | null;
+  /** Classement soft/hot de l'item (#0033). */
+  intensity: "soft" | "hot";
+  /** J'ai marqué « envie » (privé, révélé seulement en cas de match). */
+  interested: boolean;
+  /** J'ai marqué « contre » (ma limite). */
+  against: boolean;
+  /** Réciprocité d'envie → révélé. */
+  matched: boolean;
+  /** Au moins un membre est « contre » → limite du couple (surfacée, bloque le match). */
+  limit: boolean;
+  /** Le couple a marqué « ✓ Réalisé » (suivi bucket list, niveau salon). */
+  done: boolean;
+}
+
+/** Un item du « Menu du soir » (#97b, #0033, #0039) pour ce soir : même
+ *  contenu catalogue qu'`ApiDesire` (regroupement, registre explicite/
+ *  suggestif) + son service (entrée/plat/dessert) + mon choix du jour + match. */
+export interface ApiEveningMenuItem {
+  code: string;
+  category: string;
+  categoryLabelFr: string;
+  categoryLabelEn: string;
+  subcategory: string | null;
+  labelFr: string;
+  labelEn: string;
+  labelFrSoft: string | null;
+  labelEnSoft: string | null;
+  descriptionFr: string | null;
+  descriptionEn: string | null;
+  intensity: "soft" | "hot";
+  /** Service où l'item s'affiche (#0039, #0041) ; vide = dans aucun service
+   *  (choisissable quand même hors catégorie). */
+  course: "starter" | "main" | "dessert" | "";
+  /** Match « validé ensemble » : l'un a répondu « Partant·e » APRÈS le dévoilement
+   *  des menus (mode aveugle), par opposition à un match par coïncidence. */
+  agreed?: boolean;
+  /** J'ai répondu après le dévoilement : réponse que je peux encore retirer. */
+  responded?: boolean;
+  /** Service par défaut du catalogue, avant surcharge du salon. */
+  defaultCourse?: "starter" | "main" | "dessert" | "";
+  /** Tous les services où l'item est proposé (classement du salon). */
+  courses?: ("starter" | "main" | "dessert")[];
+  picked: boolean;
+  matched: boolean;
+  /** Mode ouvert (#0040) uniquement : le/la partenaire a coché « want »
+   *  aujourd'hui, visible tout de suite (à valider ou refuser). Toujours
+   *  `false` en mode aveugle. */
+  partnerWants: boolean;
+  /** Mode ouvert uniquement : l'un des deux a explicitement refusé. */
+  refused: boolean;
 }
 
 /** Un « mot doux » (#102). `body` est null quand le mot m'est scellé (ouverture
@@ -159,6 +245,26 @@ export interface Notice {
   createdAt: string;
 }
 
+/** Entrée du centre de notifications — une par destinataire, marquable lue
+ *  individuellement (contrairement à `Notice`, qui a un "vu" collectif). */
+export interface ApiNotification {
+  id: string;
+  /** 'post' | 'comment' | 'challenge' | 'mood' | 'desire' | 'eveningMenu' |
+   *  'loveNote' | 'memberJoined'. */
+  kind: string;
+  actorId: string | null;
+  actorName: string | null;
+  /** Référence vers l'entité concernée (id de post/défi/mot doux ; code pour
+   *  desire/eveningMenu), pour naviguer dessus au clic. `null` pour les kinds
+   *  sans item précis (mood/memberJoined/downloadEnabled). */
+  entityId: string | null;
+  /** UNIQUEMENT pour `kind === "comment"` : id du commentaire précis, à
+   *  surligner dans le fil ouvert via `entityId` (le post). `null` sinon. */
+  commentId: string | null;
+  read: boolean;
+  createdAt: string;
+}
+
 export interface ChallengeSuggestion {
   id: string;
   /** null = suggestion globale (seed, non éditable) ; sinon propre au salon. */
@@ -193,4 +299,14 @@ export interface VapidKey {
 export interface AuthConfig {
   passwordEnabled: boolean;
   oidcEnabled: boolean;
+}
+
+/** Validation « J'ai fini » du menu du soir (mode aveugle), pour CE soir. */
+export interface ApiEveningMenuStatus {
+  /** J'ai validé mon menu : mes choix sont verrouillés. */
+  meDone: boolean;
+  doneCount: number;
+  memberCount: number;
+  /** Tous ont validé : les choix de chacun sont dévoilés, matchés ou non. */
+  revealed: boolean;
 }

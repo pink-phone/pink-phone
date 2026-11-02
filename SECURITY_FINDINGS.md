@@ -748,6 +748,67 @@ cross-site-tracing surface). `/assets/` → `404`, not a directory listing.
 
 ---
 
+## 2026-09-10 — Static review: `pinkctl` (admin CLI) and `pinkdev` (dev CLI)
+
+Reviewer: Claude (white-hat static review, Mode A), triggered by the addition of two new CLIs
+(`backend/src/bin/pinkctl.rs`, ~2550 lines; `frontend/scripts/pinkdev.mjs`, ~410 lines) plus the
+`.forgejo/workflows/deploy.yml` changes that invoke `pinkctl` remotely over SSH.
+
+**Overall result: sound design, one real finding.** Read `pinkctl.rs` in full: every one of its
+~100 SQL statements uses bound parameters (one instance of `format!()` building a query was
+checked specifically — it only stitches together static SQL fragments, the actual user-supplied
+value is still bound via `$1`, not interpolated); every filesystem path for media deletion is
+built from a `storage_key` read back from the database (server-generated UUID), never from raw
+CLI input, so no path-traversal surface; passwords are always Argon2-hashed via the same
+`hash_password` the main server uses; destructive operations require an explicit `--confirm`
+(single record) or an exact confirmation phrase (`nuke`, matched via `==`, not prefix/contains);
+`media verify` never prints or writes decrypted bytes, matching its own doc comment; the tool
+never binds to a network port itself (confirmed: no listener setup anywhere in the file) and is
+only reachable via `docker exec`, a boundary `INSTALL.md`'s new "Admin CLI" section documents
+explicitly and correctly, including an explicit argument against ever wrapping it in a
+network-facing interface. `resolve_password()` already refuses `--password` as a CLI argument on
+an "exposed" deployment (same heuristic as the server's own startup guard) specifically to avoid
+the password sitting in shell history / `ps` / `/proc` — exactly the mitigation I'd have
+otherwise had to ask for. The notification-sending refactor (`notifications.rs`, shared
+`send_and_handle()` used by both `notify_members` and the new `pinkctl notify test`) still routes
+every send through `endpoint_is_safe()` — the SSRF fix from finding #11 survived the refactor.
+`pinkdev.mjs`: scaffolded component/screen names are regex-validated (`^[A-Z][A-Za-z0-9]*$`)
+*before* being interpolated into generated `.tsx` source or used in file paths, and every
+subprocess call uses an argument array with no shell (`spawnSync(cmd, args, ...)`, never a
+concatenated shell string) — no command-injection surface, though this is dev-only tooling never
+shipped in an image regardless.
+
+### 16. CI deploy step disables SSH host-key verification entirely
+
+- **Status**: partially fixed (2026-09-10) — [.forgejo/workflows/deploy.yml](.forgejo/workflows/deploy.yml)
+- **Location**: `.forgejo/workflows/deploy.yml` (the `ssh`/`scp` invocations added to call `pinkctl` on the deploy target)
+- **Class**: CWE-295 (Improper Certificate/Host Validation) — SSH host-key equivalent
+- **Severity**: Low — same-home-network deploy target; an attacker positioned to exploit this would already need a foothold on that network, at which point they have larger problems available
+- **Confidence**: confirmed (code reading); not exploited, no live MITM attempted (would require a privileged network position outside this engagement's authorized scope anyway)
+
+**Finding**: both the `ssh` and `scp` invocations used `-o StrictHostKeyChecking=no`, which accepts
+*any* host key presented, including one that changed since the last successful deploy — the one
+signal that actually indicates something is wrong (DNS hijack, ARP spoofing, a swapped/compromised
+host). `no` disables that check unconditionally, not just the "first-contact" prompt.
+
+**Remediation**: use `accept-new` instead — same non-interactive behavior for a host never seen
+before (no CI hang waiting on a prompt), but it *does* refuse to connect if a previously-accepted
+host key later changes.
+
+**Fix applied, with an honest caveat**: swapped both flags to `accept-new`. **This only provides
+real protection if `~/.ssh/known_hosts` persists between workflow runs** — on an ephemeral/
+per-run CI container (which this `runs-on: docker` runner appears to be, based on the rest of the
+pipeline never persisting any state between steps or runs), `known_hosts` starts empty every
+time, so `accept-new` has no prior key to compare against and behaves identically to `no` in
+practice. Closing this properly would mean pinning the deploy host's public key ahead of time
+(e.g. as a Forgejo variable/secret populated once via `ssh-keyscan`, checked into `known_hosts` at
+the start of the job) — not done here, since it needs a new secret and an operational step from
+the user, and the realistic exposure is already low for a same-LAN home deployment. Flagged
+rather than silently left as `no`, so the gap is a documented, deliberate trade-off rather than an
+oversight.
+
+---
+
 ### Reviewed and not flagged
 
 For traceability: authentication (JWT iss/aud/exp + `min_token_iat` revocation), OIDC (PKCE,
@@ -762,67 +823,48 @@ parameters — no injection surface found.
 
 ---
 
-## 2026-09-30 — Static review of the CI/CD pipeline (`.forgejo/workflows/`)
+## 2026-10-02 — Static review of the evening-menu changes (services, hors-catégorie, classement par salon)
 
-Reviewer: Claude (white-hat static review, Mode A). Triggered by the user noticing personal
-names and a private hostname on the public mirror. Full read of
-[.forgejo/workflows/mirror-github.yml](.forgejo/workflows/mirror-github.yml) plus a live check of
-[github.com/pink-phone/pink-phone](https://github.com/pink-phone/pink-phone) to confirm exact
-exposure before touching anything.
+Reviewer: Claude (white-hat static review, Mode A). Scope: `backend/src/routes/evening_menu.rs`,
+`spaces.rs` (`PATCH /api/spaces/{id}` — `eveningCourseCustom`/`eveningCourseCategories`),
+migrations 0040–0050, and the matching frontend. No dynamic testing.
 
-### 16. Public GitHub mirror leaked real identities and a private internal URL
+### 2. Blind-mode evening menu leaked the partner's secret pick through the item's service (`course`)
 
-- **Status**: fixed (2026-09-30) — [.forgejo/workflows/mirror-github.yml](.forgejo/workflows/mirror-github.yml)
-- **Location**: `.forgejo/workflows/mirror-github.yml` (the `git filter-branch` step)
-- **Class**: CWE-200 (Exposure of Sensitive Information to an Unauthorized Actor)
-- **Severity**: Medium — no account/data compromise, but real personal names/emails and internal
-  infrastructure naming were exposed on a public, indexed GitHub repo (12 stargazers at the time
-  of review)
-- **Confidence**: confirmed (observed live on the public mirror before fixing)
+- **Status**: fixed (2026-10-02) — [backend/src/routes/evening_menu.rs](backend/src/routes/evening_menu.rs) (`list_menu`, `pick`, `unpick`)
+- **Location**: `GET /api/spaces/{id}/evening-menu` → `course` field; `PUT/DELETE …/evening-menu/{code}`
+- **Class**: CWE-200 (Exposure of Sensitive Information) — breaks the double-blind guarantee of #97b
+- **Severity**: Medium — intimate preference disclosure to the other member, only in the default (blind) mode
+- **Confidence**: confirmed (failing integration test, then fixed)
 
-**Finding**: the mirror workflow rewrites history with `git filter-branch --tree-filter` to strip
-`.forgejo/` and scrub private strings (hostname, internal proxy/registry names, personal email)
-before force-pushing to the public mirror. `--tree-filter` only rewrites file *content* — it never
-touches a commit's author/committer metadata or its message. Two things slipped through on every
-push, confirmed live on the public mirror before this fix:
+**Finding**: the service in which a member adds a pick (`evening_menu_picks.course`) was folded into the
+item's displayed `course` for *every* member, including the other one, regardless of the blind mode. For an
+item whose default service differs (or that has none, e.g. category `places`), the other member's list
+showed a changed `course` the moment the first member picked it — before any match — revealing the secret pick.
 
-1. **Real personal identities as commit authors**: every commit made under the maintainer's
-   personal Forgejo git identities (real nicknames, real personal email address, in the raw git
-   data) was pushed to the public mirror with that identity intact instead of the intended
-   anonymous bot account. The `git config user.name/email` at the top of the script only sets the
-   identity for commits the script itself would create — it does not retroactively rewrite the
-   author of the thousands of pre-existing commits being mirrored.
-2. **Private internal URL in commit messages**: Forgejo automatically appends a
-   `Reviewed-on: <private Forgejo URL>` trailer to every merge commit's message, containing the
-   self-hosted instance's internal hostname and org path. The `scrub.pl` substitutions target that
-   exact hostname, but only run inside the `--tree-filter` (file content) — commit messages are
-   never passed through it — so the trailer reached the public mirror verbatim on every merge
-   commit.
+**PoC** (test `menu_du_soir_aveugle_ne_fuite_ni_le_service_ni_un_evenement`): Alice `PUT`s a `places` item with
+`{"course":"dessert"}`; Bob's `GET` returned that item with `course:"dessert"` instead of `""`.
 
-**Impact**: exposure of the maintainer's real nicknames/personal email on a public, search-indexed
-repo, and confirmation of a private self-hosted hostname and internal org naming — useful recon
-for anyone targeting the self-hosted instance, though not itself a working exploit (the instance's
-exposure depends on its own auth/network posture, reviewed separately in findings #1–#15).
+**Fix**: the other member's service is only used when it is revealed — `partnerWants` (open mode) or `matched`.
 
-**Remediation**: add a `--env-filter` to `git filter-branch` forcing `GIT_AUTHOR_NAME/EMAIL` and
-`GIT_COMMITTER_NAME/EMAIL` to the `pink-phone` bot identity for every rewritten commit, and a
-`--msg-filter` that strips the Forgejo `Reviewed-on:` trailer and re-applies the same `scrub.pl`
-substitutions to whatever remains of the message.
+### 3. Blind-mode evening menu emitted a real-time event on every unmatched pick/unpick
 
-**Fix applied**: added both filters to `mirror-github.yml`. `--env-filter` unconditionally
-overwrites author and committer name/email to the anonymous bot identity for every commit.
-`--msg-filter` pipes the message through `grep -v "^Reviewed-on:"` (drops the Forgejo trailer
-entirely — it's meaningless off-mirror anyway) then `perl -p /tmp/scrub.pl` (same substitutions
-already used on file content, as defense in depth for any other private term that might land in a
-message). Also hardened the existing `--tree-filter`'s `grep` to `-i` (case-insensitive) so a
-differently-cased org name can't slip past the file-content scrub the same way. Verified
-end-to-end on a disposable local clone before merging, then re-verified live on the public mirror
-after merge: every commit's author/committer is the anonymous bot identity, zero matches for the
-private trailer or either personal identity remain in any commit message or tracked file content,
-and `.forgejo/` is still removed.
-**Residual/follow-up**: this fix only takes effect for history rewritten *after* it's merged —
-merging it to `main` re-runs the (now-corrected) mirror, which force-pushes the fully re-scrubbed
-history over the currently-exposed one on GitHub (the workflow's force-push is deterministic and
-idempotent by design, per its own header comment). Anyone who already cloned/forked the public
-repo before this fix keeps a copy of the leaked identities/URL locally — out of scope to remediate
-(can't be un-published from a third party's clone), but the authoritative public copy is corrected.
+- **Status**: fixed (2026-10-02) — same file
+- **Class**: CWE-203 / CWE-200 (observable discrepancy / activity side channel)
+- **Severity**: Low — reveals *that* the other member changed their (secret) menu, not what
+- **Confidence**: confirmed (same test)
+
+**Finding**: `pick` emitted `EventKind::EveningMenu` whenever the stance changed (not only on a match) and
+`unpick` on every delete, in blind mode too. The partner's WebSocket client therefore learned, in real time,
+that a secret pick had been added or removed.
+
+**Fix**: in blind mode events are only emitted when a match is created, or when removing a pick undoes an
+existing one (the partner also wanted it). Open mode keeps its refresh events.
+
+### Reviewed, no finding
+- Authorisation: every evening-menu route goes through `ensure_member` + the enabled guard before any read/write.
+- Input validation: `course` ∈ {starter, main, dessert}; `eveningCourseCategories` entries validated against the
+  known categories, ≤ 64 entries, no duplicates; dynamic SQL uses only a compile-time constant column list
+  (`AssertSqlSafe` on constants, no user input).
+- Migrations 0049/0050 exercised against seeded data in a scratch database (overrides → per-service lists).
+- Frontend: no `dangerouslySetInnerHTML`; labels come from the API and are rendered as text.

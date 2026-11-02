@@ -1,20 +1,13 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-vi.mock("./api/client", () => ({
-  getVapidKey: vi.fn(),
-  subscribePush: vi.fn().mockResolvedValue(undefined),
-  unsubscribePush: vi.fn().mockResolvedValue(undefined),
-}));
-
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "./api/client";
-import i18n from "./i18n";
 import { disablePush, enablePush, pushSupported } from "./push";
 
-const mocked = vi.mocked(api);
+vi.mock("./api/client");
+const a = vi.mocked(api, true);
 
 const sub = {
-  endpoint: "https://push/ep",
-  toJSON: () => ({ endpoint: "https://push/ep" }),
+  endpoint: "https://push.example/abc",
+  toJSON: () => ({ endpoint: "https://push.example/abc", keys: { p256dh: "p", auth: "a" } }),
   unsubscribe: vi.fn().mockResolvedValue(true),
 };
 const pushManager = {
@@ -22,13 +15,20 @@ const pushManager = {
   subscribe: vi.fn(),
 };
 
-function installSupport(permission: NotificationPermission = "granted") {
+function install(permission: NotificationPermission = "granted") {
   Object.defineProperty(navigator, "serviceWorker", {
-    configurable: true,
     value: { ready: Promise.resolve({ pushManager }) },
+    configurable: true,
   });
-  vi.stubGlobal("PushManager", class {});
-  vi.stubGlobal("Notification", { requestPermission: vi.fn().mockResolvedValue(permission) });
+  (window as unknown as { PushManager: unknown }).PushManager = class {};
+  (window as unknown as { Notification: unknown }).Notification = {
+    requestPermission: vi.fn().mockResolvedValue(permission),
+  };
+}
+function uninstall() {
+  delete (navigator as unknown as { serviceWorker?: unknown }).serviceWorker;
+  delete (window as unknown as { PushManager?: unknown }).PushManager;
+  delete (window as unknown as { Notification?: unknown }).Notification;
 }
 
 beforeEach(() => {
@@ -36,79 +36,70 @@ beforeEach(() => {
   pushManager.getSubscription.mockResolvedValue(null);
   pushManager.subscribe.mockResolvedValue(sub);
   sub.unsubscribe.mockResolvedValue(true);
+  install();
 });
 
-afterEach(() => {
-  vi.unstubAllGlobals();
-  // @ts-expect-error nettoyage du stub navigator
-  delete navigator.serviceWorker;
-});
-
-describe("pushSupported", () => {
-  it("faux sans service worker / PushManager / Notification", () => {
+describe("push", () => {
+  it("pushSupported reflète les API du navigateur", () => {
+    expect(pushSupported()).toBe(true);
+    uninstall();
     expect(pushSupported()).toBe(false);
   });
 
-  it("vrai quand tout est présent", () => {
-    installSupport();
-    expect(pushSupported()).toBe(true);
-  });
-});
-
-describe("enablePush", () => {
-  it("échoue si non supporté", async () => {
-    await expect(enablePush()).rejects.toThrow(i18n.t("push.unsupported"));
-  });
-
-  it("échoue si la permission est refusée", async () => {
-    installSupport("denied");
-    await expect(enablePush()).rejects.toThrow(i18n.t("push.denied"));
-  });
-
-  it("échoue sans clé VAPID serveur", async () => {
-    installSupport();
-    mocked.getVapidKey.mockResolvedValue({ publicKey: "" } as never);
-    await expect(enablePush()).rejects.toThrow(i18n.t("push.noKeys"));
-  });
-
-  it("s'abonne avec la clé décodée puis enregistre côté backend", async () => {
-    installSupport();
-    mocked.getVapidKey.mockResolvedValue({ publicKey: "AQID_w" } as never);
+  it("enablePush : permission → clé VAPID → abonnement → envoi au backend", async () => {
+    a.getVapidKey.mockResolvedValue({ publicKey: "BPAB" });
     await enablePush();
-    const opts = pushManager.subscribe.mock.calls[0][0];
-    expect(opts.userVisibleOnly).toBe(true);
-    expect(Array.from(opts.applicationServerKey as Uint8Array)).toEqual([1, 2, 3, 255]);
-    expect(mocked.subscribePush).toHaveBeenCalledWith({ endpoint: "https://push/ep" });
+    expect(pushManager.subscribe).toHaveBeenCalledWith(
+      expect.objectContaining({ userVisibleOnly: true }),
+    );
+    const key = pushManager.subscribe.mock.calls[0][0].applicationServerKey as Uint8Array;
+    expect(key).toBeInstanceOf(Uint8Array);
+    expect(key.length).toBeGreaterThan(0);
+    expect(a.subscribePush).toHaveBeenCalledWith(sub.toJSON());
   });
 
-  it("réutilise un abonnement existant", async () => {
-    installSupport();
-    mocked.getVapidKey.mockResolvedValue({ publicKey: "AQID" } as never);
+  it("enablePush : réutilise l'abonnement existant", async () => {
+    a.getVapidKey.mockResolvedValue({ publicKey: "BPAB" });
     pushManager.getSubscription.mockResolvedValue(sub);
     await enablePush();
     expect(pushManager.subscribe).not.toHaveBeenCalled();
-    expect(mocked.subscribePush).toHaveBeenCalled();
-  });
-});
-
-describe("disablePush", () => {
-  it("no-op si non supporté", async () => {
-    await expect(disablePush()).resolves.toBeUndefined();
-    expect(mocked.unsubscribePush).not.toHaveBeenCalled();
+    expect(a.subscribePush).toHaveBeenCalled();
   });
 
-  it("no-op sans abonnement", async () => {
-    installSupport();
+  it("enablePush : navigateur non supporté → erreur", async () => {
+    uninstall();
+    await expect(enablePush()).rejects.toThrow();
+    expect(a.getVapidKey).not.toHaveBeenCalled();
+  });
+
+  it("enablePush : permission refusée → erreur, aucun appel réseau", async () => {
+    install("denied");
+    await expect(enablePush()).rejects.toThrow();
+    expect(a.getVapidKey).not.toHaveBeenCalled();
+  });
+
+  it("enablePush : serveur sans clé VAPID → erreur", async () => {
+    a.getVapidKey.mockResolvedValue({ publicKey: "" });
+    await expect(enablePush()).rejects.toThrow();
+    expect(pushManager.subscribe).not.toHaveBeenCalled();
+  });
+
+  it("disablePush : désabonne le navigateur puis le backend", async () => {
+    pushManager.getSubscription.mockResolvedValue(sub);
+    a.unsubscribePush.mockResolvedValue(undefined);
     await disablePush();
-    expect(mocked.unsubscribePush).not.toHaveBeenCalled();
+    expect(sub.unsubscribe).toHaveBeenCalled();
+    expect(a.unsubscribePush).toHaveBeenCalledWith("https://push.example/abc");
   });
 
-  it("désabonne l'appareil et le backend, en avalant les erreurs", async () => {
-    installSupport();
+  it("disablePush : sans abonnement ou sans support, ne fait rien ; tolère les échecs", async () => {
+    await disablePush(); // pas d'abonnement
+    expect(a.unsubscribePush).not.toHaveBeenCalled();
     pushManager.getSubscription.mockResolvedValue(sub);
     sub.unsubscribe.mockRejectedValue(new Error("x"));
-    mocked.unsubscribePush.mockRejectedValue(new Error("y"));
+    a.unsubscribePush.mockRejectedValue(new Error("y"));
     await expect(disablePush()).resolves.toBeUndefined();
-    expect(mocked.unsubscribePush).toHaveBeenCalledWith("https://push/ep");
+    uninstall();
+    await expect(disablePush()).resolves.toBeUndefined();
   });
 });

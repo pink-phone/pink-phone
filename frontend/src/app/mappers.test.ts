@@ -1,3 +1,4 @@
+import type { ApiEveningMenuItem } from "../api/types";
 import { describe, it, expect } from "vitest";
 import type { TFunction } from "i18next";
 import {
@@ -5,6 +6,7 @@ import {
   toChallengeData,
   toCommentViews,
   toDashboardNotices,
+  toEveningMenuPreview,
 } from "./mappers";
 import type {
   ApiChallenge,
@@ -351,5 +353,72 @@ describe("toDashboardNotices", () => {
       kind: "member_joined",
       actorName: undefined,
     });
+  });
+});
+
+describe("toEveningMenuPreview", () => {
+  const it_ = (
+    code: string,
+    course: ApiEveningMenuItem["course"],
+    over: Partial<ApiEveningMenuItem> = {},
+  ): ApiEveningMenuItem => ({
+    code,
+    category: "evening",
+    categoryLabelFr: "",
+    categoryLabelEn: "",
+    subcategory: null,
+    labelFr: `fr-${code}`,
+    labelEn: `en-${code}`,
+    labelFrSoft: null,
+    labelEnSoft: null,
+    descriptionFr: null,
+    descriptionEn: null,
+    intensity: "soft",
+    course,
+    picked: false,
+    matched: false,
+    partnerWants: false,
+    refused: false,
+    ...over,
+  });
+
+  it("ne garde que ce qui est sur le menu (choisi ou proposé), toujours les 3 services (vides = labels [])", () => {
+    const rows = toEveningMenuPreview(
+      [
+        it_("a", "starter", { picked: true }),
+        it_("b", "starter"),
+        it_("c", "dessert", { partnerWants: true }),
+      ],
+      { isEn: false, explicit: true },
+    );
+    expect(rows).toEqual([
+      { course: "starter", labels: ["fr-a"], matched: false },
+      { course: "main", labels: [], matched: false },
+      { course: "dessert", labels: ["fr-c"], matched: false },
+    ]);
+  });
+
+  it("exclut les refusés ; match = item que j'ai coché", () => {
+    const rows = toEveningMenuPreview(
+      [
+        it_("a", "main", { picked: true, refused: true }),
+        it_("b", "main", { picked: true, matched: true }),
+        it_("c", "starter", { partnerWants: true, matched: true }),
+      ],
+      { isEn: false, explicit: true },
+    );
+    expect(rows.find((r) => r.course === "main")).toEqual({
+      course: "main",
+      labels: ["fr-b"],
+      matched: true,
+    });
+    expect(rows.find((r) => r.course === "starter")?.matched).toBe(false);
+  });
+
+  it("langue et registre suggestif", () => {
+    const item = it_("a", "main", { picked: true, labelEnSoft: "soft-en", labelFrSoft: "soft-fr" });
+    expect(toEveningMenuPreview([item], { isEn: true, explicit: true }).find((r) => r.course === "main")!.labels).toEqual(["en-a"]);
+    expect(toEveningMenuPreview([item], { isEn: true, explicit: false }).find((r) => r.course === "main")!.labels).toEqual(["soft-en"]);
+    expect(toEveningMenuPreview([item], { isEn: false, explicit: false }).find((r) => r.course === "main")!.labels).toEqual(["soft-fr"]);
   });
 });

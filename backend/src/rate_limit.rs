@@ -93,7 +93,9 @@ impl RateLimiter {
             state.calls_since_maintenance = 0;
             if state.map.len() > CLEANUP_THRESHOLD {
                 state.map.retain(|_, times| {
-                    times.last().is_some_and(|t| now.duration_since(*t) < window)
+                    times
+                        .last()
+                        .is_some_and(|t| now.duration_since(*t) < window)
                 });
             }
             let len = state.map.len();
@@ -116,7 +118,12 @@ impl RateLimiter {
     fn evict_oldest(hits: &mut HashMap<String, Vec<Instant>>, n: usize) {
         let mut by_last_activity: Vec<(String, Instant)> = hits
             .iter()
-            .map(|(k, times)| (k.clone(), times.last().copied().unwrap_or_else(Instant::now)))
+            .map(|(k, times)| {
+                (
+                    k.clone(),
+                    times.last().copied().unwrap_or_else(Instant::now),
+                )
+            })
             .collect();
         by_last_activity.sort_by_key(|(_, t)| *t);
         for (key, _) in by_last_activity.into_iter().take(n) {
@@ -149,7 +156,9 @@ pub struct ConnectionGuard {
 
 impl Default for ConnectionTracker {
     fn default() -> Self {
-        Self { counts: Mutex::new(HashMap::new()) }
+        Self {
+            counts: Mutex::new(HashMap::new()),
+        }
     }
 }
 
@@ -160,11 +169,7 @@ impl ConnectionTracker {
 
     /// Tente de réserver une connexion pour `user_id`. `None` si `user_id` a
     /// déjà `max` connexions ouvertes (l'appelant doit refuser l'upgrade, 429).
-    pub fn try_acquire(
-        tracker: Arc<Self>,
-        user_id: Uuid,
-        max: usize,
-    ) -> Option<ConnectionGuard> {
+    pub fn try_acquire(tracker: Arc<Self>, user_id: Uuid, max: usize) -> Option<ConnectionGuard> {
         let mut counts = tracker.counts.lock().unwrap();
         let entry = counts.entry(user_id).or_insert(0);
         if *entry >= max {
@@ -303,7 +308,10 @@ mod tests {
         let mut guards = Vec::new();
         for i in 0..3 {
             let g = ConnectionTracker::try_acquire(tracker.clone(), user, 3);
-            assert!(g.is_some(), "connexion {i} devrait être acceptée (sous le plafond)");
+            assert!(
+                g.is_some(),
+                "connexion {i} devrait être acceptée (sous le plafond)"
+            );
             guards.push(g);
         }
         assert!(

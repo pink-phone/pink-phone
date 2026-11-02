@@ -1,5 +1,7 @@
 pub mod auth;
 pub mod challenges;
+pub mod desires;
+pub mod evening_menu;
 pub mod interactions;
 pub mod logs;
 pub mod love_notes;
@@ -48,6 +50,8 @@ pub fn api_router() -> Router<AppState> {
         .merge(posts::router())
         .merge(interactions::router())
         .merge(challenges::router())
+        .merge(desires::router())
+        .merge(evening_menu::router())
         .merge(media::router())
         .merge(logs::router())
         .merge(love_notes::router())

@@ -70,7 +70,10 @@ mod tests {
         // Le check de déploiement (deploy.yml) cherche `"version":"…"` dans le
         // JSON compact : on verrouille cette forme.
         let s = serde_json::to_string(&build_info()).unwrap();
-        assert!(s.starts_with(&format!("{{\"version\":\"{VERSION}\"")), "{s}");
+        assert!(
+            s.starts_with(&format!("{{\"version\":\"{VERSION}\"")),
+            "{s}"
+        );
         assert!(s.contains("\"commit\":\""), "{s}");
     }
 }

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { SettingsScreen } from "./SettingsScreen";
@@ -27,11 +27,21 @@ vi.mock("../../lib/biometric", () => ({
 }));
 
 // Les notes de version (#90) lisent localStorage directement (indispo sous Node 26+).
-const store = new Map<string, string>();
-vi.stubGlobal("localStorage", {
-  getItem: (k: string) => store.get(k) ?? null,
-  setItem: (k: string, v: string) => void store.set(k, v),
-  removeItem: (k: string) => void store.delete(k),
+// beforeEach/afterEach (pas top-level) : avec `isolate: false`
+// (vitest.config.ts), un stub non restauré fuit vers les fichiers suivants du
+// même worker.
+let store: Map<string, string>;
+beforeEach(() => {
+  store = new Map<string, string>();
+  vi.stubGlobal("localStorage", {
+    getItem: (k: string) => store.get(k) ?? null,
+    setItem: (k: string, v: string) => void store.set(k, v),
+    removeItem: (k: string) => void store.delete(k),
+  });
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 const base = {
@@ -41,7 +51,6 @@ const base = {
 
 describe("SettingsScreen — Notes de version (#90)", () => {
   it("pastille « Nouveautés » visible, puis ouverture des notes + pastille disparue", async () => {
-    store.clear();
     render(<SettingsScreen {...base} />);
     // Pastille « Nouveautés » présente tant que la version courante n'est pas vue.
     expect(screen.getByText("Nouveautés")).toBeInTheDocument();
@@ -50,7 +59,7 @@ describe("SettingsScreen — Notes de version (#90)", () => {
       screen.getByRole("button", { name: /Notes de version/i }),
     );
     // La feuille affiche la version la plus récente (donnée bundlée).
-    expect(screen.getByText("Galeries & partage")).toBeInTheDocument();
+    expect(screen.getByText("Centre de notifications")).toBeInTheDocument();
     // La pastille a disparu (snapshot localStorage marqué vu).
     expect(screen.queryByText("Nouveautés")).toBeNull();
   });
@@ -167,5 +176,52 @@ describe("SettingsScreen — Mes salons (#67)", () => {
     const inactive = radios.find((r) => r.textContent?.includes("Salon 2"))!;
     expect(active).toHaveAttribute("aria-checked", "true");
     expect(inactive).toHaveAttribute("aria-checked", "false");
+  });
+
+  it("services du menu du soir : affichés si le menu est activé, cocher enregistre le classement", async () => {
+    const onCategories = vi.fn();
+    const onReset = vi.fn();
+    render(
+      <SettingsScreen
+        {...base}
+        space={{ name: "S", timezone: "UTC", eveningMenuEnabled: true }}
+        onEveningMenuEnabledChange={vi.fn()}
+        eveningCategories={[{ id: "tender", label: "Tendre", defaultCourses: ["starter"] }]}
+        onEveningCourseCategoriesChange={onCategories}
+        onEveningCourseReset={onReset}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /dessert/i }));
+    await userEvent.click(screen.getByRole("checkbox", { name: /tendre/i }));
+    expect(onCategories).toHaveBeenCalledWith(["starter:tender", "dessert:tender"]);
+  });
+
+  it("services du menu du soir : masqués si le menu est désactivé", () => {
+    render(
+      <SettingsScreen
+        {...base}
+        space={{ name: "S", timezone: "UTC", eveningMenuEnabled: false }}
+        eveningCategories={[{ id: "tender", label: "Tendre", defaultCourses: ["starter"] }]}
+        onEveningCourseCategoriesChange={vi.fn()}
+        onEveningCourseReset={vi.fn()}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: /dessert/i })).toBeNull();
+  });
+
+  it("le menu du soir a sa propre section, distincte de « Notre salon »", () => {
+    render(
+      <SettingsScreen
+        {...base}
+        space={{ name: "S", timezone: "UTC", eveningMenuEnabled: true }}
+        onEveningMenuEnabledChange={vi.fn()}
+        onEveningMenuBlindChange={vi.fn()}
+      />,
+    );
+    const heading = screen.getByRole("heading", { name: /^menu du soir$/i });
+    const section = heading.closest("section")!;
+    expect(within(section).getByText(/mode aveugle/i)).toBeInTheDocument();
+    const salon = screen.getByRole("heading", { name: /notre salon/i }).closest("section")!;
+    expect(within(salon).queryByText(/mode aveugle/i)).toBeNull();
   });
 });

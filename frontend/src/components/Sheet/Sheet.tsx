@@ -86,6 +86,7 @@ export function Sheet({ open, title, onClose, children, className }: SheetProps)
         onClick={onClose}
         className="absolute inset-0 animate-fade-in motion-reduce:animate-none bg-charcoal-900/70 backdrop-blur-xs"
       />
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: piège à focus (Tab) du panneau de dialogue ; le rôle `dialog` est porté par le conteneur parent. */}
       <div
         ref={panelRef}
         tabIndex={-1}

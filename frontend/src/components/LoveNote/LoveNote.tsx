@@ -13,6 +13,10 @@ export interface LoveNoteProps {
   /** Le mot est de moi → bouton de suppression. */
   isMine?: boolean;
   onDelete?: () => void;
+  /** Ancre DOM (ex: `loveNote-<id>`) pour scroller dessus depuis une notification. */
+  id?: string;
+  /** Repère visuel bref après navigation depuis une notification. */
+  highlighted?: boolean;
   className?: string;
 }
 
@@ -31,6 +35,8 @@ export function LoveNote({
   openAt,
   isMine = false,
   onDelete,
+  id,
+  highlighted = false,
   className,
 }: LoveNoteProps) {
   const { t, i18n } = useTranslation();
@@ -38,9 +44,12 @@ export function LoveNote({
   if (sealed) {
     return (
       <Surface
+        id={id}
         tone="velvet"
+        radius="2xl"
         className={cn(
           "flex flex-col items-center gap-1 border-dashed text-center",
+          highlighted && "animate-highlight-glow motion-reduce:animate-none",
           className,
         )}
       >
@@ -66,24 +75,35 @@ export function LoveNote({
   const scheduled = isMine && !!openAt && new Date(openAt) > new Date();
 
   return (
-    <Surface tone="blush" className={cn("relative space-y-v3-2", className)}>
+    // DA sombre : plus de carte blanche (blush) — surface velours + un « dos »
+    // spice chaleureux pour garder l'esprit « petit mot ».
+    <Surface
+      id={id}
+      tone="velvet"
+      radius="2xl"
+      className={cn(
+        "relative space-y-v3-2 border-l-4 border-l-spice-500/60",
+        highlighted && "animate-highlight-glow motion-reduce:animate-none",
+        className,
+      )}
+    >
       {isMine && onDelete && (
         <button
           type="button"
           onClick={onDelete}
           aria-label={t("loveNotes.deleteAria")}
-          className="absolute right-1.5 top-1.5 flex h-9 w-9 items-center justify-center rounded-full text-bordeaux-700/50 transition-colors duration-300 ease-felt hover:text-bordeaux-700 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500"
+          className="absolute right-1.5 top-1.5 flex h-9 w-9 items-center justify-center rounded-full text-taupe-400 transition-colors duration-300 ease-felt hover:text-blush-100 focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-spice-500"
         >
           <span aria-hidden>✕</span>
         </button>
       )}
-      <p className="whitespace-pre-line pr-7 font-serif text-base leading-relaxed text-bordeaux-700">
+      <p className="whitespace-pre-line pr-7 font-serif text-base leading-relaxed text-blush-100">
         {body}
       </p>
-      <div className="flex flex-wrap items-center gap-x-2 text-xs text-bordeaux-700/70">
+      <div className="flex flex-wrap items-center gap-x-2 text-xs text-taupe-300">
         <span>{t("loveNotes.from", { name: authorName })}</span>
         {scheduled && openAt && (
-          <span className="rounded-full bg-bordeaux-700/10 px-2 py-0.5">
+          <span className="rounded-full bg-spice-500/15 px-2 py-0.5 text-spice-200">
             🕐 {t("loveNotes.scheduledFor", { date: formatDate(openAt, i18n.language) })}
           </span>
         )}

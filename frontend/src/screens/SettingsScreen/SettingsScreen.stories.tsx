@@ -186,3 +186,25 @@ export const AvecVersion: Story = {
     </div>
   ),
 };
+
+/** Menu du soir activé : réglage des services (catégories → Entrée/Plat/Dessert). */
+export const ServicesDuMenu: Story = {
+  args: {
+    space: {
+      name: "Pink Phone",
+      timezone: "Europe/Paris",
+      eveningMenuEnabled: true,
+      eveningCourseCustom: false,
+      eveningCourseCategories: [],
+    },
+    onEveningMenuEnabledChange: fn(),
+    onEveningCourseCategoriesChange: fn(),
+    onEveningCourseReset: fn(),
+    eveningCategories: [
+      { id: "tender", label: "Tendre & complice", defaultCourses: ["starter"] },
+      { id: "positions", label: "Positions", defaultCourses: ["main"] },
+      { id: "practices", label: "Pratiques", defaultCourses: ["dessert"] },
+      { id: "places", label: "Lieux", defaultCourses: [] },
+    ],
+  },
+};

@@ -67,6 +67,12 @@ export const AvecNonLus: Story = {
   },
 };
 
+/** Repère bref après un tap sur une notification (centre de notifications) :
+ *  halo spice qui pulse deux fois puis s'efface tout seul (~1,8 s). */
+export const CommentaireSurligné: Story = {
+  args: { highlightedCommentId: "1" },
+};
+
 export const Vide: Story = { args: { comments: [] } };
 export const Chargement: Story = { args: { comments: [], loading: true } };
 export const MessagesPlusAnciens: Story = {

@@ -12,18 +12,18 @@ use rand::RngExt;
 
 /// Mots « tendresse / intimité » (1er mot du code).
 const WARM: &[&str] = &[
-    "Ember", "Spark", "Hush", "Bloom", "Flame", "Glow", "Swoon", "Tease",
-    "Blush", "Pulse", "Charm", "Dream", "Honey", "Amber", "Desire", "Cuddle",
-    "Kiss", "Caress", "Tender", "Warmth", "Flutter", "Shiver", "Bliss", "Spice",
-    "Sultry", "Glimmer", "Twilight", "Moonlit", "Lush", "Sugar", "Whisper", "Crimson",
+    "Ember", "Spark", "Hush", "Bloom", "Flame", "Glow", "Swoon", "Tease", "Blush", "Pulse",
+    "Charm", "Dream", "Honey", "Amber", "Desire", "Cuddle", "Kiss", "Caress", "Tender", "Warmth",
+    "Flutter", "Shiver", "Bliss", "Spice", "Sultry", "Glimmer", "Twilight", "Moonlit", "Lush",
+    "Sugar", "Whisper", "Crimson",
 ];
 
 /// Mots « matières douillettes » (2e mot du code).
 const COZY: &[&str] = &[
-    "Velvet", "Linen", "Cashmere", "Wool", "Felt", "Silk", "Satin", "Suede",
-    "Flannel", "Fleece", "Mohair", "Tweed", "Cotton", "Plush", "Chenille", "Velour",
-    "Corduroy", "Quilt", "Angora", "Alpaca", "Lace", "Denim", "Canvas", "Jersey",
-    "Terry", "Muslin", "Damask", "Brocade", "Boucle", "Cobweb", "Down", "Knit",
+    "Velvet", "Linen", "Cashmere", "Wool", "Felt", "Silk", "Satin", "Suede", "Flannel", "Fleece",
+    "Mohair", "Tweed", "Cotton", "Plush", "Chenille", "Velour", "Corduroy", "Quilt", "Angora",
+    "Alpaca", "Lace", "Denim", "Canvas", "Jersey", "Terry", "Muslin", "Damask", "Brocade",
+    "Boucle", "Cobweb", "Down", "Knit",
 ];
 
 /// Génère un code d'invitation aléatoire (`MotMot#chiffre`).

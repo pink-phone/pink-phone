@@ -39,6 +39,23 @@ pub struct Space {
     pub blind_mood: bool,
     /// Défaut du salon pour « média téléchargeable » des nouveaux posts (#78).
     pub allow_media_download: bool,
+    /// Liste d'envies à double consentement (#99) activée pour ce salon.
+    pub desires_enabled: bool,
+    /// Registre des libellés de la bucket list : explicite (défaut) vs suggestif.
+    pub desires_explicit_labels: bool,
+    /// « Menu du soir » : rituel quotidien à double consentement (#97b).
+    pub evening_menu_enabled: bool,
+    /// Mode aveugle strict (défaut) : le choix du/de la partenaire n'est
+    /// jamais visible avant un match mutuel. Si faux (mode « ouvert »,
+    /// #0040), une proposition est visible immédiatement et peut être
+    /// validée ou refusée.
+    pub evening_menu_blind: bool,
+    /// Services du menu du soir paramétrés par le salon ? Faux = classement du
+    /// catalogue (par item) ; vrai = seules comptent `evening_course_categories`.
+    pub evening_course_custom: bool,
+    /// Entrées « <service>:<categorie> » (service = starter|main|dessert) : les
+    /// catégories qui alimentent chaque service — plusieurs services possibles.
+    pub evening_course_categories: Vec<String>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -158,6 +175,31 @@ pub struct Notice {
     pub created_at: DateTime<Utc>,
 }
 
+/// Entrée du centre de notifications : une ligne par destinataire, marquable
+/// lue individuellement (contrairement à `Notice`, qui n'a qu'un "vu" collectif
+/// par feature). Créée aux mêmes points que le Web Push.
+#[derive(Debug, Serialize, sqlx::FromRow)]
+#[serde(rename_all = "camelCase")]
+pub struct NotificationEntry {
+    pub id: Uuid,
+    /// 'post' | 'comment' | 'challenge' | 'mood' | 'desire' | 'eveningMenu' |
+    /// 'loveNote' | 'memberJoined'.
+    pub kind: String,
+    pub actor_id: Option<Uuid>,
+    /// Nom de l'auteur de l'action (null si système / compte supprimé).
+    pub actor_name: Option<String>,
+    /// Référence vers l'entité concernée (id de post/défi/mot doux ; code pour
+    /// desire/eveningMenu), pour naviguer dessus au clic. TEXT (pas UUID) car
+    /// desire/eveningMenu sont identifiés par un code, pas un id. `None` pour
+    /// les kinds sans item précis (mood/memberJoined/downloadEnabled).
+    pub entity_id: Option<String>,
+    /// UNIQUEMENT pour `kind = "comment"` : id du commentaire précis, à
+    /// surligner dans le fil ouvert via `entity_id` (le post). `None` sinon.
+    pub comment_id: Option<String>,
+    pub read: bool,
+    pub created_at: DateTime<Utc>,
+}
+
 #[derive(Debug, Serialize, sqlx::FromRow)]
 #[serde(rename_all = "camelCase")]
 pub struct Comment {
@@ -204,6 +246,167 @@ pub struct ChallengeSuggestion {
     /// Suggestion masquée par le salon (#70). Idem : calculé au listing.
     #[sqlx(default)]
     pub hidden: bool,
+}
+
+/// Un item du catalogue (#0033) tel que joint depuis `catalog_items` +
+/// `catalog_categories` — utilisé par la Bucket List ET le Menu du soir pour
+/// construire leurs réponses respectives (ils ajoutent chacun leur propre état
+/// de coche par-dessus).
+#[derive(Debug, sqlx::FromRow)]
+pub struct CatalogItemRow {
+    pub id: String,
+    pub category_id: String,
+    pub category_label_fr: String,
+    pub category_label_en: String,
+    pub subcategory: Option<String>,
+    pub label_fr: String,
+    pub label_en: String,
+    pub label_fr_soft: Option<String>,
+    pub label_en_soft: Option<String>,
+    pub description_fr: Option<String>,
+    pub description_en: Option<String>,
+    pub intensity: String,
+    /// Service du menu du soir (#97b, #0033) — `NULL` si l'item n'y est pas
+    /// éligible (ex. catégorie `places`). `#[sqlx(default)]` : la requête de
+    /// `desires.rs` ne sélectionne pas cette colonne.
+    #[sqlx(default)]
+    pub evening_course: Option<String>,
+}
+
+/// Une envie du catalogue (#99, #0033) telle que renvoyée au membre courant :
+/// son contenu (bilingue) + MON intérêt + l'état « matché ». L'intérêt brut des
+/// AUTRES n'est jamais exposé (double-aveugle) : `matched` n'est vrai que si moi
+/// ET un autre membre avons coché ce code.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DesireItem {
+    pub code: String,
+    /// Catégorie du catalogue (#99 bucket list) — pour le regroupement à l'écran.
+    pub category: String,
+    pub category_label_fr: String,
+    pub category_label_en: String,
+    /// Regroupement libre à l'intérieur de la catégorie (ex. 'kamasutra').
+    pub subcategory: Option<String>,
+    pub label_fr: String,
+    pub label_en: String,
+    /// Variante suggestive (registre #99), si le catalogue en fournit une.
+    pub label_fr_soft: Option<String>,
+    pub label_en_soft: Option<String>,
+    pub description_fr: Option<String>,
+    pub description_en: Option<String>,
+    /// Classement soft/hot de l'item (#0033).
+    pub intensity: String,
+    /// J'ai marqué « envie » (privé, révélé seulement en cas de match).
+    pub interested: bool,
+    /// J'ai marqué « contre » (limite). Mon état, toujours visible de moi.
+    pub against: bool,
+    /// Réciprocité d'envie (les deux « envie ») → révélé.
+    pub matched: bool,
+    /// Au moins un membre est « contre » → limite affichée au couple (bloque le
+    /// match). Surfacé (≠ l'envie double-aveugle) : une limite se respecte.
+    pub limit: bool,
+    /// Le couple a coché « ✓ Réalisé » (suivi bucket list, niveau salon).
+    pub done: bool,
+}
+
+impl DesireItem {
+    pub fn from_catalog(row: CatalogItemRow) -> Self {
+        Self {
+            code: row.id,
+            category: row.category_id,
+            category_label_fr: row.category_label_fr,
+            category_label_en: row.category_label_en,
+            subcategory: row.subcategory,
+            label_fr: row.label_fr,
+            label_en: row.label_en,
+            label_fr_soft: row.label_fr_soft,
+            label_en_soft: row.label_en_soft,
+            description_fr: row.description_fr,
+            description_en: row.description_en,
+            intensity: row.intensity,
+            interested: false,
+            against: false,
+            matched: false,
+            limit: false,
+            done: false,
+        }
+    }
+}
+
+/// Un item du « Menu du soir » (#97b, #0033) pour ce soir, côté membre courant :
+/// son contenu (bilingue) + mon choix du jour + l'état « matché » (les deux
+/// l'ont coché aujourd'hui). Double consentement/double-aveugle : `matched`
+/// n'est vrai qu'en cas de réciprocité.
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EveningMenuItem {
+    pub code: String,
+    /// Catégorie du catalogue — pour le regroupement à l'écran (#0039).
+    pub category: String,
+    pub category_label_fr: String,
+    pub category_label_en: String,
+    pub subcategory: Option<String>,
+    pub label_fr: String,
+    pub label_en: String,
+    /// Variante suggestive (registre #99) — le menu du soir hérite des items
+    /// `practices` (dessert), qui en portent une.
+    pub label_fr_soft: Option<String>,
+    pub label_en_soft: Option<String>,
+    pub description_fr: Option<String>,
+    pub description_en: Option<String>,
+    pub intensity: String,
+    /// Service où l'item s'affiche : 'starter' | 'main' | 'dessert', ou vide s'il
+    /// n'est dans aucun service (choisissable quand même hors catégorie).
+    pub course: String,
+    /// Service par défaut du catalogue (#0039), avant surcharge du salon —
+    /// vide si aucun. Sert à l'écran de réglage des services.
+    pub default_course: String,
+    /// Tous les services où l'item est proposé par défaut (classement du salon) —
+    /// plusieurs si sa catégorie alimente plusieurs services.
+    pub courses: Vec<String>,
+    pub picked: bool,
+    pub matched: bool,
+    /// Mode ouvert (#0040) uniquement : le/la partenaire a « want » ce soir,
+    /// exposé immédiatement (proposition à valider/refuser). Toujours `false`
+    /// en mode aveugle — jamais de fuite du choix de l'autre avant un match.
+    pub partner_wants: bool,
+    /// Mode ouvert uniquement : l'un des deux a explicitement refusé.
+    /// Toujours `false` en mode aveugle (concept qui n'existe pas là-bas).
+    pub refused: bool,
+    /// Match « validé ensemble » : l'un des deux a répondu « Partant·e » APRÈS le
+    /// dévoilement des menus (mode aveugle), par opposition à un match par
+    /// coïncidence (les deux l'avaient coché en aveugle).
+    pub agreed: bool,
+    /// J'ai répondu après le dévoilement (réponse que je peux encore retirer).
+    pub responded: bool,
+}
+
+impl EveningMenuItem {
+    pub fn from_catalog(row: CatalogItemRow) -> Self {
+        Self {
+            code: row.id,
+            category: row.category_id,
+            category_label_fr: row.category_label_fr,
+            category_label_en: row.category_label_en,
+            subcategory: row.subcategory,
+            label_fr: row.label_fr,
+            label_en: row.label_en,
+            label_fr_soft: row.label_fr_soft,
+            label_en_soft: row.label_en_soft,
+            description_fr: row.description_fr,
+            description_en: row.description_en,
+            intensity: row.intensity,
+            default_course: row.evening_course.clone().unwrap_or_default(),
+            courses: row.evening_course.iter().cloned().collect(),
+            course: row.evening_course.unwrap_or_default(),
+            picked: false,
+            matched: false,
+            partner_wants: false,
+            refused: false,
+            agreed: false,
+            responded: false,
+        }
+    }
 }
 
 /// Un « mot doux » (#102) tel que renvoyé au membre courant. Si `open_at` est dans
@@ -342,9 +545,15 @@ mod tests {
 
     #[test]
     fn transitions_autorisees() {
-        assert!(challenge_transition_allowed("proposed", "challengeAccepted"));
+        assert!(challenge_transition_allowed(
+            "proposed",
+            "challengeAccepted"
+        ));
         assert!(challenge_transition_allowed("proposed", "maybeMaybe"));
-        assert!(challenge_transition_allowed("maybeMaybe", "challengeAccepted"));
+        assert!(challenge_transition_allowed(
+            "maybeMaybe",
+            "challengeAccepted"
+        ));
         assert!(challenge_transition_allowed("challengeAccepted", "jobDone"));
     }
 
@@ -364,7 +573,10 @@ mod tests {
         assert!(!challenge_transition_allowed("proposed", "jobDone"));
         assert!(!challenge_transition_allowed("maybeMaybe", "jobDone"));
         assert!(!challenge_transition_allowed("jobDone", "proposed"));
-        assert!(!challenge_transition_allowed("challengeAccepted", "maybeMaybe"));
+        assert!(!challenge_transition_allowed(
+            "challengeAccepted",
+            "maybeMaybe"
+        ));
         assert!(!challenge_transition_allowed("proposed", "proposed"));
         assert!(!challenge_transition_allowed("inconnu", "jobDone"));
     }

@@ -117,7 +117,11 @@ mod tests {
 
         // TooManyRequests
         let e = ApiError::TooManyRequests("trop de tentatives".into());
-        assert_eq!(e.status(), StatusCode::TOO_MANY_REQUESTS, "TooManyRequests status");
+        assert_eq!(
+            e.status(),
+            StatusCode::TOO_MANY_REQUESTS,
+            "TooManyRequests status"
+        );
         assert_eq!(e.code(), "too_many_requests", "TooManyRequests code");
 
         // Internal
@@ -135,10 +139,7 @@ mod tests {
             ApiError::BadRequest("champ requis".into()).to_string(),
             "champ requis"
         );
-        assert_eq!(
-            ApiError::Conflict("doublon".into()).to_string(),
-            "doublon"
-        );
+        assert_eq!(ApiError::Conflict("doublon".into()).to_string(), "doublon");
     }
 
     /// Les messages fixes des variantes sans payload sont stables (contrat API).
@@ -158,5 +159,13 @@ mod tests {
             matches!(api_err, ApiError::NotFound),
             "RowNotFound doit devenir NotFound"
         );
+    }
+
+    /// Toute autre erreur SQL devient un 500 opaque (le détail reste dans les logs).
+    #[test]
+    fn autre_erreur_sql_devient_internal_sans_fuite() {
+        let api_err = ApiError::from(sqlx::Error::PoolTimedOut);
+        assert!(matches!(api_err, ApiError::Internal));
+        assert_eq!(api_err.to_string(), "erreur interne");
     }
 }

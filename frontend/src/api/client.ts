@@ -3,6 +3,9 @@ import type { BuildInfo } from "../lib/buildInfo";
 import type {
   ApiChallenge,
   ApiComment,
+  ApiDesire,
+  ApiEveningMenuItem,
+  ApiEveningMenuStatus,
   ApiLoveNote,
   ApiPost,
   AuthConfig,
@@ -15,6 +18,7 @@ import type {
   Page,
   SeenEntry,
   Notice,
+  ApiNotification,
   ReactionSummary,
   Settings,
   Space,
@@ -194,8 +198,83 @@ export const updateSpace = (
     allowCustomReactions?: boolean;
     blindMood?: boolean;
     allowMediaDownload?: boolean;
+    desiresEnabled?: boolean;
+    desiresExplicitLabels?: boolean;
+    eveningMenuEnabled?: boolean;
+    eveningMenuBlind?: boolean;
+    eveningCourseCustom?: boolean;
+    eveningCourseCategories?: string[];
   },
 ) => req<Space>(`/api/spaces/${spaceId}`, { method: "PATCH", json: body });
+
+// ---------- Envies / Dossier Noir (#99) ----------
+
+/** Catalogue d'envies + mon stance + match/limite/réalisé (bucket list #99). */
+export const listDesires = (spaceId: string) =>
+  req<ApiDesire[]>(`/api/spaces/${spaceId}/desires`);
+
+/** Pose mon stance sur une envie : `want` (envie) ou `against` (contre/limite). */
+export const setDesireStance = (
+  spaceId: string,
+  code: string,
+  stance: "want" | "against",
+) =>
+  req<ApiDesire>(`/api/spaces/${spaceId}/desires/${code}/stance`, {
+    method: "PUT",
+    json: { stance },
+  });
+
+/** Repasse une envie en neutre (retire mon envie/contre). */
+export const clearDesireStance = (spaceId: string, code: string) =>
+  req<ApiDesire>(`/api/spaces/${spaceId}/desires/${code}/stance`, {
+    method: "DELETE",
+  });
+
+/** « ✓ Réalisé » de la bucket list (#99) : niveau salon (couple). */
+export const setDesireDone = (spaceId: string, code: string) =>
+  req<ApiDesire>(`/api/spaces/${spaceId}/desires/${code}/done`, {
+    method: "PUT",
+  });
+
+export const unsetDesireDone = (spaceId: string, code: string) =>
+  req<ApiDesire>(`/api/spaces/${spaceId}/desires/${code}/done`, {
+    method: "DELETE",
+  });
+
+// ---------- Menu du soir (#97b) ----------
+
+/** Menu du soir pour CE SOIR : mes choix du jour + matchs (rituel quotidien). */
+export const listEveningMenu = (spaceId: string) =>
+  req<ApiEveningMenuItem[]>(`/api/spaces/${spaceId}/evening-menu`);
+
+/** Pose mon stance pour ce soir : `want` (défaut) ou `refused` (mode ouvert
+ *  uniquement, #0040 — 400 en mode aveugle). */
+export const pickEveningMenu = (
+  spaceId: string,
+  code: string,
+  stance: "want" | "refused" = "want",
+  /** Service où le choix est ajouté (permet de piocher hors catégorie). */
+  course?: "starter" | "main" | "dessert",
+) =>
+  req<ApiEveningMenuItem>(`/api/spaces/${spaceId}/evening-menu/${code}`, {
+    method: "PUT",
+    json: course ? { stance, course } : { stance },
+  });
+
+/** État de la validation « J'ai fini » du menu du soir (mode aveugle). */
+export const getEveningMenuStatus = (spaceId: string) =>
+  req<ApiEveningMenuStatus>(`/api/spaces/${spaceId}/evening-menu-status`);
+
+/** « J'ai fini » (`done`) ou « Modifier » : valide / rouvre mon menu de ce soir. */
+export const setEveningMenuDone = (spaceId: string, done: boolean) =>
+  req<ApiEveningMenuStatus>(`/api/spaces/${spaceId}/evening-menu-done`, {
+    method: done ? "PUT" : "DELETE",
+  });
+
+export const unpickEveningMenu = (spaceId: string, code: string) =>
+  req<ApiEveningMenuItem>(`/api/spaces/${spaceId}/evening-menu/${code}`, {
+    method: "DELETE",
+  });
 
 // ---------- Mots doux (#102) ----------
 
@@ -479,6 +558,24 @@ export const markSeen = (
 
 export const listNotices = (spaceId: string) =>
   req<Notice[]>(`/api/spaces/${spaceId}/notices`);
+
+// ---------- Centre de notifications ----------
+
+export const listNotifications = (spaceId: string) =>
+  req<ApiNotification[]>(`/api/spaces/${spaceId}/notifications`);
+
+export const unreadNotificationCount = (spaceId: string) =>
+  req<{ count: number }>(`/api/spaces/${spaceId}/notifications/unread-count`);
+
+export const markNotificationRead = (spaceId: string, id: string) =>
+  req<void>(`/api/spaces/${spaceId}/notifications/${id}/read`, {
+    method: "PUT",
+  });
+
+export const markAllNotificationsRead = (spaceId: string) =>
+  req<void>(`/api/spaces/${spaceId}/notifications/read-all`, {
+    method: "PUT",
+  });
 
 // ---------- Médias ----------
 

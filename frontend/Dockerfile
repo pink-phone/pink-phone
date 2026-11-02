@@ -23,7 +23,8 @@ ENV VITE_API_URL="" \
     VITE_APP_COMMIT=$APP_COMMIT
 RUN npm run build
 
-FROM nginx:alpine
+# Non-root (Trivy DS-0002) : nginx-unprivileged écoute sur 8080 (uid 101).
+FROM nginxinc/nginx-unprivileged:alpine
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
-EXPOSE 80
+EXPOSE 8080

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, act } from "@testing-library/react";
 import type { Space, UserPublic, Notice } from "../api/types";
 
@@ -48,19 +48,28 @@ import * as api from "../api/client";
 import { SpaceApp } from "./SpaceApp";
 
 // localStorage est indisponible sous Node dans cet env de test → stub mémoire
-// (SpaceApp lit `pp_hot_anim` à l'init).
-const lsStore: Record<string, string> = {};
-vi.stubGlobal("localStorage", {
-  getItem: (k: string) => lsStore[k] ?? null,
-  setItem: (k: string, v: string) => {
-    lsStore[k] = String(v);
-  },
-  removeItem: (k: string) => {
-    delete lsStore[k];
-  },
-  clear: () => {
-    for (const k of Object.keys(lsStore)) delete lsStore[k];
-  },
+// (SpaceApp lit `pp_hot_anim` à l'init). beforeEach/afterEach (pas top-level) :
+// avec `isolate: false` (vitest.config.ts), un stub non restauré fuit vers les
+// fichiers suivants du même worker.
+let lsStore: Record<string, string>;
+beforeEach(() => {
+  lsStore = {};
+  vi.stubGlobal("localStorage", {
+    getItem: (k: string) => lsStore[k] ?? null,
+    setItem: (k: string, v: string) => {
+      lsStore[k] = String(v);
+    },
+    removeItem: (k: string) => {
+      delete lsStore[k];
+    },
+    clear: () => {
+      for (const k of Object.keys(lsStore)) delete lsStore[k];
+    },
+  });
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
 });
 
 const space: Space = {
@@ -71,6 +80,12 @@ const space: Space = {
   allowCustomReactions: true,
   blindMood: false,
   allowMediaDownload: false,
+  desiresEnabled: false,
+  desiresExplicitLabels: true,
+  eveningMenuEnabled: false,
+  eveningMenuBlind: true,
+  eveningCourseCustom: false,
+  eveningCourseCategories: [],
   createdAt: "2026-06-24T10:00:00.000Z",
 };
 const user: UserPublic = {
@@ -102,9 +117,12 @@ describe("SpaceApp — wiring des notices (#84/#85)", () => {
       await screen.findByText(/Camille a rejoint le salon/i),
     ).toBeInTheDocument();
     // Snapshot figé null à l'arrivée → la notice s'affiche, ET on marque vu.
-    // markSeen("notices") est gated sur `ready` (chargement groupé complet),
-    // une condition distincte de "le texte des notices est affiché" → attendre
-    // au lieu d'asserter en synchrone évite la course entre les deux.
+    // `markSeen("notices")` part d'un effet séparé gated sur `ready` (le
+    // Promise.all du chargement initial : moods/posts/challenges/seen/
+    // notices/loveNotes/settings), alors que le bandeau ne dépend que de
+    // `notices` — les deux résolvent dans le même tick la plupart du temps,
+    // mais rien ne le garantit : `waitFor` plutôt qu'une assertion synchrone
+    // juste après le `findByText` (flaky observé en CI, #112 release 1869).
     await waitFor(() =>
       expect(api.markSeen).toHaveBeenCalledWith("s1", "notices"),
     );

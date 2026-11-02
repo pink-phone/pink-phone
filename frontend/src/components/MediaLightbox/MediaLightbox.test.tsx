@@ -114,3 +114,89 @@ describe("MediaLightbox", () => {
     expect(onClose).toHaveBeenCalled();
   });
 });
+
+describe("MediaLightbox — rotation manuelle (médias paysage)", () => {
+  const landscape: BlogPostMedia = { src: "data:,l", alt: "paysage", width: 1200, height: 630 };
+  const portrait: BlogPostMedia = { src: "data:,p", alt: "portrait", width: 630, height: 1200 };
+
+  it("média portrait → bouton toujours monté mais invisible", () => {
+    render(
+      <MediaLightbox
+        open
+        media={[portrait]}
+        index={0}
+        onIndexChange={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    const btn = screen.getByRole("button", { name: /pivoter/i });
+    expect(btn.className).toMatch(/opacity-0/);
+    expect(btn.className).toMatch(/pointer-events-none/);
+  });
+
+  it("média paysage → bouton visible et cliquable", () => {
+    render(
+      <MediaLightbox
+        open
+        media={[landscape]}
+        index={0}
+        onIndexChange={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    const btn = screen.getByRole("button", { name: /pivoter/i });
+    expect(btn.className).toMatch(/opacity-100/);
+    expect(btn.className).not.toMatch(/pointer-events-none/);
+  });
+
+  it("clic sur le bouton → aria-pressed bascule", async () => {
+    const { default: userEvent } = await import("@testing-library/user-event");
+    render(
+      <MediaLightbox
+        open
+        media={[landscape]}
+        index={0}
+        onIndexChange={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    const btn = screen.getByRole("button", { name: /pivoter/i });
+    expect(btn).toHaveAttribute("aria-pressed", "false");
+    await userEvent.click(btn);
+    expect(btn).toHaveAttribute("aria-pressed", "true");
+    await userEvent.click(btn);
+    expect(btn).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("changement de média → réinitialise la rotation", async () => {
+    const { default: userEvent } = await import("@testing-library/user-event");
+    const { rerender } = render(
+      <MediaLightbox
+        open
+        media={[landscape, landscape]}
+        index={0}
+        onIndexChange={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    await userEvent.click(screen.getByRole("button", { name: /pivoter/i }));
+    expect(screen.getByRole("button", { name: /pivoter/i })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    rerender(
+      <MediaLightbox
+        open
+        media={[landscape, landscape]}
+        index={1}
+        onIndexChange={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(screen.getByRole("button", { name: /pivoter/i })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+  });
+});

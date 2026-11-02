@@ -1,6 +1,7 @@
 import {
   useEffect,
   useRef,
+  useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 import { createPortal } from "react-dom";
@@ -30,6 +31,13 @@ export interface MediaLightboxProps {
  * toggle. Navigation entre médias via des boutons prev/next distincts du
  * média (pas de swipe superposé dessus : un geste de navigation démarré sur
  * `SafeMedia` armerait sa révélation dès `onPointerDown`).
+ *
+ * Médias au format paysage : jamais de rotation automatique (letterbox par
+ * défaut, cf. le verrou `orientation: "portrait"` du manifest PWA — tourner
+ * une tête automatiquement serait désorientant). Un bouton de rotation
+ * manuel, toujours monté (visibilité en opacité, jamais montage/démontage,
+ * pour ne pas faire sauter la barre du haut en changeant de média), permet
+ * de pivoter -90° dans un sens fixe.
  */
 export function MediaLightbox({
   open,
@@ -40,6 +48,8 @@ export function MediaLightbox({
   className,
 }: MediaLightboxProps) {
   const { t } = useTranslation();
+  const current = media[index];
+
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
   // Lu par le handler Échap/flèches (abonné une seule fois par ouverture,
@@ -48,6 +58,29 @@ export function MediaLightbox({
   navRef.current = { index, length: media.length, onIndexChange };
   const panelRef = useRef<HTMLDivElement>(null);
   const restoreRef = useRef<HTMLElement | null>(null);
+
+  const [ratio, setRatio] = useState<number | null>(null);
+  const [rotated, setRotated] = useState(false);
+  // Repli (onglet navigateur, pas PWA installée) : le viewport peut être
+  // réellement en paysage — dans ce cas pas de rotation manuelle superposée.
+  const [viewportLandscape, setViewportLandscape] = useState(false);
+
+  // Changement de média : l'ancien ratio ne s'applique plus (`SafeMedia`
+  // signale le nouveau via `onRatioChange` dès son montage), et la rotation
+  // manuelle ne doit jamais survivre d'un média à l'autre.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `index` n'est pas lu : son changement signale un autre média.
+  useEffect(() => {
+    setRotated(false);
+  }, [index]);
+
+  useEffect(() => {
+    if (!open) return;
+    const mq = window.matchMedia("(orientation: landscape)");
+    const update = () => setViewportLandscape(mq.matches);
+    update();
+    mq.addEventListener("change", update);
+    return () => mq.removeEventListener("change", update);
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -85,8 +118,15 @@ export function MediaLightbox({
   };
 
   if (!open) return null;
-  const current = media[index];
   if (!current) return null;
+
+  const isLandscape = ratio !== null && ratio > 1;
+  // Bouton dispo seulement si le média est paysage ET que le viewport réel
+  // ne l'est pas déjà (repli onglet navigateur) — mais toujours MONTÉ (juste
+  // invisible) pour ne jamais faire sauter la barre du haut en changeant de
+  // média (cf. avis ui-designer).
+  const rotateAvailable = isLandscape && !viewportLandscape;
+  const applyRotation = rotated && rotateAvailable;
 
   // Portail vers document.body (même pattern que ContextMenu) : un `fixed`
   // rendu au fil de l'arbre peut se retrouver contenu par un ancêtre
@@ -101,40 +141,36 @@ export function MediaLightbox({
       aria-modal="true"
       aria-label={t("mediaLightbox.title")}
       className={cn(
-        "fixed inset-0 z-[70] flex flex-col bg-charcoal-900/95 outline-hidden",
+        "fixed inset-0 z-[70] overflow-hidden bg-charcoal-900/95 outline-hidden",
         "animate-fade-in motion-reduce:animate-none",
         className,
       )}
     >
-      <div className="flex items-center justify-between gap-3 px-4 pt-[calc(0.75rem+env(safe-area-inset-top))] pb-2">
-        <span className="text-xs text-taupe-300">
-          {media.length > 1
-            ? t("mediaLightbox.counter", { current: index + 1, total: media.length })
-            : null}
-        </span>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label={t("common.close")}
-          className="inline-flex h-11 w-11 items-center justify-center rounded-full text-taupe-200 transition-colors duration-300 ease-felt hover:text-blush-100"
+      {/* Couche média plein écran (dimensions viewport pures — pas de mesure
+          JS d'une sous-zone flex : `dvh`/`dvw` s'ajustent nativement à la
+          barre d'adresse mobile, contrairement à une mesure figée trop tôt). */}
+      <div className="absolute inset-0 flex items-center justify-center">
+        <div
+          className={cn(
+            "transition-transform duration-300 ease-felt",
+            applyRotation && "-rotate-90",
+          )}
+          style={applyRotation ? { width: "100dvh", height: "100dvw" } : { width: "100%", height: "100%" }}
         >
-          ✕
-        </button>
-      </div>
-
-      <div className="relative flex flex-1 items-center justify-center overflow-hidden px-2 pb-[calc(1rem+env(safe-area-inset-bottom))]">
-        <SafeMedia
-          // Nouvelle instance à chaque média : repart flouté, chargement propre.
-          key={index}
-          src={current.src}
-          loader={current.loader}
-          kind={current.kind}
-          alt={current.alt}
-          downloadable={current.downloadable}
-          width={current.width}
-          height={current.height}
-          fullscreen
-        />
+          <SafeMedia
+            // Nouvelle instance à chaque média : repart flouté, chargement propre.
+            key={index}
+            src={current.src}
+            loader={current.loader}
+            kind={current.kind}
+            alt={current.alt}
+            downloadable={current.downloadable}
+            width={current.width}
+            height={current.height}
+            fullscreen
+            onRatioChange={setRatio}
+          />
+        </div>
 
         {index > 0 && (
           <button
@@ -158,8 +194,43 @@ export function MediaLightbox({
         )}
       </div>
 
+      {/* Barres en overlay (au-dessus du média plein écran) — dégradé pour
+          rester lisibles sur un média clair sous les boutons. */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 bg-gradient-to-b from-charcoal-900/80 to-transparent pb-8">
+        <div className="pointer-events-auto grid grid-cols-[44px_1fr_44px] items-center gap-3 px-4 pt-[calc(0.75rem+env(safe-area-inset-top))] pb-2">
+          <button
+            type="button"
+            onClick={() => setRotated((r) => !r)}
+            aria-label={t("mediaLightbox.rotate")}
+            aria-pressed={rotated}
+            className={cn(
+              "inline-flex h-11 w-11 items-center justify-center rounded-full text-taupe-200 transition-opacity duration-200 ease-felt hover:text-blush-100",
+              rotateAvailable ? "opacity-100" : "pointer-events-none opacity-0",
+            )}
+          >
+            <span aria-hidden>⟲</span>
+          </button>
+          <span className="text-center text-xs text-taupe-300">
+            {media.length > 1
+              ? t("mediaLightbox.counter", { current: index + 1, total: media.length })
+              : null}
+          </span>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={t("common.close")}
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full text-taupe-200 transition-colors duration-300 ease-felt hover:text-blush-100"
+          >
+            ✕
+          </button>
+        </div>
+      </div>
+
       {media.length > 1 && (
-        <div className="flex items-center justify-center gap-1.5 pb-3" aria-hidden>
+        <div
+          className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-center gap-1.5 bg-gradient-to-t from-charcoal-900/80 to-transparent pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-8"
+          aria-hidden
+        >
           {media.map((_, i) => (
             <span
               key={i}
