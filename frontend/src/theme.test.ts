@@ -7,8 +7,8 @@ describe("theme", () => {
     delete document.documentElement.dataset.theme;
   });
 
-  it("expose les 7 thèmes", () => {
-    expect(THEMES).toEqual(["felted", "red-velvet", "kawaii", "pixel", "cancan", "cuir", "synthwave"]);
+  it("expose les 8 thèmes", () => {
+    expect(THEMES).toEqual(["felted", "red-velvet", "kawaii", "pixel", "cancan", "cuir", "synthwave", "dentelle"]);
   });
 
   it("retombe sur felted par défaut ou si la valeur stockée est inconnue", () => {

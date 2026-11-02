@@ -34,8 +34,9 @@ html[data-theme="kawaii"] {
   --sh-felt: 0 4px 0 rgb(207 45 133 / 0.18), 0 12px 22px -10px rgb(207 45 133 / 0.35);
   --sh-felt-sm: 0 2px 0 rgb(207 45 133 / 0.22);
   --tex-velvet:
-    radial-gradient(circle at 20% 30%, rgb(255 255 255 / 0.9) 1.5px, transparent 2px) 0 0 / 38px 38px,
-    radial-gradient(circle at 70% 70%, rgb(255 126 182 / 0.25) 2px, transparent 2.5px) 0 0 / 46px 46px;
+    radial-gradient(circle at 20% 30%, rgb(255 255 255 / 0.9) 1.5px, transparent 2px),
+    radial-gradient(circle at 70% 70%, rgb(255 126 182 / 0.25) 2px, transparent 2.5px);
+  --tex-velvet-size: 38px 38px, 46px 46px;
   --tex-linen: none;
 }
 /* Les textes `blush-*` sont pensés pour un fond sombre : en thème clair on les
@@ -86,8 +87,9 @@ html[data-theme="pixel"] {
   --sh-felt: 4px 4px 0 rgb(0 0 0 / 0.65);
   --sh-felt-sm: 2px 2px 0 rgb(0 0 0 / 0.65);
   --tex-velvet:
-    linear-gradient(rgb(255 255 255 / 0.035) 1px, transparent 1px) 0 0 / 16px 16px,
-    linear-gradient(90deg, rgb(255 255 255 / 0.035) 1px, transparent 1px) 0 0 / 16px 16px;
+    linear-gradient(rgb(255 255 255 / 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 0.035) 1px, transparent 1px);
+  --tex-velvet-size: 16px 16px, 16px 16px;
   --tex-linen: none;
 }
 html[data-theme="pixel"] *,
@@ -238,8 +240,9 @@ html[data-theme="cuir"] {
   --sh-felt: 0 3px 8px rgb(0 0 0 / 0.6), inset 0 1px 0 rgb(255 255 255 / 0.07);
   --sh-felt-sm: 0 1px 3px rgb(0 0 0 / 0.6);
   --tex-velvet:
-    radial-gradient(circle at 20% 30%, rgb(255 255 255 / 0.035) 1px, transparent 1.6px) 0 0 / 7px 7px,
-    radial-gradient(circle at 70% 60%, rgb(0 0 0 / 0.28) 1px, transparent 1.7px) 0 0 / 9px 9px;
+    radial-gradient(circle at 20% 30%, rgb(255 255 255 / 0.035) 1px, transparent 1.6px),
+    radial-gradient(circle at 70% 60%, rgb(0 0 0 / 0.28) 1px, transparent 1.7px);
+  --tex-velvet-size: 7px 7px, 9px 9px;
   --tex-linen:
     repeating-linear-gradient(45deg, rgb(255 255 255 / 0.015) 0 1px, transparent 1px 3px),
     repeating-linear-gradient(-45deg, rgb(0 0 0 / 0.12) 0 1px, transparent 1px 3px);
@@ -285,8 +288,9 @@ html[data-theme="synthwave"] {
   --sh-felt-sm: 0 0 8px rgb(255 60 172 / 0.25);
   --tex-velvet:
     radial-gradient(ellipse at 50% 112%, rgb(255 60 172 / 0.28), transparent 55%),
-    linear-gradient(rgb(255 60 172 / 0.06) 1px, transparent 1px) 0 0 / 40px 40px,
-    linear-gradient(90deg, rgb(45 226 230 / 0.05) 1px, transparent 1px) 0 0 / 40px 40px;
+    linear-gradient(rgb(255 60 172 / 0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(45 226 230 / 0.05) 1px, transparent 1px);
+  --tex-velvet-size: auto, 40px 40px, 40px 40px;
   --tex-linen: none;
 }
 html[data-theme="synthwave"] h1 {
@@ -310,6 +314,112 @@ html[data-theme="synthwave"] button[data-variant="primary"] {
 }
 html[data-theme="synthwave"] button[data-variant="primary"]:hover {
   filter: brightness(1.12);
+}
+
+/* ---- Dentelle noire : nid d'abeille, paisley, éventails, picot et petit nœud ----
+   Inspirée d'un porte-jarretelles en dentelle : cartes "peau" ivoire/rose sous un
+   voile de dentelle noire. Motifs en SVG inline (couleur fixe #140C0F). */
+html[data-theme="dentelle"] {
+  --blush-50: 246 236 230;
+  --blush-100: 238 218 214;
+  --blush-200: 214 168 176;
+  --blush-300: 184 130 142;
+  --spice-300: 214 150 164;
+  --spice-400: 190 110 128;
+  --spice-500: 160 78 98;
+  --spice-600: 128 52 72;
+  --bordeaux-500: 110 30 52;
+  --bordeaux-600: 88 22 42;
+  --bordeaux-700: 66 16 32;
+  --charcoal-900: 22 14 17;
+  --charcoal-800: 34 22 27;
+  --charcoal-700: 48 32 38;
+  --charcoal-600: 78 52 60;
+  --taupe-100: 244 232 226;
+  --taupe-200: 226 210 205;
+  --taupe-300: 184 164 162;
+  --taupe-400: 150 128 128;
+  --ff-serif: "Cormorant Garamond", Georgia, serif;
+  --r-xl: 0.375rem;
+  --r-2xl: 0.5rem;
+  --r-3xl: 0.625rem;
+  --sh-felt: 0 3px 10px rgb(0 0 0 / 0.55), inset 0 0 0 1px rgb(20 12 15 / 0.35);
+  --sh-felt-sm: 0 1px 4px rgb(0 0 0 / 0.5);
+  --tex-velvet: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='49' viewBox='0 0 28 49'%3E%3Cpath fill='%23140C0F' fill-opacity='.11' d='M13.99 9.25l13 7.5v15l-13 7.5L1 31.75v-15l12.99-7.5zM3 17.9v12.7l10.99 6.34 11-6.35V17.9l-11-6.34L3 17.9zM0 15l12.98-7.5V0h-2v6.35L0 12.69v2.3zm0 18.5L12.98 41v8h-2v-6.85L0 35.81v-2.3zM15 0v7.5L27.99 15H28v-2.31h-.01L17 6.35V0h-2zm0 49v-8l12.99-7.5H28v2.31h-.01L17 42.15V49h-2z'/%3E%3C/svg%3E"), radial-gradient(circle at 50% 120%, rgb(160 78 98 / 0.18), transparent 60%);
+  --tex-velvet-size: 14px 24.5px, auto;
+  --tex-linen: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='96' viewBox='0 0 96 96'%3E%3Cg transform='translate(0 0)' fill='none' stroke='%23140C0F' stroke-opacity='.17' stroke-width='1.6' stroke-linecap='round'%3E%3Cpath d='M20 70C8 52 22 28 44 30C62 32 66 54 50 62C40 67 30 60 34 52C37 46 46 48 44 54'/%3E%3Cpath d='M26 62C20 52 28 38 42 38'/%3E%3C/g%3E%3Cg transform='translate(0 0)' fill='%23140C0F' fill-opacity='.17'%3E%3Ccircle cx='38' cy='46' r='1.6'/%3E%3Ccircle cx='30' cy='44' r='1.6'/%3E%3Ccircle cx='34' cy='36' r='1.4'/%3E%3Ccircle cx='52' cy='50' r='1.6'/%3E%3C/g%3E%3Cg transform='translate(96 96) rotate(180) scale(.8) translate(10 6)' fill='none' stroke='%23140C0F' stroke-opacity='.17' stroke-width='1.6' stroke-linecap='round'%3E%3Cpath d='M20 70C8 52 22 28 44 30C62 32 66 54 50 62C40 67 30 60 34 52C37 46 46 48 44 54'/%3E%3Cpath d='M26 62C20 52 28 38 42 38'/%3E%3C/g%3E%3Cg transform='translate(96 96) rotate(180) scale(.8) translate(10 6)' fill='%23140C0F' fill-opacity='.17'%3E%3Ccircle cx='38' cy='46' r='1.6'/%3E%3Ccircle cx='30' cy='44' r='1.6'/%3E%3Ccircle cx='34' cy='36' r='1.4'/%3E%3Ccircle cx='52' cy='50' r='1.6'/%3E%3C/g%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='49' viewBox='0 0 28 49'%3E%3Cpath fill='%23140C0F' fill-opacity='.11' d='M13.99 9.25l13 7.5v15l-13 7.5L1 31.75v-15l12.99-7.5zM3 17.9v12.7l10.99 6.34 11-6.35V17.9l-11-6.34L3 17.9zM0 15l12.98-7.5V0h-2v6.35L0 12.69v2.3zm0 18.5L12.98 41v8h-2v-6.85L0 35.81v-2.3zM15 0v7.5L27.99 15H28v-2.31h-.01L17 6.35V0h-2zm0 49v-8l12.99-7.5H28v2.31h-.01L17 42.15V49h-2z'/%3E%3C/svg%3E");
+  --tex-linen-size: 88px 88px, 14px 24.5px;
+  --lace-picot: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8' viewBox='0 0 8 8'%3E%3Crect width='8' height='3' fill='%23140C0F'/%3E%3Ccircle cx='4' cy='4.6' r='2' fill='%23140C0F'/%3E%3C/svg%3E");
+  --lace-bow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='14' viewBox='0 0 24 14'%3E%3Cpath fill='%23140C0F' d='M12 7C6 0 0 2 1 7C0 12 6 14 12 7ZM12 7C18 0 24 2 23 7C24 12 18 14 12 7Z'/%3E%3Ccircle cx='12' cy='7' r='2.2' fill='%23140C0F'/%3E%3C/svg%3E");
+  --lace-fan: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='40' height='22' viewBox='0 0 40 22'%3E%3Cpath fill='%23140C0F' d='M0 0H40V5C40 15 32 22 20 22C8 22 0 15 0 5Z'/%3E%3Cellipse cx='20' cy='11' rx='2.3' ry='6.2' fill='%23F6ECE6' transform='rotate(-56 20 3)'/%3E%3Cellipse cx='20' cy='11' rx='2.3' ry='6.2' fill='%23F6ECE6' transform='rotate(-28 20 3)'/%3E%3Cellipse cx='20' cy='11' rx='2.3' ry='6.2' fill='%23F6ECE6' transform='rotate(0 20 3)'/%3E%3Cellipse cx='20' cy='11' rx='2.3' ry='6.2' fill='%23F6ECE6' transform='rotate(28 20 3)'/%3E%3Cellipse cx='20' cy='11' rx='2.3' ry='6.2' fill='%23F6ECE6' transform='rotate(56 20 3)'/%3E%3Ccircle cx='6' cy='3' r='1.3' fill='%23F6ECE6'/%3E%3Ccircle cx='34' cy='3' r='1.3' fill='%23F6ECE6'/%3E%3C/svg%3E");
+}
+html[data-theme="dentelle"] h1,
+html[data-theme="dentelle"] h2,
+html[data-theme="dentelle"] h3 {
+  font-style: italic;
+}
+html[data-theme="dentelle"] .surface {
+  position: relative;
+  border-color: rgb(20 12 15 / 0.7);
+}
+html[data-theme="dentelle"] .surface[data-tone="velvet"],
+html[data-theme="dentelle"] .surface[data-tone="blush"] {
+  background-color: rgb(246 236 230);
+  padding-top: 1.75rem;
+  padding-bottom: 2rem;
+}
+html[data-theme="dentelle"] .surface[data-tone="velvet"] {
+  --taupe-100: 34 12 20;
+  --taupe-200: 52 30 36;
+  --taupe-300: 100 70 78;
+  --taupe-400: 120 88 96;
+  --blush-100: 56 16 30;
+  --blush-200: 90 30 48;
+  --spice-300: 128 52 72;
+  --spice-400: 150 60 82;
+  --charcoal-900: 248 240 235;
+  --charcoal-800: 246 236 230;
+  --charcoal-700: 232 212 208;
+  --charcoal-600: 190 150 156;
+}
+html[data-theme="dentelle"] .surface[data-tone="velvet"] :is(.bg-bordeaux-700, .bg-bordeaux-600, .bg-spice-600, .bg-spice-500) {
+  --blush-100: 246 236 230;
+  --blush-200: 232 200 206;
+}
+/* Galon picot + petit nœud en haut, éventails festonnés en bas. */
+html[data-theme="dentelle"] .surface:is([data-tone="velvet"], [data-tone="blush"])::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 16px;
+  background:
+    var(--lace-bow) center 3px / 26px 15px no-repeat,
+    var(--lace-picot) 0 0 / 8px 8px repeat-x;
+  pointer-events: none;
+}
+html[data-theme="dentelle"] .surface:is([data-tone="velvet"], [data-tone="blush"])::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 22px;
+  background: var(--lace-fan) 0 0 / 40px 22px repeat-x;
+  pointer-events: none;
+}
+html[data-theme="dentelle"] .surface[data-tone="deep"] {
+  border-color: rgb(214 168 176 / 0.5);
+}
+/* Bouton principal : satin noir, bord picot (pointillé). */
+html[data-theme="dentelle"] button[data-variant="primary"] {
+  background-color: rgb(20 12 15);
+  color: rgb(246 236 230);
+  border: 2px dotted rgb(246 236 230 / 0.6);
+}
+html[data-theme="dentelle"] button[data-variant="primary"]:hover {
+  background-color: rgb(46 28 36);
 }
 
 /* Kawaii (clair) : les accents pâles pensés pour fond sombre passent en rose franc. */

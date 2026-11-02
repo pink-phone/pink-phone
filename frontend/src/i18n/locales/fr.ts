@@ -401,6 +401,7 @@ export const fr = {
     themeCancan: "French cancan",
     themeCuir: "Cuir",
     themeSynthwave: "Néon synthwave",
+    themeDentelle: "Dentelle",
     hotAnim: "Effet braise 🔥",
     hotAnimHint:
       "Halo et particules animés sur les états chauds. Désactive pour un rendu calme.",

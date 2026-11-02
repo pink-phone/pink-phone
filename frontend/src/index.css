@@ -150,9 +150,11 @@
 /* Textures subtiles (velours / lin feutré) — bruit doux non agressif. */
 @utility bg-felt-velvet {
   background-image: var(--tex-velvet);
+  background-size: var(--tex-velvet-size, auto);
 }
 @utility bg-felt-linen {
   background-image: var(--tex-linen);
+  background-size: var(--tex-linen-size, auto);
 }
 
 /* space-y-v3-N : espacement vertical avec la sémantique de Tailwind 3

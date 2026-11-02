@@ -401,6 +401,7 @@ export const en: Resources = {
     themeCancan: "French cancan",
     themeCuir: "Leather",
     themeSynthwave: "Neon synthwave",
+    themeDentelle: "Lace",
     hotAnim: "Ember effect 🔥",
     hotAnimHint:
       "Animated halo and particles on hot states. Turn off for a calmer look.",
