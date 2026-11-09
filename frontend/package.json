@@ -33,7 +33,7 @@
     "i18next-browser-languagedetector": "^8.2.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-i18next": "^17.0.8"
+    "react-i18next": "^18.0.0"
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.4",
