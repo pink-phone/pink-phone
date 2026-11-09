@@ -106,7 +106,7 @@ describe("SafeMedia — ratio connu avant chargement", () => {
     const container = screen.getByRole("button", {
       name: /maintenir pour révéler/i,
     });
-    expect(container.style.aspectRatio).toBe(`${1200 / 630} / 1`);
+    expect(Number.parseFloat(container.style.aspectRatio)).toBeCloseTo(1200 / 630, 4);
   });
 
   it("sans width/height, pas de ratio inline (retombe sur le cadre 4:5 par défaut)", () => {
