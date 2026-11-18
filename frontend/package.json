@@ -36,7 +36,7 @@
     "react-i18next": "^18.0.0"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.6.6",
+    "@biomejs/biome": "2.6.8",
     "@storybook/addon-docs": "10.6.7",
     "@storybook/react": "10.6.7",
     "@storybook/react-vite": "10.6.7",

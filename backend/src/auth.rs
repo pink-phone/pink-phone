@@ -97,7 +97,7 @@ pub fn issue_token(secret: &str, user_id: Uuid) -> ApiResult<String> {
     encode(
         &Header::default(),
         &claims,
-        &EncodingKey::from_secret(secret.as_bytes()),
+        &EncodingKey::from_secret(secret.as_bytes()).map_err(|_| ApiError::Internal)?,
     )
     .map_err(|_| ApiError::Internal)
 }
@@ -109,7 +109,7 @@ pub fn verify_token(secret: &str, token: &str) -> ApiResult<Claims> {
     validation.set_audience(&[JWT_ISS_AUD]);
     let data = decode::<Claims>(
         token,
-        &DecodingKey::from_secret(secret.as_bytes()),
+        &DecodingKey::from_secret(secret.as_bytes()).map_err(|_| ApiError::Unauthorized)?,
         &validation,
     )
     .map_err(|_| ApiError::Unauthorized)?;
@@ -201,7 +201,7 @@ mod tests {
         let token = encode(
             &Header::default(),
             &claims,
-            &EncodingKey::from_secret(secret.as_bytes()),
+            &EncodingKey::from_secret(secret.as_bytes()).unwrap(),
         )
         .unwrap();
         assert!(verify_token(secret, &token).is_err());
